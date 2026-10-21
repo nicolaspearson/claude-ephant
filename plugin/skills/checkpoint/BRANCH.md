@@ -17,8 +17,7 @@ Where its sections differ further:
   base equal to HEAD means nothing is unpushed. The change list takes
   `git -C <root> diff <base> --name-status -M` in place of `git diff HEAD`
 - §2: `git log <base>..HEAD`'s subjects join what was asked
-- §3: the brief names the base and the commit range, and that
-  `ele checkpoint density` measures only uncommitted lines, so committed files
-  get their comments swept by hand
+- §3: the brief names the base and the commit range, and that the prose
+  reviewer runs `ele checkpoint density --ref <base> <root>`
 - §8: only the uncommitted part gets a commit; what is committed is already
   there

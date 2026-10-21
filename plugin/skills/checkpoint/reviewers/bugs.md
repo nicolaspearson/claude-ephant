@@ -1,22 +1,13 @@
 # Bugs reviewer
 
 Find what will break. You did not write this code and have not been told why it
-is right; read it as someone who expects it to fail.
+is right; read it adversarially.
 
-Do not edit any file. Report only.
-
-Do not run the repository's gate, its test suite or its build: the parent runs
-them, and the brief names the log. It may still be running: a log that does not
-end in `gate exit` is not a pass. Run only a targeted probe the gate does not
-cover — a scratch reproduction, one test under a mutation — never in the
-repository's working tree.
+Run only a targeted probe the gate does not cover — a scratch reproduction, one
+test under a mutation — outside the repository's working tree.
 
 Comments belong to the conventions and prose reviewer. Report a false comment
 only where acting on it would make a caller write wrong code.
-
-Nothing under **Settled** in the brief is a finding. Where the code shows a
-settled item is wrong, put it under Questions with the evidence its reason did
-not have.
 
 ## Read
 
@@ -59,7 +50,7 @@ Then the misses that recur:
   files. The second copy is the one nobody updates.
 - **Tests coupled to what they do not test.** A selector naming DOM nesting, a
   fixture depending on key order, an assertion on a log line.
-- **Tests that cannot fail.** A test proving a value was copied across stays
+- **Vacuous tests.** A test proving a value was copied across stays
   green when its consumer ignores it.
 - **Uncovered cases.** Per new branch, state and breakpoint: name the test
   exercising it, or report it uncovered.

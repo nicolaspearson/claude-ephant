@@ -8,8 +8,8 @@ meant to do, so it reads the diff as confirmation and finds what it intended
 rather than what is there. Reviews run in subagents that have seen only the
 brief.
 
-Every review runs fresh. No pass is credited from earlier in the session; the one
-exception is a tree whose bytes the last checkpoint already reviewed.
+Every review runs fresh: no pass is credited from earlier in the session, except
+for a tree §1 finds covered or a delta of `0 changed`.
 
 ## 1. Scope
 
@@ -41,16 +41,15 @@ Read the two status columns:
   cherry-pick, revert or conflicted stash. Stop and say so; this is not a
   checkpoint.
 - **First column `M`, `A`, `R`, `C` or `T`, second `M`, `D` or `T`** — the staged
-  copy differs from the working tree. Reviewers read the working tree and a plain
-  commit ships the staged copy, so list these paths for the brief and for §8.
+  copy differs from the working tree; list these paths for the brief and for §8.
 
-List any rename by both its old and new path: §8's commit needs both.
+List any rename by both its old and new path.
 
 Nothing uncommitted and nothing untracked: say so and stop, this is not a
 checkpoint — unless commits sit unpushed, in which case offer a branch review
-(below). A clean tree alone is not that — a symlinked or unversioned directory
-holds work git will never report, reviewed against a saved copy of what it
-replaced, or against the file itself where there is none.
+(below). A clean tree alone is not that — files outside git, in a symlinked or
+unversioned directory, hold work git will never report, reviewed against a saved
+copy of what they replaced, or against the file itself where there is none.
 
 **Branch scope**, when the user asks for a review of the branch or accepts the
 offer: read `BRANCH.md` beside this file first; it changes what the sections
@@ -84,21 +83,23 @@ path the formatter returned to HEAD; it leaves the change list too:
 The script writes `checkpoint-<repo>.diff` and the fingerprint
 `checkpoint-<repo>.hash` for §7, `<repo>` being the basename of git's root for
 it. It refuses a path with no change and prints the line count and the mode this
-root alone implies. It also tells the Stop hook this session's checkpoint is
-running, until §11 records it, `close` ends it (Stopping early, below), or two
-hours pass. Only this freeze passes `--start`: it starts the run's clock, which a
-run abandoned earlier in the session would otherwise keep. §7's freeze continues
-the run without it.
+root alone implies.
 
-**Delta scope** is the freeze's call, not yours. Where the last checkpoint froze
-a path on the change list and its record still holds those bytes, the freeze
-also writes `checkpoint-<repo>.delta.diff`: each such path against the bytes
-that checkpoint reviewed, the rest — and both sides of a rename — against HEAD.
-It says how many paths changed since, and the mode it prints is the delta's.
-`0 changed`: nothing is new to review; say so, run `close`, and stop. A branch
-freeze writes no delta. No delta file: the scope is uncommitted.
+**The run.** This freeze opens the run, and the Stop hook treats this session's
+checkpoint as in progress while it is open. Only this freeze passes `--start`:
+it starts the run's clock, which a run abandoned earlier in the session would
+otherwise keep; §7's freeze continues the run without it. Each freeze keeps the
+run open for two hours; §11's `record` or Stopping early's `close` ends it.
+`record` refuses without an open run of this session: none frozen, closed,
+another session's, a last freeze over two hours old, or `CLAUDE_CODE_SESSION_ID`
+unset.
 
-§1 is done when every repository the change touches is frozen.
+**Delta scope**: when the freeze prints `changed since the last checkpoint`,
+read `DELTA.md` beside this file; it can end the checkpoint here.
+
+§1 is done when every repository the change touches is frozen, its freeze naming
+every path on the change list, and the staged-differently and rename lists exist
+or are stated empty.
 
 ## 2. Gather
 
@@ -146,11 +147,7 @@ value or is stated empty.
 One brief, shared by every reviewer, every path absolute:
 
 - Each repository root and its frozen diff.
-- The scope. Delta: the delta diff too, and the rule that findings fall on
-  lines the delta changes, the full diff being context; a finding outside it
-  is reported only where the delta's change makes it newly wrong. A spec
-  finding of a missing requirement falls on no line and is reported whatever
-  the scope.
+- The scope. Delta: as `DELTA.md` says.
 - The change list, untracked and outside-git files marked as such.
 - The paths §1 found staged differently from the working tree.
 - The convention file paths.
@@ -161,17 +158,23 @@ One brief, shared by every reviewer, every path absolute:
 - **Observed**: with a quoted item, what was run or measured toward it — a
   real-session run, a measurement — and where its output is. This is evidence,
   not the author's case, and the spec reviewer has no other way to see it.
-- **Settled — do not re-raise**: what §2 gathered, each with its reason. A
-  reviewer contradicting one reports it only as a question carrying evidence the
-  reason did not have.
-- The path §4's gate log is written to.
+- **Settled — do not re-raise**: what §2 gathered, each with its reason.
+  Settled items are context: a reviewer contradicting one reports it only as a
+  question carrying evidence the reason did not have.
+- **Report only**: reviewers edit nothing and run no gate, test suite or build.
+  The parent runs the gate; its log is at `<path>`, finished once it ends in
+  `gate exit`.
 - **Attack surfaces**: what the author is least sure of. State combinations that
   were never enumerated, paths never exercised, what a user sees when the new
   error fires, a trap the codebase documents. Specific beats thorough — "every
   combination of these four fields present or absent, against where each
   resumes" finds what "check edge cases" does not.
 
-Leave out the author's case for why the code is right.
+The brief carries facts, quotes and doubts; the reviewer builds its own case for
+the code.
+
+§3 is done when every field above has a value or is stated empty, every path is
+absolute, and Attack surfaces names at least one specific input, state or path.
 
 ## 4. Review
 
@@ -185,23 +188,10 @@ fetched ticket: in full mode as a third reviewer, launched with the other two;
 in small mode its file, `reviewers/spec.md`, joins the single reviewer's, which
 then also reports under §9's Spec reviewer label.
 
-Start the gate in the background as the reviewers launch: the checks §2 listed,
-against the tree the reviewers read. Nothing edits that tree until the checks
-finish: a fix or a mutation they read fails them spuriously, or passes them on
-bytes nobody shipped. Capture to a file with the exit status as its last line —
-a log without `gate exit` is still running, not a pass:
-
-```sh
-S=<scratchpad>; { <gate command>; echo "gate exit $?"; } > "$S/gate.log" 2>&1
-grep -nE 'FAIL|panic|Error|timed out|gate exit' "$S/gate.log"
-```
-
-Full mode: launch them all in one message so they run in parallel, each as the
-subagent type below. Each prompt is the brief plus one line: read the reviewer
-file below first and follow it.
-
-The reviewer files sit beside this file, under `reviewers/`. Pass them as
-absolute paths — a subagent does not load this skill and cannot resolve them.
+**Launch.** Full mode: launch them all in one message so they run in parallel,
+each as the subagent type below. Each prompt is the brief plus one line: read
+the reviewer file below, by absolute path, first and follow it. The reviewer
+files are under `reviewers/` beside this file.
 
 | Reviewer              | Subagent type             | Instructions                     |
 | --------------------- | ------------------------- | -------------------------------- |
@@ -209,39 +199,54 @@ absolute paths — a subagent does not load this skill and cannot resolve them.
 | Conventions and prose | `ele:checkpoint-reviewer` | `reviewers/conventions-prose.md` |
 | Spec                  | `ele:checkpoint-reviewer` | `reviewers/spec.md`              |
 
-`ele:checkpoint-reviewer` runs a cheaper model. Where that type is not listed, use
-`general-purpose`.
+Where `ele:checkpoint-reviewer` is not listed, use `general-purpose`.
 
 Without an Agent tool — when this skill itself runs in a subagent, for instance —
 run every review in this file inline, one after another, each from its reviewer
 file, and say in the report that the author reviewed its own work.
 
+**Gate.** Start it in the background as the reviewers launch: the checks §2
+listed, against the tree the reviewers read. Edits wait for `gate exit`: a fix
+or a mutation they read fails them spuriously, or passes them on bytes nobody
+shipped. Capture to a file with the exit status as its last line:
+
+```sh
+S=<scratchpad>; { <gate command>; echo "gate exit $?"; } > "$S/gate.log" 2>&1
+grep -nE 'FAIL|panic|Error|timed out|gate exit' "$S/gate.log"
+```
+
+§4 is done when every reviewer the mode and the spec rule call for has reported
+— bugs and conventions-prose each with a Verdicts list naming every file on the
+change list, spec with a verdict per requirement — and the gate log exists.
+
 ## 5. Verify
 
-A finding is a claim, and a reviewer can be wrong. Before fixing a bugs finding,
-check it against the code: trace the input it names to the wrong output, or
-reproduce it. A prose or conventions finding needs only the cited line read — as
-of 2026-10-15 under 3% of them were refuted. A spec finding is checked against
-the item's quoted words and the diff: a missing requirement by a search of the
-code for it, or of the brief's Observed field where it needs something observed;
-an unasked change by naming the requirement that needed it, if any. Confirmed,
-it is fixed below — except a missing or partial requirement the brief says this
-change does not set out to deliver: that is logged `deliberate` and left to
-§10's `next:` line, and an unasked change, which goes to the user: fixing it
-means reverting work they may want kept. Refuted, list it with the reason. Neither, it goes in the
-report as a question.
-A finding against a settled item is not applied on the reviewer's word: it goes
-to the user.
+Before fixing a bugs finding, check it against the code: trace the input it
+names to the wrong output, or reproduce it. A prose or conventions finding needs
+only the cited line read — as of 2026-10-15 under 3% of them were refuted. A
+spec finding is checked against the item's quoted words and the diff: a missing
+requirement by a search of the code for it, or of the brief's Observed field
+where it needs something observed; an unasked change by naming the requirement
+that needed it, if any.
+
+Give each finding one of §12's verdicts:
+
+- **`deliberate`** — confirmed, and a missing or partial requirement the brief
+  says this change does not set out to deliver: left to §10's `next:` line.
+- **`fixed`** — confirmed, and fixed below.
+- **`open`** — neither confirmed nor refuted: reported as a question. A
+  confirmed unasked change, or a finding against a settled item, goes to the
+  user and stays `open` until they rule: fixing an unasked change means
+  reverting work they may want kept, and a settled item is not overturned on a
+  reviewer's word.
+- **`refuted`** — listed in the report with the reason.
 
 Reviewers overlap. Merge a finding two of them raised before verifying it, and
 log it once.
 
-Keep a running list for §12: every finding, from a reviewer, the gate, a
-mutation or the user, with the stage that caught it, its source and any other
-source that raised it, a kebab-case category, its severity, the verdict, whether
-the change, a fix in this run or older code introduced it, and a one-line
-summary. §12 defines each field. A finding counts once, at the first stage that
-caught it.
+Keep a running list for §12 of every finding — from a reviewer, the gate, a
+mutation or the user — with the fields §12 logs. A finding counts once, at the
+first stage that caught it.
 
 Then, in the parent, once the gate has finished, fix the confirmed findings. As
 of 2026-10-15 three in four re-review findings were something a fix broke,
@@ -254,12 +259,16 @@ mostly comments and ordering, so:
 
 Then:
 
-- **Every new or changed test fails once, in this run.** Mutate the code it
-  covers, watch it fail for the stated reason, restore. A mutation run before
+- **Every new or changed test goes red once, in this run.** Mutate the code it
+  covers, watch it go red for the stated reason, restore. A mutation run before
   the checkpoint does not count. Confirm the mutation landed before reading a
   non-failure — an anchor that did not match leaves the code untouched, and the
   passing test then looks exactly like one that cannot fail.
 - **Every scripted edit landed.** Grep for the new string, not the old one.
+
+§5 is done when every finding on the running list has a verdict, every confirmed
+one is fixed or routed as above, every new or changed test has gone red in this
+run, and every scripted edit's new string is found.
 
 ## 6. Gate
 
@@ -270,6 +279,10 @@ A red check is pre-existing only once it fails the same way at HEAD: read
 `HEAD-EXPORT.md` beside this file for the export and for when such a check
 counts as green. Any check that neither passes nor counts as green, and is not
 being fixed in this run: see Stopping early.
+
+§6 is done when the latest gate log ends in `gate exit` and every §2 check is
+passing, counted green per `HEAD-EXPORT.md`, unverified, or handed to Stopping
+early.
 
 ## 7. Re-review the fixes
 
@@ -289,11 +302,12 @@ Freeze again, into a second directory so the first freeze survives; git cannot
 diff the fixes alone without a stash or commit. Create the directory first. Name
 the change list plus every file a fix created, less any path a fix returned to
 HEAD and any untracked file it deleted — the freeze refuses a path with nothing
-to diff. Launch one fresh `ele:checkpoint-reviewer`, or `general-purpose` where that
-type is not listed, with both frozen diffs, the files the fixes touched, the
-findings they fixed and, when the spec reviewer ran, the brief's quoted item
-with what the change sets out to deliver and its Observed field. It reads the
-reviewer files that apply, scoped to what the fixes changed:
+to diff. Launch one fresh `ele:checkpoint-reviewer`, Bugs included on purpose,
+or `general-purpose` where that type is not listed, with both frozen diffs, the
+files the fixes touched, the findings they fixed, the brief's Settled and Report
+only fields and, when the spec reviewer ran, the brief's quoted item with what
+the change sets out to deliver and its Observed field. It reads the reviewer
+files that apply, scoped to what the fixes changed:
 
 - **Bugs**, if any code changed: what did the fixes break or fail to close?
 - **Conventions**, if anything was renamed, moved or reordered.
@@ -301,8 +315,10 @@ reviewer files that apply, scoped to what the fixes changed:
 - **Spec**, if a fix closed a spec finding or touched what the item names: does
   each requirement it reached still hold?
 
-One round. Anything it finds is verified and fixed, or reported — not a third
-review.
+One round: anything it finds is verified and then fixed or reported.
+
+§7 is done when every fingerprint matched, or the re-reviewer reported on each
+reviewer file that applied and each of its findings has a verdict.
 
 ## 8. Commit message
 
@@ -315,6 +331,9 @@ a rename by both its old and new path. A commit given paths takes their
 working-tree copies and leaves anything else staged where it is, so the
 staged-differently paths from §1 ship as reviewed and work the user staged for
 another commit stays out.
+
+§8 is done when every path on the change list appears in exactly one printed
+commit: both sides of each rename, and each untracked path also in an `add`.
 
 ## 9. Report
 
@@ -336,7 +355,9 @@ and Prose ones when the skill call has scrolled out of its view.
 - The gate result, per CI check, naming any that could not run here and any red
   only on failures proven at HEAD.
 
-"Done, tests pass" has skipped the checkpoint.
+§9 is done when every file on the change list carries a verdict from each
+reviewer that ran, or is named unreviewed, and every entry on §5's running list
+appears in the report, under its reviewer's label where a reviewer raised it.
 
 ## 10. Plan
 
@@ -367,6 +388,10 @@ whose behaviour nobody has observed gets a progress line, not a tick.
 Write it on approval, before §11, so the record covers it. The plan file joins
 the change's commit: reprint §8's commands with its path.
 
+§10 is done when each touched repository's plan state is reported — no active
+plan, no item worked on, or the item with a proposed tick or progress line — and
+any approved write is in the file.
+
 ## 11. Record
 
 Once every check passes or counts as green under §6, §7 has run or found
@@ -380,16 +405,17 @@ is fixed or reported, per repository:
 A record taken before the fixes marks unreviewed bytes as reviewed, and the next
 checkpoint stops on it.
 
-It refuses without an open run of this session: none frozen, closed, another
-session's, a last freeze over two hours old, or `CLAUDE_CODE_SESSION_ID` unset.
-Run §7's fingerprint check first, since a new freeze overwrites the saved
-fingerprint; then freeze the change list again and record.
+It refuses without an open run of this session (§1, The run). Run §7's
+fingerprint check first, since a new freeze overwrites the saved fingerprint;
+then freeze the change list again and record.
+
+§11 is done when `record` prints `recorded: <root>` for every repository.
 
 ## 12. Log
 
 Log the run, once per checkpoint, against the repository the change is
-mostly in. `/ele:checkpoint-stats` tunes this skill from the log, so a finding left
-out is a gap the stats cannot show:
+mostly in. `/ele:checkpoint-stats` tunes this skill from the log, so a finding
+left out is a gap the stats cannot show:
 
 ```sh
 ele checkpoint log <root> <<'EOF'
@@ -429,14 +455,17 @@ EOF
 - `verdict`: `deliberate` (confirmed and left on purpose), `fixed`, `open`
   (reported as a question), `refuted`.
 
-`ele checkpoint log` adds `duration`, seconds since the freeze that opened the run, when a
-freeze recorded one, and refuses a record the stats would misread, naming the field.
+`ele checkpoint log` adds `duration`, seconds since the freeze that opened the
+run, when a freeze recorded one, and refuses a record the stats would misread,
+naming the field.
+
+§12 is done when `ele checkpoint log` prints `logged: <root>` with one finding
+per entry on the running list.
 
 ## Stopping early
 
 A checkpoint that stops without a record — a red check §6 does not count as
-green, the user calling it off — ends the run, so the Stop hook stops treating it
-as in progress:
+green, the user calling it off — ends the run (§1, The run):
 
 ```sh
 <premigration>/checkpoint-reviewed.sh close <root>
@@ -449,3 +478,5 @@ session. The script refuses a glob that matches an arbitrary path, such as `*`,
 ```sh
 <premigration>/checkpoint-reviewed.sh optout <root> "<glob>" ...
 ```
+
+Stopping early is done when `close` prints `closed: <root>` per repository.

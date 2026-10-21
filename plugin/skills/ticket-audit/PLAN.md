@@ -2,8 +2,9 @@
 
 An ele plan, a Markdown file under `.documentation/plans/`, audits as a map: each
 item under `## Actions` or `## Inbox`, its bullet line and indented body, stands
-for a ticket, a ticked one for a closed ticket and an Inbox one for an untriaged
-ticket, state `inbox`. Where the sections of `SKILL.md` differ for a plan:
+for a ticket, a ticked one for a closed ticket and an unticked Inbox one for an
+untriaged ticket, state `inbox`. Where the sections of `SKILL.md` differ for a
+plan:
 
 - §0: recall the plan's filename and `audit` rather than a map number
 - §1: `ele ticket corpus --plan <path> --out "$AUDIT"`
@@ -11,7 +12,8 @@ ticket, state `inbox`. Where the sections of `SKILL.md` differ for a plan:
   `spec` from the front matter, and read its Context and Decisions as the
   plan's notes. Items carry no ids: name one by its line number and title,
   re-reading the line number before citing it, since every edit moves it. Its
-  ledger key is its text, so a reworded item has no earlier ruling
+  ledger key is the plan's path plus its bullet line, so rewording the bullet or
+  moving the plan loses its rulings
 - Frontier: the open Actions items with no `blocked:` line. A `blocked:` reason
   is prose, not an edge
 - §4 and §5 are what a plan audit is for and are never left out

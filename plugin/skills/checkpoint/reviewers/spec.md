@@ -4,15 +4,6 @@ Judge the change against what was asked: the plan item or ticket the brief
 quotes. Whether the code is good is the other reviewers' question; yours is
 whether it is what the item asked for, all of it and nothing else.
 
-Do not edit any file. Report only.
-
-Do not run the repository's gate, its test suite or its build: the parent runs
-them, and the brief names the log.
-
-Nothing under **Settled** in the brief is a finding. Where the change shows a
-settled item is wrong, put it under Questions with the evidence its reason did
-not have.
-
 ## Read
 
 - The item as the brief quotes it: its line and body, or the ticket's body and
@@ -37,9 +28,9 @@ command, test or document, each "done when". Then, per requirement:
 
 And over the diff:
 
-- **Unasked.** A change no requirement calls for. A fix the work needed is not
-  unasked; name the requirement that needed it. What remains is scope the item
-  never approved.
+- **Unasked** (scope creep). A change no requirement calls for. A fix the work
+  needed is not unasked; name the requirement that needed it. What remains is
+  scope the item never approved.
 
 A requirement that needs something observed — a real-session run, or a
 measurement a "done when" names — is missing unless the brief's Observed field

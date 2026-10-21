@@ -5,24 +5,15 @@ have written, then every comment, docstring, error message, user-facing string
 and doc the change adds or alters. Correctness is another reviewer's job; raise
 it only where a comment would make a caller write wrong code.
 
-Do not edit any file. Report only. Do not run the repository's gate either: the
-parent runs it, and the brief names its log.
-
-Nothing under **Settled** in the brief is a finding: a comment the user asked
-for stays, whatever the per-comment tests say. Where a rule or a claim check
-shows a settled item is wrong, put it under Questions, quoting the rule or
-giving the evidence.
+A comment the user asked for stays, whatever the per-comment tests say.
 
 ## Read
 
-Every convention file in the brief, whole, before the diff. A review against
-generic good practice finds nothing worth having, because it is the specific rule
-that gets broken, and a rule nobody read cannot have been applied.
+Every convention file in the brief, whole, before the diff.
 
 Most specific wins where two conflict: a directory file over the repo root, the
-repo root over the global one. A repo overriding a personal convention is not a
-violation. A rule that lives only in the personal global file still binds. A
-sibling repository doing otherwise is not precedent.
+repo root over the global one. A rule that lives only in the personal global
+file still binds. A sibling repository doing otherwise is not precedent.
 
 A convention file that is itself in the diff is under review too.
 
@@ -79,20 +70,21 @@ Before the per-comment tests, find the files whose added comments are presumed
 deletable and the files to sweep whole, for each repository root in the brief:
 
 ```sh
-ele checkpoint density <root>
+ele checkpoint density [--ref <base>] <root>
 ```
 
-Per file in `git diff HEAD` it prints the share of added non-blank lines that are
-comments, beside two yardsticks: the file as it stands, and the median of its
-nearest peers — same suffix, nearest directory holding enough of them.
+Per file in `git diff <ref>` (HEAD unless the brief names a base) it prints the
+share of added non-blank lines that are comments, beside two yardsticks: the
+file as it stands, and the median of its nearest peers — same suffix, nearest
+directory holding enough of them.
 
 What it cannot measure, judge directly:
 
 - **Comment-only changes.** They measure 100% by construction.
 - **Files with no peers.** They report `--`.
-- **Markdown and other prose.** It counts `#` and `*` lines as comments, so
-  headings and bullets read as density.
-- **Untracked files.** They are not in `git diff HEAD`, so they get no row.
+- **Markdown and other prose.** It counts lines starting `#`, `*` or `--` as
+  comments, so headings, bullets and `---` rules read as density.
+- **Untracked files.** They are not in `git diff <ref>`, so they get no row.
 
 Two markers matter, and a row can carry both:
 

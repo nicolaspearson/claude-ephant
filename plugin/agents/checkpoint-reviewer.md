@@ -1,8 +1,8 @@
 ---
 name: checkpoint-reviewer
-description: Rule-matching review for the ele:checkpoint skill — conventions and prose, the spec, and the re-review of fixes. Launched only by the ele:checkpoint skill, with a brief naming its reviewer file.
+description: Reviewer subagent for the ele:checkpoint skill, launched only by it, with a brief naming the reviewer files to follow.
 model: sonnet
 tools: Bash, Glob, Grep, Read
 ---
 
-Follow the reviewer file the brief names. Report only; edit nothing.
+Follow the reviewer files the brief names. Report only; edit nothing.
