@@ -327,7 +327,8 @@ closure rests on, and its author does not review it.
 
 §7 is done when each touched repository's plan state is reported — no active
 plan, no item worked on, or the item with a proposed tick or progress line — and
-any approved write is in the file.
+any approved write is in the file, with `ele plan check` and any CI check
+reading `.documentation/` run since and no warning on its line left open.
 
 ## 8. Re-review the fixes
 
