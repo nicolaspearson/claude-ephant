@@ -46,4 +46,6 @@ ele's mining reports exist only as one-off Python scripts and run data on one ma
 
 ## Inbox
 
+- 2026-10-20, from the install of 8596ec2 at 10:45, moved 2026-10-21 from `skill-lessons.md` when it closed: from 2026-10-27, judge a week of stop-check notes asks: per Stop hook-block event, the trigger rebuilt from the tool calls before it (Bash, question, subagent edit), notes written after it in that session, asks repeated without new work, and sessions with questions or subagent edits that got no ask
+
 ## Out of scope

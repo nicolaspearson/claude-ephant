@@ -10,6 +10,7 @@ Decided 2026-10-15.
 - `notes/`, `archive/`, `mining/` and `owner-map.json` are the source of truth. The database is a disposable index, rebuilt by `ele reindex`
 - Nothing crosses owners unless asked
 - A note records a decision, a question or a dated fact, never a description of the code. Code descriptions go stale; decisions and questions do not
+- ele's skills put an idea taken from another plugin in their own words rather than call that plugin's skill: its names change between versions, as writing-great-skills became writing-for-agents
 
 ## Names
 
