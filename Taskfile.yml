@@ -92,6 +92,65 @@ tasks:
     cmds:
       - rm -f {{.INSTALLED}}
 
+  upgrade:
+    desc: "Install the latest release's ele, check PATH and its version against the release, then update the plugin. ELE_INSTALL_DIR overrides ~/.local/bin."
+    preconditions:
+      - sh: command -v gh
+        msg: "gh is not installed"
+      - sh: command -v claude
+        msg: "claude is not installed; it updates the plugin"
+    cmds:
+      - |
+        set -eu
+        repo=nicolaspearson/claude-ephant
+        tag=$(gh release view --repo "$repo" --json tagName --jq .tagName)
+        name="ele_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/')"
+        work=$(mktemp -d)
+        trap 'rm -rf "$work"' EXIT
+        gh release download "$tag" --repo "$repo" --pattern "$name.tar.gz" --pattern checksums.txt --dir "$work"
+        expected=$(awk -v file="$name.tar.gz" '$2 == file { print $1 }' "$work/checksums.txt")
+        if command -v sha256sum >/dev/null; then
+          actual=$(sha256sum "$work/$name.tar.gz" | cut -d' ' -f1)
+        elif command -v shasum >/dev/null; then
+          actual=$(shasum -a 256 "$work/$name.tar.gz" | cut -d' ' -f1)
+        else
+          echo "Checking the download needs sha256sum or shasum" >&2
+          exit 1
+        fi
+        if [ -z "$expected" ] || [ "$expected" != "$actual" ]; then
+          echo "$name.tar.gz of $tag does not match checksums.txt" >&2
+          exit 1
+        fi
+        tar -xzf "$work/$name.tar.gz" -C "$work"
+        dir="${ELE_INSTALL_DIR:-$HOME/.local/bin}"
+        mkdir -p "$dir"
+        dir=$(cd "$dir" && pwd -P)
+        install -m 0755 "$work/$name/{{.BINARY}}" "$dir/{{.BINARY}}"
+        found=$(command -v {{.BINARY}} || true)
+        if [ -z "$found" ] || [ "$(cd "$(dirname "$found")" && pwd -P)" != "$dir" ]; then
+          echo "Installed $dir/{{.BINARY}}, but \`{{.BINARY}}\` resolves to ${found:-nothing}. Every copy on PATH, first wins:" >&2
+          which -a {{.BINARY}} >&2 || true
+          exit 1
+        fi
+        if ! installed=$({{.BINARY}} version 2>/dev/null); then
+          echo "\`{{.BINARY}} version\` fails: most likely $tag predates the command, else the binary does not run here" >&2
+          exit 1
+        fi
+        if [ "$installed" != "$tag" ]; then
+          echo "\`{{.BINARY}} version\` prints $installed; the latest release is $tag" >&2
+          exit 1
+        fi
+        echo "Installed {{.BINARY}} $installed at $dir/{{.BINARY}}"
+        for copy in $(which -a {{.BINARY}}); do
+          if [ "$(cd "$(dirname "$copy")" && pwd -P)" != "$dir" ]; then
+            echo "Also on PATH, behind it; remove it: $copy"
+          fi
+        done
+      - claude plugin marketplace update claude-ephant
+      - claude plugin update ele@claude-ephant
+      - echo "Sessions already open load the updated plugin after /reload-plugins, or a restart."
+      - "{{.BINARY}} status"
+
   ##################################################
   # Gates
   ##################################################

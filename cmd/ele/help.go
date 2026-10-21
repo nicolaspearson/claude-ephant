@@ -37,6 +37,7 @@ Index
   reindex         rebuild the index from the archive and notes
   status          data directory, sync state, owner here, plugins
   stats           index counts and disk use
+  version         the release tag this binary was built from, the version Go stamped, or devel
   backup          copy the archive, notes, forgotten notes, mining runs, owner map and index elsewhere
   owner           add an owner, or add or remove a path rule or project entry
 
@@ -95,6 +96,7 @@ var purposes = map[string]string{
 	"ticket corpus":        "Write each ticket of a map or a list, or each Actions and Inbox item of a plan, twice, whitespace collapsed and raw, with a manifest of keys and hashes and a table of each ticket's blockers; with --compare, read a ticket back after a write.",
 	"ticket ledger":        "With record, append a line per audited item carrying the hash of the text the audit read, refusing the whole set on a key or method the audit did not read or run; with rulings, print each earlier ruling on a manifest item and whether its text has changed since.",
 	"usage":                "Tool calls, injected bytes and tokens across sessions, main and subagents.",
+	"version":              "The release tag stamped at build; otherwise the version Go stamped, or devel where it stamped none.",
 }
 
 func isHelpFlag(argument string) bool {

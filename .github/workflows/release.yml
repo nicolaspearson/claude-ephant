@@ -56,12 +56,14 @@ jobs:
       # Pure Go (modernc.org/sqlite), so one runner cross-compiles every target.
       # No version in the names, so releases/latest/download/<name> stays a stable URL.
       - name: Build
+        env:
+          TAG: ${{ needs.release-please.outputs.tag }}
         run: |
           mkdir dist
           for target in darwin/amd64 darwin/arm64 linux/amd64 linux/arm64; do
             name="ele_${target%/*}_${target#*/}"
             mkdir "dist/$name"
-            CGO_ENABLED=0 GOOS="${target%/*}" GOARCH="${target#*/}" go build -trimpath -ldflags "-s -w" -o "dist/$name/ele" ./cmd/ele
+            CGO_ENABLED=0 GOOS="${target%/*}" GOARCH="${target#*/}" go build -trimpath -ldflags "-s -w -X main.version=$TAG" -o "dist/$name/ele" ./cmd/ele
             tar -C dist -czf "dist/$name.tar.gz" "$name"
           done
           (cd dist && sha256sum ele_*.tar.gz > checksums.txt && cat checksums.txt)

@@ -76,6 +76,9 @@ Install's first step again, or `go install …/cmd/ele@latest`. Then:
 /reload-plugins
 ```
 
+`ele version` prints a downloaded binary's release tag, to check against the
+latest release. From a clone, `task upgrade` does all of this; see Contributing.
+
 ## Options
 
 - **Checkpoint gate**, in `/config` under the `ele` plugin: on by default. Other
@@ -91,5 +94,13 @@ workflow runs them on every push to `main`. There, release-please keeps a
 release PR open with the next version and its changelog, worked out from the
 conventional commit messages; merging it tags the release, and the binaries are
 attached to it.
+
+`task upgrade` does the whole update from a clone, with Go, `gh` and `claude`:
+it installs the latest release's binary to `~/.local/bin` (`ELE_INSTALL_DIR`
+overrides), after checking it against the release's `checksums.txt`, then fails
+unless that copy is the `ele` on `PATH` and `ele version` prints the release's
+tag, and names any copy left behind it on `PATH`. It then updates the
+marketplace and the plugin; sessions already open load it after
+`/reload-plugins`.
 
 The specs are in [`.documentation/specs/`](.documentation/specs/).

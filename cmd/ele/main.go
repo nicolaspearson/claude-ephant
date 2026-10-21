@@ -60,7 +60,8 @@ const usage = `usage:
   ele ticket corpus --tickets <numbers> --out <directory> [--clean] [--cli glab|gh]
   ele ticket ledger record --manifest <file> --records <file> [--ledger <file>]
   ele ticket ledger rulings --manifest <file> [--ledger <file>]
-  ele usage [--owner <name>] [--project <name>] [--since <YYYY-MM-DD|Nd>] [--no-sync]`
+  ele usage [--owner <name>] [--project <name>] [--since <YYYY-MM-DD|Nd>] [--no-sync]
+  ele version`
 
 // Set by startSync for the sync it runs, whose output goes to sync.log.
 const backgroundSyncVariable = "ELE_BACKGROUND_SYNC"
@@ -92,9 +93,10 @@ var commands = map[string]func(ctx context.Context, args []string, stdout io.Wri
 	"stop-check": func(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
 		return stopCheck(ctx, args, os.Stdin, stdout, stderr)
 	},
-	"sync":   syncCommand,
-	"ticket": ticketCommand,
-	"usage":  usageReport,
+	"sync":    syncCommand,
+	"ticket":  ticketCommand,
+	"usage":   usageReport,
+	"version": versionCommand,
 }
 
 var errSyncBusy = errors.New("another sync holds the archive lock")
