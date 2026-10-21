@@ -163,7 +163,7 @@ func lonePlanFocus(dataDirectory string, directory string, owner string, project
 	if err != nil {
 		return ""
 	}
-	next, ok := parsed.Next()
+	next, ok := loadPlanSet(root, all, project, filepath.Join(dataDirectory, "notes")).resolve(parsed).Next()
 	if !ok {
 		return ""
 	}

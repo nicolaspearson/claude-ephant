@@ -39,9 +39,9 @@ ele plans stay accurate and close with little overhead. A plan's state (its fron
 - [x] item-ids: items lead with a kebab name, parsed by `internal/plan`, unique across active plans; the plan skill and `template.md` write a name and a `done when` line for each action but the closing one; the ledger keys on the name where there is one; the active plans' items named
   - done when `ele plan show` prints each item's name, a duplicate name across active plans is refused with both paths, a reworded item keeps its ledger rulings in a test seen red, every active plan's items but the closing ones carry names, and the plan skill and template say to write a name and a done-when
   - asserted in the item 1 commit: ele plan show prints names (built binary over the active plans); a name twice in a plan fails Parse, and plan start refuses one another active plan holds with both paths; a reworded named item keeps its ledger rulings (corpus→record→reword→rulings test); every new test seen red; task check FORCE=1 green
-- [ ] edges: `blocked:` leading with item names, local or `<plan>/<name>`, and `after: <date>`; the frontier worked out from them; a blocker done or missing flagged; `ele plan done` stores the plan's item names and states, and a name a closed plan used is refused
-  - blocked: item-ids
+- [x] edges: `blocked:` leading with item names, local or `<plan>/<name>`, and `after: <date>`; the frontier worked out from them; a blocker done or missing flagged; `ele plan done` stores the plan's item names and states, and a name a closed plan used is refused
   - done when tests seen red show a blocked item leaving the frontier once its blocker is ticked, one held by `after:` until its date, a blocker in a closed plan resolving from the store, a missing one flagged, and a name a closed plan used refused; and the active plans' `blocked:` lines name items
+  - asserted in the edges commit: blocked: names resolve locally and as <plan>/<name> against active plans, then closed plans' stores; after: holds by date or UTC minute; done or missing or abandoned blockers flagged; ele plan done stores names and states (before deletion; a deleted plan falls back to git and warns); a closed plan's names refused at start; 14 mutations red; active plans' blocked: lines name items; task check FORCE=1 green
 - [ ] plan-check: `ele plan check [<path>]`, warnings also summarised by `ele plan show`: a blocker done or missing, an `after:` date passed, an `as of` line past an age settled in the item, inbox items past an age, an action with no done-when other than the closing one, a plan ready to close
   - blocked: edges
   - done when each warning has a test seen red, the closing action raises none and `ele plan check` run over the active plans prints what they hold
@@ -53,7 +53,7 @@ ele plans stay accurate and close with little overhead. A plan's state (its fron
   - captured 2026-10-21 from skill-lessons' inbox: /ele:plan asks ticket-audit for all drafts and the spec as one corpus, but `ele ticket corpus --plan` takes one file
   - captured 2026-10-20 from skill-lessons' inbox: every skill step ends with an exit condition; as of 2026-10-20 the plan skill's Pickup step 6 has one
   - done when a real run over the active plans proposes each finding class it names, ticket-audit no longer holds `PLAN.md`, the plan skill's triage names `Plan candidate:` notes and each of its steps ends with an exit condition, and whether ele limits active plans is in Decisions
-- [ ] Fold what this plan built, and its out-of-scope lines as `Not doing:`, into the spec, delete this plan, and run `ele plan done .documentation/plans/plans-that-close.md`
+- [ ] Fold what this plan built, and its out-of-scope lines as `Not doing:`, into the spec, run `ele plan done .documentation/plans/plans-that-close.md`, and delete this plan
 
 ## Inbox
 
@@ -62,5 +62,8 @@ ele plans stay accurate and close with little overhead. A plan's state (its fron
 - 2026-10-21, from the user: `/ele:plan new` audits its draft before `ele plan start`, as `convert` does: contradictions between decisions, actions and the spec, each decision traced to an action, each artefact's producer and consumer, Context lines re-derived; not a gate in the binary, which cannot judge prose. This plan started unaudited and its checkpoint found 18 findings, most of those classes
 - 2026-10-21, from item-ids' checkpoint: `ele plan start` skips an active plan missing from the checkout, on another branch, so a name clash with it passes silently; say that plan could not be checked
 - 2026-10-21, from item-ids' checkpoint: the ticket corpus reads a name from an Inbox item too, while `internal/plan` names only Actions; key on names in Actions only
+- 2026-10-21, from the user's question whether plan-audit names older plans: as of 2026-10-21 only this repository's active plans carry item names, none of the nine plans in ~/Work's other repositories; proposed: `ele plan check` warns on an unnamed action other than the closing one, and plan-audit proposes a name for each, written on approval
+- 2026-10-21, from the user's question whether a plan-grill skill is needed: no new skill; `/ele:plan new`'s rounds question a draft harder, drawing on mattpocock-skills' grilling, beside the draft audit before `ele plan start` already in this inbox
+- 2026-10-21, from the user, who wants a clean repository once work ends: `ele plan done` archives the whole plan text beside its stored item names, readable through `ele recall` or `ele plan show --closed <name>`; the closing fold then carries only what changes the spec's design, a decision's reasons staying in the archive. Plans stay files in the repository while active
 
 ## Out of scope

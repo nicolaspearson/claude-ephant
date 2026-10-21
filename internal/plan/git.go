@@ -42,6 +42,24 @@ func Previous(ctx context.Context, root string, path string) (Tick, bool, error)
 	return Tick{}, false, nil
 }
 
+// Committed serves a plan its closing action already deleted, the deletion committed or not.
+func Committed(ctx context.Context, root string, path string) ([]byte, error) {
+	commit, err := git(ctx, root, "rev-list", "-1", "HEAD", "--", path)
+	if err != nil {
+		return nil, err
+	}
+	commit = strings.TrimSpace(commit)
+	if commit == "" {
+		return nil, fmt.Errorf("%s was never committed", path)
+	}
+	content, err := git(ctx, root, "show", commit+":"+path)
+	if err != nil {
+		// That commit deleted it.
+		content, err = git(ctx, root, "show", commit+"^:"+path)
+	}
+	return []byte(content), err
+}
+
 func flipped(diff string) (string, bool) {
 	unticked := map[string]bool{}
 	var ticked []string

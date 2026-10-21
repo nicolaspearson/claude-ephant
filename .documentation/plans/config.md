@@ -18,7 +18,7 @@ Settle what of ele a user can switch or tune, how that configuration is laid out
 ## Actions
 
 - [ ] draw-items: Draw the plan's why and items from its inbox with the user, in rounds
-- [ ] Propose each out-of-scope line as a `decision` through `/ele:remember`, delete this plan, and run `ele plan done .documentation/plans/config.md`
+- [ ] Propose each out-of-scope line as a `decision` through `/ele:remember`, run `ele plan done .documentation/plans/config.md`, and delete this plan
 
 ## Inbox
 

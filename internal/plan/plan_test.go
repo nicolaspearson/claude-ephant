@@ -5,7 +5,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -79,13 +81,82 @@ func TestParseReadsActionsInFileOrder(t *testing.T) {
 	require.Equal(t, []Item{
 		{Body: []string{"  asserted: the spec reads from its new path"}, Done: true, Line: 11, Title: "Move the spec"},
 		{Body: []string{"  - as of 2026-10-17: parser written", "  next: commands"}, Line: 13, Title: "Parser and commands"},
-		{Blocked: []string{"the parser first", "a real session to test on"}, Body: []string{"  blocked: the parser first", "  - blocked: a real session to test on"}, Line: 19, Title: "Start block section"},
+		{Blocked: []string{"the parser first", "a real session to test on"}, Body: []string{"  blocked: the parser first", "  - blocked: a real session to test on"}, Held: true, Line: 19, Prose: []string{"the parser first", "a real session to test on"}, Title: "Start block section"},
 		{Body: []string{"  ```", "## Not a heading", "  ```"}, Line: 22, Title: "Skill"},
 	}, plan.Actions)
 	require.Equal(t, Counts{Blocked: 1, Done: 1, Inbox: 2, Open: 2}, plan.Counts())
 	next, ok := plan.Next()
 	require.True(t, ok)
 	require.Equal(t, "Parser and commands", next.Title)
+}
+
+func TestParseReadsEdgesOnlyFromALeadingListOfNames(t *testing.T) {
+	plan, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n- [ ] a: A\n" +
+		"  blocked: judge-blocks, mining-reports/report-figures; once the week ends\n" +
+		"  - blocked: the parser first\n" +
+		"  blocked: waits on the judging; and more\n"))
+	require.NoError(t, err)
+	require.Equal(t, []Edge{{Name: "judge-blocks"}, {Name: "report-figures", Plan: "mining-reports"}}, plan.Actions[0].Edges)
+	require.Equal(t, []string{"the parser first", "waits on the judging; and more"}, plan.Actions[0].Prose)
+}
+
+func TestResolveFreesABlockedItemOnceItsBlockerIsTicked(t *testing.T) {
+	content := "---\nkind: plan\n---\n## Actions\n- [ ] first: First\n- [ ] second: Second\n  blocked: first, other/item; reason\n"
+	now := time.Date(2026, 10, 21, 12, 0, 0, 0, time.UTC)
+	other := BlockerOpen
+	lookup := func(edge Edge) Blocker {
+		if edge != (Edge{Name: "item", Plan: "other"}) {
+			return BlockerMissing
+		}
+		return other
+	}
+
+	held, err := Parse([]byte(content))
+	require.NoError(t, err)
+	resolved := held.Resolve(now, lookup)
+	require.True(t, resolved.Actions[1].Held)
+	require.Equal(t, Counts{Blocked: 1, Open: 1}, resolved.Counts())
+
+	ticked, err := Parse([]byte(strings.Replace(content, "- [ ] first", "- [x] first", 1)))
+	require.NoError(t, err)
+	require.True(t, ticked.Resolve(now, lookup).Actions[1].Held, "the other plan's item still holds it")
+	other = BlockerDone
+	resolved = ticked.Resolve(now, lookup)
+	require.False(t, resolved.Actions[1].Held)
+	require.Equal(t, []string{"blocker first is done; drop it from blocked:", "blocker other/item is done; drop it from blocked:"}, resolved.Actions[1].Flags)
+	next, ok := resolved.Next()
+	require.True(t, ok)
+	require.Equal(t, "second", next.Name)
+}
+
+func TestResolveHoldsAnItemOnAMissingBlockerAndFlagsIt(t *testing.T) {
+	plan, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n- [ ] a: A\n  blocked: typo, gone/item\n"))
+	require.NoError(t, err)
+	resolved := plan.Resolve(time.Now(), func(Edge) Blocker { return BlockerMissing })
+	require.True(t, resolved.Actions[0].Held)
+	require.Equal(t, []string{"blocker typo does not exist", "blocker gone/item does not exist"}, resolved.Actions[0].Flags)
+}
+
+func TestResolveHoldsAnItemOnAClosedPlansUntickedItemAndFlagsIt(t *testing.T) {
+	plan, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n- [ ] a: A\n  blocked: closed/item\n"))
+	require.NoError(t, err)
+	resolved := plan.Resolve(time.Now(), func(Edge) Blocker { return BlockerAbandoned })
+	require.True(t, resolved.Actions[0].Held)
+	require.Equal(t, []string{"blocker closed/item is in a closed plan and was never done"}, resolved.Actions[0].Flags)
+}
+
+func TestResolveHoldsAnItemUntilItsAfterDate(t *testing.T) {
+	plan, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n- [ ] a: A\n  after: 2026-10-22 19:28Z\n- [ ] b: B\n  - after: 2026-10-23\n"))
+	require.NoError(t, err)
+	require.Equal(t, time.Date(2026, 10, 22, 19, 28, 0, 0, time.UTC), plan.Actions[0].After)
+	require.Equal(t, time.Date(2026, 10, 23, 0, 0, 0, 0, time.Local), plan.Actions[1].After)
+
+	before := plan.Resolve(time.Date(2026, 10, 22, 19, 27, 0, 0, time.UTC), nil)
+	require.True(t, before.Actions[0].Held)
+	at := plan.Resolve(time.Date(2026, 10, 22, 19, 28, 0, 0, time.UTC), nil)
+	require.False(t, at.Actions[0].Held)
+	require.True(t, at.Actions[1].Held)
+	require.False(t, plan.Resolve(time.Date(2026, 10, 23, 0, 0, 0, 0, time.Local), nil).Actions[1].Held)
 }
 
 func TestParseReadsTheKebabNameAnItemLeadsWith(t *testing.T) {
@@ -105,7 +176,9 @@ func TestParseRejectsInvalidPlans(t *testing.T) {
 		message string
 		name    string
 	}{
+		{content: "---\nkind: plan\n---\n## Actions\n- [ ] a: A\n  after: 2026-10-22\n  after: 2026-10-23\n", message: "a second after: on line 7", name: "after twice"},
 		{content: "---\nkind: plan\n## Actions\n", message: "is not key: value", name: "front matter never closes"},
+		{content: "---\nkind: plan\n---\n## Actions\n- [ ] a: A\n  after: soon\n", message: `after "soon" on line 6 is neither YYYY-MM-DD nor YYYY-MM-DD HH:MMZ`, name: "loose after"},
 		{content: "---\nkind: plan\ncreated: 17 Oct\n---\n## Actions\n", message: `created "17 Oct" is not YYYY-MM-DD`, name: "loose created"},
 		{content: "---\nkind: plan\n---\n## Actions\n- [ ] edges: one\n- [x] other: two\n- [ ] edges: three\n", message: `item name "edges" on lines 5 and 7`, name: "name twice"},
 		{content: "---\nkind: plan\n---\n## Tasks\n- [ ] x\n", message: "no ## Actions section", name: "no actions section"},
@@ -128,6 +201,30 @@ func TestParseSkipsAFencedHeading(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, plan.Actions, 1)
 	require.Equal(t, "Real", plan.Actions[0].Title)
+}
+
+func TestCommittedReadsAPlanDeletedSinceItsLastCommit(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "plans.md")
+	runGit(t, root, "init", "--quiet")
+	require.NoError(t, os.WriteFile(path, []byte("first\n"), 0o600))
+	runGit(t, root, "add", "plans.md")
+	runGit(t, root, "commit", "--quiet", "-m", "plan")
+	require.NoError(t, os.WriteFile(path, []byte("second\n"), 0o600))
+	runGit(t, root, "commit", "--quiet", "-am", "edit")
+	require.NoError(t, os.Remove(path))
+
+	content, err := Committed(context.Background(), root, "plans.md")
+	require.NoError(t, err)
+	require.Equal(t, "second\n", string(content), "deletion uncommitted")
+
+	runGit(t, root, "commit", "--quiet", "-am", "delete")
+	content, err = Committed(context.Background(), root, "plans.md")
+	require.NoError(t, err)
+	require.Equal(t, "second\n", string(content), "deletion committed")
+
+	_, err = Committed(context.Background(), root, "never.md")
+	require.ErrorContains(t, err, "never.md was never committed")
 }
 
 func TestPreviousIsNoneOutsideGit(t *testing.T) {

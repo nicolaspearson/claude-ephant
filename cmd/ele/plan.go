@@ -134,6 +134,17 @@ func planDone(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 	}
 	now := time.Now()
 	for _, note := range chosen {
+		unticked, storeErr := storePlanItems(ctx, root, scope.noteDirectory, note)
+		switch {
+		case storeErr != nil:
+			fmt.Fprintf(stdout, "Item names of %s not stored, so an edge into it reads as missing and its names stay free: %v\n", note.Body, redact.Redact(storeErr.Error()))
+		case unticked != nil:
+			verb := "are"
+			if len(unticked) == 1 {
+				verb = "is"
+			}
+			fmt.Fprintf(stdout, "%s is gone, so its names were stored from its last commit, where %s %s unticked; run ele plan done before deleting a plan.\n", note.Body, strings.Join(unticked, ", "), verb)
+		}
 		if err = notes.MarkShown(scope.noteDirectory, note, now); err != nil {
 			fmt.Fprintf(stderr, "ele: %v\n", err)
 			return 1
@@ -143,28 +154,33 @@ func planDone(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 	return 0
 }
 
-// A plan missing from the checkout or not parsing clashes with nothing.
-func nameClashes(root string, relative string, parsed plan.Plan, active []notes.Note) []string {
-	var clashes []string
-	for _, note := range active {
-		if note.Body == relative {
-			continue
-		}
-		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(note.Body)))
-		if err != nil {
-			continue
-		}
-		other, err := plan.Parse(content)
-		if err != nil {
-			continue
-		}
-		for _, action := range parsed.Actions {
-			if action.Name != "" && slices.ContainsFunc(other.Actions, func(item plan.Item) bool { return item.Name == action.Name }) {
-				clashes = append(clashes, fmt.Sprintf("item name %q is also in %s", action.Name, note.Body))
-			}
+// A plan already deleted falls back to its last commit, which may lack ticks made since, so its unticked names are returned for a warning.
+func storePlanItems(ctx context.Context, root string, noteDirectory string, note notes.Note) ([]string, error) {
+	if root == "" {
+		return nil, errors.New("its checkout is not the working directory's")
+	}
+	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(note.Body)))
+	committed := errors.Is(err, fs.ErrNotExist)
+	if committed {
+		content, err = plan.Committed(ctx, root, note.Body)
+	}
+	if err != nil {
+		return nil, err
+	}
+	parsed, err := plan.Parse(content)
+	if err != nil {
+		return nil, err
+	}
+	if err = plan.WriteStored(planStore(noteDirectory), note.ID, note.Body, parsed); err != nil || !committed {
+		return nil, err
+	}
+	var unticked []string
+	for _, action := range parsed.Actions {
+		if action.Name != "" && !action.Done {
+			unticked = append(unticked, action.Name)
 		}
 	}
-	return clashes
+	return unticked, nil
 }
 
 func planPath(root string, argument string) (string, error) {
@@ -194,7 +210,7 @@ func planPath(root string, argument string) (string, error) {
 }
 
 // bodyLimit is in bytes; 0 means no cap.
-func planView(ctx context.Context, root string, relative string, bodyLimit int, active []notes.Note) (string, error) {
+func planView(ctx context.Context, root string, relative string, bodyLimit int, plans planSet) (string, error) {
 	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
 	if err != nil {
 		return "", err
@@ -208,14 +224,14 @@ func planView(ctx context.Context, root string, relative string, bodyLimit int, 
 		return "", err
 	}
 	var view strings.Builder
-	writePlanView(&view, relative, parsed, tick, ticked, bodyLimit)
-	for _, clash := range nameClashes(root, relative, parsed, active) {
-		fmt.Fprintf(&view, "Warning: %s; item names are unique across active plans.\n", clash)
+	writePlanView(&view, relative, plans.resolve(parsed), tick, ticked, bodyLimit)
+	for _, clash := range plans.clashes(relative, parsed) {
+		fmt.Fprintf(&view, "Warning: %s; %s.\n", clash, namesUnique)
 	}
 	return redact.Redact(view.String()), nil
 }
 
-func planSummary(root string, relative string, active []notes.Note) string {
+func planSummary(root string, relative string, plans planSet) string {
 	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
 	if errors.Is(err, fs.ErrNotExist) {
 		return fmt.Sprintf(activePlanMissing, relative)
@@ -227,13 +243,14 @@ func planSummary(root string, relative string, active []notes.Note) string {
 	if err != nil {
 		return redact.Redact(fmt.Sprintf("%s: %v", relative, err))
 	}
-	counts := parsed.Counts()
+	resolved := plans.resolve(parsed)
+	counts := resolved.Counts()
 	summary := fmt.Sprintf("%s: %d open, %d blocked, %d done, %d in the inbox.", relative, counts.Open, counts.Blocked, counts.Done, counts.Inbox)
-	if next, ok := parsed.Next(); ok {
+	if next, ok := resolved.Next(); ok {
 		summary += " Next: " + next.Title
 	}
-	if clashes := nameClashes(root, relative, parsed, active); len(clashes) > 0 {
-		summary += fmt.Sprintf(" Warning: %s; item names are unique across active plans.", strings.Join(clashes, ", "))
+	if clashes := plans.clashes(relative, parsed); len(clashes) > 0 {
+		summary += fmt.Sprintf(" Warning: %s; %s.", strings.Join(clashes, ", "), namesUnique)
 	}
 	return redact.Redact(summary)
 }
@@ -249,7 +266,7 @@ func showPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return 1
 	}
-	var active []notes.Note
+	var plans planSet
 	var relative string
 	missing := "ele: %s is not in this checkout\n"
 	if len(arguments) == 1 {
@@ -257,9 +274,9 @@ func showPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 			fmt.Fprintf(stderr, "ele: %v\n", err)
 			return 1
 		}
-		// Without the project's notes a named plan still shows, unchecked for clashes.
+		// Without the project's notes a named plan still shows, unchecked for clashes, and every cross-plan blocker reads as missing.
 		if scope, _, scopeErr := projectNotes(ctx, "", ""); scopeErr == nil {
-			active = activePlans(scope.all, scope.project)
+			plans = loadPlanSet(root, scope.all, scope.project, scope.noteDirectory)
 		}
 	} else {
 		scope, code, scopeErr := projectNotes(ctx, "", "")
@@ -268,7 +285,8 @@ func showPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 			return code
 		}
 		missing = "ele: " + activePlanMissing + "\n"
-		active = activePlans(scope.all, scope.project)
+		active := activePlans(scope.all, scope.project)
+		plans = loadPlanSet(root, scope.all, scope.project, scope.noteDirectory)
 		where := present(scope.owner, scope.project)
 		switch len(active) {
 		case 0:
@@ -279,12 +297,12 @@ func showPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 		default:
 			fmt.Fprintf(stdout, "Active plans for %s, newest first; ele plan show <path> prints one:\n", where)
 			for _, note := range active {
-				fmt.Fprintf(stdout, "- %s: %s\n", note.ID, planSummary(root, note.Body, active))
+				fmt.Fprintf(stdout, "- %s: %s\n", note.ID, planSummary(root, note.Body, plans))
 			}
 			return 0
 		}
 	}
-	view, err := planView(ctx, root, relative, 0, active)
+	view, err := planView(ctx, root, relative, 0, plans)
 	if errors.Is(err, fs.ErrNotExist) {
 		fmt.Fprintf(stderr, missing, relative)
 		return 1
@@ -344,8 +362,8 @@ func startPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.W
 		fmt.Fprintf(stderr, "ele: %s is already started; ele plan show prints it\n", relative)
 		return 1
 	}
-	if clashes := nameClashes(root, relative, parsed, active); len(clashes) > 0 {
-		fmt.Fprintf(stderr, "ele: %s: %s; item names are unique across active plans\n", relative, strings.Join(clashes, ", "))
+	if clashes := loadPlanSet(root, scope.all, scope.project, scope.noteDirectory).clashes(relative, parsed); len(clashes) > 0 {
+		fmt.Fprintf(stderr, "ele: %s: %s; %s\n", relative, strings.Join(clashes, ", "), namesUnique)
 		return 1
 	}
 	now := time.Now()
@@ -389,12 +407,27 @@ func writePlanView(out *strings.Builder, relative string, parsed plan.Plan, tick
 	if counts.Blocked > 0 {
 		out.WriteString("Blocked:\n")
 		for _, action := range parsed.Actions {
-			if action.Done || len(action.Blocked) == 0 {
+			if action.Done || !action.Held {
 				continue
 			}
 			fmt.Fprintf(out, "- %s\n", action.Title)
 			for _, reason := range action.Blocked {
 				fmt.Fprintf(out, "  blocked: %s\n", reason)
+			}
+			if !action.After.IsZero() {
+				fmt.Fprintf(out, "  after: %s\n", action.After.Local().Format("2006-01-02 15:04 -07:00"))
+			}
+			for _, flag := range action.Flags {
+				fmt.Fprintf(out, "  flag: %s\n", flag)
+			}
+		}
+	}
+	if flagged := slices.DeleteFunc(slices.Clone(parsed.Actions), func(action plan.Item) bool { return action.Held || len(action.Flags) == 0 }); len(flagged) > 0 {
+		out.WriteString("Flagged:\n")
+		for _, action := range flagged {
+			fmt.Fprintf(out, "- %s\n", action.Title)
+			for _, flag := range action.Flags {
+				fmt.Fprintf(out, "  flag: %s\n", flag)
 			}
 		}
 	}

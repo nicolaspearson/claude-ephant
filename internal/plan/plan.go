@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 )
@@ -19,8 +20,20 @@ var (
 	ErrInvalid = errors.New("invalid plan")
 
 	checkbox = regexp.MustCompile(`^- \[([ xX])\] (.*)$`)
+	edgeName = regexp.MustCompile(`^(?:([a-z0-9]+(?:-[a-z0-9]+)*)/)?([a-z0-9]+(?:-[a-z0-9]+)*)$`)
 	heading  = regexp.MustCompile(`^(#{1,6})\s+(.*?)\s*#*\s*$`)
 	itemName = regexp.MustCompile(`^([a-z0-9]+(?:-[a-z0-9]+)*): `)
+)
+
+type Blocker int
+
+const (
+	// First, so a name absent from a lookup map reads as missing.
+	BlockerMissing Blocker = iota
+	// An item a closed plan never ticked.
+	BlockerAbandoned
+	BlockerDone
+	BlockerOpen
 )
 
 type Counts struct {
@@ -30,14 +43,26 @@ type Counts struct {
 	Open    int
 }
 
+type Edge struct {
+	Name string
+	Plan string
+}
+
 type Item struct {
+	After   time.Time
 	Blocked []string
 	Body    []string
 	Done    bool
+	Edges   []Edge
+	Flags   []string
+	Held    bool
 	Line    int
 	Name    string
+	Prose   []string
 	Title   string
 }
+
+type Lookup func(edge Edge) Blocker
 
 type Plan struct {
 	Actions []Item
@@ -152,17 +177,44 @@ func Parse(content []byte) (Plan, error) {
 			action.Body = action.Body[:len(action.Body)-1]
 		}
 		bodyFence := ""
-		for _, line := range action.Body {
+		for offset, line := range action.Body {
 			inside := bodyFence != ""
 			if bodyFence = stepFence(bodyFence, line); inside || bodyFence != "" {
 				continue
 			}
-			if reason, ok := strings.CutPrefix(strings.TrimPrefix(strings.TrimSpace(line), "- "), "blocked:"); ok {
-				action.Blocked = append(action.Blocked, strings.TrimSpace(reason))
+			trimmed := strings.TrimPrefix(strings.TrimSpace(line), "- ")
+			if reason, ok := strings.CutPrefix(trimmed, "blocked:"); ok {
+				reason = strings.TrimSpace(reason)
+				action.Blocked = append(action.Blocked, reason)
+				if found := edges(reason); found != nil {
+					action.Edges = append(action.Edges, found...)
+				} else {
+					action.Prose = append(action.Prose, reason)
+				}
+			}
+			if value, ok := strings.CutPrefix(trimmed, "after:"); ok {
+				number := action.Line + offset + 1
+				if !action.After.IsZero() {
+					return invalid("a second after: on line %d", number)
+				}
+				after, err := parseAfter(strings.TrimSpace(value))
+				if err != nil {
+					return invalid("after %q on line %d is neither YYYY-MM-DD nor YYYY-MM-DD HH:MMZ", strings.TrimSpace(value), number)
+				}
+				action.After = after
 			}
 		}
+		// Unresolved until Resolve: every edge and date still holds the item back.
+		action.Held = !action.Done && (len(action.Blocked) > 0 || !action.After.IsZero())
 	}
 	return plan, nil
+}
+
+func (e Edge) String() string {
+	if e.Plan == "" {
+		return e.Name
+	}
+	return e.Plan + "/" + e.Name
 }
 
 func Name(title string) string {
@@ -178,7 +230,7 @@ func (p Plan) Counts() Counts {
 		switch {
 		case action.Done:
 			counts.Done++
-		case len(action.Blocked) > 0:
+		case action.Held:
 			counts.Blocked++
 		default:
 			counts.Open++
@@ -189,11 +241,76 @@ func (p Plan) Counts() Counts {
 
 func (p Plan) Next() (Item, bool) {
 	for _, action := range p.Actions {
-		if !action.Done && len(action.Blocked) == 0 {
+		if !action.Done && !action.Held {
 			return action, true
 		}
 	}
 	return Item{}, false
+}
+
+// Resolve works out Held and Flags from blockers and after: dates; a missing blocker holds its item, so a typo cannot release it.
+func (p Plan) Resolve(now time.Time, lookup Lookup) Plan {
+	local := map[string]Blocker{}
+	for _, action := range p.Actions {
+		switch {
+		case action.Name == "":
+		case action.Done:
+			local[action.Name] = BlockerDone
+		default:
+			local[action.Name] = BlockerOpen
+		}
+	}
+	actions := slices.Clone(p.Actions)
+	for at := range actions {
+		action := &actions[at]
+		action.Flags, action.Held = nil, false
+		if action.Done {
+			continue
+		}
+		action.Held = len(action.Prose) > 0 || now.Before(action.After)
+		for _, edge := range action.Edges {
+			state := local[edge.Name]
+			if edge.Plan != "" {
+				state = lookup(edge)
+			}
+			switch state {
+			case BlockerMissing:
+				action.Held = true
+				action.Flags = append(action.Flags, fmt.Sprintf("blocker %s does not exist", edge))
+			case BlockerAbandoned:
+				action.Held = true
+				action.Flags = append(action.Flags, fmt.Sprintf("blocker %s is in a closed plan and was never done", edge))
+			case BlockerDone:
+				action.Flags = append(action.Flags, fmt.Sprintf("blocker %s is done; drop it from blocked:", edge))
+			case BlockerOpen:
+				action.Held = true
+			}
+		}
+	}
+	p.Actions = actions
+	return p
+}
+
+// A single bare word is an edge, not prose: held and flagged missing if no item has that name.
+func edges(reason string) []Edge {
+	head, _, _ := strings.Cut(reason, ";")
+	var found []Edge
+	for entry := range strings.SplitSeq(head, ",") {
+		match := edgeName.FindStringSubmatch(strings.TrimSpace(entry))
+		if match == nil {
+			return nil
+		}
+		found = append(found, Edge{Name: match[2], Plan: match[1]})
+	}
+	return found
+}
+
+// A date alone releases at local midnight; a time is UTC.
+func parseAfter(value string) (time.Time, error) {
+	if after, err := time.ParseInLocation(time.DateOnly, value, time.Local); err == nil {
+		return after, nil
+	}
+	return time.Parse("2006-01-02 15:04Z", value)
 }
 
 // A fence closes only on its own character, at least as long, with nothing after; a backtick in a backtick opener's info string makes it inline code.

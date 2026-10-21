@@ -100,13 +100,15 @@ func noteLine(note notes.Note) string {
 	return fmt.Sprintf("- %s %s %s%s: %s\n", note.Date, note.Kind, note.ID, from, redact.Redact(strings.Join(strings.Fields(note.Body), " ")))
 }
 
-func planSection(ctx context.Context, active []notes.Note, source string) (section string, instruction string) {
+func planSection(ctx context.Context, all []notes.Note, project string, noteDirectory string, source string) (section string, instruction string) {
+	active := activePlans(all, project)
 	root, err := checkoutRoot()
 	if err != nil {
 		return fmt.Sprintf("ele could not find the checkout for %s: %v\n", plural(len(active), "active plan", "active plans"), err), ""
 	}
+	plans := loadPlanSet(root, all, project, noteDirectory)
 	state := func(relative string) (string, bool) {
-		view, err := planView(ctx, root, relative, planBodyBudget, active)
+		view, err := planView(ctx, root, relative, planBodyBudget, plans)
 		switch {
 		case errors.Is(err, fs.ErrNotExist):
 			return fmt.Sprintf(activePlanMissing, relative), false
@@ -128,7 +130,7 @@ func planSection(ctx context.Context, active []notes.Note, source string) (secti
 		var out strings.Builder
 		fmt.Fprintf(&out, "%d active plans from ele, newest first:\n", len(active))
 		for _, note := range active {
-			fmt.Fprintf(&out, "- %s\n", planSummary(root, note.Body, active))
+			fmt.Fprintf(&out, "- %s\n", planSummary(root, note.Body, plans))
 		}
 		section = out.String()
 	}
@@ -325,7 +327,7 @@ func writeSessionStart(ctx context.Context, stdout io.Writer, dataDirectory stri
 	}
 	// A plan is not used up when shown; compaction summarises the item being worked.
 	if active := activePlans(all, project); len(active) > 0 && (source == "clear" || source == "compact" || source == "startup") {
-		section, instruction := planSection(ctx, active, source)
+		section, instruction := planSection(ctx, all, project, filepath.Join(dataDirectory, "notes"), source)
 		shown = append(shown, section)
 		fmt.Fprint(stdout, section+instruction+"\n")
 	}
