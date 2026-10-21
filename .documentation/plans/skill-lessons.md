@@ -45,13 +45,13 @@ A comparison with the mattpocock-skills plugin (wayfinder, grilling, writing-for
   - as of 2026-10-21: built, uncommitted: `reviewers/spec.md`, wired into `SKILL.md` §2–§5, §7, §9, §10 and §12, the agent description, both `/ele:mine` prompts and the checkpoint spec. Its first version ran from the working tree as the third full-mode reviewer in this change's own checkpoint and reported per its Output section; the fixes since (Observed field, partial delivery, delta exemption, unasked to the user) have not run
   - next: push and update the plugin, then see a checkpoint over a plan item launch the spec reviewer from the installed plugin, with an Observed field in its brief
   - asserted 2026-10-21 with ele ffecf6f installed: the writing-for-agents checkpoint quoted its plan item with an Observed field, launched `reviewers/spec.md` from the installed plugin as the third full-mode reviewer, and it reported per its Output section, catching the inbox's error rule that the brief had wrongly scoped out
-- [ ] writing-for-agents findings for checkpoint and ticket-audit, applied on approval
+- [x] writing-for-agents findings for checkpoint and ticket-audit, applied on approval
   - as of 2026-10-21: findings from two reviews, every group approved and applied to checkpoint and ticket-audit, through a full checkpoint
   - as of 2026-10-21: `ele events --kind tool-error` built as the error rule's data source; on a clone of the data directory, 1,572 tool errors since 2026-10-14, all named for their tool; of 1,298 failed Bash commands, 1 was rerun unchanged, 393 were followed by a different call, 904 unknown, mostly commands cut at 300 characters
   - as of 2026-10-21: `ele events --during <skill>` built, filtering events to a skill's runs; on a copy of the index, 779 tool errors during checkpoint and 30 during ticket-audit, every ticket-audit run, and every checkpoint run that never logged, closing at its first prompt
   - as of 2026-10-21: error tables built into both skills and the bugs and conventions-prose reviewer files, through a small checkpoint
   - as of 2026-10-21: errorTail kept per tool error, index version 9; tables re-classed from it, the largest class 266 echo ==== separators that zsh made drop the rest of a line
-  - next: update the plugin and see a checkpoint or audit from it apply a row, then tick
+  - asserted 2026-10-21 with plugin c964270 installed: a ticket audit of `mining-reports.md` hit zsh's `no matches found: --include=*.go`, applied the table's quote-the-glob row, and the one rerun passed
 - [ ] Fold what this plan built into the spec, delete this plan, and run `ele plan done .documentation/plans/skill-lessons.md`
 
 ## Inbox
