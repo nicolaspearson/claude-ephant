@@ -103,7 +103,8 @@ formula in `nicolaspearson/homebrew-tap`, then installs the release with
 `install.sh` on macOS and Linux and with `brew` on macOS. Run Tap by hand with
 a tag, v0.3.0 or later, to re-render the formula for that release. It pushes
 with the `HOMEBREW_TAP_TOKEN` secret, a fine-grained token with write access to
-that repository's contents alone.
+that repository's contents alone. It expires 2027-10-21: renew it with the same
+scope and run `gh secret set HOMEBREW_TAP_TOKEN` again.
 
 `task upgrade` does the whole update from a clone, with Go, `gh` and `claude`:
 it installs the latest release's binary through `install.sh` to `~/.local/bin`

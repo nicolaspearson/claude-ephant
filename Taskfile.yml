@@ -121,7 +121,6 @@ tasks:
           echo "\`{{.BINARY}} version\` prints $installed; the latest release is $tag" >&2
           exit 1
         fi
-        echo "Installed {{.BINARY}} $installed at $dir/{{.BINARY}}"
         for copy in $(which -a {{.BINARY}}); do
           if [ "$(cd "$(dirname "$copy")" && pwd -P)" != "$dir" ]; then
             echo "Also on PATH, behind it; remove it: $copy"
