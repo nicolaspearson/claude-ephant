@@ -132,6 +132,24 @@ func TestParseEvents(t *testing.T) {
 			name: "token usage keyed by message",
 		},
 		{
+			entries: 0,
+			events:  []dto.TranscriptEvent{event(EventToolError, "", map[string]any{"callLine": "a1", "error": "Exit code 1 freeze: a.go has no change"})},
+			line:    `{"type":"user",` + base + `,"sourceToolAssistantUUID":"a1","message":{"content":[{"type":"tool_result","tool_use_id":"t1","is_error":true,"content":[{"type":"text","text":"Exit code 1\nfreeze: a.go has no change"}]}]}}`,
+			name:    "tool error in a text array",
+		},
+		{
+			entries: 0,
+			events:  []dto.TranscriptEvent{event(EventToolError, "", map[string]any{"callLine": "a1", "error": "<tool_use_error>File has not been read yet.</tool_use_error>"})},
+			line:    `{"type":"user",` + base + `,"sourceToolAssistantUUID":"a1","message":{"content":[{"type":"tool_result","tool_use_id":"t1","is_error":true,"content":"<tool_use_error>File has not been read yet.</tool_use_error>"}]}}`,
+			name:    "tool error in plain content",
+		},
+		{
+			entries: 0,
+			events:  nil,
+			line:    `{"type":"user",` + base + `,"sourceToolAssistantUUID":"a1","message":{"content":[{"type":"tool_result","tool_use_id":"t1","is_error":false,"content":"ok"}]}}`,
+			name:    "tool result without an error",
+		},
+		{
 			entries: 1,
 			events:  []dto.TranscriptEvent{event(EventCommand, "checkpoint", nil)},
 			line:    `{"type":"user",` + base + `,"message":{"content":"<command-message>checkpoint</command-message>\n<command-name>/checkpoint</command-name>"}}`,
@@ -159,4 +177,11 @@ func TestParseEventsTruncatesALongReason(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, events, 1)
 	require.Equal(t, strings.Repeat("x", inputLimit)+"…", events[0].Attributes["reason"])
+}
+
+func TestParseEventsTruncatesALongToolError(t *testing.T) {
+	_, events, err := Parse([]byte(`{"type":"user","message":{"content":[{"type":"tool_result","is_error":true,"content":"` + strings.Repeat("x", 400) + `"}]}}`))
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	require.Equal(t, strings.Repeat("x", inputLimit)+"…", events[0].Attributes["error"])
 }

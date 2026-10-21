@@ -8,6 +8,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestOpenFindsASourcesEntriesThroughAnIndex(t *testing.T) {
+	index := open(t, filepath.Join(t.TempDir(), "ele.db"))
+	var id, parent, unused int
+	var detail string
+	require.NoError(t, index.db.QueryRow(`EXPLAIN QUERY PLAN SELECT id, text FROM entries WHERE source = ?`, "notes/x.md").Scan(&id, &parent, &unused, &detail))
+	require.Contains(t, detail, "USING INDEX entries_source", "a rebuild deletes and rereads each note's entries by source")
+}
+
 func TestOpenNamesWhatDiffersAndResetRepairsIt(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "ele.db")
 	fresh, err := Open(path)

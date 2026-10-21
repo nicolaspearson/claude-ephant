@@ -33,10 +33,12 @@ type Entry struct {
 }
 
 type block struct {
-	Input map[string]any `json:"input"`
-	Name  string         `json:"name"`
-	Text  string         `json:"text"`
-	Type  string         `json:"type"`
+	Content json.RawMessage `json:"content"`
+	Input   map[string]any  `json:"input"`
+	IsError bool            `json:"is_error"`
+	Name    string          `json:"name"`
+	Text    string          `json:"text"`
+	Type    string          `json:"type"`
 }
 
 type usage struct {
@@ -66,11 +68,12 @@ type line struct {
 	Origin *struct {
 		Kind string `json:"kind"`
 	} `json:"origin"`
-	SessionID        string `json:"sessionId"`
-	Timestamp        string `json:"timestamp"`
-	Type             string `json:"type"`
-	UUID             string `json:"uuid"`
-	WorkingDirectory string `json:"cwd"`
+	SessionID               string `json:"sessionId"`
+	SourceToolAssistantUUID string `json:"sourceToolAssistantUUID"`
+	Timestamp               string `json:"timestamp"`
+	Type                    string `json:"type"`
+	UUID                    string `json:"uuid"`
+	WorkingDirectory        string `json:"cwd"`
 }
 
 // ContextTokens is what a main-thread response read and wrote: the context the next turn starts from.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -92,4 +93,51 @@ func TestUpdateKeysEventsByLineAndPlace(t *testing.T) {
 	index := open(t, filepath.Join(root, "ele.db"))
 	summary := update(t, index, projects, filepath.Join(root, "archive"), ownermap.OwnerMap{})
 	require.Equal(t, 4, summary.Events, "two lines without an id, and two calls on one line")
+}
+
+func TestUpdateNamesAToolErrorByItsCall(t *testing.T) {
+	root := t.TempDir()
+	projects := filepath.Join(root, "projects")
+	transcript := filepath.Join(projects, "-w", "s1.jsonl")
+	line := func(minute string, uuid string, body string) string {
+		return `{"sessionId":"s1","timestamp":"2026-10-15T10:` + minute + `:00Z","uuid":"` + uuid + `",` + body + "}\n"
+	}
+	call := func(minute string, uuid string, command string) string {
+		return line(minute, uuid, `"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"`+command+`"}}]}`)
+	}
+	edit := func(minute string, uuid string) string {
+		return line(minute, uuid, `"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit","input":{"file_path":"/w/a.go","old_string":"`+uuid+`"}}]}`)
+	}
+	failure := func(minute string, uuid string, source string, text string) string {
+		return line(minute, uuid, `"type":"user"`+source+`,"message":{"content":[{"type":"tool_result","is_error":true,"content":"`+text+`"}]}`)
+	}
+	long := "echo " + strings.Repeat("y", 400)
+	write(t, transcript, call("00", "a1", "ele checkpoint log /w")+failure("01", "r1", `,"sourceToolAssistantUUID":"a1"`, "Exit code 2")+call("02", "a2", "ele checkpoint log /w"))
+	index := open(t, filepath.Join(root, "ele.db"))
+	update(t, index, projects, filepath.Join(root, "archive"), ownermap.OwnerMap{})
+	// Resumed past the call: the second failure's call was indexed by the first sync.
+	appendTo(t, transcript, failure("03", "r2", `,"sourceToolAssistantUUID":"a2"`, "Exit code 2 ghp_abcdefghijklmnopqrstuvwxyz0123456789")+call("04", "a3", "ele checkpoint log --help /w")+failure("05", "r3", "", "Exit code 1")+
+		edit("06", "e1")+failure("07", "r4", `,"sourceToolAssistantUUID":"e1"`, "String to replace not found")+edit("08", "e2")+
+		call("09", "b1", "echo first")+call("09", "b2", "echo sibling")+failure("10", "r5", `,"sourceToolAssistantUUID":"b1"`, "Exit code 1")+call("11", "b3", "echo first")+
+		call("12", "c1", long)+failure("13", "r6", `,"sourceToolAssistantUUID":"c1"`, "Exit code 1")+call("14", "c2", long+"z")+
+		call("15", "d1", "echo last")+failure("16", "r7", `,"sourceToolAssistantUUID":"d1"`, "Exit code 1"))
+	update(t, index, projects, filepath.Join(root, "archive"), ownermap.OwnerMap{})
+
+	events, _, err := index.Events(context.Background(), dto.EventQuery{Kind: "tool-error"})
+	require.NoError(t, err)
+	place := dto.Event{Kind: "tool-error", Profile: "claude", Session: "s1", Source: "claude/-w/s1.jsonl.gz"}
+	at := func(minute string, name string, attributes map[string]any) dto.Event {
+		event := place
+		event.Attributes, event.Name, event.Timestamp = attributes, name, "2026-10-15T10:"+minute+":00Z"
+		return event
+	}
+	require.Equal(t, []dto.Event{
+		at("01", "Bash", map[string]any{"call": "Bash: ele checkpoint log /w", "callLine": "a1", "error": "Exit code 2", "retried": true}),
+		at("03", "Bash", map[string]any{"call": "Bash: ele checkpoint log /w", "callLine": "a2", "error": "Exit code 2 [redacted:github]", "retried": false}),
+		at("05", "", map[string]any{"error": "Exit code 1"}),
+		at("07", "Edit", map[string]any{"call": "Edit: /w/a.go", "callLine": "e1", "error": "String to replace not found"}),
+		at("10", "Bash", map[string]any{"call": "Bash: echo first", "callLine": "b1", "error": "Exit code 1", "retried": true}),
+		at("13", "Bash", map[string]any{"call": "Bash: " + long[:300] + "…", "callLine": "c1", "error": "Exit code 1"}),
+		at("16", "Bash", map[string]any{"call": "Bash: echo last", "callLine": "d1", "error": "Exit code 1"}),
+	}, events)
 }

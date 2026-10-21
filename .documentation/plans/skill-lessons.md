@@ -47,6 +47,7 @@ A comparison with the mattpocock-skills plugin (wayfinder, grilling, writing-for
   - asserted 2026-10-21 with ele ffecf6f installed: the writing-for-agents checkpoint quoted its plan item with an Observed field, launched `reviewers/spec.md` from the installed plugin as the third full-mode reviewer, and it reported per its Output section, catching the inbox's error rule that the brief had wrongly scoped out
 - [ ] writing-for-agents findings for checkpoint and ticket-audit, applied on approval
   - as of 2026-10-21: findings from two reviews, every group approved and applied to checkpoint and ticket-audit, through a full checkpoint
+  - as of 2026-10-21: `ele events --kind tool-error` built as the error rule's data source; on a clone of the data directory, 1,572 tool errors since 2026-10-14, all named for their tool; of 1,298 failed Bash commands, 1 was rerun unchanged, 393 were followed by a different call, 904 unknown, mostly commands cut at 300 characters
   - next: the inbox's error rule, inside this item: a per-skill table of known errors and fixes, quote verbatim, one fix, one retry, then stop and report
 - [ ] Fold what this plan built into the spec, delete this plan, and run `ele plan done .documentation/plans/skill-lessons.md`
 
@@ -58,5 +59,6 @@ A comparison with the mattpocock-skills plugin (wayfinder, grilling, writing-for
 - 2026-10-20, from the same comparison: every skill step ends with an exit condition, as that repository's walkthrough (`Done when`) and CI-template migration (`Completion:`) skills do; for checkpoint and ticket-audit inside the writing-for-agents item, and for handoff, mine, plan, recall and remember. As of 2026-10-20 ticket-audit's §4, checkpoint's §1 and §2 and plan's Pickup step 6 have one
 - 2026-10-20, from the same comparison: checkpoint and ticket-audit take that repository's loki skill's error rule wherever they run a tool: quote the error verbatim, name its class from a table of known errors and their fixes, apply exactly one fix and run once more, never the same call unchanged; then stop and report, per the user's two-attempts rule. Each skill needs its own table. Inside the writing-for-agents item
 - 2026-10-21, from the writing-for-agents checkpoint: /ele:plan asks ticket-audit for all drafts and the spec as one corpus, but `ele ticket corpus --plan` takes one file
+- 2026-10-21, from the tool-error checkpoint: store a digest of each Bash call's full command, so `retried` can be known for commands over 300 characters (904 of 1,298 failed Bash calls since 2026-10-14 were unknown)
 
 ## Out of scope

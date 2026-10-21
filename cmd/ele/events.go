@@ -18,7 +18,7 @@ import (
 	"github.com/nicolaspearson/claude-ephant/internal/transcript"
 )
 
-var eventKinds = []string{transcript.EventAgent, transcript.EventCommand, transcript.EventCompaction, transcript.EventHookBlock, transcript.EventInjection, transcript.EventReply, transcript.EventSkill, transcript.EventTokens}
+var eventKinds = []string{transcript.EventAgent, transcript.EventCommand, transcript.EventCompaction, transcript.EventHookBlock, transcript.EventInjection, transcript.EventReply, transcript.EventSkill, transcript.EventTokens, transcript.EventToolError}
 
 func events(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
 	flags := newFlagSet("events", stderr)

@@ -4,10 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/nicolaspearson/claude-ephant/internal/dto"
 	"github.com/nicolaspearson/claude-ephant/internal/redact"
+	"github.com/nicolaspearson/claude-ephant/internal/transcript"
 )
 
 type entryRow struct {
@@ -24,6 +27,7 @@ type entryRow struct {
 }
 
 type entryWriter struct {
+	calls       *sql.Stmt
 	directories *sql.Stmt
 	entries     *sql.Stmt
 	events      *sql.Stmt
@@ -73,14 +77,43 @@ func newEntryWriter(ctx context.Context, tx *sql.Tx) (*entryWriter, error) {
 		_ = search.Close()
 		return nil, err
 	}
-	return &entryWriter{directories: directories, entries: entries, events: events, recorded: map[dto.ProjectDirectory]bool{}, search: search}, nil
+	calls, err := tx.PrepareContext(ctx, callQuery)
+	if err != nil {
+		_ = directories.Close()
+		_ = entries.Close()
+		_ = events.Close()
+		_ = search.Close()
+		return nil, err
+	}
+	return &entryWriter{calls: calls, directories: directories, entries: entries, events: events, recorded: map[dto.ProjectDirectory]bool{}, search: search}, nil
 }
 
 func (w *entryWriter) close() {
+	_ = w.calls.Close()
 	_ = w.directories.Close()
 	_ = w.entries.Close()
 	_ = w.events.Close()
 	_ = w.search.Close()
+}
+
+// The call's line precedes its result's, so where it is indexed at all, this sync or an earlier one already has it.
+func (w *entryWriter) nameCall(ctx context.Context, event *dto.TranscriptEvent) error {
+	callLine, _ := event.Attributes["callLine"].(string)
+	if callLine == "" {
+		return nil
+	}
+	var id int64
+	var text string
+	err := w.calls.QueryRowContext(ctx, callLine+"#", callLine+"$").Scan(&id, &text)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("find the call of a tool error: %w", err)
+	}
+	event.Attributes["call"] = text
+	event.Name, _, _ = strings.Cut(text, ": ")
+	return nil
 }
 
 func (w *entryWriter) recordDirectory(ctx context.Context, directory string, project string) error {
@@ -125,6 +158,11 @@ func (w *entryWriter) writeEvent(ctx context.Context, event dto.TranscriptEvent,
 		return false, err
 	}
 	attributes := map[string]any{}
+	if event.Kind == transcript.EventToolError {
+		if err := w.nameCall(ctx, &event); err != nil {
+			return false, err
+		}
+	}
 	for key, value := range event.Attributes {
 		if text, ok := value.(string); ok {
 			value = redact.Redact(text)

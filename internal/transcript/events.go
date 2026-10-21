@@ -19,6 +19,7 @@ const (
 	EventReply      = "reply"
 	EventSkill      = "skill"
 	EventTokens     = "tokens"
+	EventToolError  = "tool-error"
 )
 
 // Hook events whose plain stdout reaches the model; for the rest only JSON additionalContext does. As of 2026-10-16
@@ -137,6 +138,11 @@ func lineEvents(parsed line, text string, blocks []block) []dto.TranscriptEvent 
 				events = append(events, event(EventCommand, match[1], nil))
 			}
 		}
+		for _, block := range blocks {
+			if block.Type == "tool_result" && block.IsError {
+				events = append(events, event(EventToolError, "", toolErrorAttributes(parsed, block)))
+			}
+		}
 		return events
 	}
 	if tokens, ok := tokenEvent(parsed, base); ok {
@@ -162,6 +168,24 @@ func lineEvents(parsed line, text string, blocks []block) []dto.TranscriptEvent 
 	return events
 }
 
+func resultText(content json.RawMessage) string {
+	var text string
+	if json.Unmarshal(content, &text) == nil {
+		return text
+	}
+	var parts []block
+	if json.Unmarshal(content, &parts) != nil {
+		return ""
+	}
+	var texts []string
+	for _, part := range parts {
+		if part.Type == "text" {
+			texts = append(texts, part.Text)
+		}
+	}
+	return strings.Join(texts, "\n")
+}
+
 // A response is written one line per content block, each with its usage, so the message id keys it.
 func tokenEvent(parsed line, base dto.TranscriptEvent) (dto.TranscriptEvent, bool) {
 	message := parsed.Message
@@ -182,6 +206,15 @@ func tokenEvent(parsed line, base dto.TranscriptEvent) (dto.TranscriptEvent, boo
 	base.Kind = EventTokens
 	base.Name = message.Model
 	return base, true
+}
+
+// callLine lets sync name the call: a result line carries no tool name or input.
+func toolErrorAttributes(parsed line, result block) map[string]any {
+	attributes := map[string]any{"error": truncate(resultText(result.Content))}
+	if parsed.SourceToolAssistantUUID != "" {
+		attributes["callLine"] = parsed.SourceToolAssistantUUID
+	}
+	return attributes
 }
 
 func userTexts(text string, blocks []block) []string {

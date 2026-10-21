@@ -79,12 +79,13 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 CREATE INDEX IF NOT EXISTS entries_owner_project ON entries (owner, project, session);
 CREATE INDEX IF NOT EXISTS entries_session ON entries (session);
+CREATE INDEX IF NOT EXISTS entries_source ON entries (source);
 CREATE INDEX IF NOT EXISTS events_kind_name ON events (kind, name, timestamp);
 CREATE INDEX IF NOT EXISTS events_session ON events (session);
 CREATE VIRTUAL TABLE IF NOT EXISTS entries_fts USING fts5(text, content='entries', content_rowid='id');`
 
 // Version is bumped when the schema or what sync derives changes; an index holding another version is rebuilt.
-const Version = "7"
+const Version = "8"
 
 type Index struct {
 	db       *sql.DB
