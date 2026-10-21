@@ -1,10 +1,9 @@
 name: Check
-run-name: "Check: ${{ github.event_name == 'push' && github.event.head_commit.message || github.event_name == 'pull_request' && github.event.pull_request.title || github.event_name == 'schedule' && format('weekly on {0}', github.ref_name) || format('{0} on {1}', github.event_name, github.ref_name) }}"
+run-name: "Check: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || github.event_name == 'schedule' && format('weekly on {0}', github.ref_name) || format('{0} on {1}', github.event_name, github.ref_name) }}"
 
+# A push to main is checked by Release, which calls this before cutting a release.
 on:
   pull_request:
-  push:
-    branches: [main]
   # A vulnerability advisory lands without anyone pushing.
   schedule:
     - cron: "0 6 * * 1"
@@ -14,10 +13,10 @@ on:
 permissions:
   contents: read
 
-# The event in the group keeps a push from cancelling the weekly or a manual run on main.
+# The event in the group keeps a weekly and a manual run on one ref from replacing each other while queued.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:

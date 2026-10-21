@@ -46,7 +46,7 @@ the session already running.
    of `go env GOPATH`) must be on `PATH`:
 
    ```sh
-   go install github.com/nicolaspearson/claude-ephant/cmd/ele@main
+   go install github.com/nicolaspearson/claude-ephant/cmd/ele@latest
    ```
 
 2. In Claude Code, add the marketplace and install the plugin:
@@ -69,7 +69,7 @@ the session already running.
 
 An `ele` older than the plugin answers the subcommands it lacks with its usage
 text, so update the binary first, the way it was installed: the download in
-Install's first step again, or `go install …/cmd/ele@main`. Then:
+Install's first step again, or `go install …/cmd/ele@latest`. Then:
 
 ```text
 /plugin marketplace update claude-ephant
@@ -86,8 +86,10 @@ Install's first step again, or `go install …/cmd/ele@main`. Then:
 
 Working from a clone needs [Task](https://taskfile.dev). `task install` builds
 and installs `ele` from the clone, and `task check` runs every gate but `audit`.
-CI runs `task check` and `task audit` on every pull request and push to `main`;
-pushing a `v*` tag runs them on the tagged commit, then publishes the release
-binaries.
+CI runs `task check` and `task audit` on every pull request, and the Release
+workflow runs them on every push to `main`. There, release-please keeps a
+release PR open with the next version and its changelog, worked out from the
+conventional commit messages; merging it tags the release, and the binaries are
+attached to it.
 
 The specs are in [`.documentation/specs/`](.documentation/specs/).

@@ -1,30 +1,54 @@
 name: Release
-run-name: "Release ${{ github.ref_name }}"
+run-name: "Release: ${{ github.event.head_commit.message }}"
 
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
 
 permissions:
   contents: read
 
+# One at a time, so two merges cannot both cut a release.
 concurrency:
-  group: release-${{ github.ref }}
+  group: release
   cancel-in-progress: false
 
 jobs:
+  # A release PR opened with GITHUB_TOKEN triggers no checks, so its merge is checked here.
   check:
     name: Check
     uses: ./.github/workflows/ci.yml
 
+  release-please:
+    name: Release please
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    outputs:
+      created: ${{ steps.release.outputs.release_created }}
+      sha: ${{ steps.release.outputs.sha }}
+      tag: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        id: release
+
+  # The release is a draft until its binaries are up, so latest never lacks them.
+  # A release of a commit other than the one checked here, as when its merge
+  # failed the check and a later push released it, stays a draft for a person.
   publish:
     name: Build and publish
-    needs: check
+    needs: release-please
+    if: needs.release-please.outputs.created == 'true' && needs.release-please.outputs.sha == github.sha
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.release-please.outputs.tag }}
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           cache: false
@@ -41,7 +65,11 @@ jobs:
             tar -C dist -czf "dist/$name.tar.gz" "$name"
           done
           (cd dist && sha256sum ele_*.tar.gz > checksums.txt && cat checksums.txt)
-      - name: Publish
+      # Clobber, so a re-run of this job replaces what a failed one left.
+      - name: Upload and publish
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/ele_*.tar.gz dist/checksums.txt --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
+          TAG: ${{ needs.release-please.outputs.tag }}
+        run: |
+          gh release upload "$TAG" dist/ele_*.tar.gz dist/checksums.txt --clobber
+          gh release edit "$TAG" --draft=false --latest
