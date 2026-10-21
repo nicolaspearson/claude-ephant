@@ -104,28 +104,9 @@ tasks:
         set -eu
         repo=nicolaspearson/claude-ephant
         tag=$(gh release view --repo "$repo" --json tagName --jq .tagName)
-        name="ele_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/')"
-        work=$(mktemp -d)
-        trap 'rm -rf "$work"' EXIT
-        gh release download "$tag" --repo "$repo" --pattern "$name.tar.gz" --pattern checksums.txt --dir "$work"
-        expected=$(awk -v file="$name.tar.gz" '$2 == file { print $1 }' "$work/checksums.txt")
-        if command -v sha256sum >/dev/null; then
-          actual=$(sha256sum "$work/$name.tar.gz" | cut -d' ' -f1)
-        elif command -v shasum >/dev/null; then
-          actual=$(shasum -a 256 "$work/$name.tar.gz" | cut -d' ' -f1)
-        else
-          echo "Checking the download needs sha256sum or shasum" >&2
-          exit 1
-        fi
-        if [ -z "$expected" ] || [ "$expected" != "$actual" ]; then
-          echo "$name.tar.gz of $tag does not match checksums.txt" >&2
-          exit 1
-        fi
-        tar -xzf "$work/$name.tar.gz" -C "$work"
         dir="${ELE_INSTALL_DIR:-$HOME/.local/bin}"
-        mkdir -p "$dir"
+        ELE_VERSION="$tag" ELE_INSTALL_DIR="$dir" sh ./install.sh
         dir=$(cd "$dir" && pwd -P)
-        install -m 0755 "$work/$name/{{.BINARY}}" "$dir/{{.BINARY}}"
         found=$(command -v {{.BINARY}} || true)
         if [ -z "$found" ] || [ "$(cd "$(dirname "$found")" && pwd -P)" != "$dir" ]; then
           echo "Installed $dir/{{.BINARY}}, but \`{{.BINARY}}\` resolves to ${found:-nothing}. Every copy on PATH, first wins:" >&2
@@ -176,12 +157,14 @@ tasks:
       - gofmt -w .
 
   lint:
-    desc: "Check formatting, vet, catch shadowed variables, run staticcheck."
+    desc: "Check formatting, vet, catch shadowed variables, run staticcheck and shellcheck."
     preconditions:
       - sh: test -x {{.TOOLS}}/shadow
         msg: "shadow is not installed — run: task setup-tools"
       - sh: '[ "$(go version {{.TOOLS}}/shadow | cut -d" " -f2)" = "{{.GO_VERSION}}" ]'
         msg: "shadow was built with a different Go than {{.GO_VERSION}} — run: task setup-tools"
+      - sh: command -v shellcheck
+        msg: "shellcheck is not installed — brew install shellcheck, or your package manager's"
       - sh: test -x {{.TOOLS}}/staticcheck
         msg: "staticcheck is not installed — run: task setup-tools"
       - sh: '[ "$(go version {{.TOOLS}}/staticcheck | cut -d" " -f2)" = "{{.GO_VERSION}}" ]'
@@ -198,6 +181,7 @@ tasks:
       - go vet -vettool={{.TOOLS}}/shadow ./...
       # Package doc comments not required.
       - "{{.TOOLS}}/staticcheck -checks=all,-ST1000 -f stylish -fail=all ./..."
+      - shellcheck install.sh
 
   lint-docs:
     desc: "Reject source line-number citations in .documentation."

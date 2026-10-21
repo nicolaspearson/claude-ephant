@@ -26,24 +26,29 @@ the session already running.
 - Go, at the version in `go.mod`, only to install with `go install` or to work
   from a clone
 - `jq` and `shasum`, for the checkpoint hooks
+- `curl`, `tar` and `sha256sum` or `shasum`, for the install script
 
 ## Install
 
 1. Install the binary. The plugin's hooks call `ele` from `PATH`, so it must be
    on `PATH` before the plugin is enabled. Releases carry macOS and Linux
-   binaries for amd64 and arm64; this puts the latest in `~/.local/bin`, which
-   must then be on `PATH`:
+   binaries for amd64 and arm64. With Homebrew, on macOS or Linux:
 
    ```sh
-   os=$(uname -s | tr '[:upper:]' '[:lower:]')
-   arch=$(uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/')
-   curl -fsSL "https://github.com/nicolaspearson/claude-ephant/releases/latest/download/ele_${os}_${arch}.tar.gz" | tar -xz
-   mkdir -p ~/.local/bin && mv "ele_${os}_${arch}/ele" ~/.local/bin/ && rm -r "ele_${os}_${arch}"
+   brew install nicolaspearson/tap/ele
    ```
 
-   Each release lists the tarballs' SHA-256 sums in `checksums.txt`. With Go
-   instead, Go's bin directory (`go env GOBIN`, else `bin` under the first entry
-   of `go env GOPATH`) must be on `PATH`:
+   Or with the install script, which checks the download against the release's
+   `checksums.txt` and puts `ele` in `~/.local/bin`, saying so if that is not
+   on `PATH`. `ELE_INSTALL_DIR` picks another directory, `ELE_VERSION` a
+   release tag:
+
+   ```sh
+   curl -fsSL https://raw.githubusercontent.com/nicolaspearson/claude-ephant/main/install.sh | sh
+   ```
+
+   Or with Go, whose bin directory (`go env GOBIN`, else `bin` under the first
+   entry of `go env GOPATH`) must be on `PATH`:
 
    ```sh
    go install github.com/nicolaspearson/claude-ephant/cmd/ele@latest
@@ -68,15 +73,15 @@ the session already running.
 ## Update
 
 An `ele` older than the plugin answers the subcommands it lacks with its usage
-text, so update the binary first, the way it was installed: the download in
-Install's first step again, or `go install …/cmd/ele@latest`. Then:
+text, so update the binary first, the way it was installed: `brew upgrade ele`,
+the install script again, or `go install …/cmd/ele@latest`. Then:
 
 ```text
 /plugin marketplace update claude-ephant
 /reload-plugins
 ```
 
-`ele version` prints a downloaded binary's release tag, to check against the
+`ele version` prints a released binary's tag, to check against the
 latest release. From a clone, `task upgrade` does all of this; see Contributing.
 
 ## Options
@@ -88,19 +93,23 @@ latest release. From a clone, `task upgrade` does all of this; see Contributing.
 ## Contributing
 
 Working from a clone needs [Task](https://taskfile.dev). `task install` builds
-and installs `ele` from the clone, and `task check` runs every gate but `audit`.
-CI runs `task check` and `task audit` on every pull request, and the Release
-workflow runs them on every push to `main`. There, release-please keeps a
-release PR open with the next version and its changelog, worked out from the
-conventional commit messages; merging it tags the release, and the binaries are
-attached to it.
+and installs `ele` from the clone, and `task check` runs every gate but `audit`;
+its lint needs `shellcheck`. CI runs `task check` and `task audit` on every
+pull request, and the Release workflow runs them on every push to `main`.
+There, release-please keeps a release PR open with the next version and its
+changelog, worked out from the conventional commit messages; merging it tags
+the release, the binaries are attached to it, and the Tap workflow updates the
+formula in `nicolaspearson/homebrew-tap`, then installs the release with
+`install.sh` on macOS and Linux and with `brew` on macOS. Run Tap by hand with
+a tag, v0.3.0 or later, to re-render the formula for that release. It pushes
+with the `HOMEBREW_TAP_TOKEN` secret, a fine-grained token with write access to
+that repository's contents alone.
 
 `task upgrade` does the whole update from a clone, with Go, `gh` and `claude`:
-it installs the latest release's binary to `~/.local/bin` (`ELE_INSTALL_DIR`
-overrides), after checking it against the release's `checksums.txt`, then fails
-unless that copy is the `ele` on `PATH` and `ele version` prints the release's
-tag, and names any copy left behind it on `PATH`. It then updates the
-marketplace and the plugin; sessions already open load it after
-`/reload-plugins`.
+it installs the latest release's binary through `install.sh` to `~/.local/bin`
+(`ELE_INSTALL_DIR` overrides), then fails unless that copy is the `ele` on
+`PATH` and `ele version` prints the release's tag, and names any copy left
+behind it on `PATH`. It then updates the marketplace and the plugin; sessions
+already open load it after `/reload-plugins`.
 
 The specs are in [`.documentation/specs/`](.documentation/specs/).

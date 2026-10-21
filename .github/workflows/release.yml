@@ -75,3 +75,12 @@ jobs:
         run: |
           gh release upload "$TAG" dist/ele_*.tar.gz dist/checksums.txt --clobber
           gh release edit "$TAG" --draft=false --latest
+
+  tap:
+    name: Tap
+    needs: [release-please, publish]
+    uses: ./.github/workflows/tap.yml
+    with:
+      tag: ${{ needs.release-please.outputs.tag }}
+    secrets:
+      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}

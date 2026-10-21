@@ -1,0 +1,135 @@
+name: Tap
+run-name: "Tap: ${{ inputs.tag }}"
+
+# Release calls this once a release is published; by hand it renders the formula for any published tag.
+on:
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+    secrets:
+      HOMEBREW_TAP_TOKEN:
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "A published release's tag, v0.3.0 or later: earlier ones have no `ele version`"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tap
+  cancel-in-progress: false
+
+jobs:
+  formula:
+    name: Update the formula
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: nicolaspearson/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+      - name: Render Formula/ele.rb
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -eu
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern checksums.txt --dir "$RUNNER_TEMP"
+          checksum() {
+            found=$(awk -v file="ele_$1.tar.gz" '$2 == file { print $1 }' "$RUNNER_TEMP/checksums.txt")
+            [ -n "$found" ] || { echo "checksums.txt of $TAG has no ele_$1.tar.gz" >&2; exit 1; }
+            echo "$found"
+          }
+          # Assigned, not substituted in the heredoc, so set -e sees a missing sum.
+          darwin_arm64=$(checksum darwin_arm64)
+          darwin_amd64=$(checksum darwin_amd64)
+          linux_arm64=$(checksum linux_arm64)
+          linux_amd64=$(checksum linux_amd64)
+          base="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG"
+          mkdir -p Formula
+          cat > Formula/ele.rb <<EOF
+          class Ele < Formula
+            desc "Cross-session memory for Claude Code"
+            homepage "https://github.com/$GITHUB_REPOSITORY"
+            version "${TAG#v}"
+
+            on_macos do
+              on_arm do
+                url "$base/ele_darwin_arm64.tar.gz"
+                sha256 "$darwin_arm64"
+              end
+              on_intel do
+                url "$base/ele_darwin_amd64.tar.gz"
+                sha256 "$darwin_amd64"
+              end
+            end
+
+            on_linux do
+              on_arm do
+                url "$base/ele_linux_arm64.tar.gz"
+                sha256 "$linux_arm64"
+              end
+              on_intel do
+                url "$base/ele_linux_amd64.tar.gz"
+                sha256 "$linux_amd64"
+              end
+            end
+
+            def install
+              bin.install "ele"
+            end
+
+            test do
+              assert_equal "v#{version}", shell_output("#{bin}/ele version").strip
+            end
+          end
+          EOF
+          cat Formula/ele.rb
+      - name: Push
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          git add Formula/ele.rb
+          if git diff --cached --quiet; then
+            echo "Formula/ele.rb already at $TAG"
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "ele $TAG"
+          git push
+
+  # install.sh from this run's ref, not the tag's: a tag cut before it has none.
+  verify:
+    name: Install on ${{ matrix.os }}
+    needs: formula
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: install.sh
+        env:
+          ELE_INSTALL_DIR: ${{ runner.temp }}/bin
+          ELE_VERSION: ${{ inputs.tag }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          sh install.sh
+          installed=$("$ELE_INSTALL_DIR/ele" version)
+          [ "$installed" = "$TAG" ] || { echo "install.sh installed $installed, not $TAG" >&2; exit 1; }
+      - name: Homebrew
+        if: runner.os == 'macOS'
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          TAG: ${{ inputs.tag }}
+        run: |
+          brew install nicolaspearson/tap/ele
+          brew test ele
+          installed=$("$(brew --prefix)/bin/ele" version)
+          [ "$installed" = "$TAG" ] || { echo "brew installed $installed, not $TAG" >&2; exit 1; }
