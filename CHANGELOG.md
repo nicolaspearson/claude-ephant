@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0](https://github.com/nicolaspearson/claude-ephant/compare/v0.4.0...v0.5.0) (2026-10-21)
+
+
+### Features
+
+* **plan:** blocked: edges by item name, after: dates, closed-plan store ([630f5a0](https://github.com/nicolaspearson/claude-ephant/commit/630f5a04008afd344d8b89460051b22f5b5e2d56))
+* **plan:** items lead with a kebab name; ledger keys on it ([2e04e2a](https://github.com/nicolaspearson/claude-ephant/commit/2e04e2a1caf745b6a265d9936008ea1447df975b))
+
 ## [0.4.0](https://github.com/nicolaspearson/claude-ephant/compare/v0.3.0...v0.4.0) (2026-10-21)
 
 
