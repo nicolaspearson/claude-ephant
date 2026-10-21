@@ -70,7 +70,57 @@ func TestParseClosesAFenceOnlyOnItsOwnMarker(t *testing.T) {
 		{Body: []string{"  ```", "```"}, Line: 16, Title: "Column"},
 		{Body: []string{"  asserted: kept"}, Done: true, Line: 19, Title: "Windows"},
 	}, plan.Actions)
-	require.Equal(t, 1, plan.Inbox)
+	require.Len(t, plan.Inbox, 1)
+}
+
+func TestCheckWarnsOnStaleClaimsAndInboxItemsAndMissingDoneWhens(t *testing.T) {
+	content := "---\nkind: plan\n---\n## Context\n" +
+		"- As of 2026-10-01: old fact\n" +
+		"- as of 2026-10-10: fresh enough\n" +
+		"## Actions\n" +
+		"- [x] done-item: Done\n  as of 2026-09-01: history\n" +
+		"- [ ] no-when: No done-when\n  as of 2026-10-01 and as of 2026-09-30: two dates\n  ```\n  as of 2026-01-01: fenced\n  ```\n" +
+		"- [ ] with-when: Has one\n  - done when it is\n  after: 2026-10-20\n  blocked: nope\n" +
+		"- [ ] Closing action\n" +
+		"## Inbox\n- 2026-10-20, fresh\n- 2026-10-10, stale\n- undated\n" +
+		"## Out of scope\n- as of 2026-01-01 ruled out\n"
+	parsed, err := Parse([]byte(content))
+	require.NoError(t, err)
+	now := time.Date(2026, 10, 21, 12, 0, 0, 0, time.Local)
+	passed := time.Date(2026, 10, 20, 0, 0, 0, 0, time.Local).Format("2006-01-02 15:04 -07:00")
+	require.Equal(t, []Warning{
+		{Line: 5, Text: "as of 2026-10-01 is 20 days old; re-measure it"},
+		{Line: 10, Text: "no-when: no done when line"},
+		{Line: 11, Text: "as of 2026-09-30 is 21 days old; re-measure it"},
+		{Line: 15, Text: "with-when: after: " + passed + " has passed; drop it"},
+		{Line: 15, Text: "with-when: blocker nope does not exist"},
+		{Line: 22, Text: "inbox item from 2026-10-10 is 11 days old; triage it"},
+		{Line: 23, Text: "inbox item has no date; lead it with the date and where it came from"},
+	}, parsed.Resolve(now, nil).Check(now))
+}
+
+func TestCheckSaysWhenAPlanIsReadyToClose(t *testing.T) {
+	tests := []struct {
+		content string
+		name    string
+		want    []Warning
+	}{
+		{content: "- [x] a: A\n- [x] Close\n", name: "closed"},
+		{content: "- [ ] Close\n", name: "closing alone"},
+		{content: "- [x] a: A\n- [ ] Close\n## Inbox\n- 2026-10-21, new\n", name: "inbox first", want: []Warning{{Line: 6, Text: "every action but the closing one is done; ready to close once the inbox is triaged"}}},
+		{content: "- [ ] a: A\n  done when it is\n- [ ] Close\n", name: "open work"},
+		{content: "- [x] a: A\n- [ ] Close\n", name: "ready", want: []Warning{{Line: 6, Text: "every action but the closing one is done; ready to close"}}},
+		{content: "- [x] a: A\n- [x] Close\n## Inbox\n- 2026-10-21, new\n", name: "ticked over an inbox", want: []Warning{{Line: 6, Text: "the closing action is ticked while the inbox holds items; triage them first"}}},
+		{content: "- [ ] a: A\n  done when it is\n- [x] Close\n## Inbox\n- 2026-10-21, new\n", name: "ticked over an inbox and open work", want: []Warning{{Line: 7, Text: "the closing action is ticked while the inbox holds items; triage them first"}}},
+	}
+	now := time.Date(2026, 10, 21, 12, 0, 0, 0, time.Local)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			parsed, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n" + test.content))
+			require.NoError(t, err)
+			require.Equal(t, test.want, parsed.Resolve(now, nil).Check(now))
+		})
+	}
 }
 
 func TestParseReadsActionsInFileOrder(t *testing.T) {

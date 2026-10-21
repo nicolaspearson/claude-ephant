@@ -23,6 +23,7 @@ const activePlanMissing = "plan %[1]s is not in this checkout; switch to its bra
 
 func planCommand(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
 	subcommands := map[string]func(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int{
+		"check": checkPlan,
 		"done":  planDone,
 		"list":  listPlans,
 		"show":  showPlan,
@@ -39,6 +40,84 @@ func activePlans(all []notes.Note, project string) []notes.Note {
 	return slices.DeleteFunc(newestOfKind(all, notes.KindPlan, project), func(note notes.Note) bool {
 		return note.Shown != "" || superseded[note.ID] != ""
 	})
+}
+
+func checkPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
+	flags := newFlagSet("plan check", stderr)
+	arguments, err := parseInterspersed(flags, args)
+	if err != nil || len(arguments) > 1 {
+		return rejectCall(flags, err, stdout, stderr)
+	}
+	root, err := checkoutRoot()
+	if err != nil {
+		fmt.Fprintf(stderr, "ele: %v\n", err)
+		return 1
+	}
+	var plans planSet
+	var paths []string
+	if len(arguments) == 1 {
+		relative, pathErr := planPath(root, arguments[0])
+		if pathErr != nil {
+			fmt.Fprintf(stderr, "ele: %v\n", pathErr)
+			return 1
+		}
+		if scope, _, scopeErr := projectNotes(ctx, "", ""); scopeErr == nil {
+			plans = loadPlanSet(root, scope.all, scope.project, scope.noteDirectory)
+		}
+		paths = []string{relative}
+	} else {
+		scope, code, scopeErr := projectNotes(ctx, "", "")
+		if scopeErr != nil {
+			fmt.Fprintf(stderr, "ele: %v\n", scopeErr)
+			return code
+		}
+		active := activePlans(scope.all, scope.project)
+		if len(active) == 0 {
+			fmt.Fprintf(stdout, "ele has no active plan for %s; ele plan check <path> checks one.\n", present(scope.owner, scope.project))
+			return 0
+		}
+		plans = loadPlanSet(root, scope.all, scope.project, scope.noteDirectory)
+		for _, note := range active {
+			paths = append(paths, note.Body)
+		}
+	}
+	code := 0
+	for _, relative := range paths {
+		content, readErr := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
+		switch {
+		case errors.Is(readErr, fs.ErrNotExist) && len(arguments) == 0:
+			fmt.Fprintf(stdout, activePlanMissing+".\n", relative)
+			continue
+		case errors.Is(readErr, fs.ErrNotExist):
+			fmt.Fprintf(stderr, "ele: %s is not in this checkout\n", relative)
+			return 1
+		case readErr != nil:
+			fmt.Fprintf(stderr, "ele: %v\n", readErr)
+			return 1
+		}
+		parsed, parseErr := plan.Parse(content)
+		if parseErr != nil {
+			fmt.Fprintf(stderr, "%s\n", redact.Redact(fmt.Sprintf("ele: %s: %v", relative, parseErr)))
+			code = 1
+			continue
+		}
+		_, warnings := plans.check(relative, parsed)
+		if len(warnings) == 0 {
+			fmt.Fprintf(stdout, "Plan %s: no warnings.\n", relative)
+			continue
+		}
+		var report strings.Builder
+		fmt.Fprintf(&report, "Plan %s: %s.\n", relative, plural(len(warnings), "warning", "warnings"))
+		for _, warning := range warnings {
+			if warning.Line > 0 {
+				fmt.Fprintf(&report, "- line %d: %s\n", warning.Line, warning.Text)
+			} else {
+				fmt.Fprintf(&report, "- %s\n", warning.Text)
+			}
+		}
+		fmt.Fprint(stdout, redact.Redact(report.String()))
+	}
+	return code
 }
 
 func checkoutRoot() (string, error) {
@@ -223,8 +302,9 @@ func planView(ctx context.Context, root string, relative string, bodyLimit int, 
 	if err != nil {
 		return "", err
 	}
+	resolved, warnings := plans.check(relative, parsed)
 	var view strings.Builder
-	writePlanView(&view, relative, plans.resolve(parsed), tick, ticked, bodyLimit)
+	writePlanView(&view, relative, resolved, len(warnings), tick, ticked, bodyLimit)
 	for _, clash := range plans.clashes(relative, parsed) {
 		fmt.Fprintf(&view, "Warning: %s; %s.\n", clash, namesUnique)
 	}
@@ -243,9 +323,12 @@ func planSummary(root string, relative string, plans planSet) string {
 	if err != nil {
 		return redact.Redact(fmt.Sprintf("%s: %v", relative, err))
 	}
-	resolved := plans.resolve(parsed)
+	resolved, warnings := plans.check(relative, parsed)
 	counts := resolved.Counts()
 	summary := fmt.Sprintf("%s: %d open, %d blocked, %d done, %d in the inbox.", relative, counts.Open, counts.Blocked, counts.Done, counts.Inbox)
+	if len(warnings) > 0 {
+		summary += fmt.Sprintf(" %s; ele plan check lists %s.", plural(len(warnings), "warning", "warnings"), pronoun(len(warnings)))
+	}
 	if next, ok := resolved.Next(); ok {
 		summary += " Next: " + next.Title
 	}
@@ -253,6 +336,13 @@ func planSummary(root string, relative string, plans planSet) string {
 		summary += fmt.Sprintf(" Warning: %s; %s.", strings.Join(clashes, ", "), namesUnique)
 	}
 	return redact.Redact(summary)
+}
+
+func pronoun(count int) string {
+	if count == 1 {
+		return "it"
+	}
+	return "them"
 }
 
 func showPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
@@ -392,9 +482,12 @@ func startPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.W
 	return 0
 }
 
-func writePlanView(out *strings.Builder, relative string, parsed plan.Plan, tick plan.Tick, ticked bool, bodyLimit int) {
+func writePlanView(out *strings.Builder, relative string, parsed plan.Plan, warnings int, tick plan.Tick, ticked bool, bodyLimit int) {
 	counts := parsed.Counts()
 	fmt.Fprintf(out, "Plan %s: %d open, %d blocked, %d done, %d in the inbox.\n", relative, counts.Open, counts.Blocked, counts.Done, counts.Inbox)
+	if warnings > 0 {
+		fmt.Fprintf(out, "%s; ele plan check %s lists %s.\n", plural(warnings, "warning", "warnings"), relative, pronoun(warnings))
+	}
 	switch {
 	case ticked && tick.Commit == "":
 		fmt.Fprintf(out, "Previous: %s (uncommitted)\n", tick.Title)

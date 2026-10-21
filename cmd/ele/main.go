@@ -39,6 +39,7 @@ const usage = `usage:
   ele owner add-project [--move] [--move-to <owner>] [--no-sync] <name> <owner>
   ele owner remove-path [--move] [--move-to <owner>] [--no-sync] <dir>
   ele owner remove-project [--move] [--move-to <owner>] [--no-sync] <name>
+  ele plan check [<path>]
   ele plan done [--owner <name>] [--project <name>] <path|id>...
   ele plan list [--all] [--owner <name>] [--project <name>]
   ele plan show [<path>]

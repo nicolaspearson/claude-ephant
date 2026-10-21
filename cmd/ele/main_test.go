@@ -27,6 +27,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
+	planClock = func() time.Time { return time.Date(2026, 10, 21, 12, 0, 0, 0, time.Local) }
 	code := m.Run()
 	_ = os.RemoveAll(home)
 	os.Exit(code)

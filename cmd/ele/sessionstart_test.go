@@ -141,7 +141,7 @@ func TestRunSessionStartShowsActivePlansEveryTime(t *testing.T) {
 	handoff := readRemembered(t, output)
 
 	require.NotContains(t, start("resume"), "plan", "a resumed transcript already holds the block")
-	section := "Active plan from ele:\nPlan build.md: 1 open, 0 blocked, 1 done, 0 in the inbox.\nNext, line 8:\n- [ ] Start block\n  token=[redacted:assignment]\n"
+	section := "Active plan from ele:\nPlan build.md: 1 open, 0 blocked, 1 done, 0 in the inbox.\n1 warning; ele plan check build.md lists it.\nNext, line 8:\n- [ ] Start block\n  token=[redacted:assignment]\n"
 	shown, message := hookOutput(t, start("startup"))
 	require.True(t, strings.HasPrefix(message, "Handoff from ele, note "+handoff.ID), message)
 	require.Contains(t, message, "Next: the start block.\n\n"+section)
@@ -166,7 +166,7 @@ func TestRunSessionStartShowsActivePlansEveryTime(t *testing.T) {
 
 	shown, message = hookOutput(t, start("clear"))
 	require.Regexp(t, `^3 active plans from ele, newest first:\n`, message)
-	require.Contains(t, message, "\n- build.md: 1 open, 0 blocked, 1 done, 0 in the inbox. Next: Start block\n")
+	require.Contains(t, message, "\n- build.md: 1 open, 0 blocked, 1 done, 0 in the inbox. 1 warning; ele plan check lists it. Next: Start block\n")
 	require.Contains(t, message, "\n- broken.md: invalid plan: front matter line ")
 	require.Contains(t, message, "\n- plan gone.md is not in this checkout; switch to its branch, or ele plan done gone.md closes it")
 	require.NotContains(t, message, "as of 2026-10-17", "several plans are one line each")
@@ -293,8 +293,8 @@ func TestRunSessionStartColoursOnlyTheUsersCopy(t *testing.T) {
 	var raw bytes.Buffer
 	require.Equal(t, 0, sessionStart(context.Background(), []string{"--no-sync"}, strings.NewReader(`{"session_id":"s","source":"startup"}`), &raw, &raw), raw.String())
 	shown, message := hookOutput(t, raw.String())
-	require.Equal(t, "\033[1mActive plan from ele:\033[22m\n\033[1mPlan\033[22m build.md: \033[33m1 open\033[39m, \033[2m0 blocked\033[22m, \033[32m1 done\033[39m, \033[2m0 in the inbox\033[22m.\n\033[1mNext, line 8:\033[22m\n- [ ] Start [31mblock", message, "a plan cannot send its own escape sequences")
-	require.Contains(t, shown, "Plan build.md: 1 open, 0 blocked, 1 done, 0 in the inbox.\nNext, line 8:\n- [ ] Start \033[31mblock\n", "the session's copy is plain")
+	require.Equal(t, "\033[1mActive plan from ele:\033[22m\n\033[1mPlan\033[22m build.md: \033[33m1 open\033[39m, \033[2m0 blocked\033[22m, \033[32m1 done\033[39m, \033[2m0 in the inbox\033[22m.\n\033[33m1 warning\033[39m; \033[36mele plan check build.md\033[39m lists it.\n\033[1mNext, line 8:\033[22m\n- [ ] Start [31mblock", message, "a plan cannot send its own escape sequences")
+	require.Contains(t, shown, "Plan build.md: 1 open, 0 blocked, 1 done, 0 in the inbox.\n1 warning; ele plan check build.md lists it.\nNext, line 8:\n- [ ] Start \033[31mblock\n", "the session's copy is plain")
 }
 
 func hookOutput(t *testing.T, raw string) (additionalContext string, systemMessage string) {

@@ -12,17 +12,22 @@ import (
 )
 
 const (
-	sectionActions = "Actions"
-	sectionInbox   = "Inbox"
+	claimAge          = 14 * 24 * time.Hour
+	inboxAge          = 7 * 24 * time.Hour
+	sectionActions    = "Actions"
+	sectionInbox      = "Inbox"
+	sectionOutOfScope = "Out of scope"
 )
 
 var (
 	ErrInvalid = errors.New("invalid plan")
 
-	checkbox = regexp.MustCompile(`^- \[([ xX])\] (.*)$`)
-	edgeName = regexp.MustCompile(`^(?:([a-z0-9]+(?:-[a-z0-9]+)*)/)?([a-z0-9]+(?:-[a-z0-9]+)*)$`)
-	heading  = regexp.MustCompile(`^(#{1,6})\s+(.*?)\s*#*\s*$`)
-	itemName = regexp.MustCompile(`^([a-z0-9]+(?:-[a-z0-9]+)*): `)
+	asOf      = regexp.MustCompile(`(?i)\bas of (\d{4}-\d{2}-\d{2})`)
+	checkbox  = regexp.MustCompile(`^- \[([ xX])\] (.*)$`)
+	edgeName  = regexp.MustCompile(`^(?:([a-z0-9]+(?:-[a-z0-9]+)*)/)?([a-z0-9]+(?:-[a-z0-9]+)*)$`)
+	heading   = regexp.MustCompile(`^(#{1,6})\s+(.*?)\s*#*\s*$`)
+	inboxDate = regexp.MustCompile(`^- (\d{4}-\d{2}-\d{2})\b`)
+	itemName  = regexp.MustCompile(`^([a-z0-9]+(?:-[a-z0-9]+)*): `)
 )
 
 type Blocker int
@@ -43,32 +48,45 @@ type Counts struct {
 	Open    int
 }
 
+// Dated has a zero Date for none, or for one that does not parse.
+type Dated struct {
+	Date time.Time
+	Line int
+}
+
 type Edge struct {
 	Name string
 	Plan string
 }
 
 type Item struct {
-	After   time.Time
-	Blocked []string
-	Body    []string
-	Done    bool
-	Edges   []Edge
-	Flags   []string
-	Held    bool
-	Line    int
-	Name    string
-	Prose   []string
-	Title   string
+	After    time.Time
+	Blocked  []string
+	Body     []string
+	Done     bool
+	DoneWhen bool
+	Edges    []Edge
+	Flags    []string
+	Held     bool
+	Line     int
+	Name     string
+	Prose    []string
+	Title    string
 }
 
 type Lookup func(edge Edge) Blocker
 
 type Plan struct {
 	Actions []Item
+	Claims  []Dated
 	Created string
-	Inbox   int
+	Inbox   []Dated
 	Spec    string
+}
+
+type Warning struct {
+	Line int
+	Text string
 }
 
 func Parse(content []byte) (Plan, error) {
@@ -128,6 +146,9 @@ func Parse(content []byte) (Plan, error) {
 		fenceLine := inside || fence != ""
 		if item != nil && (strings.TrimSpace(line) == "" || fenceLine || line != strings.TrimLeft(line, " \t")) {
 			item.Body = append(item.Body, line)
+			if !item.Done && !fenceLine {
+				plan.claim(line, number)
+			}
 			continue
 		}
 		item = nil
@@ -146,13 +167,20 @@ func Parse(content []byte) (Plan, error) {
 		}
 		switch {
 		case section == sectionInbox && strings.HasPrefix(line, "- "):
-			plan.Inbox++
+			entry := Dated{Line: number}
+			if match := inboxDate.FindStringSubmatch(line); match != nil {
+				entry.Date, _ = time.ParseInLocation(time.DateOnly, match[1], time.Local)
+			}
+			plan.Inbox = append(plan.Inbox, entry)
 		case section == sectionActions:
 			if match := checkbox.FindStringSubmatch(line); match != nil {
 				title := strings.TrimSpace(match[2])
 				plan.Actions = append(plan.Actions, Item{Done: match[1] != " ", Line: number, Name: Name(title), Title: title})
 				item = &plan.Actions[len(plan.Actions)-1]
 			}
+		}
+		if (item == nil || !item.Done) && section != sectionOutOfScope {
+			plan.claim(line, number)
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -183,6 +211,7 @@ func Parse(content []byte) (Plan, error) {
 				continue
 			}
 			trimmed := strings.TrimPrefix(strings.TrimSpace(line), "- ")
+			action.DoneWhen = action.DoneWhen || strings.HasPrefix(strings.ToLower(trimmed), "done when")
 			if reason, ok := strings.CutPrefix(trimmed, "blocked:"); ok {
 				reason = strings.TrimSpace(reason)
 				action.Blocked = append(action.Blocked, reason)
@@ -224,8 +253,53 @@ func Name(title string) string {
 	return ""
 }
 
+// Check runs on a resolved plan: it reports the plan's flags beside its own warnings.
+func (p Plan) Check(now time.Time) []Warning {
+	var warnings []Warning
+	last := len(p.Actions) - 1
+	for at, action := range p.Actions {
+		label := action.Name
+		if label == "" {
+			label = "action"
+		}
+		for _, flag := range action.Flags {
+			warnings = append(warnings, Warning{Line: action.Line, Text: label + ": " + flag})
+		}
+		if !action.Done && at != last && !action.DoneWhen {
+			warnings = append(warnings, Warning{Line: action.Line, Text: label + ": no done when line"})
+		}
+	}
+	for _, claim := range p.Claims {
+		if age := now.Sub(claim.Date); age > claimAge {
+			warnings = append(warnings, Warning{Line: claim.Line, Text: fmt.Sprintf("as of %s is %s old; re-measure it", claim.Date.Format(time.DateOnly), daysOld(age))})
+		}
+	}
+	for _, entry := range p.Inbox {
+		switch age := now.Sub(entry.Date); {
+		case entry.Date.IsZero():
+			warnings = append(warnings, Warning{Line: entry.Line, Text: "inbox item has no date; lead it with the date and where it came from"})
+		case age > inboxAge:
+			warnings = append(warnings, Warning{Line: entry.Line, Text: fmt.Sprintf("inbox item from %s is %s old; triage it", entry.Date.Format(time.DateOnly), daysOld(age))})
+		}
+	}
+	switch {
+	case last >= 1 && p.Actions[last].Done && len(p.Inbox) > 0:
+		warnings = append(warnings, Warning{Line: p.Actions[last].Line, Text: "the closing action is ticked while the inbox holds items; triage them first"})
+	case last >= 1 && !p.Actions[last].Done && !slices.ContainsFunc(p.Actions[:last], func(action Item) bool { return !action.Done }):
+		closing := p.Actions[last]
+		switch {
+		case len(p.Inbox) > 0:
+			warnings = append(warnings, Warning{Line: closing.Line, Text: "every action but the closing one is done; ready to close once the inbox is triaged"})
+		default:
+			warnings = append(warnings, Warning{Line: closing.Line, Text: "every action but the closing one is done; ready to close"})
+		}
+	}
+	slices.SortStableFunc(warnings, func(a Warning, b Warning) int { return a.Line - b.Line })
+	return warnings
+}
+
 func (p Plan) Counts() Counts {
-	counts := Counts{Inbox: p.Inbox}
+	counts := Counts{Inbox: len(p.Inbox)}
 	for _, action := range p.Actions {
 		switch {
 		case action.Done:
@@ -268,6 +342,9 @@ func (p Plan) Resolve(now time.Time, lookup Lookup) Plan {
 			continue
 		}
 		action.Held = len(action.Prose) > 0 || now.Before(action.After)
+		if !action.After.IsZero() && !now.Before(action.After) {
+			action.Flags = append(action.Flags, fmt.Sprintf("after: %s has passed; drop it", action.After.Local().Format("2006-01-02 15:04 -07:00")))
+		}
 		for _, edge := range action.Edges {
 			state := local[edge.Name]
 			if edge.Plan != "" {
@@ -289,6 +366,26 @@ func (p Plan) Resolve(now time.Time, lookup Lookup) Plan {
 	}
 	p.Actions = actions
 	return p
+}
+
+// The oldest date on the line, as the one most in need of re-measuring.
+func (p *Plan) claim(line string, number int) {
+	var oldest time.Time
+	for _, match := range asOf.FindAllStringSubmatch(line, -1) {
+		if date, err := time.ParseInLocation(time.DateOnly, match[1], time.Local); err == nil && (oldest.IsZero() || date.Before(oldest)) {
+			oldest = date
+		}
+	}
+	if !oldest.IsZero() {
+		p.Claims = append(p.Claims, Dated{Date: oldest, Line: number})
+	}
+}
+
+func daysOld(age time.Duration) string {
+	if count := int(age / (24 * time.Hour)); count != 1 {
+		return fmt.Sprintf("%d days", count)
+	}
+	return "1 day"
 }
 
 // A single bare word is an edge, not prose: held and flagged missing if no item has that name.

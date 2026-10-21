@@ -15,6 +15,9 @@ import (
 
 const namesUnique = "item names are unique across active and closed plans"
 
+// Tests fix it, so a dated fixture does not age into a warning.
+var planClock = time.Now
+
 // A plan missing from the checkout or not parsing is left out: it resolves no edge and clashes with nothing.
 type planSet struct {
 	active      map[string]plan.Plan
@@ -52,6 +55,15 @@ func planBase(relative string) string {
 
 func planStore(noteDirectory string) string {
 	return filepath.Join(filepath.Dir(noteDirectory), "plans")
+}
+
+func (s planSet) check(relative string, parsed plan.Plan) (plan.Plan, []plan.Warning) {
+	resolved := s.resolve(parsed)
+	warnings := resolved.Check(planClock())
+	for _, clash := range s.clashes(relative, parsed) {
+		warnings = append(warnings, plan.Warning{Text: clash + "; " + namesUnique})
+	}
+	return resolved, warnings
 }
 
 // A closed plan reopened at its own path may reuse its names.
@@ -103,5 +115,5 @@ func (s planSet) lookup(edge plan.Edge) plan.Blocker {
 }
 
 func (s planSet) resolve(parsed plan.Plan) plan.Plan {
-	return parsed.Resolve(time.Now(), s.lookup)
+	return parsed.Resolve(planClock(), s.lookup)
 }

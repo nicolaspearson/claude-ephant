@@ -40,7 +40,47 @@ func TestPlanSummaryRedactsTheNextTitleAndOmitsANextThatIsNone(t *testing.T) {
 	writeFile(t, filepath.Join(root, "blocked.md"), "---\nkind: plan\n---\n\n## Actions\n\n- [x] Parser\n- [ ] Commands\n  blocked: the parser first\n")
 
 	require.Equal(t, "secret.md: 1 open, 0 blocked, 0 done, 0 in the inbox. Next: Rotate token=[redacted:assignment]", planSummary(root, "secret.md", planSet{}))
-	require.Equal(t, "blocked.md: 0 open, 1 blocked, 1 done, 0 in the inbox.", planSummary(root, "blocked.md", planSet{}))
+	require.Equal(t, "blocked.md: 0 open, 1 blocked, 1 done, 0 in the inbox. 1 warning; ele plan check lists it.", planSummary(root, "blocked.md", planSet{}))
+}
+
+func TestRunPlanCheckListsEachActivePlansWarningsWithoutFailing(t *testing.T) {
+	home := recallFixture(t)
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	writeFile(t, filepath.Join(gateway, "clean.md"), "---\nkind: plan\n---\n## Actions\n- [ ] alpha: Alpha\n  done when it is\n- [ ] Close\n")
+	writeFile(t, filepath.Join(gateway, "stale.md"), "---\nkind: plan\n---\n## Context\n- as of 2026-10-01: old\n## Actions\n- [ ] beta: Beta\n- [ ] Close\n## Inbox\n- undated\n")
+	t.Chdir(gateway)
+	output, code := runCommand(t, "plan", "check")
+	require.Equal(t, 0, code, output)
+	require.Equal(t, "ele has no active plan for corp · gateway; ele plan check <path> checks one.\n", output)
+	for _, path := range []string{"clean.md", "stale.md"} {
+		output, code = runCommand(t, "plan", "start", path)
+		require.Equal(t, 0, code, output)
+	}
+
+	stale := "Plan stale.md: 3 warnings.\n- line 5: as of 2026-10-01 is 20 days old; re-measure it\n- line 7: beta: no done when line\n- line 10: inbox item has no date; lead it with the date and where it came from\n"
+	output, code = runCommand(t, "plan", "check")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "Plan clean.md: no warnings.\n")
+	require.Contains(t, output, stale)
+
+	writeFile(t, filepath.Join(gateway, "clash.md"), "---\nkind: plan\n---\n## Actions\n- [ ] beta: Again\n  done when it is\n- [ ] Close\n")
+	output, code = runCommand(t, "plan", "check", "clash.md")
+	require.Equal(t, 0, code, output)
+	require.Equal(t, "Plan clash.md: 1 warning.\n- item name \"beta\" is also in stale.md; item names are unique across active and closed plans\n", output, "a plan need not be started to be checked")
+
+	require.NoError(t, os.Remove(filepath.Join(gateway, "clean.md")))
+	output, code = runCommand(t, "plan", "check")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "plan clean.md is not in this checkout; switch to its branch, or ele plan done clean.md closes it.\n")
+	require.Contains(t, output, stale)
+
+	output, code = runCommand(t, "plan", "check", "clean.md")
+	require.Equal(t, 1, code)
+	require.Equal(t, "ele: clean.md is not in this checkout\n", output)
+	writeFile(t, filepath.Join(gateway, "stale.md"), "---\nkind: spec\n---\n")
+	output, code = runCommand(t, "plan", "check")
+	require.Equal(t, 1, code)
+	require.Contains(t, output, "ele: stale.md: invalid plan: kind \"spec\" is not plan\n")
 }
 
 func TestRunPlanDonePrefersThePathFromTheWorkingDirectory(t *testing.T) {
@@ -73,7 +113,7 @@ func TestRunPlanShowNamesEachActivePlanOrAMissingFile(t *testing.T) {
 
 	output, code := runCommand(t, "plan", "show")
 	require.Equal(t, 0, code, output)
-	summary := `\.md: 1 open, 1 blocked, 1 done, 1 in the inbox\. Next: Commands\n`
+	summary := `\.md: 1 open, 1 blocked, 1 done, 1 in the inbox\. 1 warning; ele plan check lists it\. Next: Commands\n`
 	require.Regexp(t, `^Active plans for corp · gateway, newest first; ele plan show <path> prints one:\n- \S+: (first|second)`+summary+`- \S+: (first|second)`+summary+`$`, output, "the next item skips the blocked one")
 
 	require.NoError(t, os.Remove(filepath.Join(gateway, "first.md")))
@@ -122,7 +162,7 @@ func TestRunPlanStartRefusesANameAnotherActivePlanHoldsAndShowWarnsOfOne(t *test
 
 	output, code = runCommand(t, "plan", "show")
 	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "first.md: 2 open, 0 blocked, 0 done, 0 in the inbox. Next: parser: Parser Warning: item name \"parser\" is also in second.md, item name \"commands\" is also in second.md; item names are unique across active and closed plans.\n", "several active plans each warn in their summary")
+	require.Contains(t, output, "first.md: 2 open, 0 blocked, 0 done, 0 in the inbox. 3 warnings; ele plan check lists them. Next: parser: Parser Warning: item name \"parser\" is also in second.md, item name \"commands\" is also in second.md; item names are unique across active and closed plans.\n", "several active plans each warn in their summary")
 }
 
 func TestRunPlanDoneStoresItemNamesThatResolveEdgesAndStayReserved(t *testing.T) {
@@ -138,7 +178,7 @@ func TestRunPlanDoneStoresItemNamesThatResolveEdgesAndStayReserved(t *testing.T)
 
 	output, code := runCommand(t, "plan", "show", "other.md")
 	require.Equal(t, 0, code, output)
-	require.Equal(t, "Plan other.md: 0 open, 2 blocked, 0 done, 0 in the inbox.\nBlocked:\n- wire: Wire\n  blocked: build/commands; reason\n- typo: Typo\n  blocked: build/nope\n  flag: blocker build/nope does not exist\nNext: none; every open item is blocked.\n", output)
+	require.Equal(t, "Plan other.md: 0 open, 2 blocked, 0 done, 0 in the inbox.\n2 warnings; ele plan check other.md lists them.\nBlocked:\n- wire: Wire\n  blocked: build/commands; reason\n- typo: Typo\n  blocked: build/nope\n  flag: blocker build/nope does not exist\nNext: none; every open item is blocked.\n", output)
 
 	output, code = runCommand(t, "plan", "done", "build.md")
 	require.Equal(t, 0, code, output)
@@ -179,7 +219,7 @@ func TestRunPlanDoneStoresADeletedPlanFromItsLastCommitAndWarnsOfItsUntickedName
 
 	output, code = runCommand(t, "plan", "show", "other.md")
 	require.Equal(t, 0, code, output)
-	require.Equal(t, "Plan other.md: 1 open, 1 blocked, 0 done, 0 in the inbox.\n"+
+	require.Equal(t, "Plan other.md: 1 open, 1 blocked, 0 done, 0 in the inbox.\n3 warnings; ele plan check other.md lists them.\n"+
 		"Blocked:\n- read: Read\n  blocked: build/parser\n  flag: blocker build/parser is in a closed plan and was never done\n"+
 		"Flagged:\n- wire: Wire\n  flag: blocker build/commands is done; drop it from blocked:\n"+
 		"Next, line 5:\n- [ ] wire: Wire\n  blocked: build/commands\n", output)
@@ -199,7 +239,7 @@ func TestRunPlanShowFreesAnItemOnceAnotherPlansBlockerIsTicked(t *testing.T) {
 
 	output, code := runCommand(t, "plan", "show", "other.md")
 	require.Equal(t, 0, code, output)
-	require.Equal(t, "Plan other.md: 1 open, 0 blocked, 0 done, 0 in the inbox.\nFlagged:\n- wire: Wire\n  flag: blocker build/commands is done; drop it from blocked:\nNext, line 5:\n- [ ] wire: Wire\n  blocked: build/commands\n", output)
+	require.Equal(t, "Plan other.md: 1 open, 0 blocked, 0 done, 0 in the inbox.\n1 warning; ele plan check other.md lists it.\nFlagged:\n- wire: Wire\n  flag: blocker build/commands is done; drop it from blocked:\nNext, line 5:\n- [ ] wire: Wire\n  blocked: build/commands\n", output)
 }
 
 func TestRunPlanStartRefusesWhatIsNotAPlan(t *testing.T) {
@@ -252,6 +292,7 @@ func TestRunPlanStartsShowsListsAndCloses(t *testing.T) {
 	output, code = runCommand(t, "plan", "show")
 	require.Equal(t, 0, code, output)
 	require.Equal(t, `Plan .documentation/plans/build.md: 1 open, 1 blocked, 1 done, 1 in the inbox.
+1 warning; ele plan check .documentation/plans/build.md lists it.
 Blocked:
 - Start block
   blocked: the parser first
