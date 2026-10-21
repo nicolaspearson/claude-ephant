@@ -1,0 +1,208 @@
+version: "3"
+
+includes:
+  tools:
+    taskfile: ./Taskfile.tools.yml
+    flatten: true
+
+vars:
+  BINARY: ele
+  # A tool built by an older Go loads nothing under a newer one and reports no findings, so every gate checks this first.
+  GO_VERSION:
+    sh: go env GOVERSION
+  # Gates call pinned tools here, not whatever PATH finds first.
+  TOOLS:
+    sh: 'go env GOBIN | grep . || echo "$(go env GOPATH | cut -d: -f1)/bin"'
+  INSTALLED: "{{.TOOLS}}/{{.BINARY}}"
+
+tasks:
+  default:
+    cmds:
+      - task --list
+
+  ##################################################
+  # Aggregates
+  ##################################################
+
+  check:
+    desc: "Run lint, dead code, module tidiness, tests and the premigration suites. audit needs the network, so it runs on its own."
+    cmds:
+      - task: lint
+      - task: unused
+      - task: tidy-check
+      - task: test
+      - task: premigration
+  precommit:
+    desc: "Format, then run check."
+    cmds:
+      - task: format
+      - task: check
+      - task: lint-fix
+      - task: fix
+
+  setup:
+    desc: "Download modules and install the tooling."
+    cmds:
+      - go mod download
+      - task: setup-tools
+
+  ##################################################
+  # Build and install
+  ##################################################
+
+  build:
+    desc: "Build ele into dist/."
+    sources:
+      - ./**/*.go
+      - go.mod
+      - go.sum
+    generates:
+      - dist/{{.BINARY}}
+    cmds:
+      - go build -o dist/{{.BINARY}} ./cmd/ele
+
+  clean:
+    desc: "Remove build output and coverage."
+    cmds:
+      - rm -rf dist coverage.out
+
+  install:
+    desc: "Install ele with go install and check PATH finds it."
+    cmds:
+      - go install ./cmd/ele
+      - |
+        found=$(command -v {{.BINARY}} || true)
+        if [ -z "$found" ]; then
+          echo "Installed {{.INSTALLED}}, but \`{{.BINARY}}\` is not on PATH. Put {{.TOOLS}} on PATH." >&2
+          exit 1
+        fi
+        if [ "$found" != "{{.INSTALLED}}" ]; then
+          echo "Installed {{.INSTALLED}}, but \`{{.BINARY}}\` resolves to $found. Put {{.TOOLS}} on PATH ahead of it." >&2
+          exit 1
+        fi
+        echo "Installed {{.INSTALLED}}"
+
+  run:
+    desc: "Run ele from source. Usage: task run -- recall pydantic"
+    cmds:
+      - go run ./cmd/ele {{.CLI_ARGS}}
+
+  uninstall:
+    desc: "Remove the installed ele binary."
+    cmds:
+      - rm -f {{.INSTALLED}}
+
+  ##################################################
+  # Gates
+  ##################################################
+
+  audit:
+    desc: "Scan dependencies for vulnerabilities in code ele reaches."
+    preconditions:
+      - sh: test -x {{.TOOLS}}/govulncheck
+        msg: "govulncheck is not installed — run: task setup-tools"
+      - sh: '[ "$(go version {{.TOOLS}}/govulncheck | cut -d" " -f2)" = "{{.GO_VERSION}}" ]'
+        msg: "govulncheck was built with a different Go than {{.GO_VERSION}} — run: task setup-tools"
+    cmds:
+      - "{{.TOOLS}}/govulncheck ./..."
+
+  fix:
+    desc: "Fix the go app"
+    cmds:
+      - go fix ./...
+
+  format:
+    desc: "Format Go source."
+    cmds:
+      - gofmt -w .
+
+  lint:
+    desc: "Check formatting, vet, catch shadowed variables, run staticcheck."
+    preconditions:
+      - sh: test -x {{.TOOLS}}/shadow
+        msg: "shadow is not installed — run: task setup-tools"
+      - sh: '[ "$(go version {{.TOOLS}}/shadow | cut -d" " -f2)" = "{{.GO_VERSION}}" ]'
+        msg: "shadow was built with a different Go than {{.GO_VERSION}} — run: task setup-tools"
+      - sh: test -x {{.TOOLS}}/staticcheck
+        msg: "staticcheck is not installed — run: task setup-tools"
+      - sh: '[ "$(go version {{.TOOLS}}/staticcheck | cut -d" " -f2)" = "{{.GO_VERSION}}" ]'
+        msg: "staticcheck was built with a different Go than {{.GO_VERSION}} — run: task setup-tools"
+    cmds:
+      - |
+        unformatted=$(gofmt -l .)
+        if [ -n "$unformatted" ]; then
+          echo "$unformatted"
+          echo "Not gofmt-clean; run: task format"
+          exit 1
+        fi
+      - go vet ./...
+      - go vet -vettool={{.TOOLS}}/shadow ./...
+      # Package doc comments not required.
+      - "{{.TOOLS}}/staticcheck -checks=all,-ST1000 -f stylish -fail=all ./..."
+
+  lint-docs:
+    desc: "Reject source line-number citations in .documentation."
+    silent: true
+    cmds:
+      # A file:line citation is wrong on the next edit and reads as authoritative
+      # while it is wrong. Cite a package and an identifier instead.
+      - |
+        if grep -rnE '\.(go|html):[0-9]+' .documentation/; then
+          echo "Linting failed: cite a package and an identifier, never a source line number.";
+          exit 1;
+        fi
+
+  lint-fix:
+    desc: "Fix lint errors."
+    cmds:
+      - gofmt -s -w .
+
+  premigration:
+    desc: "Run the Bash suites under plugin/premigration/ until each is ported to Go."
+    cmds:
+      - |
+        work=$(mktemp -d)
+        trap 'rm -rf "$work"' EXIT
+        failed=0
+        for suite in plugin/premigration/*.test.sh; do
+          name=$(basename "$suite")
+          bash "$suite" > "$work/$name.log" 2>&1 || { echo "FAIL $suite"; cat "$work/$name.log"; failed=1; }
+        done
+        exit $failed
+
+  test:
+    desc: "Run the tests. Usage: task test [FORCE=1] to bypass the test cache."
+    vars:
+      FORCE: "{{if .FORCE}}-count=1{{end}}"
+    cmds:
+      - go test {{.FORCE}} -race ./...
+
+  tidy-check:
+    desc: "Fail when go.mod or go.sum is not tidy."
+    cmds:
+      - go mod tidy -diff
+
+  unused:
+    desc: "Catch parameters and functions nothing reads."
+    preconditions:
+      - sh: test -x {{.TOOLS}}/gopls
+        msg: "gopls is not installed — run: task setup-tools"
+      - sh: '[ "$(go version {{.TOOLS}}/gopls | cut -d" " -f2)" = "{{.GO_VERSION}}" ]'
+        msg: "gopls was built with a different Go than {{.GO_VERSION}} — run: task setup-tools"
+    cmds:
+      - |
+        if [ -z "$(find cmd internal -name '*.go' | head -1)" ]; then
+          echo "No Go files under cmd/ or internal/."
+          exit 1
+        fi
+        if ! report=$(find cmd internal -name '*.go' -print0 | xargs -0 {{.TOOLS}}/gopls check -severity=hint 2>&1); then
+          echo "$report"
+          echo "gopls failed, so dead code was not checked."
+          exit 1
+        fi
+        dead=$(printf '%s\n' "$report" | grep -E 'unused parameter|is unused' || true)
+        if [ -n "$dead" ]; then
+          echo "$dead"
+          echo "Dead code. Remove it, or name a parameter _ where an interface fixes its shape."
+          exit 1
+        fi

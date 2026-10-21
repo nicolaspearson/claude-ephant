@@ -1,0 +1,11 @@
+version: "3"
+
+tasks:
+  setup-tools:
+    desc: "Install the Go tooling the lint, unused and audit gates use."
+    # Pinned: at @latest the same commit passes today and fails tomorrow when a linter ships a release.
+    cmds:
+      - go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow@v0.50.0
+      - go install golang.org/x/tools/gopls@v0.23.0
+      - go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
+      - go install honnef.co/go/tools/cmd/staticcheck@v0.8.2

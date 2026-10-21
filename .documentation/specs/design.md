@@ -1,0 +1,302 @@
+# claude-ephant design
+
+Cross-session memory for Claude Code. Replaces claude-mem.
+
+Decided 2026-10-15.
+
+## Principles
+
+- No background LLM. The only model calls are `/ele:remember`, checkpoint proposals and `/ele:mine` classification, made inside the session already running, on that session's account
+- `notes/`, `archive/`, `mining/` and `owner-map.json` are the source of truth. The database is a disposable index, rebuilt by `ele reindex`
+- Nothing crosses owners unless asked
+- A note records a decision, a question or a dated fact, never a description of the code. Code descriptions go stale; decisions and questions do not
+
+## Names
+
+| Thing             | Name                                                                     |
+| ----------------- | ------------------------------------------------------------------------ |
+| Binary            | `ele`                                                                    |
+| Data dir override | `ELE_HOME`                                                               |
+| Default data dir  | `~/Library/Application Support/claude-ephant/`                           |
+| Plugin            | `ele`                                                                    |
+| Skills            | `/ele:handoff`, `/ele:mine`, `/ele:plan`, `/ele:recall`, `/ele:remember` |
+
+## Owners
+
+One store. Every record carries an owner, whose work it is, and the profile that ran it, as a fact.
+
+- Owner, not profile, scopes isolation. As of 2026-10-15 the second profile dates from 2026-09-21 and work repositories run in both profiles, so a profile does not separate one owner's work from another's
+- Owners come from `owner-map.json` in the data dir, approved by hand: the list of owners, path rules, and per-project entries. Each entry's owner is resolved when it is indexed, so when the map's content changes the next sync rebuilds the whole index from the archive. Sync fingerprints the bytes it parsed, so a map written mid-sync triggers a rebuild at the next one
+- `ele owner add <name>`, `add-path <dir> <owner>`, `add-project <name> <owner>`, `remove-path <dir>` and `remove-project <name>` edit the map, refusing an invalid name, a relative path, an unlisted owner or an absent rule. A replaced rule prints its old owner. Each prints the projects that change owner, from every (directory, project) pair the index has seen resolved under both maps; listing an owner counts, as it turns on rules already naming it. They hold the archive lock, refusing while a sync holds it or before one has completed under this index version. Notes filed under an owner that stops covering their project are refused, naming the count, unless `--move` refiles them under the single new owner, or `--move-to <owner>` under a listed owner when no single owner covers the project after the change. Forgotten notes count and move the same way, inside `forgotten/`. The map is written sorted and renamed into place, then a background sync starts unless `--no-sync`
+- A project entry wins; otherwise the longest path rule containing the working directory decides. A live session matching neither has no owner: it is left out of default recall and the SessionStart block, which says so once
+- `/ele:recall` searches the current owner, or the owner of the project `--project` names. `--owner <name>` or `--all` reaches others
+- The SessionStart block never crosses owners
+- Profile: `CLAUDE_CONFIG_DIR` unset is `claude`, `~/.claude-<name>` is `<name>`. For history, the profile directory holding the transcript, or empty when no transcript survives
+- claude-mem rows other than tool uses carry no working directory, so their owner comes from a project entry, else a `/` path rule, else none
+
+## Sources
+
+### Transcripts
+
+- Each profile's `projects/`, subagent transcripts included and tagged
+- Archived verbatim and compressed under `archive/transcripts/<profile>/`, mirroring the path within `projects/`. Only appended to, apart from rolling back an append the manifest never recorded: each sync adds a gzip member holding the new complete lines, and a new file is written under a temporary name and renamed into place
+- `archive/transcripts/manifest.json` records, per file, the generation, archived offset, archive file's size and a hash of up to 4 KiB before the offset. A source whose hash no longer matches was rewritten in place and starts a new generation file (`<name>.g<n>.jsonl.gz`); an append to a recorded file that the manifest never saved is truncated on the next sync
+- Indexed: what the user typed, assistant text, and one line per tool call: the tool name plus its primary input (command, path, pattern, query, url, skill…; else the input as JSON), capped at 300 characters. Tool output, thinking and compaction summaries are not indexed, nor are user-role lines whose origin is not human, or that carry no origin and open with a harness tag. A subagent's user lines, its parent agent's brief, are indexed as conversation, not as prompts
+- Sessions from an SDK entrypoint (`sdk-*`) are archived but not indexed: as of 2026-10-15 they are 3,570 of 3,708 main transcripts, all from claude-mem's observer
+- An entry's project is the basename of the git root above its `cwd`, or of the `cwd` itself when none is found; its owner resolved through `owner-map.json`
+- Claude Code retention is set by `cleanupPeriodDays` in the shared settings. As of 2026-10-15, files last modified before 2026-09-15 were already deleted; kept files hold entries back to 2026-09-09
+
+### claude-mem
+
+- A frozen source: `archive/claude-mem/` holds the one-off 2026-10-15 export as JSONL, beside `session-profiles.jsonl` and the `owner-map.json` it was exported under. Nothing writes it; the importer was removed on 2026-10-17
+- Export rows, 2026-05-29 to 2026-10-15: 12,979 prompts, 9,956 summaries, 104,379 observations, 109,722 tool uses, 469 sessions. As of 2026-10-17 the only searchable record before 2026-09-09, the oldest entry in a surviving transcript
+- User prompts, session summaries, observations and tool uses are indexed, each labelled with its kind and `source=claude-mem`; sessions are metadata (project, profile), not searchable rows
+- `observed_billing` is not used: as of 2026-10-15 it reads `team` on sessions from before the second profile existed
+
+## Sync
+
+`ele sync` is incremental and idempotent: copies new or grown transcripts, indexes from the last byte offset, re-indexes changed notes. One advisory file lock on `archive/transcripts/` serialises `ele sync`'s archive and index writes. As of 2026-10-15 a first sync of 2.5 GB took 222 s, an index rebuild from the archive 60–150 s, and an incremental sync about 5 s.
+
+Triggered by:
+
+- SessionStart hook, in the background
+- SessionEnd hook, in the background
+- `/ele:recall`, before searching
+
+Each successful sync writes a stamp. The SessionStart block warns only when the stamp is missing, malformed or more than a day old, naming `sync.log`, which collects the output of background syncs, newest last.
+
+A rebuild drops and recreates the index's tables, keeping only its settings. Sync rebuilds when the owner map changes, when the index holds another `index-version`, or none after a completed sync, and when a table this build creates is missing or has other columns or another definition; a table only the index has is left alone. Opening the index compares its tables first and applies the schema only to a new index or a matching one, so a schema change shipped without a version bump, whether an added table, an added column with any index on it, or a changed constraint, is rebuilt rather than failing every sync. The settings table is left out of the comparison, since a rebuild keeps it. Every other reader refuses an index whose tables differ, naming each difference and saying to run `ele sync` to rebuild it: `recall`, `show`, `events`, `stats` and `remember`'s owner lookup fail with it, and the SessionStart block shows it in place of the session count.
+
+## Notes
+
+- Written by `/ele:remember` or `/ele:handoff`, or proposed when ele's Stop hook asks, and written on approval; a `plan` note only by `ele plan start`, which `ele remember` points to
+- One Markdown file per note: `notes/<owner>/<id>.md`
+- Front matter: `date`, `kind` (`decision` | `fact` | `handoff` | `plan` | `question`), `owner`, `scope` (`project` | `global`), and `project` when the scope is a project; optional `profile`, `session`, `shown` (when the start block showed a lone handoff, `ele handoff close` closed one or `ele plan done` closed a plan, RFC 3339 UTC; `ele handoff reopen` removes it), `supersedes`, `time` (when it was written, RFC 3339 UTC; `ele remember` sets it). A handoff or plan is scoped to its project
+- Body: one to three lines, reason inline; `ele remember` refuses more
+- `ele remember` takes owner and project from the working directory, profile from `CLAUDE_CONFIG_DIR` and session from `--session`, else `CLAUDE_CODE_SESSION_ID`; `--session ""` files none. `--project` names the project instead, so the command works from any directory; its owner comes from the project's entry in `owner-map.json`, else from the index when exactly one listed owner has entries for it and the index was synced under the current map, else `--owner` is required. `--project` refuses surrounding spaces and control characters; `--owner` names a listed owner and overrides the lookup; `--supersedes` must name a note of the same owner. A note whose text, whitespace aside, matches an unsuperseded note of the same owner, kind and scope, and project when project-scoped, is refused, naming that note; a closed handoff does not count, so the same words may hand off again
+- No `ele` command edits a note in place: rewording supersedes. `ele forget [--owner <name>] <id>...` moves mistaken notes from `notes/<owner>/` to `forgotten/<owner>/`, which sync does not read, checking every id and destination first and refusing one a live note supersedes; it says when a note the forgotten one superseded has no live supersessor left. `--restore` moves them back, refusing one a live note, or another note in the same call, already says, as `ele remember` would
+- The file name is the id; `ele` names files `<YYYYMMDD>-<6 hex>`. `supersedes` names another note's id
+- A superseded note stays searchable and is shown as superseded by the successor with the lowest id. A note naming a missing id supersedes nothing
+- Notes are hand-editable. `ele sync` drops notes whose files are gone, then re-indexes those whose files changed, so a note moved between owner folders is not rejected as a duplicate of itself. Symlinked note files are skipped. A note is left out of the index and named in the sync output when its first line is not `---`, its front matter never closes or has a line that is not `key: value`, a key is unknown or repeated, the date is not YYYY-MM-DD, the kind or scope is outside its set, the owner or body is missing, the id is empty, a project scope has no project, the owner differs from its folder, the session holds anything other than letters, digits, `-` and `_`, the project holds a control character, a handoff or plan is not project-scoped, a plan's body is not one relative path inside the project, `shown` or `time` is not RFC 3339, it supersedes itself, or its id is already used
+- Recall shows each note without a session under its own heading
+- `ele context [--owner <name>] [--project <name>]` prints every live note for a project and the owner's global notes — open questions, then decisions and facts, newest first, superseded ones left out — with no budget, for a reader that needs all of what is settled, then every handoff the next startup or `/clear` would show, newest first. Owner resolution and its refusals are `ele remember`'s
+- `ele context --size` prints the running session's context in tokens: input, cache write, cache read and output of the newest main-thread response with usage, read from the live transcript, since a sync can be a session behind. The session comes from `CLAUDE_CODE_SESSION_ID`
+- `ele reindex` empties the index and rebuilds it from `archive/`, `notes/` and `owner-map.json`
+- Project is the git root of the working directory, or the directory itself outside a repo
+
+## SessionStart injection
+
+`ele session-start` prints it, then starts `ele sync` in the background. Owner and project come from the working directory; as of 2026-10-15 Claude Code runs a hook in the session's working directory. Notes are read from their files, so one written since the last sync is shown, and redacted before printing. A failure to count sessions or start the sync is one line in the block; the notes are still shown. On a compaction, read from the hook input's `source`, the block opens with one line saying the session compacted and when, so a skill can tell what in its context is a summary.
+
+Built from sections, each with its own budget; each handoff's is the three-line note limit `ele remember` enforces:
+
+- On a `startup` or `clear` source only, every handoff of the project not yet shown and not superseded, ahead of the notes; a lone one is then marked `shown`, several stay pending until closed (see Session handoff)
+- On a `startup`, `clear` or `compact` source, the project's active plans, after the handoffs, a lone plan's next item body capped at about 2,000 bytes (see Plans)
+- Notes for the current project and owner, plus `global` notes for the owner
+- Every open `question` (one no note supersedes), then decisions and facts newest first, capped at ~1.5k tokens (6,000 bytes). Oldest are cut first; questions never are
+- Each note line shows its session id prefix when the note has one
+- A closing line: older notes not shown, invalid notes skipped, sessions indexed for the project, and how to search
+- After it, when a shown note has a session: how to open that discussion, `ele show --note <id>`, which opens the note's session at the discussion that produced it (see `ele show --note` under Recall)
+- A directory no owner covers gets a line saying so, and no notes
+
+Global rollups are a future section with its own budget.
+
+## Recall
+
+- `ele recall <words>` syncs first unless another sync holds the lock, in which case it searches what is already indexed (`--no-sync` skips the sync). It finds entries containing every word; each word is quoted, so FTS5 operators and punctuation are plain text, and a word of punctuation alone is ignored
+- Ranking: kind (note, prompt, conversation, tool call, claude-mem summary, claude-mem observation, claude-mem tool use), then FTS5 relevance, then recency. Prompts indexed from claude-mem rank as prompts
+- Output grouped by session, best match first: session id, date, owner, project, then each match's kind and a ~220-character snippet, a note's id before its snippet. The whole output, every line counted, is capped at 8,000 bytes, about 2k tokens; a session heading is printed only with a match under it. `--limit` (default 20) caps the matches. An unlisted `--owner`, an unknown `--kind`, or `--all` with `--owner` is refused
+- Scope: the working directory's owner, or with `--project` the project's owner, found as `ele remember --project` finds it and refused as it refuses. A directory no owner covers is refused with a message naming `--owner` and `--all`
+- Filters: `--all`, `--kind`, `--owner`, `--project`, `--since <YYYY-MM-DD|Nd>`. Flags may come before or after the words
+- `ele show <session> [--around <text>] [--context <n>]` prints a session's indexed, redacted entries in order, centred on the first entry containing the text, a note only when nothing else in the session matches, within the same byte budget. A unique prefix of the session id is enough. It is not scoped by owner: naming a session is the explicit ask
+- `ele show --note <id> [--context <n>]` opens the session a note records (the exact id, not a prefix) at its discussion. Each of the note's distinctive words is weighted by how rare it is among the entries at or before the note's time, so a word the whole session repeats counts for little; the up to three best-scoring entries that score at least a quarter of the best, and lie more than twice `--context` (one by default) apart, are shown in session order, each in up to 2,000 characters and an equal share of the output's bytes, with `--context` entries either side. As of 2026-10-16, each of the three notes the first-mention rule had opened away from its discussion shows that discussion among its parts. When no entry shares a word it ends at the last entry at or before the note and shows twice `--context` before it (eight by default); an untimed note counts up to the end of its local date. It says so when nothing precedes the note, and when output is cut it trims the parts' edges, never the entries they centre on
+- The claude-mem export is indexed beside the transcripts. Its prompts and tool uses are skipped for a session whose transcript survives, since the transcript holds them; its summaries and observations are always indexed. A table is re-indexed whole when its export file or the `session-profiles.jsonl` beside it changes size or modification time. Owners come from the live `owner-map.json`; the archived copy only records what the export ran under
+
+## Secrets
+
+- The archive is verbatim. Directory `0700`, files `0600`
+- A redaction pass runs before text is indexed or printed: known token formats (Anthropic and OpenAI keys, GitHub and GitLab tokens, AWS access key IDs, JWTs, PEM private keys) become `[redacted:<kind>]`, and the value of any `key=value` or `key: value` whose key looks secret, JSON keys included, becomes `[redacted:assignment]`
+- Patterns live in one table with tests. A new pattern takes effect on `ele reindex`
+
+## Storage
+
+```
+claude-ephant/
+  archive/                  transcripts, claude-mem export
+  ele.db                    index, disposable
+  forgotten/                notes ele forget moved out of the index, by owner
+  mining/                   dated mining runs, e.g. 2026-10-15/
+    cache/                  classifications, one <analysis>.jsonl each; classifiers/<hash>.md holds each prompt
+  notes/                    Markdown notes
+  owner-map.json            owners, path rules, project entries; by hand or ele owner
+```
+
+Data never lives in the repo, not even gitignored. `ele backup <dir>` copies `archive/`, `forgotten/`, `mining/`, `notes/`, `owner-map.json` and the database via `VACUUM INTO`. It holds the archive lock, and the mining lock when the cache exists, for the whole copy, leaves out lock files, and refuses a directory that is not empty or lies inside the data directory or a git checkout.
+
+## Stack
+
+- Go, single binary, no CGO
+- `modernc.org/sqlite` with FTS5. The first commit carries a test proving FTS5 is available
+
+## Integration
+
+- The repo is a marketplace, `claude-ephant` (`.claude-plugin/marketplace.json`), holding one plugin, `ele`, in `plugin/`: `.claude-plugin/plugin.json`, `agents/checkpoint-reviewer.md`, `commands/checkpoint-stats.md`, `commands/ticket-claims.md`, `hooks/hooks.json`, `premigration/`, `skills/checkpoint`, `skills/handoff`, `skills/mine`, `skills/plan`, `skills/recall`, `skills/remember`, `skills/ticket-audit`. Kept out of the repo root so Go sources and `dist/` are not copied into each profile's plugin cache
+- Each profile adds the marketplace from GitHub (`nicolaspearson/claude-ephant`) and installs the plugin once, pinned at a commit: a skill edit reaches sessions only after a push, `/plugin marketplace update claude-ephant` and `/reload-plugins`
+- `ele` on `PATH` must be at least as new as the plugin: an older binary answers a subcommand it lacks with its usage text, so the start block or the end-of-session sync does nothing, the Stop hook shows a hook error on every reply, and a skill's `ele context` call gets only the usage text and exit 2, which do not say the binary is stale. `task install` before enabling the plugin
+- Hooks: SessionStart runs `ele session-start` on startup, `/clear` and compaction. Not on resume, whose transcript already holds the block; a resume therefore starts no sync and shows no stale-sync warning, and relies on the previous session's SessionEnd sync. SessionEnd runs `ele sync --background`, so quitting does not wait for the sync. Stop runs `ele stop-check || exit 1`: the Stop check spec's size hint, and its block asking for notes once per stretch of work, counting a subagent's file changes and the session's questions. Stop also runs checkpoint's gate and UserPromptSubmit its snapshot, both from `plugin/premigration/`; see the checkpoint and ticket-audit spec
+- `task install`; hooks call `ele` from `PATH`. `task check` runs every gate but `audit`, which needs the network; `task precommit` formats first
+- Two skills moved in from `~/.agents/skills` on 2026-10-20 call `ele`:
+  - checkpoint: `ele context --project` and `ele recall` for the brief's settled list
+  - ticket-audit: `ele context --project` and `ele recall` before fetching anything, `ele recall` before asking the user anything, and `ele remember --project` for answers the user approves. Before each method it checks whether the session has compacted, which the start block's compaction line answers
+
+## claude-mem cutover
+
+Frozen 2026-10-15: plugin disabled, MCP server entry removed, worker stopped, database snapshotted. Sessions already open keep their claude-mem MCP server until they end.
+
+Removed only once all three hold:
+
+1. Row counts in `archive/claude-mem/` match the snapshot, table by table
+2. `/ele:recall` finds a known May item and a known item from the current week
+3. `ele reindex` from an empty database reproduces those counts
+
+All three held by 2026-10-15. That day: plugin uninstalled from both profiles, `CLAUDE_MEM_CHROMA_UVX_PATH` removed, `~/.claude-mem` (the uvx wrapper with it) backed up to `import/claude-mem-dir-2026-10-15.tar.gz` and deleted.
+
+On 2026-10-17 `import/` was deleted, `file_context_injections` dropped unexported, and the importer and `ele import claude-mem` removed. `claude-mem-2026-10-15.db` and `claude-mem-dir-2026-10-15.tar.gz` survive in `~/ele-backup-2026-10-17/import/`.
+
+## Build order
+
+1. Freeze claude-mem
+2. Repo skeleton, FTS5 test
+3. claude-mem importer, project table, JSONL export
+4. Transcript archive, sync, index
+5. `/ele:recall`, `ele show`
+6. Notes, `ele reindex`
+7. `/ele:remember`, SessionStart hook, checkpoint step
+8. Plugin wiring
+9. `ele status` and `ele stats`
+10. claude-mem removal checks
+11. Testing phase, in real sessions on the installed plugin
+12. Verify and clean `import/`: decide on `file_context_injections`, re-check `archive/claude-mem/` counts against the snapshot, delete `import/`, confirm the path is gone
+
+Built through step 12 as of 2026-10-17.
+
+## Status and stats
+
+- `ele --help`: the commands grouped by purpose, then every synopsis with its flags, so a flag is found before it is needed; `ele <command> --help` says what each flag does. A misused command (bad flag, missing argument) prints that command's help to stderr and exits 2. A group such as `ele handoff` prints its synopses: to stdout with exit 0 for `--help`, else to stderr with exit 2, naming an unknown subcommand. Only an unknown command, named first, prints every synopsis
+- `ele status`: is ele working here, now. Last successful sync and its age, the output of background syncs since it (the plain tail with no stamp or a malformed one), whether a sync holds the lock, the owner and project of the working directory, or that none covers it and the `ele owner` command that maps it, and whether the plugin is enabled in each profile's `settings.json`. Each background run in `sync.log` opens with a header timed at its start and a line timed once it holds the archive lock; it dates from the lock, or from its start when it never got it, so a run that queued behind a success, failed before the lock or is still running shows, and one that finished before the last success does not. Runs are shown whole, newest last; only the newest may be cut, and keeps its header
+- `ele stats`: what ele holds. Entries by source, kind and owner, notes by kind and owner, open and answered questions apart, sessions per profile, archive, index and notes sizes on disk, and the date range covered
+
+## Testing phase
+
+Each scenario is run by hand in real sessions and passes on what a session actually shows, not on the command's exit code:
+
+- Two terminals, same project. Notes A writes appear in the start block of a session B opens afterwards. A session B already running gets no new notes injected; `/ele:recall` in B finds A's notes and A's conversation up to its last transcript line, since recall syncs first
+- Two profiles, one owner: a note written in `claude` shows in a session of the second profile in the same project
+- A directory no owner covers: one line saying so, no notes, and `/ele:remember` refuses without `--owner`
+- Two sessions starting at once: both blocks print, the second sync waits on the lock, `sync.log` holds both runs
+- `/clear` and compaction: the start block reappears. Resume: no second block, and the first one is still in context. ele indexes no line of an appended transcript twice. Entries are keyed, as events are, by their line's id and place on that line, so a transcript rewritten in place, archived again from its start, adds no entry twice, and a line Claude Code copies into another transcript, as a resumed, forked or subagent session does, keeps the copy indexed first: usually the parent's, but the first file in walk order when one sync archives both, as a rebuild does. Lines without an id are not deduplicated
+- A note holding a token: redacted in the start block and in recall
+- `ele reindex` mid-week: recall answers the same before and after
+- A checkpoint proposing notes: written only after approval, filed under the repository's owner and project
+- A pushed edit to a skill in `plugin/`: shows in a running session after `/plugin marketplace update claude-ephant` and `/reload-plugins`, since the plugin installs from GitHub
+
+As of 2026-10-17 every scenario above passed by hand on the installed plugin, except a transcript rewritten in place and the copy-kept-first rule, both built after the hand runs and checked in tests and on a rebuilt backup index.
+
+Not built as of 2026-10-17: eval suites with `claude plugin eval`, which scores a skill against a run without the plugin, to cover ele's own skills and run when a skill changes.
+
+## Phase 2: measure, then consolidate
+
+Planned after the build order completes. Memory stays the only thing ele does until a measurement says otherwise.
+
+### Rollups for mining
+
+Evaluating the skills against their history, then tweaking them, is a standing process, and it is the measurement that puts this ahead of the rule above. Before the 2026-10-15 mining could classify anything, it rebuilt its inventory — 475 checkpoint invocations, 311 review cycles, 523 Stop-hook blocks — with one-off scripts over raw transcripts. Order:
+
+1. Built: `ele events`, in the index, written at sync with no model involved. One row per act the entries do not hold, each with session, owner, project, profile, time and whether a subagent's transcript holds it. Kinds: `skill` (a `Skill` tool call, named for the skill), `command` (a typed `/command`, named for it), `agent` (an `Agent` or `Task` launch, named for its subagent type, with its description, whether it ran in the background, and the reviewer files its prompt names, never the prompt), `hook-block` (hook feedback, named for the hook event, with the first line of its reason), `compaction`, `injection` and `reply` (both under item 2), and `tokens` (under Usage report). Names and attribute strings are redacted as entries are. Automated SDK sessions are left out. Review requests and a block's reply are joins against prompt and conversation entries, not copies. `ele events [--kind] [--name] [--owner] [--project] [--session] [--since] [--limit] [--no-sync]` syncs first, as recall does, then prints the newest 200 matches by default, oldest first, one JSON object per line, with a line on stderr when more matched; `--limit 0` prints all. An event is keyed by its line's id and its place on that line, so a transcript archived again from its start adds no event twice; a `tokens` event is keyed by its message id instead; lines without an id are not deduplicated. While the index is not complete for this version of ele, it says on stderr that the events may be incomplete. An `index-version` setting makes the first sync after an upgrade rebuild an index that predates it, so history gets events too; an index with no owner-map fingerprint either is new and is built, not rebuilt. As of 2026-10-16 that rebuild took 113 seconds over about 150,000 transcript entries and 130,000 claude-mem rows
+2. Built: the session rollup, as two more event kinds and queries over the index rather than a table of totals, since totals added to at sync would count a transcript archived again from its start twice and events are already keyed against that. Prompts, sessions and tool calls come from the entries already there, keyed the same way. `injection`: what reached the model's context from a hook or the skill list, named for the hook (`PostToolUse:Edit`, `SessionStart:startup`) or `skills`, with its size in bytes. A hook's JSON `additionalContext` counts; plain stdout counts only for SessionStart and UserPromptSubmit, the hooks whose plain stdout the model sees (as of 2026-10-16 transcripts record UserPromptSubmit output only as additional context); a `systemMessage` is shown to the user and does not, and neither does a hook's blocking reason, which ele records as a `hook-block`. `reply`: a main-thread assistant text block, with its length in characters. Duration is not carried
+3. Built: a classification cache in `mining/cache/`, outside the index, since a model judgment cannot be rebuilt from the archive. Each judgment is stored once per unit, classifier and digest, the classifier being a SHA-256 of its prompt, which is kept beside it so the hash stays readable, and the digest a SHA-256 of the digest file the classifier read. Judgments stored before 2026-10-16's digest key carry none. A unit is the session and time of the event that opens it: the `skill` or `command` event for a checkpoint run, the first reviewer launch for a review cycle; as of 2026-10-16, 472 of the 475 runs of 2026-10-15 match an event that way. A judgment under another classifier, or of a changed digest, is kept beside the first, never replacing it. `ele import mining <run>` loads the 2026-10-15 classifications, reading that run's layout, and adds nothing when run again. As of 2026-10-16, imported into a scratch data directory: 373 inline-era runs tagged `era: inline`, 102 subagent-era runs tagged `era: subagent` (78 judged by the first prompt and 70 by the third, 46 by both), and 216 of 311 review cycles. Inline-era judgments never reach `/ele:checkpoint-stats`, whose schema has no era and would read them as full-mode runs
+   - Decided 2026-10-16, for item 5: a re-mine classifies only units with no judgment under any classifier in that analysis, less the review cycles a run covers (item 5). Re-judging is a separate, explicit request, scoped by naming its units: `ele mine --units <file>` lists the units a JSON Lines file names by `session` and `timestamp`, judged or not and wherever the watermark is, and refuses a file naming a unit that does not exist. Classifying units "whose classifier changed" would re-judge every judged run and review cycle the first time `/ele:mine`'s prompts differ by a byte from 2026-10-15's, and they will differ, since the 2026-10-15 prompts name a session scratchpad that no longer exists
+4. Built: a watermark per analysis, in `mining/cache/watermarks.json`, so the next run starts where the last stopped. It never moves back. `ele import mining` raises it to the newest unit in the run's inventory, judged or not, and prints it: on 2026-10-16 it printed 2026-10-15T16:58:57.664Z for checkpoint runs and 2026-10-15T18:00:27.897Z for review cycles
+5. Built: `ele mine <analysis>` prints the unclassified units past the watermark and takes their classifications back into the cache, and an `/ele:mine` skill classifies them in the session that runs it, with fixed prompts. Go only: the 2026-10-15 Python in `~/.claude/scripts/mining/` is the reference, not a dependency
+   - Decided 2026-10-16, an exception to item 3's re-mine rule: the first review cycle starting at or after a subagent-era checkpoint run in its session, and less than 30 minutes later, belongs to that run and is skipped though it has no judgment, as 2026-10-15 did. The cache holds no record of the cover, so `ele mine` applies the rule itself. The 95 of 311 cycles 2026-10-15 left unjudged were all covered this way, each by a run it judged
+   - Decided 2026-10-16: `ele mine` lists only units past the watermark, and says on stderr how many units before it have no judgment, so a unit archived late is counted rather than silently skipped. As of 2026-10-16 that count is 3 checkpoint runs, all judged under another session id: their lines carry session `1ccb8d25`, the 2026-10-15 inventory keyed them by the transcript `a7f3b4b6` holding them. transcript `1ccb8d25` holds the lines of transcript `a7f3b4b6` up to 2026-09-22T08:43Z and none after, so a digest of the 2026-09-22T04:40Z run read from it loses two of the three human messages after its window, at 08:50 and 08:54
+   - Built: the listing. `ele mine [--no-sync] <analysis>` prints one JSON object per pending unit, oldest first, with owner and project, and for a review cycle its reviewer and re-review launch counts. Review cycles are rebuilt from `agent` events naming reviewer files: main-thread launches in one session at most 5 minutes after the last launch that is not a re-review; a launch whose description reads as a re-review joins the open cycle, or opens one if none is. A checkpoint run after a cycle's last launch closes it to re-reviews, and a cycle opened on a re-review takes only re-reviews, so a run whose fix pass is re-reviewed after it covers that re-review rather than the next fresh cycle. Without those two rules, as of 2026-10-16, the grouping before the cover rule reproduced all 311 cycles of 2026-10-15 by session and start, none extra, and on a copy of the data 17 checkpoint runs and 21 review cycles were pending, with 16 further cycles past the watermark skipped as covered. The two rules split 7828fd66's 2026-10-15T11:27Z cycle on purpose, so 2026-10-15 no longer matches that inventory. As of 2026-10-16, over 512 checkpoint runs, they take the cycle count from 386 to 389: digests change for 2 runs (7828fd66 2026-10-15T12:32Z, b792c617 2026-10-07T13:34Z); of the 3 new cycles, 7828fd66 12:33Z and 8d7d4b53 2026-10-09T03:55Z are covered by runs and b792c617 2026-10-07T14:06Z is a new review-cycle unit; 7828fd66 12:36Z, covered before, is now one too, and 7828fd66 11:27Z changes
+   - Built: digests. `ele mine --digests <dir>` writes one text file per pending unit, named for its session and time, and adds its path to the unit's line as `digest`. A digest is read from the archived transcript holding the unit's opening event and from its subagents' transcripts, found by the agent id in each launch's tool result, since the archive keeps no `meta.json`. A run's window opens at its invocation and closes at the next one, its session's next review cycle after the one it covers, four hours on, or its report: a later checkpoint can run on the skill already loaded, with no invocation of its own, and is a review cycle of its own; a review cycle's opens at the last human message before its first launch or the first line 15 minutes back, whichever is nearer, and closes at its session's next cycle, three hours on, or its report. A cycle's report is looked for only after every reviewer launched in its window has handed back, by its tool result or, for a background launch, a notice naming its tool-use or agent id; text before that is progress. With a reviewer whose hand-back never appears, the cycle has no report and its window runs to its other limits. Departures from the 2026-10-15 Python scripts in `~/.claude/scripts/mining/`: a run's next human messages are read from where its window ends rather than from the next invocation, a failed launch shows its error, header keys are camelCase, and the ordinal id and invocation kind are dropped, a unit being keyed by session and time. Transcript text is redacted before it is cut, so a cut cannot leave half a secret the patterns no longer match. As of 2026-10-16, on a copy of the data: 19 checkpoint runs and 22 review cycles pending, every one digested, 11 KiB to 81 KiB each
+   - Built: taking judgments back. `ele mine --judgments <file> --prompt <file> --digests <dir> <analysis>` stores one judgment per JSON line, each naming its unit by `session` and `timestamp`, the whole line kept as the result, under the SHA-256 of the prompt, which it saves beside the cache. A line naming no unit of that analysis, or a unit an earlier line names, refuses the file, storing nothing. A checkpoint run's judgment is tagged with its era by its time. Every judgment carries the SHA-256 of its unit's digest file, read from the `--digests` directory the listing wrote it to rather than rebuilt, since a sync between listing and storing can move a live session's window, so a re-judge of a changed digest under an unchanged prompt is stored rather than skipped. A unit with no file there refuses the store. The watermark then rises to the newest unit before the first one past it still unjudged, so a unit the pass missed stays listed rather than falling behind the watermark
+   - Built: the `/ele:mine` skill. It lists each analysis with digests, classifies them in batches of up to five, one background subagent per batch, and stores the batches' output with `--judgments`. Its two prompts are files beside it, `classify-checkpoint-runs.md` and `classify-review-cycles.md`, adapted from 2026-10-15's `classify-sub3.md` and `classify-cyc.md` to the Go digest layout, keyed by the digest's session and timestamp rather than an inventory id. They name no scratchpad and send the classifier to no file outside them, so a hash covers everything its classifier reads besides the digest. Only the user invokes it. Its first run, on 2026-10-16 against the real data directory, stored all 23 pending checkpoint runs under classifier `0bb2ff7ec683` and all 29 review cycles under `ce2e75f72bce`, in 11 batches, and raised the watermarks to 2026-10-16T07:39:47.805Z and 2026-10-16T08:10:20.961Z. As of 2026-10-16 some of those digests do not match their unit, in two ways seen and not yet counted: a review cycle's window can close early, at a progress message that reads as its report, as `010a2385`'s 2026-10-15T19:11:30Z cycle closed 11 seconds after launch, since fixed in the digest but not in its judgment; and a run's window can hold later checkpoints with no `checkpoint` event of their own, each also a review-cycle unit, as 25 reviewer launches fell in `f84e70ef`'s 2026-10-16T05:55:16Z run. That is since fixed in the digest but not in its judgment: the run now holds only its own 2 reviewer launches, and on a copy of the data the fix changed 24 of 507 checkpoint-run digests, all subagent-era. Re-judging them is an explicit `ele mine --units` request
+
+The data behind the 2026-10-15 reports is in `mining/2026-10-15/`.
+
+### Usage report
+
+Built: `ele usage [--owner] [--project] [--since] [--no-sync]` syncs first, as events does, and reports from transcripts, claude-mem rows left out:
+
+- Sessions with a prompt, and prompts, a subagent's brief not counted as a prompt. A window with tool calls or injections but no prompt prints only its counts
+- Tool calls by name, MCP tools by their full name, main thread and subagents apart
+- Bytes injected by each hook and the skill list, main thread and subagents apart, and about how many tokens per session, main thread and subagents together, at four bytes a token
+- Reply characters, in total and per prompt
+- Tokens the API reported, main thread and subagents apart, in total and per session: uncached input, cache write, cache read and output, and the share of input read from cache. Stored at sync as `tokens` events, one per message, named for the model, keyed by the message id rather than the line, since a response is written one line per content block, each repeating its usage. A subagent's lines are streaming snapshots whose output count grows, so the largest is kept. A fork's transcript opens with a copy of its parent's message, which stays the main thread's. `ele events --kind tokens --session <id> --limit 0` lists one session's messages, one per line
+
+As of 2026-10-16, over the 30 days before: 146 sessions, 4,914 prompts; the skill list injected 5.2 MiB into main threads, more than twice the next row, `SessionStart` at 2.2 MiB, all in main threads, and 42.7 MiB into subagents, about 86,000 tokens per session in all. As of the same date the report breaks out neither profile nor session.
+
+Measured again later on 2026-10-16, over the 30 days before, 145 sessions: main threads read 27.5 billion tokens from cache, subagents 4.1 billion; cache writes 292 million main and 190 million subagents; output 45.8 million main and 2.8 million subagents; uncached input under 0.2 million. 98.9% of main-thread input and 95.5% of subagent input was read from cache. Main threads hold 87% of cache reads and 61% of cache writes: a session's own context, re-read every turn, outweighs its subagents'.
+
+Every keep, fix or remove decision about a context tool cites this report. The checkpoint skill's cost cuts are measured against it, before and after.
+
+### Session handoff
+
+Built 2026-10-16. A long session pays for its whole context every turn, at the cache-read rate when cached, so the natural stopping point is the time to start fresh:
+
+- `ele context --size`: the current session's context in tokens (see Notes)
+- Note kind `handoff`: the next task and where the work stands; `/clear` then `continue` resumes it
+  - The start block shows the project's handoffs not yet shown, in a section of its own ahead of the notes, on a `startup` or `clear` source only, so a resume or compaction elsewhere does not use them up. The notes list leaves handoffs out
+  - Each handoff is headed by its id, when it was written (UTC, to the minute; the date alone for a note with no time) and its session prefix when it has one. With several pending, they are listed newest first, bodies in full, and a line after the section, which the user does not see, tells the session to ask the user which to pick up and whether to drop any
+  - The section is also shown to the user: with a handoff or an active plan, the hook prints JSON, the whole block as `additionalContext` and the section as `systemMessage`, since plain stdout reaches only the model. Without one it prints plain text as before
+  - A lone handoff is marked when shown: the start block writes a `shown` time into its front matter. Several are marked by `ele handoff close [--owner <name>] [--project <name>] <id>...`, which the session runs for each the user picks or drops; the rest return at the next startup or `/clear`, so a second stream of work is not lost to the choice. It checks every id is a pending handoff of the project before marking any, and owner resolution is `ele remember`'s. Only the `shown` key is rewritten and the file is renamed into place, so the mark survives a rebuild of the index and a hand edit survives the mark. A lone handoff the start block cannot mark is shown at the next startup or `/clear`, and the block says so; a `close` that cannot mark one exits 1, having printed each it did close, and the rest stay pending
+  - `ele handoff list [--all] [--owner <name>] [--project <name>]` lists the project's pending handoffs newest first, each body redacted and on one line; `--all` adds closed ones — closed means shown or picked, not done — with their `shown` time and superseded ones with the note that superseded them. `ele handoff reopen [--owner <name>] [--project <name>] <id>...` drops the `shown` key from closed handoffs, checking every id first as `close` does, so the next startup or `/clear` shows them again; it refuses any id that is not a closed, unsuperseded handoff of the project, so a pending or superseded one stays as it is
+  - Two sessions starting together may both show it
+- Stop hook: above 150k tokens of context, its size hint suggests `/compact` mid-task, else `/ele:handoff` then `/clear`; the user, not the agent, starts the handoff
+- `/ele:handoff`: for a `/clear` mid-work, written when the user asks, with no proposal
+
+### Plans
+
+Decided 2026-10-17. Built 2026-10-17: the `plan` note kind, `ele plan start`, `show`, `list` and `done`, the start block's plan section, and `/ele:plan`'s `new`, `convert` and pickup. Built 2026-10-19: the highlighted `systemMessage`s and pickup's reword question. Work through a fixed list of items one session each, with ele carrying the place across `/clear`. Not a tracker: no item ids, no dependency graph, no assignees. Borrowed from OpenSpec: a change carries its why and its tasks, and folds into the spec when done. Not borrowed: its CLI, its spec dialect, its archive step.
+
+As of 2026-10-19 passed in real sessions: start blocks on startup, `/clear` and compaction with one plan and with two; a start block's colours; a plan file missing from the checkout; inbox capture and triage; pickup finding a stale premise, and asking its reword as its own question. Not yet seen: a declined reword.
+
+- A plan is a Markdown file in the repository whose code it changes, under `.documentation/plans/`, deleted once its last item is done; git history is its archive. A spec, describing what is or will be built, lives under `.documentation/specs/` and outlasts its plans
+- ele stores which plans the user is working through, never their items: the file is the list, and its checkboxes the state. ele's own data still never lives in a repository
+- Front matter holds stable facts only: `kind: plan`, `created`, and `spec` when the plan implements a spec in the same repository. Nothing derived, such as counts or the next item, is written into the file. A doc already shaped as a plan is adopted by adding the front matter, an empty `## Inbox` and `## Out of scope`, and the closing action, and by naming its checklist's heading `## Actions` if it has another
+- Sections: `## Why`, `## Context` (established facts, dated), `## Decisions`, `## Actions`, `## Inbox`, `## Out of scope`. Items under `###` subheadings inside `## Actions` count, in file order. The last action is always to fold what the plan built, and its out-of-scope lines as a `Not doing:` list in the section the plan implemented, into its spec; with no spec, to propose each out-of-scope line as a `decision` through `/ele:remember`; then to delete the plan and run `ele plan done`. It cannot be ticked while the inbox holds an item
+- An item is a `- [ ]` or `- [x]` line and its indented body. Progress goes in the body as dated lines (`as of <date>: …`, `next: …`), so a session stopping mid-item needs no handoff. A tick carries one line saying what was asserted, at which boundary and at which commit. A `blocked: <reason>` line in the body holds an item back; the reason is prose ele never resolves. No custom checkbox states, since GitLab and GitHub render only `[ ]` and `[x]`
+- A plan names no ele note or session: it is shared, and ele's store is not. ele finds related notes by recall on the item's words when it shows an item
+- Next item: the first unchecked, unblocked item under `## Actions`, in file order; the session confirms it or takes the user's pick. With every open item blocked there is none, and `show` says so. Previous: the most recently ticked, from git, an uncommitted tick first, else the newest commit flipping a box in the file; left out outside git and before the first commit
+- `## Inbox` takes work captured mid-session, each item dated with where it came from. Next never reads it
+- `## Out of scope` holds what inbox triage ruled out, one line each: `- <gist>: <why> (ruled <date>, from <source>)`. A ruled-out item returns only if the plan's why is redrawn. Decided 2026-10-20: a dropped item left no record, so the same idea could come back as new work. The binary neither counts nor shows it, and its lines are not inbox items
+- `plan` is a note kind beside those under Notes: project-scoped only, its body the plan's path from the git root, and left out of the notes list and `ele context`'s notes, as handoffs are
+- `ele plan start <path>` writes a `plan` note; it refuses a file without `kind: plan` and a checkbox under `## Actions`, outside the project, or already started. A path is taken from the working directory and stored from the checkout root. `ele plan show [<path>]` prints counts (open, blocked, done, inbox), previous, each blocked item's first line with its `blocked:` reasons, and the next item with its line number and body; with no path it shows the project's one active plan, or lists the active plans when there are several, each with its counts and next item's title, and a path need not be started. The active plan missing from the checkout exits 1 naming `ele plan done`. A ticked closing action with items in the inbox gets a line saying to triage them first. `ele plan list [--all]` and `ele plan done <path|id>...` are as `ele handoff list` and `close`. Previous takes the later tick in the file when one diff ticks several, and a box written already ticked was never flipped, so it is never previous. The binary parses and reports; every judgement is in the skill
+- `/ele:plan`, invoked only by the user, since a session is not always for the plan; the session never starts plan work unasked:
+  - `new` and `convert` settle questions in rounds: each round asks every question whose prerequisites are settled, numbered, with a recommended answer that yes accepts, since a question asked before its prerequisite is settled is asked again; facts are looked up, `ele recall` first, then the code, and the user is asked for decisions and for a fact neither settles; a decision goes in `## Decisions`, with its reason, of each plan that relies on it, and a fact about an item under that item as a dated line; the step that asked them waits until no question is open and the user confirms the whole; a question `convert` leaves as a note is not asked. Decided 2026-10-20, in the skill's own words rather than by calling another plugin's skill, whose names change between versions. Pickup asks each approval as its own question
+  - `new <name>` settles in rounds whatever of the why, the items and their design questions the conversation has not, recording each decision already made with its reason; writes a plan from `template.md` beside the skill, which has an empty `## Inbox` and `## Out of scope`, and starts it
+  - `convert <spec>` lists the spec's open items with their sections, leaving out those already in a plan and those gated on a measurement or an undecided question, which stay notes, a `question` proposed where none holds one; checks each item's status against the code or data rather than the spec, asking in rounds about what it cannot check; writes draft plans, unstarted, grouped by what ships together and split by repository, and audits them with ticket-audit, all drafts and the spec as one corpus, before proposing them; deletes the drafts not approved, all of them on a rejection; applies the user's changes to the rest, re-auditing a draft whose items changed, and starts those in this repository, printing `ele plan start` for another's; removes the spec's own "still to build" prose for the landed plans' items only, in the change that lands them
+  - with no argument, pickup, made for a return after days away. With several active plans it asks which, listing each with its counts and next item's title. It then checks whether the next item is already done, against the commits and uncommitted changes since the plan's last tick; if so it proposes the tick with an evidence line, writes it on approval, and repeats on the next item until one has no work done. Before any work it shows a task card, the plan, the item's title and body, its blocked reasons and related notes, and asks to start, so a wrong plan is caught before work begins, and the card proposes no edit to the plan. Then: `ele plan show`; recall on the item's words; re-derives each claim the item makes about code with `file:line` or "not checked"; re-reads each blocked item's reasons and proposes removing those now settled; checks that a decision the item relies on lives in one place, and that a status or count it states is dated or derived; triages the inbox, moving each item into Actions, ruling it out of scope with its line, adding `## Out of scope` as the plan's last section if it has none, deleting it as a duplicate or already done, or leaving it; writes what it finds under the item as dated lines, and where a finding makes the item's title or a `## Context` line wrong, proposes the reword as its own question with the old text beside the new, writing it on approval and never taking the yes to start as approval for it, a declined one staying a dated line only. A session that compacted mid-item re-reads the item from the file
+- Start block: on `startup`, `clear` and compaction, since a plan is not used up when shown, after the handoffs and ahead of the notes, uncut by the notes budget and shown to the user as a `systemMessage` too. One active plan: the `ele plan show` view, its item body capped at about 2,000 bytes, and a line, which the user does not see, telling the session to ask the user before starting anything. Several: one line each with its counts and next item's title, and the line tells the session to ask whether to work a plan, and which. On compaction the line first tells a session mid-task to carry on, re-reading the plan item if it was one. A plan whose file is missing from the checkout, as on another branch, is named and kept; only `ele plan done` closes one. One that does not parse is named
+  - Every `systemMessage` ele writes, the start block's and stop-check's, is highlighted like an editor's view; the session's copy stays plain. Counts: open yellow, blocked red, done green, inbox cyan, a zero dimmed. Headers and labels bold; note ids, sessions, commits and dates dimmed; commands, `.md` paths and code spans cyan; the `blocked:` label red; a plan missing from the checkout, and a line ele opens with `ele:` or `ele could not` up to its first `;`, yellow. Each span resets only what it set, `\033[39m` or `\033[22m`, never `\033[0m`. Control characters are dropped first, so a plan or note cannot send its own escape sequences; `NO_COLOR` leaves the message uncoloured. Claude Code's terminal renders ANSI there, as of 2026-10-17
+- Whole-plan audit (contradictions between items, artefacts with no producer or consumer) is ticket-audit's, taking a plan as its corpus with an item for a ticket, or at conversion all drafts and the spec; also run when asked
+- `ele:checkpoint` proposes a tick with its evidence line when a change completes the active item, else a dated progress line, written on approval. Outside the repository, the global CLAUDE.md asks that work deferred mid-session be proposed as an inbox item of the active plan, else a `question` note
+
+### Context compression
+
+Candidate feature. Large tool output is stored in the archive and replaced in context by a short digest plus a retrieval handle that `ele show` expands. Decided only once the report shows how much of a session is tool output.
+
+### Checkpoint and ticket-audit
+
+Specified in `checkpoint-and-ticket-audit.md` beside this file, moved back from the agent-skills repository on 2026-10-20, with its open questions: judging Stop-hook blocks and their eval suites.
+
+### Removed 2026-10-15
+
+Sessions already open keep these until they end.
+
+- caveman: hooks and their files deleted, plugin disabled, `caveman-shrink` MCP server removed. Injected twice per prompt; its "drop hedging" rule contradicts labelling guesses
+- headroom: MCP server and uv tool. One call in transcripts kept as of 2026-10-15, on 2026-09-10
+- RTK: instructions file. The binary was not installed

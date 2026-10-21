@@ -1,0 +1,14 @@
+{
+  "description": "Claude Code plugins by Nicolas Pearson.",
+  "name": "claude-ephant",
+  "owner": {
+    "name": "Nicolas Pearson"
+  },
+  "plugins": [
+    {
+      "description": "Cross-session memory: recall what earlier sessions discussed, and start each session with the open questions, decisions and facts that matter here.",
+      "name": "ele",
+      "source": "./plugin"
+    }
+  ]
+}

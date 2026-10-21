@@ -1,0 +1,15 @@
+{
+  "author": {
+    "name": "Nicolas Pearson"
+  },
+  "description": "Cross-session memory: recall what earlier sessions discussed, and start each session with the open questions, decisions and facts that matter here.",
+  "name": "ele",
+  "userConfig": {
+    "checkpoint_gate": {
+      "default": true,
+      "description": "When on, blocks a turn that changed files and claims done without running ele:checkpoint.",
+      "title": "Checkpoint gate",
+      "type": "boolean"
+    }
+  }
+}

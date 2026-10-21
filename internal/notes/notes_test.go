@@ -1,0 +1,219 @@
+package notes
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
+)
+
+var valid = Note{Body: "Pin pydantic below 2.14 in the uvx wrapper.", Date: "2026-10-15", ID: "20261015-a1b2c3", Kind: KindDecision, Owner: "personal", Profile: "claude", Project: "claude-ephant", Scope: ScopeProject, Session: "010a2385"}
+
+func TestClearShownRemovesOnlyThatKey(t *testing.T) {
+	root := t.TempDir()
+	directory := filepath.Join(root, "personal")
+	require.NoError(t, os.MkdirAll(directory, 0o700))
+	path := filepath.Join(directory, "20261016-a1b2c3.md")
+	handEdited := "---\nkind:  handoff \nshown : 2026-10-16T08:00:00Z\ndate: 2026-10-16\nowner: personal\nproject: claude-ephant\nscope: project\n---\n\nshown: kept, it is body.\n"
+	require.NoError(t, os.WriteFile(path, []byte(handEdited), 0o644))
+	note := Note{ID: "20261016-a1b2c3", Owner: "personal"}
+
+	require.NoError(t, ClearShown(root, note))
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0o644), info.Mode().Perm(), "a hand-made note keeps its mode")
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, "---\nkind:  handoff \ndate: 2026-10-16\nowner: personal\nproject: claude-ephant\nscope: project\n---\n\nshown: kept, it is body.\n", string(content))
+
+	cleared := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	require.NoError(t, os.Chtimes(path, cleared, cleared))
+	require.NoError(t, ClearShown(root, note))
+	info, err = os.Stat(path)
+	require.NoError(t, err)
+	require.Equal(t, cleared, info.ModTime().UTC(), "a note with no shown key is not rewritten")
+	entries, err := os.ReadDir(directory)
+	require.NoError(t, err)
+	require.Len(t, entries, 1, "no temporary file left beside the note")
+
+	require.NoError(t, os.WriteFile(filepath.Join(directory, "broken.md"), []byte("---\nkind: handoff\n"), 0o600))
+	require.ErrorIs(t, ClearShown(root, Note{ID: "broken", Owner: "personal"}), ErrInvalid)
+}
+
+func TestMarkShownRewritesOnlyThatKey(t *testing.T) {
+	root := t.TempDir()
+	directory := filepath.Join(root, "personal")
+	require.NoError(t, os.MkdirAll(directory, 0o700))
+	path := filepath.Join(directory, "20261016-a1b2c3.md")
+	handEdited := "---\nkind:  handoff \ndate: 2026-10-16\nowner: personal\nproject: claude-ephant\nscope: project\n---\n\nNext: item 3.\n  Kept as typed.\n"
+	require.NoError(t, os.WriteFile(path, []byte(handEdited), 0o644))
+	note := Note{ID: "20261016-a1b2c3", Owner: "personal"}
+
+	require.NoError(t, MarkShown(root, note, time.Date(2026, 10, 16, 9, 0, 0, 0, time.FixedZone("x", 3600))))
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0o644), info.Mode().Perm(), "a hand-made note keeps its mode")
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, "---\nkind:  handoff \ndate: 2026-10-16\nowner: personal\nproject: claude-ephant\nscope: project\nshown: 2026-10-16T08:00:00Z\n---\n\nNext: item 3.\n  Kept as typed.\n", string(content))
+
+	require.NoError(t, MarkShown(root, note, time.Date(2026, 10, 17, 0, 0, 0, 0, time.UTC)))
+	content, err = os.ReadFile(path)
+	require.NoError(t, err)
+	marked, err := Parse(path, content)
+	require.NoError(t, err)
+	require.Equal(t, "2026-10-17T00:00:00Z", marked.Shown, "a second mark replaces the first")
+	require.Equal(t, 1, strings.Count(string(content), "shown:"))
+	entries, err := os.ReadDir(directory)
+	require.NoError(t, err)
+	require.Len(t, entries, 1, "no temporary file left beside the note")
+
+	require.NoError(t, os.WriteFile(filepath.Join(directory, "broken.md"), []byte("---\nkind: handoff\n"), 0o600))
+	require.ErrorIs(t, MarkShown(root, Note{ID: "broken", Owner: "personal"}, time.Now()), ErrInvalid)
+}
+
+func TestMoveRefusesToOverwriteANoteUnderTheNewOwner(t *testing.T) {
+	root := t.TempDir()
+	note := valid
+	note.Owner = "corp"
+	_, err := Write(root, note)
+	require.NoError(t, err)
+	note.Owner = "personal"
+	_, err = Write(root, note)
+	require.NoError(t, err)
+
+	note.Owner = "corp"
+	require.ErrorContains(t, Move(root, note, "personal"), "already exists")
+	require.FileExists(t, filepath.Join(root, "corp", note.ID+".md"))
+}
+
+func TestMoveRewritesOnlyTheOwnerAndRefilesTheNote(t *testing.T) {
+	root := t.TempDir()
+	from := filepath.Join(root, "corp", "20261017-a1b2c3.md")
+	handEdited := "---\nkind:  decision \ndate: 2026-10-17\nowner : corp\nproject: gateway\nscope: project\n---\n\nowner: corp stays, it is body.\n"
+	require.NoError(t, os.MkdirAll(filepath.Dir(from), 0o700))
+	require.NoError(t, os.WriteFile(from, []byte(handEdited), 0o644))
+
+	require.NoError(t, Move(root, Note{ID: "20261017-a1b2c3", Owner: "corp"}, "personal"))
+	require.NoFileExists(t, from)
+	to := filepath.Join(root, "personal", "20261017-a1b2c3.md")
+	content, err := os.ReadFile(to)
+	require.NoError(t, err)
+	require.Equal(t, "---\nkind:  decision \ndate: 2026-10-17\nowner: personal\nproject: gateway\nscope: project\n---\n\nowner: corp stays, it is body.\n", string(content))
+	info, err := os.Stat(to)
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0o644), info.Mode().Perm())
+	_, err = Parse(to, content)
+	require.NoError(t, err, "the moved note's owner matches its new folder")
+}
+
+func TestNewIDIsDatedAndUnique(t *testing.T) {
+	first, err := NewID(time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC))
+	require.NoError(t, err)
+	second, err := NewID(time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC))
+	require.NoError(t, err)
+	require.Regexp(t, `^20261015-[0-9a-f]{6}$`, first)
+	require.NotEqual(t, first, second)
+}
+
+func TestParseReadsAHandEditedNote(t *testing.T) {
+	note, err := Parse("notes/personal/20261015-a1b2c3.md", []byte("\xef\xbb\xbf---\nkind:  question \nscope: global\nowner: personal\ndate: 2026-10-15\n---\n\nShould ele index tool output?\nIt would triple the index.\n\n"))
+	require.NoError(t, err)
+	require.Equal(t, Note{Body: "Should ele index tool output?\nIt would triple the index.", Date: "2026-10-15", ID: "20261015-a1b2c3", Kind: KindQuestion, Owner: "personal", Scope: ScopeGlobal}, note)
+}
+
+func TestParseRejectsInvalidNotes(t *testing.T) {
+	front := "---\ndate: 2026-10-15\nkind: decision\nowner: personal\nscope: global\n"
+	tests := []struct {
+		content string
+		message string
+		name    string
+		path    string
+	}{
+		{content: front + "kind: fact\n---\nx\n", message: `front matter key "kind" appears twice`, name: "duplicate key", path: "notes/personal/n.md"},
+		{content: front + "---\n\n", message: "notes/personal/n.md: empty body", name: "empty body", path: "notes/personal/n.md"},
+		{content: front + "---\nx\n", message: "no id", name: "empty id", path: "notes/personal/.md"},
+		{content: "No front matter\n", message: "first line is not ---", name: "first line not a fence", path: "notes/personal/n.md"},
+		{content: front, message: "front matter never closes", name: "front matter never closes", path: "notes/personal/n.md"},
+		{content: "---\ndate: 2026-10-15\nkind: handoff\nowner: personal\nscope: global\n---\nx\n", message: "handoff with global scope", name: "global handoff", path: "notes/personal/n.md"},
+		{content: "---\ndate: 2026-10-17\nkind: plan\nowner: personal\nscope: global\n---\nplans.md\n", message: "plan with global scope", name: "global plan", path: "notes/personal/n.md"},
+		{content: "---\ndate: 15 Oct\nkind: decision\nowner: personal\nscope: global\n---\nx\n", message: "is not YYYY-MM-DD", name: "loose date", path: "notes/personal/n.md"},
+		{content: "---\ndate: 2026-10-15\nkind: decision\nowner: corp\nscope: global\n---\nx\n", message: `owner "corp" but filed under "personal"`, name: "owner differs from folder", path: "notes/personal/n.md"},
+		{content: "---\ndate: 2026-10-17\nkind: plan\nowner: personal\nproject: claude-ephant\nscope: project\n---\n../elsewhere/plans.md\n", message: `plan body "../elsewhere/plans.md" is not one path inside the project`, name: "plan outside the project", path: "notes/personal/n.md"},
+		{content: "---\ndate: 2026-10-17\nkind: plan\nowner: personal\nproject: claude-ephant\nscope: project\n---\n/w/plans.md\n", message: "is not one path inside the project", name: "plan with an absolute path", path: "notes/personal/n.md"},
+		{content: "---\ndate: 2026-10-17\nkind: plan\nowner: personal\nproject: claude-ephant\nscope: project\n---\nplans.md\nnext.md\n", message: "is not one path inside the project", name: "plan with two lines", path: "notes/personal/n.md"},
+		{content: "---\ndate: 2026-10-15\nkind: decision\nowner: personal\nscope: project\n---\nx\n", message: "project scope with no project", name: "project scope without project", path: "notes/personal/n.md"},
+		{content: front + "project: a\x07b\n---\nx\n", message: `project "a\ab" holds a control character`, name: "project with a control character", path: "notes/personal/n.md"},
+		{content: front + "project: a\u0085b\n---\nx\n", message: `project "a\u0085b" holds a control character`, name: "project with a C1 control character", path: "notes/personal/n.md"},
+		{content: front + "session: a b\n---\nx\n", message: `session "a b" holds characters other than letters, digits, - and _`, name: "session with a space", path: "notes/personal/n.md"},
+		{content: front + "shown: yesterday\n---\nx\n", message: `shown "yesterday" is not an RFC 3339 timestamp`, name: "shown not RFC 3339", path: "notes/personal/n.md"},
+		{content: front + "supersedes: n\n---\nx\n", message: "supersedes itself", name: "supersedes itself", path: "notes/personal/n.md"},
+		{content: front + "time: 21:52\n---\nx\n", message: `time "21:52" is not an RFC 3339 timestamp`, name: "time not RFC 3339", path: "notes/personal/n.md"},
+		{content: front + " tag : x\n---\nx\n", message: `unknown front matter key "tag"`, name: "unknown key", path: "notes/personal/n.md"},
+		{content: "---\ndate: 2026-10-15\nkind: todo\nowner: personal\nscope: global\n---\nx\n", message: `kind "todo" is not one of`, name: "unknown kind", path: "notes/personal/n.md"},
+		{content: "---\ndate: 2026-10-15\nkind: decision\nowner: personal\nscope: team\n---\nx\n", message: `scope "team" is not one of`, name: "unknown scope", path: "notes/personal/n.md"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := Parse(test.path, []byte(test.content))
+			require.ErrorIs(t, err, ErrInvalid)
+			require.ErrorContains(t, err, test.message)
+		})
+	}
+}
+
+func TestParseReadsAPlanNote(t *testing.T) {
+	note, err := Parse("notes/personal/20261017-a1b2c3.md", []byte("---\ndate: 2026-10-17\nkind: plan\nowner: personal\nproject: claude-ephant\nscope: project\n---\n.documentation/plans/plans.md\n"))
+	require.NoError(t, err)
+	require.Equal(t, ".documentation/plans/plans.md", note.Body)
+}
+
+func TestReadOwnerSkipsInvalidNotesAndOtherOwners(t *testing.T) {
+	directory := t.TempDir()
+	_, err := Write(directory, valid)
+	require.NoError(t, err)
+	other := valid
+	other.ID, other.Owner = "20261015-dddddd", "corp"
+	_, err = Write(directory, other)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(directory, "personal", "broken.md"), []byte("no front matter\n"), 0o600))
+	require.NoError(t, os.Symlink("gone", filepath.Join(directory, "personal", ".#lock.md")))
+
+	read, invalid, err := ReadOwner(directory, "personal")
+	require.NoError(t, err)
+	require.Equal(t, []Note{valid}, read)
+	require.Equal(t, 1, invalid)
+
+	read, invalid, err = ReadOwner(filepath.Join(directory, "missing"), "personal")
+	require.NoError(t, err)
+	require.Empty(t, read)
+	require.Zero(t, invalid)
+}
+
+func TestWriteRefusesANoteWithoutAnID(t *testing.T) {
+	note := valid
+	note.ID = ""
+	_, err := Write(t.TempDir(), note)
+	require.ErrorIs(t, err, ErrInvalid)
+	require.EqualError(t, err, "invalid note: no id")
+}
+
+func TestWriteThenParseRoundTrips(t *testing.T) {
+	directory := t.TempDir()
+	path, err := Write(directory, valid)
+	require.NoError(t, err)
+	require.Equal(t, filepath.Join(directory, "personal", "20261015-a1b2c3.md"), path)
+
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, "---\ndate: 2026-10-15\nkind: decision\nowner: personal\nprofile: claude\nproject: claude-ephant\nscope: project\nsession: 010a2385\n---\nPin pydantic below 2.14 in the uvx wrapper.\n", string(content))
+	parsed, err := Parse(path, content)
+	require.NoError(t, err)
+	require.Equal(t, valid, parsed)
+
+	_, err = Write(directory, valid)
+	require.ErrorIs(t, err, os.ErrExist)
+}
