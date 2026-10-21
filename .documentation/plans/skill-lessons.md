@@ -48,6 +48,7 @@ A comparison with the mattpocock-skills plugin (wayfinder, grilling, writing-for
 - [ ] writing-for-agents findings for checkpoint and ticket-audit, applied on approval
   - as of 2026-10-21: findings from two reviews, every group approved and applied to checkpoint and ticket-audit, through a full checkpoint
   - as of 2026-10-21: `ele events --kind tool-error` built as the error rule's data source; on a clone of the data directory, 1,572 tool errors since 2026-10-14, all named for their tool; of 1,298 failed Bash commands, 1 was rerun unchanged, 393 were followed by a different call, 904 unknown, mostly commands cut at 300 characters
+  - as of 2026-10-21: `ele events --during <skill>` built, filtering events to a skill's runs; on a copy of the index, 779 tool errors during checkpoint and 30 during ticket-audit, every ticket-audit run, and every checkpoint run that never logged, closing at its first prompt
   - next: the inbox's error rule, inside this item: a per-skill table of known errors and fixes, quote verbatim, one fix, one retry, then stop and report
 - [ ] Fold what this plan built into the spec, delete this plan, and run `ele plan done .documentation/plans/skill-lessons.md`
 

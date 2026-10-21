@@ -44,6 +44,11 @@ func TestRunEventsPrintsOneJSONObjectPerLine(t *testing.T) {
 	require.Equal(t, 0, run(context.Background(), []string{"events", "--no-sync", "--name", "recall"}, &stdout, &stderr))
 	require.Contains(t, stdout.String(), `"name":"recall"`)
 	require.NotContains(t, stdout.String(), `"name":"checkpoint"`)
+
+	stdout.Reset()
+	require.Equal(t, 0, run(context.Background(), []string{"events", "--no-sync", "--during", "checkpoint"}, &stdout, &stderr))
+	require.Contains(t, stdout.String(), `"name":"checkpoint"`)
+	require.NotContains(t, stdout.String(), `"name":"recall"`, "another skill ends the run")
 }
 
 func TestRunEventsRefusesBadInput(t *testing.T) {
@@ -53,10 +58,10 @@ func TestRunEventsRefusesBadInput(t *testing.T) {
 		message string
 	}{
 		{args: []string{"events", "--kind", "tool"}, message: `ele: unknown kind "tool"; use agent, command, compaction, hook-block, injection, reply, skill, tokens`},
-		{args: []string{"events", "--limit", "-1"}, message: "ele events [--kind"},
+		{args: []string{"events", "--limit", "-1"}, message: "ele events [--during"},
 		{args: []string{"events", "--owner", "nobody"}, message: `ele: unknown owner "nobody"`},
 		{args: []string{"events", "--since", "yesterday"}, message: "--since takes YYYY-MM-DD or a number of days"},
-		{args: []string{"events", "stray"}, message: "ele events [--kind"},
+		{args: []string{"events", "stray"}, message: "ele events [--during"},
 	} {
 		output, code := runCommand(t, test.args...)
 		require.Equal(t, 2, code, test.args)

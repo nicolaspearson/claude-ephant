@@ -28,6 +28,7 @@ func (e *Event) DecodeAttributes(encoded string) error {
 
 // EventQuery matches everything where a field is empty, and returns every match where Limit is 0.
 type EventQuery struct {
+	During  string // a skill or command name: only events inside one of its runs
 	Kind    string
 	Limit   int
 	Name    string

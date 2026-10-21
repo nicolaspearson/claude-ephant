@@ -26,7 +26,7 @@ const usage = `usage:
   ele checkpoint stats [--baseline] [<days>]
   ele context [--owner <name>] [--project <name>]
   ele context --size
-  ele events [--kind <kind>] [--name <name>] [--owner <name>] [--project <name>] [--session <id>] [--since <YYYY-MM-DD|Nd>] [--limit <n>] [--no-sync]
+  ele events [--during <skill>] [--kind <kind>] [--name <name>] [--owner <name>] [--project <name>] [--session <id>] [--since <YYYY-MM-DD|Nd>] [--limit <n>] [--no-sync]
   ele forget [--owner <name>] [--restore] <id>...
   ele handoff close [--owner <name>] [--project <name>] <id>...
   ele handoff list [--all] [--owner <name>] [--project <name>]

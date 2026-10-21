@@ -22,6 +22,7 @@ var eventKinds = []string{transcript.EventAgent, transcript.EventCommand, transc
 
 func events(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
 	flags := newFlagSet("events", stderr)
+	during := flags.String("during", "", "only events inside a run of this skill or command, such as checkpoint: from its call to a prompt after its closing call, another skill or command, or two hours on")
 	kind := flags.String("kind", "", "only this kind: "+strings.Join(eventKinds, ", "))
 	limit := flags.Int("limit", 200, "print only the newest `n`; 0 prints every match")
 	name := flags.String("name", "", "only this name: the skill, command, subagent type, hook (an injection's includes its matcher, PostToolUse:Edit), or skills for the skill list")
@@ -63,7 +64,7 @@ func events(ctx context.Context, args []string, stdout io.Writer, stderr io.Writ
 		return 1
 	}
 	defer searchIndex.Close()
-	found, total, err := searchIndex.Events(ctx, dto.EventQuery{Kind: *kind, Limit: *limit, Name: *name, Owner: *owner, Project: *project, Session: *session, Since: from})
+	found, total, err := searchIndex.Events(ctx, dto.EventQuery{During: *during, Kind: *kind, Limit: *limit, Name: *name, Owner: *owner, Project: *project, Session: *session, Since: from})
 	if err != nil {
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return 1

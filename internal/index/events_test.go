@@ -141,3 +141,62 @@ func TestUpdateNamesAToolErrorByItsCall(t *testing.T) {
 		at("16", "Bash", map[string]any{"call": "Bash: echo last", "callLine": "d1", "error": "Exit code 1"}),
 	}, events)
 }
+
+func TestEventsDuringKeepsOnlyARunsEvents(t *testing.T) {
+	root := t.TempDir()
+	projects := filepath.Join(root, "projects")
+	line := func(session string, at string, body string) string {
+		return `{"sessionId":"` + session + `","timestamp":"2026-10-15T` + at + `Z","uuid":"` + session + at + `",` + body + "}\n"
+	}
+	skill := func(session string, at string, name string) string {
+		return line(session, at, `"type":"assistant","message":{"content":[{"type":"tool_use","name":"Skill","input":{"skill":"`+name+`"}}]}`)
+	}
+	command := func(session string, at string, name string) string {
+		return line(session, at, `"type":"user","message":{"content":"<command-name>/`+name+`</command-name>"}`)
+	}
+	prompt := func(at string, text string) string {
+		return line("s1", at, `"type":"user","message":{"content":"`+text+`"}`)
+	}
+	bash := func(at string, command string) string {
+		return line("s1", at, `"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"`+command+`"}}]}`)
+	}
+	failure := func(session string, at string) string {
+		return line(session, at, `"type":"user","message":{"content":[{"type":"tool_result","is_error":true,"content":"failed at `+at+`"}]}`)
+	}
+	write(t, filepath.Join(projects, "-w", "s1.jsonl"), failure("s1", "09:59:00")+skill("s1", "10:00:00", "ele:checkpoint")+failure("s1", "10:01:00")+
+		prompt("10:03:00", "yes, fix them")+failure("s1", "10:04:00")+bash("10:06:00", "cd /w; ele checkpoint log /w")+failure("s1", "10:06:30")+
+		prompt("10:07:00", "now the next item")+failure("s1", "10:08:00")+
+		command("s1", "11:00:00", "ele:checkpoint")+failure("s1", "11:01:00")+prompt("11:02:00", "never mind")+failure("s1", "11:03:00")+
+		skill("s1", "14:00:00", "ele:checkpoint")+failure("s1", "14:01:00")+skill("s1", "14:02:00", "ele:remember")+failure("s1", "14:03:00")+
+		skill("s1", "14:04:00", "checkpoint")+failure("s1", "16:04:00")+failure("s1", "16:04:01")+
+		command("s1", "17:00:00", "ticket-audit")+failure("s1", "17:01:00")+prompt("17:02:00", "thanks")+failure("s1", "17:03:00")+
+		skill("s1", "18:00:00", "ele:checkpoint")+failure("s1", "18:01:00")+prompt("18:05:00", "never mind")+failure("s1", "18:10:00")+
+		command("s1", "19:00:00", "checkpoint")+failure("s1", "19:10:00")+bash("19:30:00", "ele checkpoint log /w")+failure("s1", "19:31:00")+prompt("19:32:00", "next")+failure("s1", "19:33:00")+
+		skill("s1", "21:00:00", "checkpoint")+failure("s1", "21:01:00")+prompt("21:02:00", "yes")+failure("s1", "21:03:00")+
+		bash("21:04:00", "~/.claude/hooks/checkpoint-log.sh /w")+prompt("21:05:00", "next")+failure("s1", "21:06:00"))
+	write(t, filepath.Join(projects, "-w", "s1", "subagents", "agent-1.jsonl"), failure("s1", "10:02:00")+skill("s1", "10:02:30", "ele:remember")+failure("s1", "10:02:40"))
+	write(t, filepath.Join(projects, "-w", "s2.jsonl"), failure("s2", "10:01:00"))
+	index := open(t, filepath.Join(root, "ele.db"))
+	update(t, index, projects, filepath.Join(root, "archive"), ownermap.OwnerMap{})
+
+	during := func(skill string) []string {
+		events, total, err := index.Events(context.Background(), dto.EventQuery{During: skill, Kind: "tool-error"})
+		require.NoError(t, err)
+		var errors []string
+		for _, event := range events {
+			errors = append(errors, event.Attributes["error"].(string))
+		}
+		require.Len(t, errors, total)
+		return errors
+	}
+	require.Equal(t, []string{
+		"failed at 10:01:00", "failed at 10:02:00", "failed at 10:02:40", "failed at 10:04:00", "failed at 10:06:30",
+		"failed at 11:01:00",
+		"failed at 14:01:00", "failed at 16:04:00",
+		"failed at 18:01:00", "failed at 19:10:00", "failed at 19:31:00",
+		"failed at 21:01:00", "failed at 21:03:00",
+	}, during("checkpoint"), "a prompt ends a run only after its own closing call, not a later run's, or where it has none; a subagent's skill call never does")
+	require.Equal(t, during("checkpoint"), during("ele:checkpoint"))
+	require.Equal(t, []string{"failed at 17:01:00"}, during("ticket-audit"))
+	require.Empty(t, during("point"), "a name matches whole, with or without a plugin")
+}

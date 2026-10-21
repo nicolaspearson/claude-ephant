@@ -14,6 +14,50 @@ import (
 // A line key is the line's id, '#' and a place; '$' sorts just after '#', so the range holds that line's keys.
 const callQuery = `SELECT id, text FROM entries WHERE line_key >= ? AND line_key < ? AND kind = '` + transcript.KindTool + `' ORDER BY line_key LIMIT 1`
 
+// A skill's last calls, any one closing a run: a prompt before it is the run's own, such as a typed approval of fixes.
+// checkpoint-log.sh was checkpoint's before ele checkpoint log.
+var closingCalls = map[string][]string{
+	"checkpoint":   {"checkpoint-log.sh", "ele checkpoint log"},
+	"ticket-audit": {"ele ticket ledger record"},
+}
+
+// A subagent's skill call ends no run: its events fall inside its parent's. Each strftime bound is a second loose,
+// whatever a timestamp's precision, so the index can narrow to it; julianday then decides.
+func duringCondition(during string) (string, []any) {
+	skill := during[strings.LastIndex(during, ":")+1:]
+	names := []any{skill, len(skill) + 1, ":" + skill}
+	runEvent := func(alias string) string {
+		return alias + ".session = events.session AND " + alias + ".subagent = 0 AND " + alias + ".kind IN ('" + transcript.EventCommand + "', '" + transcript.EventSkill + "')"
+	}
+	named := func(alias string) string {
+		return "(" + alias + ".name = ? OR substr(" + alias + ".name, -?) = ?)"
+	}
+	closesRun, closesArguments := "1", []any(nil)
+	if calls := closingCalls[skill]; len(calls) > 0 {
+		// A later run's closing call is not this one's.
+		closing := `SELECT 1 FROM entries closing WHERE closing.session = events.session AND closing.subagent = 0 AND closing.kind = '` + transcript.KindTool + `'
+			AND closing.text LIKE 'Bash: %' AND (` + strings.Repeat("instr(closing.text, ?) > 0 OR ", len(calls)) + `0) AND closing.timestamp > opener.timestamp
+			AND NOT EXISTS (SELECT 1 FROM events reopener WHERE ` + runEvent("reopener") + ` AND ` + named("reopener") + `
+				AND reopener.timestamp > opener.timestamp AND reopener.timestamp < closing.timestamp)`
+		closesRun = `(EXISTS (` + closing + ` AND closing.timestamp < prompt.timestamp)
+			OR NOT EXISTS (` + closing + ` AND closing.timestamp <= strftime('%Y-%m-%dT%H:%M:%SZ', opener.timestamp, '+2 hours', '+1 second')
+				AND julianday(closing.timestamp) <= julianday(opener.timestamp) + 2.0 / 24))`
+		for _, call := range calls {
+			closesArguments = append(closesArguments, call)
+		}
+		closesArguments = append(closesArguments, names...)
+		closesArguments = append(closesArguments, closesArguments...)
+	}
+	condition := `EXISTS (SELECT 1 FROM events opener WHERE ` + runEvent("opener") + ` AND ` + named("opener") + `
+		AND opener.timestamp <= events.timestamp AND opener.timestamp >= strftime('%Y-%m-%dT%H:%M:%SZ', events.timestamp, '-2 hours', '-1 second')
+		AND julianday(events.timestamp) <= julianday(opener.timestamp) + 2.0 / 24
+		AND NOT EXISTS (SELECT 1 FROM events closer WHERE ` + runEvent("closer") + ` AND NOT ` + named("closer") + `
+			AND closer.timestamp > opener.timestamp AND closer.timestamp <= events.timestamp)
+		AND NOT EXISTS (SELECT 1 FROM entries prompt WHERE prompt.session = events.session AND prompt.subagent = 0 AND prompt.kind = '` + transcript.KindPrompt + `'
+			AND prompt.timestamp > opener.timestamp AND prompt.timestamp <= events.timestamp AND ` + closesRun + `))`
+	return condition, append(append(append([]any{}, names...), names...), closesArguments...)
+}
+
 // Events returns the newest matches up to the limit, oldest first, and how many matched in all.
 func (x *Index) Events(ctx context.Context, query dto.EventQuery) ([]dto.Event, int, error) {
 	var conditions []string
@@ -36,6 +80,11 @@ func (x *Index) Events(ctx context.Context, query dto.EventQuery) ([]dto.Event, 
 	if query.Since != "" {
 		conditions = append(conditions, "timestamp >= ?")
 		arguments = append(arguments, query.Since)
+	}
+	if query.During != "" {
+		condition, duringArguments := duringCondition(query.During)
+		conditions = append(conditions, condition)
+		arguments = append(arguments, duringArguments...)
 	}
 	where := ""
 	if len(conditions) > 0 {

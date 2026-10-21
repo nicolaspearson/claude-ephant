@@ -78,10 +78,12 @@ CREATE TABLE IF NOT EXISTS settings (
 	value TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS entries_owner_project ON entries (owner, project, session);
-CREATE INDEX IF NOT EXISTS entries_session ON entries (session);
+DROP INDEX IF EXISTS entries_session;
+CREATE INDEX IF NOT EXISTS entries_session_kind ON entries (session, kind, timestamp);
 CREATE INDEX IF NOT EXISTS entries_source ON entries (source);
 CREATE INDEX IF NOT EXISTS events_kind_name ON events (kind, name, timestamp);
-CREATE INDEX IF NOT EXISTS events_session ON events (session);
+DROP INDEX IF EXISTS events_session;
+CREATE INDEX IF NOT EXISTS events_session_kind ON events (session, kind, timestamp);
 CREATE VIRTUAL TABLE IF NOT EXISTS entries_fts USING fts5(text, content='entries', content_rowid='id');`
 
 // Version is bumped when the schema or what sync derives changes; an index holding another version is rebuilt.
