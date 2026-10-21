@@ -22,8 +22,8 @@ For each digest, read it whole and write ONE JSON object per line to your output
  "is_checkpoint": true,            // false if the cycle aborted, was declared not a checkpoint, or had nothing to review
  "mode": "full|small|none",
  "change": {"files": 4, "lines": 120},     // null where not visible
- "reviewers": [ {"role": "bugs|conventions|prose|conventions-prose|combined", "round": 1, "raised": 3, "reran_gate_or_tests": false, "notes": "optional"} ],
- "findings": [ {"source": "bugs|conventions|prose|combined|gate|mutation|user|parent",
+ "reviewers": [ {"role": "bugs|conventions|prose|conventions-prose|spec|combined", "round": 1, "raised": 3, "reran_gate_or_tests": false, "notes": "optional"} ],
+ "findings": [ {"source": "bugs|conventions|prose|spec|combined|gate|mutation|user|parent",
                 "stage": "review|rereview|gate|mutation|user",
                 "category": "kebab-case", "summary": "one line",
                 "verdict": "fixed|refuted|open|deliberate",

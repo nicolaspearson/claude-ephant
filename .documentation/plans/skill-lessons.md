@@ -42,9 +42,9 @@ A comparison with the mattpocock-skills plugin (wayfinder, grilling, writing-for
 - [x] stop-check reads `subagents/agent-*.jsonl` for work tools with an offset per file; tests, seen red; timed on the 153 MB session against the bar in Decisions; `stop-check.md` and the design spec updated
   - asserted in the item 4 commit: TestScanSubagentsCountsFileChangesOnly, TestRunStopCheckCountsASubagentsEdits and TestRunStopCheckKeepsASubagentsEditBeforeACheckpoint, through stopCheck on written transcripts: a subagent's Edit blocks, its Bash does not, reviewers' edits during a checkpoint do not, an edit stamped before the checkpoint does, no saved state skips history; ten mutations each red; timed on the 153 MB session (181 MB subagents): no saved state 0.69-0.76s vs HEAD 0.68-0.73s, with state 0.04-0.05s both; task check FORCE=1 green. Not yet seen in a real session: needs task install
 - [ ] Checkpoint spec reviewer, as in Decisions
-  - blocked: waits for phase 1 of `.documentation/plans/move-checkpoint-into-ele.md`
+  - as of 2026-10-21: built, uncommitted: `reviewers/spec.md`, wired into `SKILL.md` §2–§5, §7, §9, §10 and §12, the agent description, both `/ele:mine` prompts and the checkpoint spec. Its first version ran from the working tree as the third full-mode reviewer in this change's own checkpoint and reported per its Output section; the fixes since (Observed field, partial delivery, delta exemption, unasked to the user) have not run
+  - next: push and update the plugin, then see a checkpoint over a plan item launch the spec reviewer from the installed plugin, with an Observed field in its brief
 - [ ] writing-for-agents findings for checkpoint and ticket-audit, applied on approval
-  - blocked: waits for phase 1 of `.documentation/plans/move-checkpoint-into-ele.md`
 - [ ] Fold what this plan built into the spec, delete this plan, and run `ele plan done .documentation/plans/skill-lessons.md`
 
 ## Inbox

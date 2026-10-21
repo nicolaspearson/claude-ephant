@@ -134,8 +134,9 @@ paths only, the reviewer reads them:
 - Linter, formatter and `.editorconfig` settings, so no reviewer duplicates what
   the gate enforces.
 
-If the work came from a ticket, fetch it. A checkpoint that cannot say what was
-asked cannot say whether it was delivered.
+If the work came from a ticket, fetch it; from a plan item, read it from the
+plan file. A checkpoint that cannot say what was asked cannot say whether it was
+delivered.
 
 §2 is done when the CI check list exists and every brief field it gathers has a
 value or is stated empty.
@@ -147,11 +148,19 @@ One brief, shared by every reviewer, every path absolute:
 - Each repository root and its frozen diff.
 - The scope. Delta: the delta diff too, and the rule that findings fall on
   lines the delta changes, the full diff being context; a finding outside it
-  is reported only where the delta's change makes it newly wrong.
+  is reported only where the delta's change makes it newly wrong. A spec
+  finding of a missing requirement falls on no line and is reported whatever
+  the scope.
 - The change list, untracked and outside-git files marked as such.
 - The paths §1 found staged differently from the working tree.
 - The convention file paths.
-- What was asked — the ticket, or the user's request in their words.
+- What was asked — the ticket, or the user's request in their words. A plan
+  item or fetched ticket is quoted whole: the item's line and body, or the
+  ticket's body and comments. Say which of its requirements this change sets
+  out to deliver, where it delivers only some.
+- **Observed**: with a quoted item, what was run or measured toward it — a
+  real-session run, a measurement — and where its output is. This is evidence,
+  not the author's case, and the spec reviewer has no other way to see it.
 - **Settled — do not re-raise**: what §2 gathered, each with its reason. A
   reviewer contradicting one reports it only as a question carrying evidence the
   reason did not have.
@@ -168,8 +177,13 @@ Leave out the author's case for why the code is right.
 
 **Mode.** The freeze prints the mode each root alone implies. A second
 repository or any file outside git makes the change full, whatever each freeze
-printed. Small runs one fresh `general-purpose` reviewer that reads both
-reviewer files and reports under all three labels; full runs two.
+printed. Small runs one fresh `general-purpose` reviewer that reads the reviewer
+files and reports under each of their labels; full runs one reviewer per file.
+
+**Spec.** The spec reviewer runs only when the brief quotes a plan item or
+fetched ticket: in full mode as a third reviewer, launched with the other two;
+in small mode its file, `reviewers/spec.md`, joins the single reviewer's, which
+then also reports under §9's Spec reviewer label.
 
 Start the gate in the background as the reviewers launch: the checks §2 listed,
 against the tree the reviewers read. Nothing edits that tree until the checks
@@ -182,7 +196,7 @@ S=<scratchpad>; { <gate command>; echo "gate exit $?"; } > "$S/gate.log" 2>&1
 grep -nE 'FAIL|panic|Error|timed out|gate exit' "$S/gate.log"
 ```
 
-Full mode: launch both in one message so they run in parallel, each as the
+Full mode: launch them all in one message so they run in parallel, each as the
 subagent type below. Each prompt is the brief plus one line: read the reviewer
 file below first and follow it.
 
@@ -193,6 +207,7 @@ absolute paths — a subagent does not load this skill and cannot resolve them.
 | --------------------- | ------------------------- | -------------------------------- |
 | Bugs                  | `general-purpose`         | `reviewers/bugs.md`              |
 | Conventions and prose | `ele:checkpoint-reviewer` | `reviewers/conventions-prose.md` |
+| Spec                  | `ele:checkpoint-reviewer` | `reviewers/spec.md`              |
 
 `ele:checkpoint-reviewer` runs a cheaper model. Where that type is not listed, use
 `general-purpose`.
@@ -206,8 +221,15 @@ file, and say in the report that the author reviewed its own work.
 A finding is a claim, and a reviewer can be wrong. Before fixing a bugs finding,
 check it against the code: trace the input it names to the wrong output, or
 reproduce it. A prose or conventions finding needs only the cited line read — as
-of 2026-10-15 under 3% of them were refuted. Confirmed, it is fixed below.
-Refuted, list it with the reason. Neither, it goes in the report as a question.
+of 2026-10-15 under 3% of them were refuted. A spec finding is checked against
+the item's quoted words and the diff: a missing requirement by a search of the
+code for it, or of the brief's Observed field where it needs something observed;
+an unasked change by naming the requirement that needed it, if any. Confirmed,
+it is fixed below — except a missing or partial requirement the brief says this
+change does not set out to deliver: that is logged `deliberate` and left to
+§10's `next:` line, and an unasked change, which goes to the user: fixing it
+means reverting work they may want kept. Refuted, list it with the reason. Neither, it goes in the
+report as a question.
 A finding against a settled item is not applied on the reviewer's word: it goes
 to the user.
 
@@ -268,13 +290,16 @@ diff the fixes alone without a stash or commit. Create the directory first. Name
 the change list plus every file a fix created, less any path a fix returned to
 HEAD and any untracked file it deleted — the freeze refuses a path with nothing
 to diff. Launch one fresh `ele:checkpoint-reviewer`, or `general-purpose` where that
-type is not listed, with both frozen diffs, the files the fixes touched and the
-findings they fixed. It reads the reviewer files that apply, scoped to what the
-fixes changed:
+type is not listed, with both frozen diffs, the files the fixes touched, the
+findings they fixed and, when the spec reviewer ran, the brief's quoted item
+with what the change sets out to deliver and its Observed field. It reads the
+reviewer files that apply, scoped to what the fixes changed:
 
 - **Bugs**, if any code changed: what did the fixes break or fail to close?
 - **Conventions**, if anything was renamed, moved or reordered.
 - **Prose**, if any comment, string or doc changed.
+- **Spec**, if a fix closed a spec finding or touched what the item names: does
+  each requirement it reached still hold?
 
 One round. Anything it finds is verified and fixed, or reported — not a third
 review.
@@ -294,9 +319,9 @@ another commit stays out.
 ## 9. Report
 
 Label sections by reviewer — **Bugs reviewer**, **Conventions reviewer**,
-**Prose reviewer**, the last two splitting the merged reviewer's report. Keep the
-labels: the Stop hook matches them when the skill call has scrolled out of its
-view.
+**Prose reviewer**, the last two splitting the merged reviewer's report, and
+**Spec reviewer** when it ran. Keep the labels: the Stop hook matches the Bugs
+and Prose ones when the skill call has scrolled out of its view.
 
 - The mode, small or full, the scope, and how many reviewers §4 launched.
 - Per reviewer: findings confirmed and fixed, refuted with reason, left open.
@@ -324,9 +349,10 @@ plan, or none the change worked on: say so and go on. A plan in a repository the
 change does not touch is out of scope: name it, write nothing.
 
 Judge the item against its own text, not the change's intent. Every requirement
-it names met, any real-session test among them, and every check §2 listed green
-under §6: the change completes it. Propose the tick, with one line under it
-saying what was asserted and at which boundary, `N` being the item's position
+it names met, any real-session test among them, no spec finding confirmed under
+§5 left unfixed, and every check §2 listed green under §6: the change completes
+it. Propose the tick, with one line under it saying what was asserted and at
+which boundary, `N` being the item's position
 under Actions:
 
 ```markdown
@@ -395,8 +421,8 @@ EOF
   build), `defect` (wrong only in a reachable edge case), `quality` (correct, but
   misleading a reader, untested, or against a convention other than wording or
   order), `nit` (wording or order alone, misleading no one).
-- `source`: free text; the reviewer (`bugs`, or `conventions` or `prose` by the
-  merged reviewer's section), the gate check by name, or `user`.
+- `source`: free text; the reviewer (`bugs`, `conventions` or `prose` by the
+  merged reviewer's section, or `spec`), the gate check by name, or `user`.
 - `stage`: `gate`, `mutation`, `rereview`, `review`, `user`. A finding the user
   raises after this line is written goes in the next checkpoint's record, stage
   `user`, origin `earlier`.
