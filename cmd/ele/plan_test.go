@@ -38,8 +38,8 @@ func TestPlanSummaryRedactsTheNextTitleAndOmitsANextThatIsNone(t *testing.T) {
 	writeFile(t, filepath.Join(root, "secret.md"), "---\nkind: plan\n---\n\n## Actions\n\n- [ ] Rotate token=abc123secret\n")
 	writeFile(t, filepath.Join(root, "blocked.md"), "---\nkind: plan\n---\n\n## Actions\n\n- [x] Parser\n- [ ] Commands\n  blocked: the parser first\n")
 
-	require.Equal(t, "secret.md: 1 open, 0 blocked, 0 done, 0 in the inbox. Next: Rotate token=[redacted:assignment]", planSummary(root, "secret.md"))
-	require.Equal(t, "blocked.md: 0 open, 1 blocked, 1 done, 0 in the inbox.", planSummary(root, "blocked.md"))
+	require.Equal(t, "secret.md: 1 open, 0 blocked, 0 done, 0 in the inbox. Next: Rotate token=[redacted:assignment]", planSummary(root, "secret.md", nil))
+	require.Equal(t, "blocked.md: 0 open, 1 blocked, 1 done, 0 in the inbox.", planSummary(root, "blocked.md", nil))
 }
 
 func TestRunPlanDonePrefersThePathFromTheWorkingDirectory(t *testing.T) {
@@ -92,6 +92,36 @@ func TestRunPlanShowNamesEachActivePlanOrAMissingFile(t *testing.T) {
 	output, code = runCommand(t, "plan", "show")
 	require.Equal(t, 1, code)
 	require.Equal(t, "ele: plan first.md is not in this checkout; switch to its branch, or ele plan done first.md closes it\n", output)
+}
+
+func TestRunPlanStartRefusesANameAnotherActivePlanHoldsAndShowWarnsOfOne(t *testing.T) {
+	home := recallFixture(t)
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	named := "---\nkind: plan\n---\n## Actions\n- [ ] parser: Parser\n- [ ] commands: Commands\n"
+	writeFile(t, filepath.Join(gateway, "first.md"), named)
+	writeFile(t, filepath.Join(gateway, "second.md"), strings.Replace(named, "parser: Parser", "lexer: Lexer", 1))
+	t.Chdir(gateway)
+	output, code := runCommand(t, "plan", "start", "first.md")
+	require.Equal(t, 0, code, output)
+
+	output, code = runCommand(t, "plan", "start", "second.md")
+	require.Equal(t, 1, code)
+	require.Equal(t, "ele: second.md: item name \"commands\" is also in first.md; item names are unique across active plans\n", output)
+
+	writeFile(t, filepath.Join(gateway, "second.md"), "---\nkind: plan\n---\n## Actions\n- [ ] lexer: Lexer\n")
+	output, code = runCommand(t, "plan", "start", "second.md")
+	require.Equal(t, 0, code, output)
+	writeFile(t, filepath.Join(gateway, "second.md"), named)
+	output, code = runCommand(t, "plan", "show", "first.md")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "Next, line 5:\n- [ ] parser: Parser\n")
+	require.True(t, strings.HasSuffix(output, "- [ ] parser: Parser\n"+
+		"Warning: item name \"parser\" is also in second.md; item names are unique across active plans.\n"+
+		"Warning: item name \"commands\" is also in second.md; item names are unique across active plans.\n"), output)
+
+	output, code = runCommand(t, "plan", "show")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "first.md: 2 open, 0 blocked, 0 done, 0 in the inbox. Next: parser: Parser Warning: item name \"parser\" is also in second.md, item name \"commands\" is also in second.md; item names are unique across active plans.\n", "several active plans each warn in their summary")
 }
 
 func TestRunPlanStartRefusesWhatIsNotAPlan(t *testing.T) {

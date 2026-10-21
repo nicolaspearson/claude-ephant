@@ -106,7 +106,7 @@ func planSection(ctx context.Context, active []notes.Note, source string) (secti
 		return fmt.Sprintf("ele could not find the checkout for %s: %v\n", plural(len(active), "active plan", "active plans"), err), ""
 	}
 	state := func(relative string) (string, bool) {
-		view, err := planView(ctx, root, relative, planBodyBudget)
+		view, err := planView(ctx, root, relative, planBodyBudget, active)
 		switch {
 		case errors.Is(err, fs.ErrNotExist):
 			return fmt.Sprintf(activePlanMissing, relative), false
@@ -128,7 +128,7 @@ func planSection(ctx context.Context, active []notes.Note, source string) (secti
 		var out strings.Builder
 		fmt.Fprintf(&out, "%d active plans from ele, newest first:\n", len(active))
 		for _, note := range active {
-			fmt.Fprintf(&out, "- %s\n", planSummary(root, note.Body))
+			fmt.Fprintf(&out, "- %s\n", planSummary(root, note.Body, active))
 		}
 		section = out.String()
 	}

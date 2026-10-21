@@ -20,6 +20,8 @@ import (
 	"sync"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/nicolaspearson/claude-ephant/internal/plan"
 )
 
 const (
@@ -574,19 +576,23 @@ func placeholderTickets(ctx context.Context, stderr io.Writer, commands Commands
 	return found, nil
 }
 
-func planEntries(ctx context.Context, commands Commands, plan string) ([]corpusEntry, error) {
-	text, err := readText(plan)
+func planEntries(ctx context.Context, commands Commands, path string) ([]corpusEntry, error) {
+	text, err := readText(path)
 	if err != nil {
 		return nil, err
 	}
-	repository, relative, err := planLocation(ctx, commands, plan)
+	repository, relative, err := planLocation(ctx, commands, path)
 	if err != nil {
 		return nil, err
 	}
 	var entries []corpusEntry
 	for index, item := range planItems(text) {
 		name := fmt.Sprintf("%02d", index+1)
-		entries = append(entries, corpusEntry{file: name + ".md", hash: itemHash(item.hashed), key: fmt.Sprintf("%s/%s: %s", repository, relative, item.title), name: name, raw: item.raw, state: item.state, title: item.title})
+		key := plan.Name(item.title)
+		if key == "" {
+			key = item.title
+		}
+		entries = append(entries, corpusEntry{file: name + ".md", hash: itemHash(item.hashed), key: fmt.Sprintf("%s/%s: %s", repository, relative, key), name: name, raw: item.raw, state: item.state, title: item.title})
 	}
 	return entries, nil
 }

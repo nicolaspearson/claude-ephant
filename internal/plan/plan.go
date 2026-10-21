@@ -20,6 +20,7 @@ var (
 
 	checkbox = regexp.MustCompile(`^- \[([ xX])\] (.*)$`)
 	heading  = regexp.MustCompile(`^(#{1,6})\s+(.*?)\s*#*\s*$`)
+	itemName = regexp.MustCompile(`^([a-z0-9]+(?:-[a-z0-9]+)*): `)
 )
 
 type Counts struct {
@@ -34,6 +35,7 @@ type Item struct {
 	Body    []string
 	Done    bool
 	Line    int
+	Name    string
 	Title   string
 }
 
@@ -122,7 +124,8 @@ func Parse(content []byte) (Plan, error) {
 			plan.Inbox++
 		case section == sectionActions:
 			if match := checkbox.FindStringSubmatch(line); match != nil {
-				plan.Actions = append(plan.Actions, Item{Done: match[1] != " ", Line: number, Title: strings.TrimSpace(match[2])})
+				title := strings.TrimSpace(match[2])
+				plan.Actions = append(plan.Actions, Item{Done: match[1] != " ", Line: number, Name: Name(title), Title: title})
 				item = &plan.Actions[len(plan.Actions)-1]
 			}
 		}
@@ -132,6 +135,16 @@ func Parse(content []byte) (Plan, error) {
 	}
 	if !actions {
 		return invalid("no ## %s section", sectionActions)
+	}
+	named := map[string]int{}
+	for _, action := range plan.Actions {
+		if action.Name == "" {
+			continue
+		}
+		if line, ok := named[action.Name]; ok {
+			return invalid("item name %q on lines %d and %d", action.Name, line, action.Line)
+		}
+		named[action.Name] = action.Line
 	}
 	for at := range plan.Actions {
 		action := &plan.Actions[at]
@@ -150,6 +163,13 @@ func Parse(content []byte) (Plan, error) {
 		}
 	}
 	return plan, nil
+}
+
+func Name(title string) string {
+	if match := itemName.FindStringSubmatch(title); match != nil {
+		return match[1]
+	}
+	return ""
 }
 
 func (p Plan) Counts() Counts {

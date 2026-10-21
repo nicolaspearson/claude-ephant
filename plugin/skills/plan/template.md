@@ -20,7 +20,8 @@ spec: <path to the spec this plan implements, from the git root; delete the line
 
 ## Actions
 
-- [ ] <First item: one session's work>
+- [ ] <kebab-name>: <first item: one session's work>
+  - done when <what is observable once it is done>
 - [ ] Fold what this plan built, and its out-of-scope lines as `Not doing:`, into the spec, delete this plan, and run `ele plan done .documentation/plans/<name>.md`
 
 ## Inbox

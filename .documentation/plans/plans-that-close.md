@@ -36,8 +36,9 @@ ele plans stay accurate and close with little overhead. A plan's state (its fron
 
 ## Actions
 
-- [ ] item-ids: items lead with a kebab name, parsed by `internal/plan`, unique across active plans; the plan skill and `template.md` write a name and a `done when` line for each action but the closing one; the ledger keys on the name where there is one; the active plans' items named
+- [x] item-ids: items lead with a kebab name, parsed by `internal/plan`, unique across active plans; the plan skill and `template.md` write a name and a `done when` line for each action but the closing one; the ledger keys on the name where there is one; the active plans' items named
   - done when `ele plan show` prints each item's name, a duplicate name across active plans is refused with both paths, a reworded item keeps its ledger rulings in a test seen red, every active plan's items but the closing ones carry names, and the plan skill and template say to write a name and a done-when
+  - asserted in the item 1 commit: ele plan show prints names (built binary over the active plans); a name twice in a plan fails Parse, and plan start refuses one another active plan holds with both paths; a reworded named item keeps its ledger rulings (corpus→record→reword→rulings test); every new test seen red; task check FORCE=1 green
 - [ ] edges: `blocked:` leading with item names, local or `<plan>/<name>`, and `after: <date>`; the frontier worked out from them; a blocker done or missing flagged; `ele plan done` stores the plan's item names and states, and a name a closed plan used is refused
   - blocked: item-ids
   - done when tests seen red show a blocked item leaving the frontier once its blocker is ticked, one held by `after:` until its date, a blocker in a closed plan resolving from the store, a missing one flagged, and a name a closed plan used refused; and the active plans' `blocked:` lines name items
@@ -59,5 +60,7 @@ ele plans stay accurate and close with little overhead. A plan's state (its fron
 - 2026-10-21, from the user while this plan's first checkpoint ran: working items one at a time takes long; group frontier items that fit one session, each keeping its own done-when and tick line, so pickup offers a group and one checkpoint judges and ticks each item on its own requirements
 - 2026-10-21, from the user's question whether finished plans become specs: the fold carries only decisions with their reasons, `Not doing:` lines and constraints the code cannot show; it drops "Built:" narration and progress lines, which the code and git history hold, and rewrites any spec line the plan made untrue. Open: whether pruning `design.md`'s existing plan residue is this plan's fold or a plan candidate
 - 2026-10-21, from the user: `/ele:plan new` audits its draft before `ele plan start`, as `convert` does: contradictions between decisions, actions and the spec, each decision traced to an action, each artefact's producer and consumer, Context lines re-derived; not a gate in the binary, which cannot judge prose. This plan started unaudited and its checkpoint found 18 findings, most of those classes
+- 2026-10-21, from item-ids' checkpoint: `ele plan start` skips an active plan missing from the checkout, on another branch, so a name clash with it passes silently; say that plan could not be checked
+- 2026-10-21, from item-ids' checkpoint: the ticket corpus reads a name from an Inbox item too, while `internal/plan` names only Actions; key on names in Actions only
 
 ## Out of scope

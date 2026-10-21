@@ -210,6 +210,23 @@ func TestCorpusRefusesTwoPlanItemsWithOneKey(t *testing.T) {
 	require.Equal(t, "ele: two items share a key, so a ruling could land on either: repo/.documentation/plans/plan.md: Build the thing\n", stderr.String())
 }
 
+func TestCorpusKeysANamedPlanItemOnItsNameSoARewordKeepsItsRulings(t *testing.T) {
+	named := strings.Replace(corpusPlan, "- [ ] Ship the thing", "- [ ] ship-it: Ship the thing", 1)
+	out, ledgerPath := t.TempDir(), filepath.Join(t.TempDir(), "ticket-audits.jsonl")
+	entries := corpusManifest(t, out, named)
+	require.Equal(t, "repo/.documentation/plans/plan.md: ship-it", entries[1]["key"])
+	records := filepath.Join(t.TempDir(), "records.json")
+	require.NoError(t, os.WriteFile(records, []byte(`[{"key":"repo/.documentation/plans/plan.md: ship-it","methods":["premises"],"rulings":[{"finding":"f1","ruling":"r1"}]}]`), 0o600))
+	require.NoError(t, Record(&bytes.Buffer{}, filepath.Join(out, manifestName), records, ledgerPath, ledgerNow))
+
+	reworded := t.TempDir()
+	corpusManifest(t, reworded, strings.Replace(named, "Ship the thing", "Release the thing", 1))
+	var output bytes.Buffer
+	require.NoError(t, WriteRulings(&output, filepath.Join(reworded, manifestName), ledgerPath))
+
+	require.Equal(t, "repo/.documentation/plans/plan.md: ship-it\n  ruled 2026-10-21: f1 — r1\n  text CHANGED since\n", output.String())
+}
+
 func TestCorpusSplitsAPlanIntoActionsThenInboxItems(t *testing.T) {
 	out := t.TempDir()
 

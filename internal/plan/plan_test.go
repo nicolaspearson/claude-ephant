@@ -88,6 +88,17 @@ func TestParseReadsActionsInFileOrder(t *testing.T) {
 	require.Equal(t, "Parser and commands", next.Title)
 }
 
+func TestParseReadsTheKebabNameAnItemLeadsWith(t *testing.T) {
+	plan, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n- [ ] judge-blocks: sort the blocks\n- [x] edges: `blocked:` names\n- [ ] Fold it: into the spec\n- [ ] no-space:here\n- [ ] Trailing-: dash\n"))
+	require.NoError(t, err)
+	var names []string
+	for _, action := range plan.Actions {
+		names = append(names, action.Name)
+	}
+	require.Equal(t, []string{"judge-blocks", "edges", "", "", ""}, names)
+	require.Equal(t, "judge-blocks: sort the blocks", plan.Actions[0].Title, "the title keeps its name")
+}
+
 func TestParseRejectsInvalidPlans(t *testing.T) {
 	tests := []struct {
 		content string
@@ -96,6 +107,7 @@ func TestParseRejectsInvalidPlans(t *testing.T) {
 	}{
 		{content: "---\nkind: plan\n## Actions\n", message: "is not key: value", name: "front matter never closes"},
 		{content: "---\nkind: plan\ncreated: 17 Oct\n---\n## Actions\n", message: `created "17 Oct" is not YYYY-MM-DD`, name: "loose created"},
+		{content: "---\nkind: plan\n---\n## Actions\n- [ ] edges: one\n- [x] other: two\n- [ ] edges: three\n", message: `item name "edges" on lines 5 and 7`, name: "name twice"},
 		{content: "---\nkind: plan\n---\n## Tasks\n- [ ] x\n", message: "no ## Actions section", name: "no actions section"},
 		{content: "# Plan\n", message: "first line is not ---", name: "no front matter"},
 		{content: "---\nkind: spec\n---\n## Actions\n", message: `kind "spec" is not plan`, name: "not a plan"},

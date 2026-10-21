@@ -143,6 +143,30 @@ func planDone(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 	return 0
 }
 
+// A plan missing from the checkout or not parsing clashes with nothing.
+func nameClashes(root string, relative string, parsed plan.Plan, active []notes.Note) []string {
+	var clashes []string
+	for _, note := range active {
+		if note.Body == relative {
+			continue
+		}
+		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(note.Body)))
+		if err != nil {
+			continue
+		}
+		other, err := plan.Parse(content)
+		if err != nil {
+			continue
+		}
+		for _, action := range parsed.Actions {
+			if action.Name != "" && slices.ContainsFunc(other.Actions, func(item plan.Item) bool { return item.Name == action.Name }) {
+				clashes = append(clashes, fmt.Sprintf("item name %q is also in %s", action.Name, note.Body))
+			}
+		}
+	}
+	return clashes
+}
+
 func planPath(root string, argument string) (string, error) {
 	absolute, err := filepath.Abs(argument)
 	if err != nil {
@@ -170,7 +194,7 @@ func planPath(root string, argument string) (string, error) {
 }
 
 // bodyLimit is in bytes; 0 means no cap.
-func planView(ctx context.Context, root string, relative string, bodyLimit int) (string, error) {
+func planView(ctx context.Context, root string, relative string, bodyLimit int, active []notes.Note) (string, error) {
 	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
 	if err != nil {
 		return "", err
@@ -185,10 +209,13 @@ func planView(ctx context.Context, root string, relative string, bodyLimit int) 
 	}
 	var view strings.Builder
 	writePlanView(&view, relative, parsed, tick, ticked, bodyLimit)
+	for _, clash := range nameClashes(root, relative, parsed, active) {
+		fmt.Fprintf(&view, "Warning: %s; item names are unique across active plans.\n", clash)
+	}
 	return redact.Redact(view.String()), nil
 }
 
-func planSummary(root string, relative string) string {
+func planSummary(root string, relative string, active []notes.Note) string {
 	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
 	if errors.Is(err, fs.ErrNotExist) {
 		return fmt.Sprintf(activePlanMissing, relative)
@@ -205,6 +232,9 @@ func planSummary(root string, relative string) string {
 	if next, ok := parsed.Next(); ok {
 		summary += " Next: " + next.Title
 	}
+	if clashes := nameClashes(root, relative, parsed, active); len(clashes) > 0 {
+		summary += fmt.Sprintf(" Warning: %s; item names are unique across active plans.", strings.Join(clashes, ", "))
+	}
 	return redact.Redact(summary)
 }
 
@@ -219,12 +249,17 @@ func showPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return 1
 	}
+	var active []notes.Note
 	var relative string
 	missing := "ele: %s is not in this checkout\n"
 	if len(arguments) == 1 {
 		if relative, err = planPath(root, arguments[0]); err != nil {
 			fmt.Fprintf(stderr, "ele: %v\n", err)
 			return 1
+		}
+		// Without the project's notes a named plan still shows, unchecked for clashes.
+		if scope, _, scopeErr := projectNotes(ctx, "", ""); scopeErr == nil {
+			active = activePlans(scope.all, scope.project)
 		}
 	} else {
 		scope, code, scopeErr := projectNotes(ctx, "", "")
@@ -233,7 +268,7 @@ func showPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 			return code
 		}
 		missing = "ele: " + activePlanMissing + "\n"
-		active := activePlans(scope.all, scope.project)
+		active = activePlans(scope.all, scope.project)
 		where := present(scope.owner, scope.project)
 		switch len(active) {
 		case 0:
@@ -244,12 +279,12 @@ func showPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 		default:
 			fmt.Fprintf(stdout, "Active plans for %s, newest first; ele plan show <path> prints one:\n", where)
 			for _, note := range active {
-				fmt.Fprintf(stdout, "- %s: %s\n", note.ID, planSummary(root, note.Body))
+				fmt.Fprintf(stdout, "- %s: %s\n", note.ID, planSummary(root, note.Body, active))
 			}
 			return 0
 		}
 	}
-	view, err := planView(ctx, root, relative, 0)
+	view, err := planView(ctx, root, relative, 0, active)
 	if errors.Is(err, fs.ErrNotExist) {
 		fmt.Fprintf(stderr, missing, relative)
 		return 1
@@ -304,8 +339,13 @@ func startPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.W
 		fmt.Fprintf(stderr, "ele: %s has no checkbox under ## Actions\n", relative)
 		return 1
 	}
-	if at := slices.IndexFunc(activePlans(scope.all, scope.project), func(note notes.Note) bool { return note.Body == relative }); at >= 0 {
+	active := activePlans(scope.all, scope.project)
+	if at := slices.IndexFunc(active, func(note notes.Note) bool { return note.Body == relative }); at >= 0 {
 		fmt.Fprintf(stderr, "ele: %s is already started; ele plan show prints it\n", relative)
+		return 1
+	}
+	if clashes := nameClashes(root, relative, parsed, active); len(clashes) > 0 {
+		fmt.Fprintf(stderr, "ele: %s: %s; item names are unique across active plans\n", relative, strings.Join(clashes, ", "))
 		return 1
 	}
 	now := time.Now()
