@@ -57,5 +57,7 @@ ele plans stay accurate and close with little overhead. A plan's state (its fron
 ## Inbox
 
 - 2026-10-21, from the user while this plan's first checkpoint ran: working items one at a time takes long; group frontier items that fit one session, each keeping its own done-when and tick line, so pickup offers a group and one checkpoint judges and ticks each item on its own requirements
+- 2026-10-21, from the user's question whether finished plans become specs: the fold carries only decisions with their reasons, `Not doing:` lines and constraints the code cannot show; it drops "Built:" narration and progress lines, which the code and git history hold, and rewrites any spec line the plan made untrue. Open: whether pruning `design.md`'s existing plan residue is this plan's fold or a plan candidate
+- 2026-10-21, from the user: `/ele:plan new` audits its draft before `ele plan start`, as `convert` does: contradictions between decisions, actions and the spec, each decision traced to an action, each artefact's producer and consumer, Context lines re-derived; not a gate in the binary, which cannot judge prose. This plan started unaudited and its checkpoint found 18 findings, most of those classes
 
 ## Out of scope
