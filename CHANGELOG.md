@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.0](https://github.com/nicolaspearson/claude-ephant/compare/v0.5.0...v0.6.0) (2026-10-21)
+
+
+### Features
+
+* **checkpoint:** shape check in conventions; plan step before re-review, ele plan check in the gate ([a2d9787](https://github.com/nicolaspearson/claude-ephant/commit/a2d978767131b4d3269091fec753f03984d69a0d))
+* **plan:** ele plan check lists stale blockers, dates, claims, inbox items and readiness to close ([b073aba](https://github.com/nicolaspearson/claude-ephant/commit/b073aba813e3cb0d3103a6441c414d5179442cdb))
+
 ## [0.5.0](https://github.com/nicolaspearson/claude-ephant/compare/v0.4.0...v0.5.0) (2026-10-21)
 
 
