@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/nicolaspearson/claude-ephant/compare/v0.2.0...v0.3.0) (2026-10-21)
+
+
+### Features
+
+* ele version and task upgrade, checked against the latest release ([da7243f](https://github.com/nicolaspearson/claude-ephant/commit/da7243f42f60bb257e7139b34f8f81a5cfeda743))
+
 ## [0.2.0](https://github.com/nicolaspearson/claude-ephant/compare/v0.1.1...v0.2.0) (2026-10-21)
 
 
