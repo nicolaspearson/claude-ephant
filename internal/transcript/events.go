@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/nicolaspearson/claude-ephant/internal/dto"
+	"github.com/nicolaspearson/claude-ephant/internal/redact"
 )
 
 const (
@@ -208,9 +209,19 @@ func tokenEvent(parsed line, base dto.TranscriptEvent) (dto.TranscriptEvent, boo
 	return base, true
 }
 
-// callLine lets sync name the call: a result line carries no tool name or input.
+// callLine lets sync name the call: a result line carries no tool name or input. A chain's failing command usually
+// reports last, hence the tail.
 func toolErrorAttributes(parsed line, result block) map[string]any {
-	attributes := map[string]any{"error": truncate(resultText(result.Content))}
+	// Before either cut: a cut token no longer matches a pattern.
+	text := redact.Redact(resultText(result.Content))
+	attributes := map[string]any{"error": truncate(text)}
+	runes := []rune(strings.Join(strings.Fields(text), " "))
+	switch rest := runes[min(inputLimit, len(runes)):]; {
+	case len(rest) > inputLimit:
+		attributes["errorTail"] = "…" + string(rest[len(rest)-inputLimit:])
+	case len(rest) > 0:
+		attributes["errorTail"] = string(rest)
+	}
 	if parsed.SourceToolAssistantUUID != "" {
 		attributes["callLine"] = parsed.SourceToolAssistantUUID
 	}

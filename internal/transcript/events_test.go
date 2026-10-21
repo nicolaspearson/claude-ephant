@@ -179,9 +179,23 @@ func TestParseEventsTruncatesALongReason(t *testing.T) {
 	require.Equal(t, strings.Repeat("x", inputLimit)+"…", events[0].Attributes["reason"])
 }
 
-func TestParseEventsTruncatesALongToolError(t *testing.T) {
-	_, events, err := Parse([]byte(`{"type":"user","message":{"content":[{"type":"tool_result","is_error":true,"content":"` + strings.Repeat("x", 400) + `"}]}}`))
-	require.NoError(t, err)
-	require.Len(t, events, 1)
-	require.Equal(t, strings.Repeat("x", inputLimit)+"…", events[0].Attributes["error"])
+func TestParseEventsKeepsALongToolErrorHeadAndTail(t *testing.T) {
+	toolError := func(text string) map[string]any {
+		_, events, err := Parse([]byte(`{"type":"user","message":{"content":[{"type":"tool_result","is_error":true,"content":"` + text + `"}]}}`))
+		require.NoError(t, err)
+		require.Len(t, events, 1)
+		return events[0].Attributes
+	}
+	head := strings.Repeat("a", inputLimit)
+	require.Equal(t, map[string]any{"error": head + "…", "errorTail": "…" + strings.Repeat("z", inputLimit)}, toolError(head+strings.Repeat("m", 200)+strings.Repeat("z", inputLimit)))
+	require.Equal(t, map[string]any{"error": head + "…", "errorTail": strings.Repeat("é", 150)}, toolError(head+strings.Repeat("é", 150)), "a tail no longer than the rest repeats none of the head")
+	require.Equal(t, map[string]any{"error": head + "…", "errorTail": strings.Repeat("z", inputLimit)}, toolError(head+strings.Repeat("z", inputLimit)))
+	require.Equal(t, map[string]any{"error": head}, toolError(head))
+
+	token := "ghp_abcdefghijklmnopqrstuvwxyz0123456789"
+	straddling := toolError(strings.Repeat("a", inputLimit-20) + " " + token + " " + strings.Repeat("m", 100) + " " + token + " " + strings.Repeat("z", inputLimit-20))
+	for key, value := range straddling {
+		require.NotContains(t, value, "ghp_", "%s: a token cut at either end is redacted first", key)
+		require.NotContains(t, value, "0123456789", "%s: a token cut at either end is redacted first", key)
+	}
 }
