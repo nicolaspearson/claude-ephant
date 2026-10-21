@@ -19,5 +19,5 @@ Where its sections differ further:
 - §2: `git log <base>..HEAD`'s subjects join what was asked
 - §3: the brief names the base and the commit range, and that the prose
   reviewer runs `ele checkpoint density --ref <base> <root>`
-- §8: only the uncommitted part gets a commit; what is committed is already
+- §9: only the uncommitted part gets a commit; what is committed is already
   there

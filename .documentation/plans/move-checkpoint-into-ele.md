@@ -125,3 +125,4 @@ ele already depends on checkpoint and ticket-audit, and they depend on ele, but 
 ## Inbox
 
 - 2026-10-21, from the release-please checkpoint: a manual Release trigger taking a tag, which runs Check on that tag, builds, uploads and publishes the draft. A release whose merge run was replaced in the queue, or whose merge failed the check, stays a draft with no binaries and today needs them attached by hand
+- 2026-10-21, from mining plan-only checkpoint runs: 4 logged durations of 0, 0, 2 and 11 s, each run's wall time far longer; a later freeze appears to reset the run's start. Check `checkpoint-reviewed.sh freeze` before port-hooks ports it

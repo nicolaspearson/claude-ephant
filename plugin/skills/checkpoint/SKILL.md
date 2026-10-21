@@ -41,7 +41,7 @@ Read the two status columns:
   cherry-pick, revert or conflicted stash. Stop and say so; this is not a
   checkpoint.
 - **First column `M`, `A`, `R`, `C` or `T`, second `M`, `D` or `T`** — the staged
-  copy differs from the working tree; list these paths for the brief and for §8.
+  copy differs from the working tree; list these paths for the brief and for §9.
 
 List any rename by both its old and new path.
 
@@ -67,10 +67,10 @@ holding them — a Go linter given single files cannot see their siblings and
 reports names it cannot resolve — with no fix flag, since a fixing run over a
 package rewrites siblings off the list (golangci-lint: `--new-from-rev=HEAD`).
 Fix by hand what it reports on lines the change touched; anything else is
-pre-existing, left, and named in §9. What these catch never reaches a reviewer
+pre-existing, left, and named in §10. What these catch never reaches a reviewer
 as a finding. Then re-read `git status --porcelain` for those paths: a staged
 file the formatter rewrote now differs from its staged copy, and joins the
-staged-differently list for the brief and §8.
+staged-differently list for the brief and §9.
 
 Freeze each repository's diff into the session scratchpad directory, naming every
 path on the change list as its own argument, relative to the root. Leave off any
@@ -81,14 +81,14 @@ path the formatter returned to HEAD; it leaves the change list too:
 ```
 
 The script writes `checkpoint-<repo>.diff` and the fingerprint
-`checkpoint-<repo>.hash` for §7, `<repo>` being the basename of git's root for
+`checkpoint-<repo>.hash` for §8, `<repo>` being the basename of git's root for
 it. It refuses a path with no change and prints the line count and the mode this
 root alone implies.
 
 **The run.** This freeze opens the run, and the Stop hook treats this session's
 checkpoint as in progress while it is open. Only this freeze passes `--start`:
 it starts the run's clock, which a run abandoned earlier in the session would
-otherwise keep; §7's freeze continues the run without it. Each freeze keeps the
+otherwise keep; §8's freeze continues the run without it. Each freeze keeps the
 run open for two hours; §11's `record` or Stopping early's `close` ends it.
 `record` refuses without an open run of this session: none frozen, closed,
 another session's, a last freeze over two hours old, or `CLAUDE_CODE_SESSION_ID`
@@ -109,6 +109,14 @@ its checks: typecheck and build, lint, tests with their coverage thresholds,
 generated-code drift. The repository's local gate is often narrower, and as of
 2026-10-15 that gap was the commonest way a defect got past a checkpoint. A check
 that cannot run here is reported as unverified, never as passing.
+
+With a file under `.documentation/plans/` on the change list, the gate also runs
+`(cd <root> && ele plan check <path>)` for each one still on disk. For a change
+list of plan files alone, §2's check list is those runs plus any CI check that
+reads `.documentation/`, such as a docs lint; §10 names the rest as not run,
+not as unverified. It exits 0 on warnings, so read them from the log: one on a
+line the change touched is a finding, stage `gate`, source `ele plan check`; any
+other, a warning with no line included, is named in §10.
 
 Gather what is settled, for the brief:
 
@@ -186,7 +194,7 @@ files and reports under each of their labels; full runs one reviewer per file.
 **Spec.** The spec reviewer runs only when the brief quotes a plan item or
 fetched ticket: in full mode as a third reviewer, launched with the other two;
 in small mode its file, `reviewers/spec.md`, joins the single reviewer's, which
-then also reports under §9's Spec reviewer label.
+then also reports under §10's Spec reviewer label.
 
 **Launch.** Full mode: launch them all in one message so they run in parallel,
 each as the subagent type below. Each prompt is the brief plus one line: read
@@ -224,15 +232,16 @@ change list, spec with a verdict per requirement — and the gate log exists.
 Before fixing a bugs finding, check it against the code: trace the input it
 names to the wrong output, or reproduce it. A prose or conventions finding needs
 only the cited line read — as of 2026-10-15 under 3% of them were refuted. A
-spec finding is checked against the item's quoted words and the diff: a missing
-requirement by a search of the code for it, or of the brief's Observed field
-where it needs something observed; an unasked change by naming the requirement
-that needed it, if any.
+not-reused finding also needs the existing code it names read. A spec finding is
+checked against the item's quoted words and the diff: a missing requirement by a
+search of the code for it, or of the brief's Observed field where it needs
+something observed; an unasked change by naming the requirement that needed it,
+if any.
 
 Give each finding one of §12's verdicts:
 
 - **`deliberate`** — confirmed, and a missing or partial requirement the brief
-  says this change does not set out to deliver: left to §10's `next:` line.
+  says this change does not set out to deliver: left to §7's `next:` line.
 - **`fixed`** — confirmed, and fixed below.
 - **`open`** — neither confirmed nor refuted: reported as a question. A
   confirmed unasked change, or a finding against a settled item, goes to the
@@ -284,82 +293,7 @@ being fixed in this run: see Stopping early.
 passing, counted green per `HEAD-EXPORT.md`, unverified, or handed to Stopping
 early.
 
-## 7. Re-review the fixes
-
-This step gates the report. Compare each repository's fingerprint with the one §1
-saved:
-
-```sh
-S=<scratchpad>; <premigration>/checkpoint-reviewed.sh hash <root> | cmp -s - "$S/checkpoint-<repo>.hash"; echo $?
-```
-
-`0` in every repository, and no file outside git touched since §1: skip to §8.
-Anything else runs this step — a different fingerprint whatever moved it, a
-missing saved one, or an edit to a file outside git, which the fingerprint
-cannot see.
-
-Freeze again, into a second directory so the first freeze survives; git cannot
-diff the fixes alone without a stash or commit. Create the directory first. Name
-the change list plus every file a fix created, less any path a fix returned to
-HEAD and any untracked file it deleted — the freeze refuses a path with nothing
-to diff. Launch one fresh `ele:checkpoint-reviewer`, Bugs included on purpose,
-or `general-purpose` where that type is not listed, with both frozen diffs, the
-files the fixes touched, the findings they fixed, the brief's Settled and Report
-only fields and, when the spec reviewer ran, the brief's quoted item with what
-the change sets out to deliver and its Observed field. It reads the reviewer
-files that apply, scoped to what the fixes changed:
-
-- **Bugs**, if any code changed: what did the fixes break or fail to close?
-- **Conventions**, if anything was renamed, moved or reordered.
-- **Prose**, if any comment, string or doc changed.
-- **Spec**, if a fix closed a spec finding or touched what the item names: does
-  each requirement it reached still hold?
-
-One round: anything it finds is verified and then fixed or reported.
-
-§7 is done when every fingerprint matched, or the re-reviewer reported on each
-reviewer file that applied and each of its findings has a verdict.
-
-## 8. Commit message
-
-One line, subject only, in the repo's own style. More than one commit where the
-change splits cleanly, and say why it splits.
-
-Print the exact commands for the user to run. Per commit: an `add` of that
-commit's untracked paths, then a `commit` naming that commit's paths after `--`,
-a rename by both its old and new path. A commit given paths takes their
-working-tree copies and leaves anything else staged where it is, so the
-staged-differently paths from §1 ship as reviewed and work the user staged for
-another commit stays out.
-
-§8 is done when every path on the change list appears in exactly one printed
-commit: both sides of each rename, and each untracked path also in an `add`.
-
-## 9. Report
-
-Label sections by reviewer — **Bugs reviewer**, **Conventions reviewer**,
-**Prose reviewer**, the last two splitting the merged reviewer's report, and
-**Spec reviewer** when it ran. Keep the labels: the Stop hook matches the Bugs
-and Prose ones when the skill call has scrolled out of its view.
-
-- The mode, small or full, the scope, and how many reviewers §4 launched.
-- Per reviewer: findings confirmed and fixed, refuted with reason, left open.
-- Which files each reviewer gave a verdict on. A file on the change list with no
-  verdict was not reviewed, and is named as such.
-- Convention violations, naming the rule and the file it came from.
-- Any file marked denser than its peers whose comments were not swept.
-- Tests mutated, and whether each failed.
-- **Re-review:** what it found, or that the fingerprint had not moved.
-- What was deliberately left, and why, linter findings off the change's lines
-  included.
-- The gate result, per CI check, naming any that could not run here and any red
-  only on failures proven at HEAD.
-
-§9 is done when every file on the change list carries a verdict from each
-reviewer that ran, or is named unreviewed, and every entry on §5's running list
-appears in the report, under its reviewer's label where a reviewer raised it.
-
-## 10. Plan
+## 7. Plan
 
 Per repository the change touches, `ele plan list --project <name>` names its
 active plans; if it fails, say so and go on. `(cd <root> && ele plan show <path>)`
@@ -385,18 +319,103 @@ Anything short of that: propose a dated progress line under the item instead,
 `as of <date>: <what is done>` and `next: <what is left>`. Code that exists but
 whose behaviour nobody has observed gets a progress line, not a tick.
 
-Write it on approval, before §11, so the record covers it. The plan file joins
-the change's commit: reprint §8's commands with its path.
+Write it on approval, then run `ele plan check` and any CI check reading
+`.documentation/` over the plan file; a warning or failure on the written line is
+a finding. The plan file joins the change list, and the
+write counts as a fix for §8, which re-reviews it: a tick line is the claim a
+closure rests on, and its author does not review it.
 
-§10 is done when each touched repository's plan state is reported — no active
+§7 is done when each touched repository's plan state is reported — no active
 plan, no item worked on, or the item with a proposed tick or progress line — and
 any approved write is in the file.
 
+## 8. Re-review the fixes
+
+This step gates the report. Compare each repository's fingerprint with the one §1
+saved:
+
+```sh
+S=<scratchpad>; <premigration>/checkpoint-reviewed.sh hash <root> | cmp -s - "$S/checkpoint-<repo>.hash"; echo $?
+```
+
+`0` in every repository, and no file outside git touched since §1: skip to §9.
+Anything else runs this step — a different fingerprint whatever moved it, a
+missing saved one, or an edit to a file outside git, which the fingerprint
+cannot see.
+
+Freeze again, into a second directory so the first freeze survives; git cannot
+diff the fixes alone without a stash or commit. Create the directory first. Name
+the change list plus every file a fix created, less any path a fix returned to
+HEAD and any untracked file it deleted — the freeze refuses a path with nothing
+to diff. Launch one fresh `ele:checkpoint-reviewer`, Bugs included on purpose,
+or `general-purpose` where that type is not listed, with both frozen diffs, the
+files the fixes touched, the findings they fixed, the brief's Settled and Report
+only fields and, when the spec reviewer ran or §7 wrote, the item quoted whole
+from the plan file, with what the change sets out to deliver and the brief's
+Observed field. It reads the reviewer files that apply, scoped to what the fixes
+changed:
+
+- **Bugs**, if any code changed: what did the fixes break or fail to close?
+- **Conventions**, if anything was renamed, moved or reordered, or a fix closed
+  a Shape finding.
+- **Prose**, if any comment, string or doc changed.
+- **Spec**, if a fix closed a spec finding or touched what the item names, or §7
+  wrote: does each requirement it reached still hold? For §7's write: does each
+  claim the line makes hold against the item's done-when, the diff and the
+  Observed field?
+
+One round: anything it finds is verified and then fixed or reported.
+
+§8 is done when every fingerprint matched, or the re-reviewer reported on each
+reviewer file that applied and each of its findings has a verdict.
+
+## 9. Commit message
+
+One line, subject only, in the repo's own style. More than one commit where the
+change splits cleanly, and say why it splits.
+
+Print the exact commands for the user to run. Per commit: an `add` of that
+commit's untracked paths, then a `commit` naming that commit's paths after `--`,
+a rename by both its old and new path. A commit given paths takes their
+working-tree copies and leaves anything else staged where it is, so the
+staged-differently paths from §1 ship as reviewed and work the user staged for
+another commit stays out.
+
+§9 is done when every path on the change list appears in exactly one printed
+commit: both sides of each rename, and each untracked path also in an `add`.
+
+## 10. Report
+
+Label sections by reviewer — **Bugs reviewer**, **Conventions reviewer**,
+**Prose reviewer**, the last two splitting the merged reviewer's report, and
+**Spec reviewer** when it ran. Keep the labels: the Stop hook matches the Bugs
+and Prose ones when the skill call has scrolled out of its view.
+
+- The mode, small or full, the scope, and how many reviewers §4 launched.
+- Per reviewer: findings confirmed and fixed, refuted with reason, left open.
+- Which files each reviewer gave a verdict on. A file on the change list with no
+  verdict was not reviewed, and is named as such.
+- Convention violations, naming the rule and the file it came from.
+- Any file marked denser than its peers whose comments were not swept.
+- Tests mutated, and whether each failed.
+- **Re-review:** what it found, or that the fingerprint had not moved.
+- **Plan:** §7's plan state, and any line it wrote, as it stands after §8's
+  re-review.
+- What was deliberately left, and why, linter findings off the change's lines
+  included.
+- The gate result, per CI check, naming any that could not run here, any not run
+  because the change list is plan files alone, and any red only on failures
+  proven at HEAD; `ele plan check` warnings with no line, or off the change's
+  lines.
+
+§10 is done when every file on the change list carries a verdict from each
+reviewer that ran, or is named unreviewed, and every entry on §5's running list
+appears in the report, under its reviewer's label where a reviewer raised it.
+
 ## 11. Record
 
-Once every check passes or counts as green under §6, §7 has run or found
-the fingerprint unmoved apart from §10's approved plan write, and every finding
-is fixed or reported, per repository:
+Once every check passes or counts as green under §6, §8 has run or found the
+fingerprint unmoved, and every finding is fixed or reported, per repository:
 
 ```sh
 <premigration>/checkpoint-reviewed.sh record <root>
@@ -405,7 +424,7 @@ is fixed or reported, per repository:
 A record taken before the fixes marks unreviewed bytes as reviewed, and the next
 checkpoint stops on it.
 
-It refuses without an open run of this session (§1, The run). Run §7's
+It refuses without an open run of this session (§1, The run). Run §8's
 fingerprint check first, since a new freeze overwrites the saved fingerprint;
 then freeze the change list again and record.
 
@@ -441,12 +460,12 @@ EOF
 - `notes`: both 0; ele's Stop hook proposes notes outside the checkpoint.
 - `origin`: `change`, `earlier` (code older than the change), `fix` (introduced
   by a fix in this run).
-- `rereview`: `ran`, `skipped` (§7 found the fingerprint unmoved).
+- `rereview`: `ran`, `skipped` (§8 found the fingerprint unmoved).
 - `scope`: `uncommitted`, `delta` (the freeze wrote a delta), `branch`.
 - `severity`: `blocker` (wrong on the main path: wrong output, lost data, a broken
   build), `defect` (wrong only in a reachable edge case), `quality` (correct, but
-  misleading a reader, untested, or against a convention other than wording or
-  order), `nit` (wording or order alone, misleading no one).
+  misleading a reader, untested, against a convention other than wording or
+  order, or a Shape finding), `nit` (wording or order alone, misleading no one).
 - `source`: free text; the reviewer (`bugs`, `conventions` or `prose` by the
   merged reviewer's section, or `spec`), the gate check by name, or `user`.
 - `stage`: `gate`, `mutation`, `rereview`, `review`, `user`. A finding the user

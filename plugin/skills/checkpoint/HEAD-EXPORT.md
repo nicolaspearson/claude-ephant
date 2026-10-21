@@ -13,7 +13,7 @@ finds nothing there. A Go module whose needs are all committed builds from the
 shared module cache. Otherwise regenerate or copy what is missing, or report the
 failure as unreproduced.
 
-A check red only on failures proven at HEAD counts as green for §11, and §9
+A check red only on failures proven at HEAD counts as green for §11, and §10
 reports them as pre-existing — except where such a failure stopped the rest of
 the check running: a package that does not compile, a task that exits at its
 first error. What it stopped is unverified until run on its own (another
