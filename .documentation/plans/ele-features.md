@@ -12,7 +12,7 @@ Give ele a configuration a user can switch and tune from one place, reminders th
 
 ## Context
 
-- As of 2026-10-22: `Options` in `internal/config` declares `auto_note_writes` (default off) and `checkpoint_gate` (default on), kept in the data dir's `config.json` and read through `ele config get`
+- As of 2026-10-22: `Options` in `internal/config` declares `auto_note_writes` (default off), `checkpoint_gate` (default on) and `reminders` (default on), kept in the data dir's `config.json` and read through `ele config get`
 - As of 2026-10-22: note kinds are decision, fact, handoff, plan and question (`Kinds` in `internal/notes`); a dated reminder has been written as a fact note, which shows from the day it is written, not from its date, newest first within the session-start block's budget (`contextBudget` in `cmd/ele`)
 - As of 2026-10-22: `~/.claude/hooks/measure-reminder.sh`, a SessionStart hook in claude-config, prints a notice when `~/.claude/cache/hook-stats.last` is missing or over 7 days old; `~/.claude/scripts/hook-firings.py`, which `/hook-stats` runs, touches that file
 - As of 2026-10-22: `ele remember` refuses a note over 3 lines, and every live note loads each session, so a multi-step procedure has no home in ele
@@ -72,17 +72,21 @@ Give ele a configuration a user can switch and tune from one place, reminders th
   - as of 2026-10-22, before the build: `ele reminder close` set the note's `closed` key (`notes.MarkClosed`, from `reminderCommand` in `cmd/ele/reminder.go`); `dueReminders` showed an open reminder once `due` was today or earlier; `Parse` in `internal/notes` knew no `every` key; session start reads the `reminders` option in `cmd/ele/sessionstart.go`. `ele plan check` listed no warnings
   - as of 2026-10-22: built, uncommitted: nudge keys `every` and `done-file` in `internal/notes` (`SetDue`, done-file control characters refused); `ele remember --every --done-file` (`~` expanded, `--every 0` refused); close re-arming a nudge; `nextDue` and `withNextDue`; the interval in the start block and `ele reminder list`; `ele reminder`'s usage naming `ele remember`; design.md, README, the remember skill. The checkpoint's mutations went red, ten in all; `task check FORCE=1` and `task audit` green; clone build installed. In a scratch `ELE_HOME`, a nudge on the real `hook-stats.last` (changed 2026-10-16) listed due 2026-10-23. Not run: the remember evals after the skill's `--every` lines
   - next: a real `/hook-stats` run from 2026-10-23 moves the nudges' due dates a week later in `ele reminder list`, and the item ticks
+- [ ] config-options: List with the user, in rounds, the options ele could take beyond those planned, and build each approved one as an `Options` entry
+  - done when every candidate is ruled in or out by the user, and each approved option reads through `ele config get` and changes what it switches, tested and seen red
+  - as of 2026-10-22: moved from the inbox (raised 2026-10-21 in the user's config candidates)
+- [ ] owner-spanning-scope: A note scope spanning every owner, so a machine-wide note such as the hook-stats nudge is saved once and covers owners added later
+  - done when a note saved with that scope shows in every owner's start block, including an owner added to the owner map after the note was saved, tested and seen red, and the hook-stats nudge's per-owner notes are replaced by one, handed to the user as commands
+  - next: settle whether the scope also takes a repo-trait key, such as every Go repo (raised 2026-10-22 in a Go upgrade discussion)
+  - as of 2026-10-22: the per-owner hook-stats nudges are personal 20261022-3abb91, hyve 20261022-39de28, bitgorilla 20261022-33e1a4
 - [ ] recipe-propose: ele:recipe proposes a reusable procedure seen in a session as a user skill, with the same Write/Skip approval as notes whatever auto note writes says, and writes the approved one under the user's skills
   - done when an eval or test seen red has ele:recipe propose a multi-step procedure from a session transcript, an approved recipe is written as a skill a fresh session lists, and with the option off nothing is proposed
-  - next: settle whether ele gets a scope spanning owners, or one keyed to repo traits such as every Go repo, for multi-step recipes like a Go upgrade; as of 2026-10-22 `--global` covers one owner and notes cap at 3 lines and load every session, so such recipes go in `~/.claude/conventions`, and a user skill already spans owners (raised 2026-10-22 in a Go upgrade discussion)
+  - blocked: owner-spanning-scope; where a recipe spanning owners lives hangs on that scope
 - [ ] recipe-audit: Audit the user's skills for commands, flags and versions that no longer exist, as plan-audit does for plans
   - done when the audit, run over a skill that names a removed command or a stale version, reports each one, tested and seen red
 - [ ] Fold what this plan built, and its out-of-scope lines as `Not doing:`, into the spec, run `ele plan done .documentation/plans/ele-features.md`, and delete this plan
 
 ## Inbox
 
-- 2026-10-21, from the user's config candidates: options beyond those planned, to list with the user once config-structure is done
-- 2026-10-21, from the user's config candidates: "Claude heads-up integration", undefined when raised; meaning to be drawn with the user once config-structure is done
-- 2026-10-22, from the nudges work: a note scope spanning every owner, so a machine-wide nudge such as the hook-stats one is saved once and covers owners added later; as of 2026-10-22 the hook-stats nudge is saved once per owner, three notes. Shares the cross-owner scope question with recipe-propose
 
 ## Out of scope
