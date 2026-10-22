@@ -74,7 +74,7 @@ func TestParseClosesAFenceOnlyOnItsOwnMarker(t *testing.T) {
 }
 
 func TestCheckWarnsOnStaleClaimsAndInboxItemsAndMissingDoneWhens(t *testing.T) {
-	content := "---\nkind: plan\n---\n## Context\n" +
+	content := "---\nkind: plan\n---\n## Context (as of 2026-09-01)\n" +
 		"- As of 2026-10-01: old fact\n" +
 		"- as of 2026-10-10: fresh enough\n" +
 		"## Actions\n" +
@@ -83,12 +83,13 @@ func TestCheckWarnsOnStaleClaimsAndInboxItemsAndMissingDoneWhens(t *testing.T) {
 		"- [ ] with-when: Has one\n  - done when it is\n  after: 2026-10-20\n  blocked: nope\n" +
 		"- [ ] Closing action\n" +
 		"## Inbox\n- 2026-10-20, fresh\n- 2026-10-10, stale\n- undated\n" +
-		"## Out of scope\n- as of 2026-01-01 ruled out\n"
+		"## Out of scope\n- as of 2026-01-01 ruled out\n### Dropped (as of 2026-01-01)\n"
 	parsed, err := Parse([]byte(content))
 	require.NoError(t, err)
 	now := time.Date(2026, 10, 21, 12, 0, 0, 0, time.Local)
 	passed := time.Date(2026, 10, 20, 0, 0, 0, 0, time.Local).Format("2006-01-02 15:04 -07:00")
 	require.Equal(t, []Warning{
+		{Line: 4, Text: "as of 2026-09-01 is 50 days old; re-measure it"},
 		{Line: 5, Text: "as of 2026-10-01 is 20 days old; re-measure it"},
 		{Line: 10, Text: "no-when: no done when line"},
 		{Line: 11, Text: "as of 2026-09-30 is 21 days old; re-measure it"},

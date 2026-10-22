@@ -163,6 +163,9 @@ func Parse(content []byte) (Plan, error) {
 				section = match[2]
 				actions = actions || section == sectionActions
 			}
+			if section != sectionOutOfScope {
+				plan.claim(line, number)
+			}
 			continue
 		}
 		switch {
