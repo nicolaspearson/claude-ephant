@@ -30,23 +30,33 @@ ele's mining reports exist only as one-off Python scripts and run data on one ma
   - captured 2026-10-21, the user's call when the mining scripts were compared before deletion: as of 2026-10-21 `mining.Load` is read only to list pending units, in `cmd/ele/mine.go`, so nothing reports on judgments
   - moved 2026-10-21 from `move-checkpoint-into-ele.md`
   - done when its figures match the 2026-10-15 reports' numbers over the same units, differences named
-  - as of 2026-10-21: no judgment carries a duration; 135 of 586 carry a `report_ts`, the time the checkpoint reported; `gatetime.py` timed Bash calls and `subtools.py` reviewer subagents from the transcripts in each run's window
+  - as of 2026-10-21: no judgment carries a duration; 130 of 586 carry a non-null `report_ts`, the time the checkpoint reported; `gatetime.py` timed Bash calls and `subtools.py` reviewer subagents from the transcripts in each run's window
   - as of 2026-10-21: the cache keeps every pass per unit; of 141 subagent-era runs, 60 hold two or more judgments. 2026-10-15's figures took the `classify-sub3.md` pass over `classify-sub.md` and dropped the review cycles a run's window covered
 - [ ] drop-baseline: Remove `ele checkpoint stats --baseline` with `BaselinePath`, `WriteBaseline`, `ErrNoBaseline`, `CHECKPOINT_BASELINE` and their tests, `/ele:checkpoint-stats`' mention of it, and the spec's "Mining baseline" line and "mined baseline" in its Data stays line, once report figures cover what the baseline reported
+  - done when each section `ele checkpoint stats --baseline` printed has a report-figures counterpart or is named as dropped under this item, a grep finds none of the named symbols, and `task check FORCE=1` passes
   - blocked: report-figures
-- [ ] judge-blocks: Judge the week of Stop-hook "no checkpoint was reported" blocks after claude-config's 9fbce04, 2026-10-15 19:28Z to 2026-10-22 19:28Z, once that week has passed: sort each as hook wrong, agent dodged or unclear, as the 2026-10-16 run did, in its own run folder under `mining/` in ele's data directory; what they show scopes the hook-block follow-up and `move-checkpoint-into-ele.md`'s Phase 2
+- [ ] judge-blocks: Judge the week of Stop-hook "no checkpoint was reported" blocks after claude-config's 9fbce04, 2026-10-15 19:28Z to 2026-10-22 19:28Z, once that week has passed: sort each as hook wrong, agent dodged or unclear, as the 2026-10-16 run did, in its own run folder under `mining/` in ele's data directory; what they show scopes the hook-block follow-up and `move-checkpoint-into-ele/port-hooks`
+  - done when every block in the week is sorted as hook wrong, agent dodged or unclear in its run folder, with the counts per class, and block-follow-up and port-hooks each carry a dated line saying what the judging changes for them
   - after: 2026-10-22 19:28Z
   - as of 2026-10-21: 9fbce04 landed 2026-10-15 19:28Z, per `git -C ~/.claude log -1 9fbce04`
 - [ ] block-follow-up: in ele, each Stop-hook "no checkpoint was reported" block carries its `Changed:` paths and the next main-thread reply with its time, and `ele show --at <time>` opens a session at an event's turn, as `checkpoint-and-ticket-audit.md`'s Judging Stop-hook blocks line says; beyond that line, whether the reply disputes the block and whether the checkpoint skill was then invoked, as 2026-10-15's `blocks.py` read them; that line then names ele's reading of the reply in place of `~/.claude/scripts/hook-firings.py`, its disputed figure re-measured by it
+  - done when `ele events --kind hook-block` shows each block's `Changed:` paths and the next main-thread reply with its time, `ele show --at <time>` opens a session at that turn, each has a test seen red, and the spec's Judging Stop-hook blocks line names ele's reading with its re-measured figure
   - blocked: judge-blocks; scoped by what the judging shows
   - captured 2026-10-21, the user's call when the mining scripts were compared before deletion: as of 2026-10-21 `ele events --kind hook-block` gives only the block and its reason (`EventHookBlock` in `internal/transcript`), and `~/.claude/scripts/hook-firings.py` reads the reply after a block. The 2026-10-16 judging run's scripts are kept with it under `mining/2026-10-16-hook-blocks/` in ele's data directory
   - moved 2026-10-21 from `move-checkpoint-into-ele.md`
 - [ ] delete-mining-runs: Delete `mining/2026-10-15/`, `mining/2026-10-16-hook-blocks*/` and `mining/2026-10-17-checkpoint-baseline-*/` and the judging item's run folder from ele's data directory, remove `ele import mining`, and drop the specs' pointers to them; verify with `ls` that the folders are gone and with `git grep` that nothing outside `.documentation/plans/` names them
-  - blocked: report-figures, block-follow-up; and figures matching the 2026-10-15 reports, as Decisions say
+  - done when `ls` shows the folders gone, `ele import mining` is removed with its tests, a grep finds no name of them outside `.documentation/plans/`, and `task check FORCE=1` passes
+  - blocked: report-figures, drop-baseline, block-follow-up; and figures matching the 2026-10-15 reports, as Decisions say
+- [ ] judge-notes-asks: Judge a week of stop-check notes asks: per Stop hook-block event, the trigger rebuilt from the tool calls before it (Bash, question, subagent edit), notes written after it in that session, asks repeated without new work, and sessions with questions or subagent edits that got no ask
+  - moved 2026-10-22 from this plan's inbox by a plan audit; first captured 2026-10-20 from the install of 8596ec2, and moved 2026-10-21 from `skill-lessons.md` when it closed
+  - done when each ask in the week is listed with its trigger, the notes written after it, and whether it repeated without new work, in its own run folder under `mining/`, with the sessions that got no ask counted, and question note 20261021-93f75e is answered from it
+  - after: 2026-10-27
 - [ ] Fold what this plan built, and its out-of-scope lines as `Not doing:`, into the spec, and the hook-block and baseline changes into `checkpoint-and-ticket-audit.md`, run `ele plan done .documentation/plans/mining-reports.md`, and delete this plan
 
 ## Inbox
 
-- 2026-10-20, from the install of 8596ec2 at 10:45, moved 2026-10-21 from `skill-lessons.md` when it closed: from 2026-10-27, judge a week of stop-check notes asks: per Stop hook-block event, the trigger rebuilt from the tool calls before it (Bash, question, subagent edit), notes written after it in that session, asks repeated without new work, and sessions with questions or subagent edits that got no ask
+- 2026-10-22, from question note 20261020-ead7f7, via a plan audit: anchor `checkpointCommand` in `internal/mining` to `checkpoint</command-name>`, so a typed `/ele:checkpoint-stats` no longer closes a run's window; its reason to wait, phase 1's pure move, is done. Changes report-figures' units
+- 2026-10-22, from question note 20261016-4c7d8f, via a plan audit: tell a checkpoint's report from progress text by more than "bugs reviewer" plus a commit or gate over 800 characters (`reportCut` in `internal/mining`), which misses small-mode and newer reports
+- 2026-10-22, from question note 20261016-628f80, via a plan audit: whether two fresh reviewer launches under 5 minutes apart split a cycle, as re-reviews do; count the runs affected first
 
 ## Out of scope
