@@ -89,9 +89,10 @@ type digestLine struct {
 	Attachment *struct {
 		Prompt json.RawMessage `json:"prompt"`
 	} `json:"attachment"`
-	Content json.RawMessage `json:"content"`
-	IsMeta  bool            `json:"isMeta"`
-	Message *struct {
+	Content          json.RawMessage `json:"content"`
+	IsCompactSummary bool            `json:"isCompactSummary"`
+	IsMeta           bool            `json:"isMeta"`
+	Message          *struct {
 		Content json.RawMessage `json:"content"`
 	} `json:"message"`
 	Origin *struct {
@@ -653,7 +654,7 @@ func (l *digestLine) invokesCheckpoint() bool {
 
 // isHuman is a line the user typed: no tool result, no harness wrapper, and a human origin where one is recorded.
 func (l *digestLine) isHuman() bool {
-	if l.Type != "user" || l.IsMeta {
+	if l.Type != "user" || l.IsMeta || l.IsCompactSummary {
 		return false
 	}
 	for _, block := range l.blocks {

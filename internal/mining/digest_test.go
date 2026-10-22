@@ -208,6 +208,20 @@ func TestDigestOfACheckpointRunEndsTheTurnItRecordsIn(t *testing.T) {
 	}
 }
 
+func TestDigestOfACheckpointRunReadsACompactionAsNoPrompt(t *testing.T) {
+	archiveDirectory := t.TempDir()
+	compaction := strings.TrimSuffix(transcriptLine(t, "10:03:30", "user", "This session is being continued from a previous conversation that ran out of context."), "}\n") + `,"isCompactSummary":true,"isVisibleInTranscriptOnly":true}` + "\n"
+	writeArchived(t, filepath.Join(archiveDirectory, "claude", "-gateway", "t1.jsonl.gz"),
+		transcriptLine(t, "10:00:00", "assistant", toolUse("tu0", "Skill", map[string]any{"skill": "ele:checkpoint"})),
+		transcriptLine(t, "10:03:00", "assistant", toolUse("tu1", "Bash", map[string]any{"command": "ele checkpoint log /repo <<'EOF'\n{}\nEOF"})),
+		compaction,
+		transcriptLine(t, "10:04:00", "assistant", []map[string]any{{"text": "Item 3 is built and ready to commit.", "type": "text"}}))
+
+	digest, err := Digest(archiveDirectory, "checkpoint-runs", dto.MiningUnit{Session: "s1", Source: "claude/-gateway/t1.jsonl.gz", Timestamp: "2026-10-16T10:00:00Z"})
+	require.NoError(t, err)
+	require.Contains(t, digest, `"end":"2026-10-16T10:04:00Z"`, "a compaction between the record and the report is not the user speaking")
+}
+
 func TestDigestOfACheckpointRunTakesNoReportWhileAReviewerIsOut(t *testing.T) {
 	archiveDirectory := t.TempDir()
 	launched := strings.TrimSuffix(transcriptLine(t, "10:01:01", "user", toolResult("tu1", "Async agent launched successfully.\nagentId: a1", false)), "}\n") + `,"toolUseResult":{"agentId":"a1","status":"async_launched"}}` + "\n"
