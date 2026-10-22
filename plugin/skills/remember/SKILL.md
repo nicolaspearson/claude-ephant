@@ -1,15 +1,16 @@
 ---
 name: remember
-description: Save a decision, an open question or a dated fact so later sessions start with it. Use when the user says "remember this" or "we decided…", or a skill or ele's Stop hook asks for notes.
+description: Save a decision, an open question, a dated fact or a reminder for a later date so later sessions start with it. Use when the user says "remember this", "we decided…" or "remind me on…", or a skill or ele's Stop hook asks for notes.
 ---
 
 # Remember
 
-In every directory an owner covers, the SessionStart block shows the project's open questions, then its newest decisions and facts, plus the owner's global notes. Write a note only when the user asks or approves, or when `auto_note_writes` is on and the note is proposed per Propose below.
+In every directory an owner covers, the SessionStart block shows the project's due reminders and open questions, then its newest decisions and facts, plus the owner's global notes. Write a note only when the user asks or approves, or when `auto_note_writes` is on and the note is proposed per Propose below.
 
 ## What a note holds
 
 - A decision with its reason, an open question, or a dated fact. What the code does stays in the code, where it cannot go stale
+- Or a reminder: what to come back to and when. It shows from its due date at every start until `ele reminder close <id>`
 - Or a handoff: what `/ele:handoff` says it holds, proposed like any other note
 - At most three lines; one is better. The reason inline, not a pointer to a file, ticket or plan
 - No secrets. A note is a plain file and is printed into sessions
@@ -18,8 +19,10 @@ In every directory an owner covers, the SessionStart block shows the project's o
 
 ```sh
 ele remember --kind decision|fact|handoff|question <words>
+ele remember --kind reminder --due YYYY-MM-DD <words>
 ```
 
+- `--due`: the local date a reminder first shows; work out a spoken date such as "next Tuesday" from `date +%F`, and give the date in the report
 - Owner and project come from the working directory unless `--project` names one; profile, session and time are recorded automatically
 - `--project <name>`: the note concerns a project other than the working directory's. Works from any directory; `ele` names the owner or refuses
 - `--global`: applies to every project of the owner, not just this one; never on a handoff

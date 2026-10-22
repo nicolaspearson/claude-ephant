@@ -99,6 +99,10 @@ them in a terminal. Open sessions read a change at their next hook.
   one can be undone with `ele forget <id>`
 - **`checkpoint_gate`**: on by default. Off, a turn that changed files and
   claims done is not blocked for `ele:checkpoint`
+- **`reminders`**: on by default. A reminder saved with
+  `ele remember --kind reminder --due <YYYY-MM-DD>`, or by asking
+  `/ele:remember` to remind you, shows at every session start from that date
+  until `ele reminder close <id>`. Off, none shows
 - `ELE_HOME` moves the data directory; `ele status` shows where it is
 
 ## Contributing

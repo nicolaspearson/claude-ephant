@@ -80,7 +80,7 @@ func liveNotes(all []notes.Note, project string) (questions []notes.Note, others
 	}
 	for _, note := range all {
 		switch {
-		case superseded[note.ID], note.Scope == notes.ScopeProject && note.Project != project, note.Kind == notes.KindHandoff, note.Kind == notes.KindPlan:
+		case superseded[note.ID], note.Scope == notes.ScopeProject && note.Project != project, note.Kind == notes.KindHandoff, note.Kind == notes.KindPlan, note.Kind == notes.KindReminder:
 		case note.Kind == notes.KindQuestion:
 			questions = append(questions, note)
 		default:
@@ -150,6 +150,15 @@ func readHookInput(input io.Reader, hook any) bool {
 		}
 	}
 	return json.NewDecoder(io.LimitReader(input, hookInputLimit)).Decode(hook) == nil
+}
+
+func reminderSection(due []notes.Note) string {
+	var section strings.Builder
+	section.WriteString("Reminders from ele, due:\n")
+	for _, reminder := range due {
+		fmt.Fprintf(&section, "- due %s, reminder %s: %s\n", reminder.Due, reminder.ID, redact.Redact(strings.Join(strings.Fields(reminder.Body), " ")))
+	}
+	return section.String()
 }
 
 func sessionCount(ctx context.Context, dataDirectory string, owner string, project string) (int, error) {
@@ -308,10 +317,16 @@ func writeSessionStart(ctx context.Context, stdout io.Writer, dataDirectory stri
 	}
 	project, owner := index.NewProjects(ownerMap).Resolve(directory)
 	settings, err := config.Load(configPath(dataDirectory))
+	remindersOn := true
 	if err != nil {
 		fmt.Fprintf(stdout, "ele: %v; every option reads as its default.\n", err)
-	} else if changed := offDefaults(settings, owner); len(changed) > 0 {
-		fmt.Fprintf(stdout, "Config from ele, off its defaults: %s.\n", strings.Join(changed, ", "))
+	} else {
+		if changed := offDefaults(settings, owner); len(changed) > 0 {
+			fmt.Fprintf(stdout, "Config from ele, off its defaults: %s.\n", strings.Join(changed, ", "))
+		}
+		if value, valueErr := settings.Value("reminders", owner); valueErr == nil {
+			remindersOn = value.Value == true
+		}
 	}
 	if owner == "" {
 		fmt.Fprintf(stdout, "ele shows no notes here: no owner in owner-map.json covers %s. /ele:recall needs --owner <name> or --all.\n", directory)
@@ -337,6 +352,11 @@ func writeSessionStart(ctx context.Context, stdout io.Writer, dataDirectory stri
 		section, instruction := planSection(ctx, all, project, filepath.Join(dataDirectory, "notes"), source)
 		shown = append(shown, section)
 		fmt.Fprint(stdout, section+instruction+"\n")
+	}
+	if due := dueReminders(all, project, now); remindersOn && len(due) > 0 {
+		section := reminderSection(due)
+		shown = append(shown, section)
+		fmt.Fprint(stdout, section+"Tell the user each is due. Once the user says one is done or dropped, run ele reminder close <id>...; until then it shows at every startup, /clear and compaction.\n\n")
 	}
 	// The count is decoration; a busy or broken index must not cost the session its notes.
 	sessions, err := sessionCount(ctx, dataDirectory, owner, project)

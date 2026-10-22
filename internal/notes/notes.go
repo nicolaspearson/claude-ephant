@@ -22,6 +22,7 @@ const (
 	KindHandoff  = "handoff"
 	KindPlan     = "plan"
 	KindQuestion = "question"
+	KindReminder = "reminder"
 
 	ScopeGlobal  = "global"
 	ScopeProject = "project"
@@ -30,7 +31,7 @@ const (
 var (
 	ErrInvalid = errors.New("invalid note")
 
-	Kinds  = []string{KindDecision, KindFact, KindHandoff, KindPlan, KindQuestion}
+	Kinds  = []string{KindDecision, KindFact, KindHandoff, KindPlan, KindQuestion, KindReminder}
 	scopes = []string{ScopeGlobal, ScopeProject}
 
 	// A project name is one front matter value; directory names may hold spaces and accents.
@@ -42,7 +43,9 @@ var (
 
 type Note struct {
 	Body       string
+	Closed     string
 	Date       string
+	Due        string
 	ID         string
 	Kind       string
 	Owner      string
@@ -55,20 +58,21 @@ type Note struct {
 	Time       string
 }
 
+func ClearClosed(directory string, note Note) error {
+	return clearKey(directory, note, "closed")
+}
+
 func ClearShown(directory string, note Note) error {
-	return rewriteShown(directory, note, "clear", func(lines []string, _ int, shownIndex int) []string {
-		if shownIndex < 0 {
-			return nil
-		}
-		return slices.Concat(lines[:shownIndex], lines[shownIndex+1:])
-	})
+	return clearKey(directory, note, "shown")
 }
 
 func Format(note Note) []byte {
 	var out bytes.Buffer
 	out.WriteString("---\n")
 	for _, field := range []struct{ key, value string }{
+		{"closed", note.Closed},
 		{"date", note.Date},
+		{"due", note.Due},
 		{"kind", note.Kind},
 		{"owner", note.Owner},
 		{"profile", note.Profile},
@@ -89,15 +93,12 @@ func Format(note Note) []byte {
 	return out.Bytes()
 }
 
-// MarkShown sets the note's shown key and leaves every other line as written, so a hand edit survives.
+func MarkClosed(directory string, note Note, when time.Time) error {
+	return markKey(directory, note, "closed", when)
+}
+
 func MarkShown(directory string, note Note, when time.Time) error {
-	shown := "shown: " + when.UTC().Format(time.RFC3339) + "\n"
-	return rewriteShown(directory, note, "mark", func(lines []string, closing int, shownIndex int) []string {
-		if shownIndex < 0 {
-			return slices.Concat(lines[:closing], []string{shown}, lines[closing:])
-		}
-		return slices.Concat(lines[:shownIndex], []string{shown}, lines[shownIndex+1:])
-	})
+	return markKey(directory, note, "shown", when)
 }
 
 // Move rewrites only the owner line and refiles the note under its new owner, so a hand edit survives.
@@ -190,7 +191,7 @@ func Parse(path string, content []byte) (Note, error) {
 		return invalid("first line is not ---")
 	}
 	fields := map[string]*string{
-		"date": &note.Date, "kind": &note.Kind, "owner": &note.Owner, "profile": &note.Profile,
+		"closed": &note.Closed, "date": &note.Date, "due": &note.Due, "kind": &note.Kind, "owner": &note.Owner, "profile": &note.Profile,
 		"project": &note.Project, "scope": &note.Scope, "session": &note.Session, "shown": &note.Shown, "supersedes": &supersedes, "time": &note.Time,
 	}
 	seen := map[string]bool{}
@@ -318,6 +319,26 @@ func Write(directory string, note Note) (string, error) {
 	return path, nil
 }
 
+func clearKey(directory string, note Note, key string) error {
+	return rewriteKey(directory, note, key, "clear", func(lines []string, _ int, keyIndex int) []string {
+		if keyIndex < 0 {
+			return nil
+		}
+		return slices.Concat(lines[:keyIndex], lines[keyIndex+1:])
+	})
+}
+
+// markKey sets one timestamp key and leaves every other line as written, so a hand edit survives.
+func markKey(directory string, note Note, key string, when time.Time) error {
+	line := key + ": " + when.UTC().Format(time.RFC3339) + "\n"
+	return rewriteKey(directory, note, key, "mark", func(lines []string, closing int, keyIndex int) []string {
+		if keyIndex < 0 {
+			return slices.Concat(lines[:closing], []string{line}, lines[closing:])
+		}
+		return slices.Concat(lines[:keyIndex], []string{line}, lines[keyIndex+1:])
+	})
+}
+
 func problem(note Note) string {
 	if _, err := time.Parse(time.DateOnly, note.Date); err != nil {
 		return fmt.Sprintf("date %q is not YYYY-MM-DD", note.Date)
@@ -341,6 +362,14 @@ func problem(note Note) string {
 		return "plan with global scope"
 	case note.Kind == KindPlan && (strings.Contains(note.Body, "\n") || !filepath.IsLocal(filepath.FromSlash(note.Body))):
 		return fmt.Sprintf("plan body %q is not one path inside the project", note.Body)
+	case note.Kind == KindReminder && note.Due == "":
+		return "reminder with no due date"
+	case note.Kind != KindReminder && (note.Due != "" || note.Closed != ""):
+		return fmt.Sprintf("%s with a due or closed key, which only a reminder takes", note.Kind)
+	case note.Due != "" && !validDate(note.Due):
+		return fmt.Sprintf("due %q is not YYYY-MM-DD", note.Due)
+	case note.Closed != "" && !validTime(note.Closed):
+		return fmt.Sprintf("closed %q is not an RFC 3339 timestamp", note.Closed)
 	case !ValidProject(note.Project):
 		return fmt.Sprintf("project %q holds a control character", note.Project)
 	case !ValidSession(note.Session):
@@ -366,10 +395,10 @@ func repeated(identifiers []string) string {
 	return ""
 }
 
-// change gets the index of the closing --- and of the shown line (-1 if absent); returning nil leaves the file alone.
-func rewriteShown(directory string, note Note, action string, change func(lines []string, closing int, shownIndex int) []string) error {
+// change gets the index of the closing --- and of the key's line (-1 if absent); returning nil leaves the file alone.
+func rewriteKey(directory string, note Note, key string, action string, change func(lines []string, closing int, keyIndex int) []string) error {
 	path := filepath.Join(directory, note.Owner, note.ID+".md")
-	failed := func(err error) error { return fmt.Errorf("%s %s shown: %w", action, path, err) }
+	failed := func(err error) error { return fmt.Errorf("%s %s %s: %w", action, path, key, err) }
 	info, err := os.Stat(path)
 	if err != nil {
 		return failed(err)
@@ -387,16 +416,16 @@ func rewriteShown(directory string, note Note, action string, change func(lines 
 		}
 	}
 	if strings.TrimSpace(strings.TrimPrefix(lines[0], "\xef\xbb\xbf")) != "---" || closing < 0 {
-		return fmt.Errorf("%w %s: no front matter to %s shown", ErrInvalid, path, action)
+		return fmt.Errorf("%w %s: no front matter to %s %s", ErrInvalid, path, action, key)
 	}
-	shownIndex := -1
+	keyIndex := -1
 	for number := 1; number < closing; number++ {
-		if key, _, _ := strings.Cut(lines[number], ":"); strings.TrimSpace(key) == "shown" {
-			shownIndex = number
+		if name, _, _ := strings.Cut(lines[number], ":"); strings.TrimSpace(name) == key {
+			keyIndex = number
 			break
 		}
 	}
-	rewritten := change(lines, closing, shownIndex)
+	rewritten := change(lines, closing, keyIndex)
 	if rewritten == nil {
 		return nil
 	}
@@ -420,6 +449,11 @@ func rewriteShown(directory string, note Note, action string, change func(lines 
 		return failed(err)
 	}
 	return nil
+}
+
+func validDate(value string) bool {
+	_, err := time.Parse(time.DateOnly, value)
+	return err == nil
 }
 
 func validTime(value string) bool {

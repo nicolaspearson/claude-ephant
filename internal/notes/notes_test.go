@@ -75,6 +75,29 @@ func TestMarkShownRewritesOnlyThatKey(t *testing.T) {
 	require.ErrorIs(t, MarkShown(root, Note{ID: "broken", Owner: "personal"}, time.Now()), ErrInvalid)
 }
 
+func TestMarkClosedThenClearClosedRoundTrips(t *testing.T) {
+	root := t.TempDir()
+	reminder := Note{Body: "Revisit worktree-parallel plans.", Date: "2026-10-22", Due: "2026-11-01", ID: "20261022-a1b2c3", Kind: KindReminder, Owner: "personal", Scope: ScopeGlobal}
+	path, err := Write(root, reminder)
+	require.NoError(t, err)
+
+	require.NoError(t, MarkClosed(root, reminder, time.Date(2026, 11, 1, 9, 0, 0, 0, time.UTC)))
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, "---\ndate: 2026-10-22\ndue: 2026-11-01\nkind: reminder\nowner: personal\nscope: global\nclosed: 2026-11-01T09:00:00Z\n---\nRevisit worktree-parallel plans.\n", string(content))
+	closed, err := Parse(path, content)
+	require.NoError(t, err)
+	require.Equal(t, "2026-11-01T09:00:00Z", closed.Closed)
+	require.Empty(t, closed.Shown, "closing is not showing")
+
+	require.NoError(t, ClearClosed(root, reminder))
+	content, err = os.ReadFile(path)
+	require.NoError(t, err)
+	reopened, err := Parse(path, content)
+	require.NoError(t, err)
+	require.Equal(t, reminder, reopened)
+}
+
 func TestMoveRefusesToOverwriteANoteUnderTheNewOwner(t *testing.T) {
 	root := t.TempDir()
 	note := valid
@@ -135,6 +158,8 @@ func TestParseRejectsInvalidNotes(t *testing.T) {
 	}{
 		{content: front + "kind: fact\n---\nx\n", message: `front matter key "kind" appears twice`, name: "duplicate key", path: "notes/personal/n.md"},
 		{content: front + "---\n\n", message: "notes/personal/n.md: empty body", name: "empty body", path: "notes/personal/n.md"},
+		{content: front + "closed: 2026-10-22T09:00:00Z\n---\nx\n", message: "decision with a due or closed key, which only a reminder takes", name: "closed on a decision", path: "notes/personal/n.md"},
+		{content: front + "due: 2026-10-23\n---\nx\n", message: "decision with a due or closed key, which only a reminder takes", name: "due on a decision", path: "notes/personal/n.md"},
 		{content: front + "---\nx\n", message: "no id", name: "empty id", path: "notes/personal/.md"},
 		{content: "No front matter\n", message: "first line is not ---", name: "first line not a fence", path: "notes/personal/n.md"},
 		{content: front, message: "front matter never closes", name: "front matter never closes", path: "notes/personal/n.md"},
@@ -146,6 +171,9 @@ func TestParseRejectsInvalidNotes(t *testing.T) {
 		{content: "---\ndate: 2026-10-17\nkind: plan\nowner: personal\nproject: claude-ephant\nscope: project\n---\n/w/plans.md\n", message: "is not one path inside the project", name: "plan with an absolute path", path: "notes/personal/n.md"},
 		{content: "---\ndate: 2026-10-17\nkind: plan\nowner: personal\nproject: claude-ephant\nscope: project\n---\nplans.md\nnext.md\n", message: "is not one path inside the project", name: "plan with two lines", path: "notes/personal/n.md"},
 		{content: "---\ndate: 2026-10-15\nkind: decision\nowner: personal\nscope: project\n---\nx\n", message: "project scope with no project", name: "project scope without project", path: "notes/personal/n.md"},
+		{content: "---\nclosed: today\ndate: 2026-10-22\ndue: 2026-10-23\nkind: reminder\nowner: personal\nscope: global\n---\nx\n", message: `closed "today" is not an RFC 3339 timestamp`, name: "reminder closed not RFC 3339", path: "notes/personal/n.md"},
+		{content: "---\ndate: 2026-10-22\ndue: next week\nkind: reminder\nowner: personal\nscope: global\n---\nx\n", message: `due "next week" is not YYYY-MM-DD`, name: "reminder due not a date", path: "notes/personal/n.md"},
+		{content: "---\ndate: 2026-10-22\nkind: reminder\nowner: personal\nscope: global\n---\nx\n", message: "reminder with no due date", name: "reminder without due", path: "notes/personal/n.md"},
 		{content: front + "project: a\x07b\n---\nx\n", message: `project "a\ab" holds a control character`, name: "project with a control character", path: "notes/personal/n.md"},
 		{content: front + "project: a\u0085b\n---\nx\n", message: `project "a\u0085b" holds a control character`, name: "project with a C1 control character", path: "notes/personal/n.md"},
 		{content: front + "session: a b\n---\nx\n", message: `session "a b" holds characters other than letters, digits, - and _`, name: "session with a space", path: "notes/personal/n.md"},

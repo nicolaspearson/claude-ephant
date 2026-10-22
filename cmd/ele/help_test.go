@@ -40,14 +40,14 @@ func TestRunPrintsTheOverviewNamingEveryCommand(t *testing.T) {
 		for name := range commands {
 			require.Regexp(t, `(?m)^  `+name+`( \S+)? {2,}\S`, stdout, args)
 		}
-		require.Contains(t, stdout, "\n  ele remember --kind decision|fact|handoff|question [--global] [--owner <name>] [--project <name>] [--session <id>] [--supersedes <id>...] <words>\n", "every flag shows without a second call")
+		require.Contains(t, stdout, "\n  ele remember --kind decision|fact|handoff|question|reminder [--due <YYYY-MM-DD>] [--global] [--owner <name>] [--project <name>] [--session <id>] [--supersedes <id>...] <words>\n", "every flag shows without a second call")
 	}
 }
 
 func TestRunAnswersHelpForEveryCommand(t *testing.T) {
-	invocations := [][]string{{"checkpoint", "density"}, {"checkpoint", "log"}, {"checkpoint", "stats"}, {"config", "get"}, {"config", "list"}, {"config", "set"}, {"config", "unset"}, {"handoff", "close"}, {"handoff", "list"}, {"handoff", "reopen"}, {"import", "mining"}, {"owner", "add"}, {"owner", "add-path"}, {"owner", "add-project"}, {"owner", "remove-path"}, {"owner", "remove-project"}, {"plan", "done"}, {"plan", "list"}, {"plan", "show"}, {"plan", "start"}, {"ticket", "claims"}, {"ticket", "corpus"}, {"ticket", "ledger"}}
+	invocations := [][]string{{"checkpoint", "density"}, {"checkpoint", "log"}, {"checkpoint", "stats"}, {"config", "get"}, {"config", "list"}, {"config", "set"}, {"config", "unset"}, {"handoff", "close"}, {"handoff", "list"}, {"handoff", "reopen"}, {"import", "mining"}, {"owner", "add"}, {"owner", "add-path"}, {"owner", "add-project"}, {"owner", "remove-path"}, {"owner", "remove-project"}, {"plan", "done"}, {"plan", "list"}, {"plan", "show"}, {"plan", "start"}, {"reminder", "close"}, {"reminder", "list"}, {"reminder", "reopen"}, {"ticket", "claims"}, {"ticket", "corpus"}, {"ticket", "ledger"}}
 	for name := range commands {
-		if !slices.Contains([]string{"checkpoint", "config", "handoff", "import", "owner", "plan", "ticket"}, name) {
+		if !slices.Contains([]string{"checkpoint", "config", "handoff", "import", "owner", "plan", "reminder", "ticket"}, name) {
 			invocations = append(invocations, []string{name})
 		}
 	}

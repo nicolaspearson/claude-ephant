@@ -51,7 +51,10 @@ const usage = `usage:
   ele plan start <path>
   ele recall [--all | --owner <name>] [--kind <k,k>] [--project <name>] [--since <YYYY-MM-DD|Nd>] [--limit <n>] [--no-sync] <query>
   ele reindex
-  ele remember --kind decision|fact|handoff|question [--global] [--owner <name>] [--project <name>] [--session <id>] [--supersedes <id>...] <words>
+  ele remember --kind decision|fact|handoff|question|reminder [--due <YYYY-MM-DD>] [--global] [--owner <name>] [--project <name>] [--session <id>] [--supersedes <id>...] <words>
+  ele reminder close [--owner <name>] [--project <name>] <id>...
+  ele reminder list [--all] [--owner <name>] [--project <name>]
+  ele reminder reopen [--owner <name>] [--project <name>] <id>...
   ele session-start [--no-sync]
   ele show [--around <text> | --at <time>] [--context <n>] <session>
   ele show --note <id> [--context <n>]
@@ -89,6 +92,7 @@ var commands = map[string]func(ctx context.Context, args []string, stdout io.Wri
 	"recall":   recall,
 	"reindex":  reindex,
 	"remember": remember,
+	"reminder": reminderCommand,
 	"session-start": func(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
 		return sessionStart(ctx, args, os.Stdin, stdout, stderr)
 	},

@@ -16,7 +16,7 @@ import (
 	"github.com/nicolaspearson/claude-ephant/internal/redact"
 )
 
-type handoffChange struct {
+type noteChange struct {
 	apply        func(directory string, note notes.Note) error
 	confirmation string
 	eligible     func(all []notes.Note, project string) []notes.Note
@@ -32,18 +32,18 @@ type projectScope struct {
 
 func handoffCommand(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
 	now := time.Now()
-	changes := map[string]handoffChange{
+	changes := map[string]noteChange{
 		"close": {
 			apply:        func(directory string, note notes.Note) error { return notes.MarkShown(directory, note, now) },
 			confirmation: "Closed",
 			eligible:     pendingHandoffs,
-			refusal:      "pending handoff of %s; ele context lists them",
+			refusal:      "a pending handoff of %s; ele context lists them",
 		},
 		"reopen": {
 			apply:        notes.ClearShown,
 			confirmation: "Reopened",
 			eligible:     closedHandoffs,
-			refusal:      "closed handoff of %s; ele handoff list --all lists them",
+			refusal:      "a closed handoff of %s; ele handoff list --all lists them",
 		},
 	}
 	if len(args) == 0 {
@@ -56,9 +56,13 @@ func handoffCommand(ctx context.Context, args []string, stdout io.Writer, stderr
 	if !ok {
 		return misuse("handoff", args, stdout, stderr)
 	}
-	flags := newFlagSet("handoff "+args[0], stderr)
-	owner := flags.String("owner", "", args[0]+" this owner's handoffs instead of the resolved one's")
-	projectName := flags.String("project", "", args[0]+" this project's handoffs instead of the working directory's")
+	return applyChange(ctx, "handoff", args, change, stdout, stderr)
+}
+
+func applyChange(ctx context.Context, group string, args []string, change noteChange, stdout io.Writer, stderr io.Writer) int {
+	flags := newFlagSet(group+" "+args[0], stderr)
+	owner := flags.String("owner", "", args[0]+" this owner's "+group+"s instead of the resolved one's")
+	projectName := flags.String("project", "", args[0]+" this project's "+group+"s instead of the working directory's")
 	identifiers, err := parseInterspersed(flags, args[1:])
 	if err != nil {
 		return rejectCall(flags, err, stdout, stderr)
@@ -78,7 +82,7 @@ func handoffCommand(ctx context.Context, args []string, stdout io.Writer, stderr
 	// Checked before any is changed, so a mistyped id changes nothing.
 	for _, identifier := range identifiers {
 		if _, ok := candidates[identifier]; !ok {
-			fmt.Fprintf(stderr, "ele: %s is not a "+change.refusal+", --project <name> for another project's\n", identifier, present(scope.owner, scope.project))
+			fmt.Fprintf(stderr, "ele: %s is not "+change.refusal+", --project <name> for another project's\n", identifier, present(scope.owner, scope.project))
 			return 1
 		}
 	}
@@ -92,7 +96,7 @@ func handoffCommand(ctx context.Context, args []string, stdout io.Writer, stderr
 			fmt.Fprintf(stderr, "ele: %v\n", err)
 			return 1
 		}
-		fmt.Fprintf(stdout, "%s handoff %s.\n", change.confirmation, identifier)
+		fmt.Fprintf(stdout, "%s %s %s.\n", change.confirmation, group, identifier)
 	}
 	return 0
 }

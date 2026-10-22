@@ -56,6 +56,12 @@ var Options = []Option{
 		Kind:        KindBoolean,
 		Name:        "checkpoint_gate",
 	},
+	{
+		Default:     true,
+		Description: "Shows each open reminder in the start block from its due date until closed.",
+		Kind:        KindBoolean,
+		Name:        "reminders",
+	},
 }
 
 func Defaults() Config {

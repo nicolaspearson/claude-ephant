@@ -63,8 +63,9 @@ func projectOwner(ctx context.Context, dataDirectory string, ownerMap ownermap.O
 
 func remember(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
 	flags := newFlagSet("remember", stderr)
+	due := flags.String("due", "", "YYYY-MM-DD a reminder first shows on; reminders only")
 	global := flags.Bool("global", false, "applies to every project of the owner")
-	kind := flags.String("kind", "", "decision, fact, handoff or question")
+	kind := flags.String("kind", "", "decision, fact, handoff, question or reminder")
 	owner := flags.String("owner", "", "file under this owner instead of the resolved one")
 	projectName := flags.String("project", "", "file under this project instead of the working directory's")
 	session := flags.String("session", os.Getenv("CLAUDE_CODE_SESSION_ID"), "id of the session the note came from")
@@ -90,6 +91,19 @@ func remember(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 	if *kind == notes.KindHandoff && *global {
 		fmt.Fprintln(stderr, "ele: a handoff is scoped to its project; drop --global")
 		return 2
+	}
+	switch {
+	case *kind == notes.KindReminder && *due == "":
+		fmt.Fprintln(stderr, "ele: a reminder needs --due YYYY-MM-DD, the day it first shows")
+		return 2
+	case *kind != notes.KindReminder && *due != "":
+		fmt.Fprintln(stderr, "ele: only a reminder takes --due; use --kind reminder")
+		return 2
+	case *due != "":
+		if _, err = time.Parse(time.DateOnly, *due); err != nil {
+			fmt.Fprintf(stderr, "ele: --due %q is not YYYY-MM-DD\n", *due)
+			return 2
+		}
 	}
 	if !notes.ValidSession(*session) {
 		fmt.Fprintf(stderr, "ele: session %q holds characters other than letters, digits, - and _\n", *session)
@@ -151,6 +165,7 @@ func remember(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 	note := notes.Note{
 		Body:       body,
 		Date:       now.Format(time.DateOnly),
+		Due:        *due,
 		ID:         id,
 		Kind:       *kind,
 		Owner:      *owner,
@@ -207,9 +222,9 @@ func resolveOwner(ctx context.Context, dataDirectory string, ownerMap ownermap.O
 
 func sayingTheSame(existing []notes.Note, candidate notes.Note) string {
 	superseded := supersededBy(existing)
-	// A closed handoff no longer shows, so the same words may hand off again; a superseded note shows nowhere.
+	// A closed handoff or reminder no longer shows, so the same words may be saved again; a superseded note shows nowhere.
 	hidden := func(note notes.Note) bool {
-		return superseded[note.ID] != "" || (note.Kind == notes.KindHandoff && note.Shown != "")
+		return superseded[note.ID] != "" || (note.Kind == notes.KindHandoff && note.Shown != "") || note.Closed != ""
 	}
 	if hidden(candidate) {
 		return ""
