@@ -74,7 +74,7 @@ var purposes = map[string]string{
 	"handoff list":         "Pending handoffs for the project, newest first.",
 	"handoff reopen":       "Make closed handoffs pending, so the next startup or /clear shows them.",
 	"import mining":        "Cache a mining run's judgments and report each analysis's watermark.",
-	"mine":                 "List an analysis's unjudged units as JSON Lines, or store judgments made from their digests.",
+	"mine":                 "List an analysis's unjudged units as JSON Lines, store judgments made from their digests, or report figures from the stored judgments.",
 	"owner add":            "List a new owner in owner-map.json.",
 	"owner add-path":       "Map a directory and everything under it to a listed owner, printing the projects that change owner.",
 	"owner add-project":    "Map a project to a listed owner, ahead of any path rule, printing the projects that change owner.",

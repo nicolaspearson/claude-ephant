@@ -24,7 +24,7 @@ type unit struct {
 	timestamp string
 }
 
-// Reruns of one unit by a later prompt carry their own hash, so both passes are kept.
+// Reruns of one unit by a later prompt carry their own hash, so both passes are kept. Rerun last: a report reads the last stored judgment.
 var families = []struct {
 	analysis string
 	pattern  string
@@ -32,8 +32,8 @@ var families = []struct {
 	units    string
 }{
 	{analysis: "checkpoint-runs", pattern: "N*.jsonl", prompt: "classify-inl.md", units: "runs"},
-	{analysis: "checkpoint-runs", pattern: "R*.jsonl", prompt: "classify-sub3.md", units: "runs"},
 	{analysis: "checkpoint-runs", pattern: "S*.jsonl", prompt: "classify-sub.md", units: "runs"},
+	{analysis: "checkpoint-runs", pattern: "R*.jsonl", prompt: "classify-sub3.md", units: "runs"},
 	{analysis: "review-cycles", pattern: "K*.jsonl", prompt: "classify-cyc.md", units: "cycles"},
 }
 

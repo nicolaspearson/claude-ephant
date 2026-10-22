@@ -222,9 +222,9 @@ func Report(w io.Writer, runs []Run) {
 			older = append(older, finding.Category)
 		}
 	}
-	writeMostCommon(w, late, func(key [2]string) string { return fmt.Sprintf("%-9s %-32s", key[0], key[1]) })
+	WriteMostCommon(w, late, func(key [2]string) string { return fmt.Sprintf("%-9s %-32s", key[0], key[1]) })
 	fmt.Fprintln(w, "\nOlder than the change (origin earlier), by category")
-	writeMostCommon(w, older, func(category string) string { return fmt.Sprintf("%-32s", category) })
+	WriteMostCommon(w, older, func(category string) string { return fmt.Sprintf("%-32s", category) })
 
 	mutations := map[string]float64{}
 	notes := map[string]float64{}
@@ -288,6 +288,25 @@ func WriteBaseline(w io.Writer, path string) error {
 		Report(w, mined.Runs)
 	}
 	return nil
+}
+
+func WriteMostCommon[K comparable](w io.Writer, keys []K, format func(K) string) {
+	var counts []counted[K]
+	at := map[K]int{}
+	for _, key := range keys {
+		if _, seen := at[key]; !seen {
+			at[key] = len(counts)
+			counts = append(counts, counted[K]{key: key})
+		}
+		counts[at[key]].count++
+	}
+	slices.SortStableFunc(counts, func(a, b counted[K]) int { return b.count - a.count })
+	for _, entry := range counts[:min(15, len(counts))] {
+		fmt.Fprintf(w, "  %s %d\n", format(entry.key), entry.count)
+	}
+	if len(counts) == 0 {
+		fmt.Fprintln(w, "  nothing")
+	}
 }
 
 func WriteStats(w io.Writer, logPath string, since time.Time) error {
@@ -437,23 +456,4 @@ func plural(count int) string {
 
 func whole(count float64) string {
 	return strconv.FormatFloat(count, 'f', -1, 64)
-}
-
-func writeMostCommon[K comparable](w io.Writer, keys []K, format func(K) string) {
-	var counts []counted[K]
-	at := map[K]int{}
-	for _, key := range keys {
-		if _, seen := at[key]; !seen {
-			at[key] = len(counts)
-			counts = append(counts, counted[K]{key: key})
-		}
-		counts[at[key]].count++
-	}
-	slices.SortStableFunc(counts, func(a, b counted[K]) int { return b.count - a.count })
-	for _, entry := range counts[:min(15, len(counts))] {
-		fmt.Fprintf(w, "  %s %d\n", format(entry.key), entry.count)
-	}
-	if len(counts) == 0 {
-		fmt.Fprintln(w, "  nothing")
-	}
 }

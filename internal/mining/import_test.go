@@ -40,8 +40,8 @@ func TestImportKeysEachJudgmentByItsInventoryUnit(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []Imported{
 		{Added: 1, Analysis: "checkpoint-runs", Classifier: Classifier([]byte("inline\n")), Judgments: 1, Prompt: "classify-inl.md"},
-		{Added: 1, Analysis: "checkpoint-runs", Classifier: Classifier([]byte("subagent v3\n")), Judgments: 1, Prompt: "classify-sub3.md"},
 		{Added: 1, Analysis: "checkpoint-runs", Classifier: Classifier([]byte("subagent v1\n")), Judgments: 1, Prompt: "classify-sub.md"},
+		{Added: 1, Analysis: "checkpoint-runs", Classifier: Classifier([]byte("subagent v3\n")), Judgments: 1, Prompt: "classify-sub3.md"},
 		{Added: 1, Analysis: "review-cycles", Classifier: Classifier([]byte("cycles\n")), Judgments: 1, Prompt: "classify-cyc.md"},
 	}, imported)
 
@@ -50,7 +50,7 @@ func TestImportKeysEachJudgmentByItsInventoryUnit(t *testing.T) {
 	require.Len(t, runs, 3)
 	require.Equal(t, Judgment{Classifier: Classifier([]byte("inline\n")), Era: "inline", Result: []byte(`{"id":"000","session":"2cb6fb01"}`), Session: "2cb6fb01-full", Timestamp: "2026-09-09T18:26:13.370Z"}, runs[0])
 	require.Equal(t, runs[1].Timestamp, runs[2].Timestamp, "both passes over run 376 are kept")
-	require.JSONEq(t, `{"id":"376","mode":"small"}`, string(runs[1].Result))
+	require.JSONEq(t, `{"id":"376","mode":"small"}`, string(runs[2].Result), "the third prompt's rerun is stored last")
 	cycles, err := Load(cache, "review-cycles")
 	require.NoError(t, err)
 	require.Equal(t, Judgment{Classifier: Classifier([]byte("cycles\n")), Result: []byte(`{"id":"C000","session":"b91f003a","mode":"full"}`), Session: "b91f003a-full", Timestamp: "2026-10-07T11:16:21.171Z"}, cycles[0])

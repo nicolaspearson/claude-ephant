@@ -32,6 +32,8 @@ ele's mining reports exist only as one-off Python scripts and run data on one ma
   - done when its figures match the 2026-10-15 reports' numbers over the same units, differences named
   - as of 2026-10-21: no judgment carries a duration; 130 of 586 carry a non-null `report_ts`, the time the checkpoint reported; `gatetime.py` timed Bash calls and `subtools.py` reviewer subagents from the transcripts in each run's window
   - as of 2026-10-21: the cache keeps every pass per unit; of 141 subagent-era runs, 60 hold two or more judgments. 2026-10-15's figures took the `classify-sub3.md` pass over `classify-sub.md` and dropped the review cycles a run's window covered
+  - as of 2026-10-22: judgment figures built as `ele mine --report`, the last stored judgment per unit; over the 2026-10-15 passes alone the figures `agg2.py` and `agg_inl.py` printed match, except the differences named in design.md's Built: figures line
+  - next: reviewer and gate timing from the archived transcripts in each judged unit's window, replacing `gatetime.py` and `subtools.py`
 - [ ] drop-baseline: Remove `ele checkpoint stats --baseline` with `BaselinePath`, `WriteBaseline`, `ErrNoBaseline`, `CHECKPOINT_BASELINE` and their tests, `/ele:checkpoint-stats`' mention of it, and the spec's "Mining baseline" line and "mined baseline" in its Data stays line, once report figures cover what the baseline reported
   - done when each section `ele checkpoint stats --baseline` printed has a report-figures counterpart or is named as dropped under this item, a grep finds none of the named symbols, and `task check FORCE=1` passes
   - blocked: report-figures

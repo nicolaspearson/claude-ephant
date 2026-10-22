@@ -39,6 +39,28 @@ func TestRunMineDigestClosesACycleAtItsSessionsNextCycle(t *testing.T) {
 	require.NotContains(t, string(digest), "Second review")
 }
 
+func TestRunMineReportReadsBothAnalysesAndTakesNothingElse(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("ELE_HOME", home)
+	cache := filepath.Join(home, "mining", "cache")
+	_, err := mining.Store(cache, "checkpoint-runs", []mining.Judgment{{Classifier: "c", Era: "subagent", Result: json.RawMessage(`{"mode":"small"}`), Session: "s1", Timestamp: "2026-10-08T10:00:00Z"}})
+	require.NoError(t, err)
+	_, err = mining.Store(cache, "review-cycles", []mining.Judgment{{Classifier: "c", Result: json.RawMessage(`{"mode":"full"}`), Session: "s1", Timestamp: "2026-10-08T11:00:00Z"}})
+	require.NoError(t, err)
+
+	var stdout, stderr bytes.Buffer
+	require.Equal(t, 0, run(context.Background(), []string{"mine", "--report"}, &stdout, &stderr), stderr.String())
+	require.Contains(t, stdout.String(), "Subagent era: run judgments 1, review-cycle judgments 1")
+	require.Contains(t, stdout.String(), "Mode: full 1, small 1.")
+
+	for _, args := range [][]string{{"mine", "--report", "checkpoint-runs"}, {"mine", "--report", "--no-sync"}} {
+		stdout.Reset()
+		stderr.Reset()
+		require.Equal(t, 2, run(context.Background(), args, &stdout, &stderr), args)
+		require.Empty(t, stdout.String(), args)
+	}
+}
+
 func TestRunMinePrintsUnitsPastTheWatermarkAndCountsTheRest(t *testing.T) {
 	home := recallFixture(t)
 	gateway := filepath.Join(home, "w", "corp", "gateway")
