@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.11.0](https://github.com/nicolaspearson/claude-ephant/compare/v0.10.0...v0.11.0) (2026-10-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* **config:** ele config file with per-owner overrides; checkpoint_gate moves off userConfig
+
+### Features
+
+* **config:** ele config file with per-owner overrides; checkpoint_gate moves off userConfig ([bfc4872](https://github.com/nicolaspearson/claude-ephant/commit/bfc487297e9ca903eb2578d6a7a584708a07d9cf))
+* **events:** follow each checkpoint block to its paths, reply and checkpoint; add ele show --at ([6edaa43](https://github.com/nicolaspearson/claude-ephant/commit/6edaa4379a32cd3d8679fcf249d4f8bb4e635472))
+
+
+### Bug Fixes
+
+* **events:** count n't a checkpoint as a dispute ([d3a017c](https://github.com/nicolaspearson/claude-ephant/commit/d3a017c3a2235631088608e8c44de20be4f399a0))
+* **mine:** cut units at exact checkpoint names and the turn that records ([bc27b81](https://github.com/nicolaspearson/claude-ephant/commit/bc27b81cea99192bda69c052390331493dd48b0f))
+* **mine:** open a checkpoint run on its call when another line shares its time ([c34957a](https://github.com/nicolaspearson/claude-ephant/commit/c34957a4dc38b275c318e15df50380b094b7ee01))
+* **mine:** read a compaction summary as no human message ([49e1501](https://github.com/nicolaspearson/claude-ephant/commit/49e1501f533cacf845cb6e741e6478f4d8d09b0e))
+
 ## [0.10.0](https://github.com/nicolaspearson/claude-ephant/compare/v0.9.0...v0.10.0) (2026-10-22)
 
 
