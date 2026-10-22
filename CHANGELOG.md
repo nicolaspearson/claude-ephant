@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.8.0](https://github.com/nicolaspearson/claude-ephant/compare/v0.7.0...v0.8.0) (2026-10-22)
+
+
+### Features
+
+* **mine:** ele mine --report, figures from the last stored judgment per unit ([d4db6d6](https://github.com/nicolaspearson/claude-ephant/commit/d4db6d648e716769adb3d0cad178f940fe99d050))
+* **mine:** time each judged unit's window from its transcript; report-figures done ([76fea73](https://github.com/nicolaspearson/claude-ephant/commit/76fea732d54de2e7757e078bbe9e20e8ee063a9d))
+
+
+### Bug Fixes
+
+* **checkpoint:** tick line names the item, not its position; light-checkpoint ticked ([5da5497](https://github.com/nicolaspearson/claude-ephant/commit/5da5497caefe9813ef7013dec0b4b5ea0beac1dd))
+
 ## [0.7.0](https://github.com/nicolaspearson/claude-ephant/compare/v0.6.0...v0.7.0) (2026-10-22)
 
 
