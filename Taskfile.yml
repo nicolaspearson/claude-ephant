@@ -91,11 +91,15 @@ tasks:
           DIR: "{{.INSTALL_DIR}}"
 
   install:local:
-    desc: "Run task install and update plugin from repository"
+    desc: "Install the clone's ele, then update the plugin to the last commit pushed to main."
+    preconditions:
+      - sh: command -v claude
+        msg: "claude is not installed; it updates the plugin"
     cmds:
-      - task install
+      - task: install
       - claude plugin marketplace update claude-ephant
       - claude plugin update ele@claude-ephant
+      - echo "Sessions already open load the updated plugin after /reload-plugins, or a restart."
 
   release:brew:
     desc: "Install or upgrade the latest release through Homebrew, then check it is the ele on PATH and prints the release's tag."

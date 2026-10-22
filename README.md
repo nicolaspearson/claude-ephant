@@ -111,12 +111,15 @@ back; `ele version` prints a tag for a release and a pseudo-version for a clone
 build. `task dev` runs `task install`, then starts Claude Code with
 `--plugin-dir ./plugin`, which as of 2026-10-22 loads the clone's plugin in
 place of the installed `ele@claude-ephant` for that session only; flags after
-`--` go to `claude`. To test a release install route, `task release:brew`, `task release:go`
-and `task release:script` each install the latest release that way, then fail
+`--` go to `claude`. `task install:local` runs `task install`, then updates
+the installed plugin to the last commit pushed to `main`. To test a release
+install route, `task release:brew`, `task release:go` and
+`task release:script` each install the latest release that way, then fail
 unless that copy is the `ele` on `PATH` and prints the release's tag, listing
-every copy on `PATH`. `task check` runs every gate but `audit`;
-its lint needs `shellcheck`. CI runs `task check` and `task audit` on every
-pull request, and the Release workflow runs them on every push to `main`.
+every copy on `PATH`.
+`task check` runs every gate but `audit`; its lint needs `shellcheck`. CI runs
+`task check` and `task audit` on every pull request, and the Release workflow
+runs them on every push to `main`.
 There, release-please keeps a release PR open with the next version and its
 changelog, worked out from the conventional commit messages; merging it tags
 the release, the binaries are attached to it, and the Tap workflow updates the
