@@ -53,7 +53,7 @@ Decided 2026-10-17: checkpoint and ticket-audit move into ele and are ported to 
 
 ## Open questions
 
-The first is now mining-reports' plan items `judge-blocks` and `block-follow-up`; the second waits on the move into ele:
+The first is now mining-reports' plan items `block-follow-up` and `judge-blocks`; the second waits on the move into ele:
 
-- Judging Stop-hook blocks: as of 2026-10-16, 52 of 89 checkpoint blocks in 7 days were disputed by the next reply, as `~/.claude/scripts/hook-firings.py`'s regex reads it. The read-only sort ran 2026-10-16 over 90 blocks across both profiles: 67 hook wrong, 21 agent dodged, 2 unclear, all before claude-config's 9fbce04; findings in `mining/2026-10-16-hook-blocks/` in ele's data directory. Next, once a week of blocks has accrued after 9fbce04 and scoped by what they show: hook-block events carrying the `Changed:` paths and the next main-thread reply with its time, and `ele show --at <time>` opening a session at an event's turn
+- Judging Stop-hook blocks: as of 2026-10-16, 52 of 89 checkpoint blocks in 7 days were disputed by the next reply, as `~/.claude/scripts/hook-firings.py`'s regex reads it. The read-only sort ran 2026-10-16 over 90 blocks across both profiles: 67 hook wrong, 21 agent dodged, 2 unclear, all before claude-config's 9fbce04; findings in `mining/2026-10-16-hook-blocks/` in ele's data directory. Next, before judging the week of blocks after 9fbce04: hook-block events carrying the `Changed:` paths and the next main-thread reply with its time, and `ele show --at <time>` opening a session at an event's turn
 - Eval suites with `claude plugin eval`, a plan of their own once the move into ele lands; the move proves the harness with one smoke case. A checkpoint case is a fixture repository with planted defects, a settled decision that must not be re-raised, and a CI check the local gate lacks. Five to ten cases, run when a skill changes
