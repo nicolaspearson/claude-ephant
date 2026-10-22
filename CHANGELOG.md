@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/nicolaspearson/claude-ephant/compare/v0.6.0...v0.7.0) (2026-10-22)
+
+
+### Features
+
+* **plan-audit:** ele:plan-audit over every active plan; ticket corpus takes --plan repeated ([c70693d](https://github.com/nicolaspearson/claude-ephant/commit/c70693df9c60a11a093f9051b77f0cb9d6a7a41a))
+
 ## [0.6.0](https://github.com/nicolaspearson/claude-ephant/compare/v0.5.0...v0.6.0) (2026-10-21)
 
 
