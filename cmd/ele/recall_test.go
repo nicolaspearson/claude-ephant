@@ -278,6 +278,26 @@ func TestRunShowCentresOnAMatch(t *testing.T) {
 	require.Contains(t, output, "conversation Pinned it in the wrapper")
 	require.NotContains(t, output, "pin pydantic below 2.14")
 
+	output, code = runCommand(t, "show", "abc", "--at", "2026-10-15T10:00:30Z", "--context", "0")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "entries 2–2 of 2")
+	require.Contains(t, output, "conversation Pinned it in the wrapper")
+
+	output, code = runCommand(t, "show", "abc", "--at", "2026-10-15T10:01:00Z", "--context", "0")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "entries 2–2 of 2")
+
+	output, code = runCommand(t, "show", "abc", "--at", "2026-10-15T10:00", "--context", "0")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "entries 1–1 of 2")
+
+	output, code = runCommand(t, "show", "abc", "--at", "2026-10-15T10:02:00Z")
+	require.Equal(t, 1, code)
+	require.Contains(t, output, "no entry in session abc1 is at or after 2026-10-15T10:02:00Z")
+
+	output, code = runCommand(t, "show", "abc", "--at", "2026-10-15T10:00:00Z", "--around", "wrapper")
+	require.Equal(t, 2, code, output)
+
 	output, code = runCommand(t, "show", "zzz")
 	require.Equal(t, 1, code)
 	require.Contains(t, output, `no indexed session starts with "zzz"`)

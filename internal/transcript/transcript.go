@@ -162,17 +162,17 @@ func harnessWritten(text string) bool {
 func primaryInput(input map[string]any) string {
 	for _, key := range primaryInputs {
 		if value, ok := input[key].(string); ok && value != "" {
-			return truncate(value)
+			return Truncate(value)
 		}
 	}
 	encoded, err := json.Marshal(input)
 	if err != nil {
 		return ""
 	}
-	return truncate(string(encoded))
+	return Truncate(string(encoded))
 }
 
-func truncate(value string) string {
+func Truncate(value string) string {
 	value = strings.Join(strings.Fields(value), " ")
 	if runes := []rune(value); len(runes) > inputLimit {
 		return string(runes[:inputLimit]) + "…"

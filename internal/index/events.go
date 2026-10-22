@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/nicolaspearson/claude-ephant/internal/dto"
@@ -21,6 +22,9 @@ var closingCalls = map[string][]string{
 	"plan-audit":   {"ele ticket ledger record"},
 	"ticket-audit": {"ele ticket ledger record"},
 }
+
+// Misses a dispute worded otherwise, and matches a reply echoing the block's own "waiting on" or "investigation".
+var disputingReply = regexp.MustCompile(`(?i)not a checkpoint|mid-task|read-only|no files? changed|not done|isn't done|waiting on|investigation`)
 
 // A subagent's skill call ends no run: its events fall inside its parent's. Each strftime bound is a second loose,
 // whatever a timestamp's precision, so the index can narrow to it; julianday then decides.
@@ -120,7 +124,13 @@ func (x *Index) Events(ctx context.Context, query dto.EventQuery) ([]dto.Event, 
 	if err = rows.Err(); err != nil {
 		return nil, 0, err
 	}
-	for _, event := range events {
+	for i, event := range events {
+		if event.Kind == transcript.EventHookBlock && !event.Subagent && event.Attributes["changed"] != nil {
+			if err = x.followBlock(ctx, &events[i]); err != nil {
+				return nil, 0, err
+			}
+			continue
+		}
 		// Only a Bash call's text is its whole input; another tool's is its target, the same across changed calls.
 		if event.Kind != transcript.EventToolError || event.Name != "Bash" {
 			continue
@@ -135,6 +145,44 @@ func (x *Index) Events(ctx context.Context, query dto.EventQuery) ([]dto.Event, 
 		}
 	}
 	return events, total, nil
+}
+
+// Bounded by the next prompt: a later reply answers the user. A checkpoint run is no dispute.
+func (x *Index) followBlock(ctx context.Context, event *dto.Event) error {
+	var prompt sql.NullString
+	err := x.db.QueryRowContext(ctx, `SELECT min(timestamp) FROM entries WHERE session = ? AND subagent = 0 AND kind = ? AND timestamp > ?`, event.Session, transcript.KindPrompt, event.Timestamp).Scan(&prompt)
+	if err != nil {
+		return fmt.Errorf("find the prompt after a hook block: %w", err)
+	}
+	bound := "9999"
+	if prompt.Valid {
+		bound = prompt.String
+	}
+	var checkpointed bool
+	// A typed command shares its prompt's timestamp, so it sits on the bound.
+	err = x.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM events WHERE session = ? AND subagent = 0 AND (name = 'checkpoint' OR name LIKE '%:checkpoint') AND timestamp > ?
+		AND ((kind = ? AND timestamp < ?) OR (kind = ? AND timestamp <= ?)))`,
+		event.Session, event.Timestamp, transcript.EventSkill, bound, transcript.EventCommand, bound).Scan(&checkpointed)
+	if err != nil {
+		return fmt.Errorf("find a checkpoint after a hook block: %w", err)
+	}
+	event.Attributes["checkpointed"] = checkpointed
+	var reply, replyAt string
+	// Through reply events: a parent's file can hold subagent prose as conversation entries.
+	err = x.db.QueryRowContext(ctx, `SELECT said.text, said.timestamp FROM events reply JOIN entries said ON said.session = reply.session AND said.kind = ? AND said.timestamp = reply.timestamp AND said.uuid = reply.uuid
+		WHERE reply.session = ? AND reply.subagent = 0 AND reply.kind = ? AND reply.timestamp > ? AND reply.timestamp < ? ORDER BY reply.timestamp, reply.id, said.id LIMIT 1`,
+		transcript.KindConversation, event.Session, transcript.EventReply, event.Timestamp, bound).Scan(&reply, &replyAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("find the reply to a hook block: %w", err)
+	}
+	opening := []rune(reply)
+	event.Attributes["disputed"] = !checkpointed && disputingReply.MatchString(string(opening[:min(len(opening), 600)]))
+	event.Attributes["reply"] = transcript.Truncate(reply)
+	event.Attributes["replyAt"] = replyAt
+	return nil
 }
 
 // Unknown, the second result false, until a call follows the failure: a call made before it is a sibling from the same

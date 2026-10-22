@@ -351,14 +351,15 @@ func recall(ctx context.Context, args []string, stdout io.Writer, stderr io.Writ
 
 func show(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
 	flags := newFlagSet("show", stderr)
+	at := flags.String("at", "", "centre on the first entry at or after this time, such as an event's timestamp")
 	around := flags.String("around", "", "centre on the first entry containing this text")
-	window := flags.Int("context", 4, "entries either side of --around, or of each part of a note's discussion (1 there unless set); when nothing matches a note, twice this many before it")
+	window := flags.Int("context", 4, "entries either side of --around or --at, or of each part of a note's discussion (1 there unless set); when nothing matches a note, twice this many before it")
 	noteID := flags.String("note", "", "open the session a note came from, at its discussion")
 	positional, err := parseInterspersed(flags, args)
 	if err != nil {
 		return rejectCall(flags, err, stdout, stderr)
 	}
-	if (*noteID == "" && len(positional) != 1) || (*noteID != "" && (len(positional) != 0 || *around != "")) {
+	if (*noteID == "" && len(positional) != 1) || (*noteID != "" && (len(positional) != 0 || *around != "" || *at != "")) || (*around != "" && *at != "") {
 		return rejectCall(flags, nil, stdout, stderr)
 	}
 	if *window < 0 {
@@ -450,6 +451,14 @@ func show(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer
 		}
 		if found < 0 {
 			fmt.Fprintf(stderr, "ele: no entry in session %s contains %q\n", entries[0].Session, *around)
+			return 1
+		}
+		start, end = max(found-*window, 0), min(found+*window+1, len(entries))
+	}
+	if *at != "" {
+		found := slices.IndexFunc(entries, func(entry index.Result) bool { return entry.Timestamp >= *at })
+		if found < 0 {
+			fmt.Fprintf(stderr, "ele: no entry in session %s is at or after %s\n", entries[0].Session, *at)
 			return 1
 		}
 		start, end = max(found-*window, 0), min(found+*window+1, len(entries))

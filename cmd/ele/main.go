@@ -49,7 +49,7 @@ const usage = `usage:
   ele reindex
   ele remember --kind decision|fact|handoff|question [--global] [--owner <name>] [--project <name>] [--session <id>] [--supersedes <id>...] <words>
   ele session-start [--no-sync]
-  ele show [--around <text>] [--context <n>] <session>
+  ele show [--around <text> | --at <time>] [--context <n>] <session>
   ele show --note <id> [--context <n>]
   ele stats
   ele status

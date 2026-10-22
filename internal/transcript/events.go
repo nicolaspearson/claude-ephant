@@ -28,6 +28,8 @@ const (
 var plainContextHooks = []string{"SessionStart", "UserPromptSubmit"}
 
 var (
+	// Older checkpoint blocks split the paths into "Tracked, dirty" and "Untracked, new", either alone.
+	changedPaths = regexp.MustCompile(`(?m)^(?:Changed|Tracked, dirty|Untracked, new): *(.*\S)`)
 	commandName  = regexp.MustCompile(`<command-name>/?([^<\s]+)</command-name>`)
 	hookFeedback = regexp.MustCompile(`^([A-Za-z]+) hook feedback:`)
 	reviewerFile = regexp.MustCompile(`reviewers/([a-z-]+)\.md`)
@@ -46,7 +48,7 @@ func Reviewers(prompt string) []string {
 func agentAttributes(input map[string]any) map[string]any {
 	attributes := map[string]any{}
 	if description, _ := input["description"].(string); description != "" {
-		attributes["description"] = truncate(description)
+		attributes["description"] = Truncate(description)
 	}
 	if background, _ := input["run_in_background"].(bool); background {
 		attributes["background"] = true
@@ -114,10 +116,22 @@ func firstLineAfter(text string) string {
 	_, rest, _ := strings.Cut(text, "\n")
 	for candidate := range strings.SplitSeq(rest, "\n") {
 		if strings.TrimSpace(candidate) != "" {
-			return truncate(candidate)
+			return Truncate(candidate)
 		}
 	}
 	return ""
+}
+
+func hookBlockAttributes(said string) map[string]any {
+	attributes := map[string]any{"reason": firstLineAfter(said)}
+	var changed []string
+	for _, match := range changedPaths.FindAllStringSubmatch(said, -1) {
+		changed = append(changed, strings.Fields(match[1])...)
+	}
+	if changed != nil {
+		attributes["changed"] = changed
+	}
+	return attributes
 }
 
 func lineEvents(parsed line, text string, blocks []block) []dto.TranscriptEvent {
@@ -133,7 +147,7 @@ func lineEvents(parsed line, text string, blocks []block) []dto.TranscriptEvent 
 	if parsed.Type == "user" {
 		for _, said := range userTexts(text, blocks) {
 			if match := hookFeedback.FindStringSubmatch(said); match != nil {
-				events = append(events, event(EventHookBlock, match[1], map[string]any{"reason": firstLineAfter(said)}))
+				events = append(events, event(EventHookBlock, match[1], hookBlockAttributes(said)))
 			}
 			if match := commandName.FindStringSubmatch(said); match != nil {
 				events = append(events, event(EventCommand, match[1], nil))
@@ -214,7 +228,7 @@ func tokenEvent(parsed line, base dto.TranscriptEvent) (dto.TranscriptEvent, boo
 func toolErrorAttributes(parsed line, result block) map[string]any {
 	// Before either cut: a cut token no longer matches a pattern.
 	text := redact.Redact(resultText(result.Content))
-	attributes := map[string]any{"error": truncate(text)}
+	attributes := map[string]any{"error": Truncate(text)}
 	runes := []rune(strings.Join(strings.Fields(text), " "))
 	switch rest := runes[min(inputLimit, len(runes)):]; {
 	case len(rest) > inputLimit:

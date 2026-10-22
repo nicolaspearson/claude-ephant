@@ -142,6 +142,53 @@ func TestUpdateNamesAToolErrorByItsCall(t *testing.T) {
 	}, events)
 }
 
+func TestEventsFollowAHookBlockToItsReply(t *testing.T) {
+	root := t.TempDir()
+	projects := filepath.Join(root, "projects")
+	line := func(minute string, body string) string {
+		return `{"sessionId":"s1","timestamp":"2026-10-15T10:` + minute + `:00Z","uuid":"u` + minute + `",` + body + "}\n"
+	}
+	said := func(minute string, sidechain bool, text string) string {
+		flag := ""
+		if sidechain {
+			flag = `"isSidechain":true,`
+		}
+		return line(minute, flag+`"type":"assistant","message":{"content":[{"type":"text","text":"`+text+`"}]}`)
+	}
+	block := func(minute string) string {
+		return line(minute, `"type":"user","isMeta":true,"message":{"content":"Stop hook feedback:\nNo checkpoint was reported.\n\nChanged: a.go"}`)
+	}
+	prompt := func(minute string, text string) string {
+		return line(minute, `"type":"user","origin":{"kind":"human"},"message":{"content":"`+text+`"}`)
+	}
+	write(t, filepath.Join(projects, "-w", "s1.jsonl"), said("00", false, "All done.")+
+		block("01")+said("02", false, "Not a checkpoint: mid-task, the handler is unwired.")+prompt("03", "go on")+
+		block("04")+line("05", `"type":"assistant","message":{"content":[{"type":"tool_use","name":"Skill","input":{"skill":"ele:checkpoint"}}]}`)+said("06", false, "Not done until the review is in.")+
+		block("07")+prompt("08", "go on")+said("09", false, "Answering the prompt.")+
+		block("10")+said("11", true, "subagent prose, not a checkpoint")+said("12", false, "Checkpointing now.")+
+		prompt("13", "go on")+block("14")+prompt("15", `<command-name>/ele:checkpoint</command-name>`)+
+		line("16", `"type":"user","isMeta":true,"message":{"content":"Stop hook feedback:\nPropose notes now."}`)+said("17", false, "Nothing worth keeping, mid-task."))
+	index := open(t, filepath.Join(root, "ele.db"))
+	update(t, index, projects, filepath.Join(root, "archive"), ownermap.OwnerMap{})
+
+	events, _, err := index.Events(context.Background(), dto.EventQuery{Kind: "hook-block"})
+	require.NoError(t, err)
+	var follow []map[string]any
+	for _, event := range events {
+		follow = append(follow, event.Attributes)
+	}
+	reason := "No checkpoint was reported."
+	changed := []any{"a.go"}
+	require.Equal(t, []map[string]any{
+		{"changed": changed, "checkpointed": false, "disputed": true, "reason": reason, "reply": "Not a checkpoint: mid-task, the handler is unwired.", "replyAt": "2026-10-15T10:02:00Z"},
+		{"changed": changed, "checkpointed": true, "disputed": false, "reason": reason, "reply": "Not done until the review is in.", "replyAt": "2026-10-15T10:06:00Z"},
+		{"changed": changed, "checkpointed": false, "reason": reason},
+		{"changed": changed, "checkpointed": false, "disputed": false, "reason": reason, "reply": "Checkpointing now.", "replyAt": "2026-10-15T10:12:00Z"},
+		{"changed": changed, "checkpointed": true, "reason": reason},
+		{"reason": "Propose notes now."},
+	}, follow)
+}
+
 func TestEventsDuringKeepsOnlyARunsEvents(t *testing.T) {
 	root := t.TempDir()
 	projects := filepath.Join(root, "projects")
