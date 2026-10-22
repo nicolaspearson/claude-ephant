@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.10.0](https://github.com/nicolaspearson/claude-ephant/compare/v0.9.0...v0.10.0) (2026-10-22)
+
+
+### Features
+
+* **remember:** --supersedes repeats so one note replaces several ([5157085](https://github.com/nicolaspearson/claude-ephant/commit/5157085829866a7fe321dd9731eb8cae98d124a6))
+
+
+### Bug Fixes
+
+* **plan:** check as-of dates in headings ([09246b6](https://github.com/nicolaspearson/claude-ephant/commit/09246b6bccdb83acfb8c1f15027825406d4aa6df))
+* **plan:** resolve a root-relative plan path from a subdirectory ([b869c68](https://github.com/nicolaspearson/claude-ephant/commit/b869c68dc57c9d8cbda8b66ba602ef928c7c03fa))
+
 ## [0.9.0](https://github.com/nicolaspearson/claude-ephant/compare/v0.8.0...v0.9.0) (2026-10-22)
 
 
