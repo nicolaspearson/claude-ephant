@@ -162,7 +162,7 @@ func TestEventsFollowAHookBlockToItsReply(t *testing.T) {
 		return line(minute, `"type":"user","origin":{"kind":"human"},"message":{"content":"`+text+`"}`)
 	}
 	write(t, filepath.Join(projects, "-w", "s1.jsonl"), said("00", false, "All done.")+
-		block("01")+said("02", false, "Not a checkpoint: mid-task, the handler is unwired.")+prompt("03", "go on")+
+		block("01")+said("02", false, "This isn't a checkpoint; the handler is unwired.")+prompt("03", "go on")+
 		block("04")+line("05", `"type":"assistant","message":{"content":[{"type":"tool_use","name":"Skill","input":{"skill":"ele:checkpoint"}}]}`)+said("06", false, "Not done until the review is in.")+
 		block("07")+prompt("08", "go on")+said("09", false, "Answering the prompt.")+
 		block("10")+said("11", true, "subagent prose, not a checkpoint")+said("12", false, "Checkpointing now.")+
@@ -180,7 +180,7 @@ func TestEventsFollowAHookBlockToItsReply(t *testing.T) {
 	reason := "No checkpoint was reported."
 	changed := []any{"a.go"}
 	require.Equal(t, []map[string]any{
-		{"changed": changed, "checkpointed": false, "disputed": true, "reason": reason, "reply": "Not a checkpoint: mid-task, the handler is unwired.", "replyAt": "2026-10-15T10:02:00Z"},
+		{"changed": changed, "checkpointed": false, "disputed": true, "reason": reason, "reply": "This isn't a checkpoint; the handler is unwired.", "replyAt": "2026-10-15T10:02:00Z"},
 		{"changed": changed, "checkpointed": true, "disputed": false, "reason": reason, "reply": "Not done until the review is in.", "replyAt": "2026-10-15T10:06:00Z"},
 		{"changed": changed, "checkpointed": false, "reason": reason},
 		{"changed": changed, "checkpointed": false, "disputed": false, "reason": reason, "reply": "Checkpointing now.", "replyAt": "2026-10-15T10:12:00Z"},

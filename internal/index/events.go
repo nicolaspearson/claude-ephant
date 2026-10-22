@@ -24,7 +24,7 @@ var closingCalls = map[string][]string{
 }
 
 // Misses a dispute worded otherwise, and matches a reply echoing the block's own "waiting on" or "investigation".
-var disputingReply = regexp.MustCompile(`(?i)not a checkpoint|mid-task|read-only|no files? changed|not done|isn't done|waiting on|investigation`)
+var disputingReply = regexp.MustCompile(`(?i)(not|n't) a checkpoint|mid-task|read-only|no files? changed|not done|isn't done|waiting on|investigation`)
 
 // A subagent's skill call ends no run: its events fall inside its parent's. Each strftime bound is a second loose,
 // whatever a timestamp's precision, so the index can narrow to it; julianday then decides.
