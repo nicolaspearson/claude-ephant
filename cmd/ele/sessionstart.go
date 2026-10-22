@@ -156,7 +156,7 @@ func reminderSection(due []notes.Note) string {
 	var section strings.Builder
 	section.WriteString("Reminders from ele, due:\n")
 	for _, reminder := range due {
-		fmt.Fprintf(&section, "- due %s, reminder %s: %s\n", reminder.Due, reminder.ID, redact.Redact(strings.Join(strings.Fields(reminder.Body), " ")))
+		fmt.Fprintf(&section, "- due %s, reminder %s%s: %s\n", reminder.Due, reminder.ID, interval(reminder), redact.Redact(strings.Join(strings.Fields(reminder.Body), " ")))
 	}
 	return section.String()
 }
@@ -356,7 +356,11 @@ func writeSessionStart(ctx context.Context, stdout io.Writer, dataDirectory stri
 	if due := dueReminders(all, project, now); remindersOn && len(due) > 0 {
 		section := reminderSection(due)
 		shown = append(shown, section)
-		fmt.Fprint(stdout, section+"Tell the user each is due. Once the user says one is done or dropped, run ele reminder close <id>...; until then it shows at every startup, /clear and compaction.\n\n")
+		instruction := "Tell the user each is due. Once the user says one is done or dropped, run ele reminder close <id>...; until then it shows at every startup, /clear and compaction.\n"
+		if slices.ContainsFunc(due, func(note notes.Note) bool { return note.Every > 0 }) {
+			instruction += "Closing one shown with an interval re-arms it for that many days; ele forget <id> drops it for good.\n"
+		}
+		fmt.Fprint(stdout, section+instruction+"\n")
 	}
 	// The count is decoration; a busy or broken index must not cost the session its notes.
 	sessions, err := sessionCount(ctx, dataDirectory, owner, project)

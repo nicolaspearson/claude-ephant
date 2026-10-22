@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -45,7 +46,9 @@ type Note struct {
 	Body       string
 	Closed     string
 	Date       string
+	DoneFile   string
 	Due        string
+	Every      int
 	ID         string
 	Kind       string
 	Owner      string
@@ -67,12 +70,18 @@ func ClearShown(directory string, note Note) error {
 }
 
 func Format(note Note) []byte {
+	var every string
+	if note.Every != 0 {
+		every = strconv.Itoa(note.Every)
+	}
 	var out bytes.Buffer
 	out.WriteString("---\n")
 	for _, field := range []struct{ key, value string }{
 		{"closed", note.Closed},
 		{"date", note.Date},
+		{"done-file", note.DoneFile},
 		{"due", note.Due},
+		{"every", every},
 		{"kind", note.Kind},
 		{"owner", note.Owner},
 		{"profile", note.Profile},
@@ -94,11 +103,11 @@ func Format(note Note) []byte {
 }
 
 func MarkClosed(directory string, note Note, when time.Time) error {
-	return markKey(directory, note, "closed", when)
+	return setKey(directory, note, "closed", when.UTC().Format(time.RFC3339))
 }
 
 func MarkShown(directory string, note Note, when time.Time) error {
-	return markKey(directory, note, "shown", when)
+	return setKey(directory, note, "shown", when.UTC().Format(time.RFC3339))
 }
 
 // Move rewrites only the owner line and refiles the note under its new owner, so a hand edit survives.
@@ -185,13 +194,13 @@ func Parse(path string, content []byte) (Note, error) {
 		return Note{}, fmt.Errorf("%w %s: %s", ErrInvalid, path, fmt.Sprintf(format, arguments...))
 	}
 	note := Note{ID: strings.TrimSuffix(filepath.Base(path), ".md")}
-	var supersedes string
+	var every, supersedes string
 	scanner := bufio.NewScanner(bytes.NewReader(bytes.TrimPrefix(content, []byte("\xef\xbb\xbf"))))
 	if !scanner.Scan() || strings.TrimSpace(scanner.Text()) != "---" {
 		return invalid("first line is not ---")
 	}
 	fields := map[string]*string{
-		"closed": &note.Closed, "date": &note.Date, "due": &note.Due, "kind": &note.Kind, "owner": &note.Owner, "profile": &note.Profile,
+		"closed": &note.Closed, "date": &note.Date, "done-file": &note.DoneFile, "due": &note.Due, "every": &every, "kind": &note.Kind, "owner": &note.Owner, "profile": &note.Profile,
 		"project": &note.Project, "scope": &note.Scope, "session": &note.Session, "shown": &note.Shown, "supersedes": &supersedes, "time": &note.Time,
 	}
 	seen := map[string]bool{}
@@ -219,6 +228,13 @@ func Parse(path string, content []byte) (Note, error) {
 	}
 	if !closed {
 		return invalid("front matter never closes")
+	}
+	if every != "" {
+		days, err := strconv.Atoi(every)
+		if err != nil || days < 1 {
+			return invalid("every %q is not a whole number of days above 0", every)
+		}
+		note.Every = days
 	}
 	for identifier := range strings.SplitSeq(supersedes, ",") {
 		if identifier = strings.TrimSpace(identifier); identifier != "" {
@@ -276,6 +292,13 @@ func ReadOwner(directory string, owner string) ([]Note, int, error) {
 	return read, invalid, nil
 }
 
+func SetDue(directory string, note Note, due string) error {
+	if !validDate(due) {
+		return fmt.Errorf("%w %s: due %q is not YYYY-MM-DD", ErrInvalid, note.ID, due)
+	}
+	return setKey(directory, note, "due", due)
+}
+
 func ValidProject(project string) bool {
 	return projectShape.MatchString(project)
 }
@@ -328,17 +351,6 @@ func clearKey(directory string, note Note, key string) error {
 	})
 }
 
-// markKey sets one timestamp key and leaves every other line as written, so a hand edit survives.
-func markKey(directory string, note Note, key string, when time.Time) error {
-	line := key + ": " + when.UTC().Format(time.RFC3339) + "\n"
-	return rewriteKey(directory, note, key, "mark", func(lines []string, closing int, keyIndex int) []string {
-		if keyIndex < 0 {
-			return slices.Concat(lines[:closing], []string{line}, lines[closing:])
-		}
-		return slices.Concat(lines[:keyIndex], []string{line}, lines[keyIndex+1:])
-	})
-}
-
 func problem(note Note) string {
 	if _, err := time.Parse(time.DateOnly, note.Date); err != nil {
 		return fmt.Sprintf("date %q is not YYYY-MM-DD", note.Date)
@@ -364,8 +376,16 @@ func problem(note Note) string {
 		return fmt.Sprintf("plan body %q is not one path inside the project", note.Body)
 	case note.Kind == KindReminder && note.Due == "":
 		return "reminder with no due date"
-	case note.Kind != KindReminder && (note.Due != "" || note.Closed != ""):
-		return fmt.Sprintf("%s with a due or closed key, which only a reminder takes", note.Kind)
+	case note.Kind != KindReminder && (note.Due != "" || note.Closed != "" || note.DoneFile != "" || note.Every != 0):
+		return fmt.Sprintf("%s with a closed, done-file, due or every key, which only a reminder takes", note.Kind)
+	case note.Every < 0:
+		return fmt.Sprintf("every %d is not a whole number of days above 0", note.Every)
+	case note.DoneFile != "" && note.Every == 0:
+		return "done-file with no every"
+	case !projectShape.MatchString(note.DoneFile):
+		return fmt.Sprintf("done-file %q holds a control character", note.DoneFile)
+	case note.DoneFile != "" && !filepath.IsAbs(note.DoneFile):
+		return fmt.Sprintf("done-file %q is not an absolute path", note.DoneFile)
 	case note.Due != "" && !validDate(note.Due):
 		return fmt.Sprintf("due %q is not YYYY-MM-DD", note.Due)
 	case note.Closed != "" && !validTime(note.Closed):
@@ -449,6 +469,17 @@ func rewriteKey(directory string, note Note, key string, action string, change f
 		return failed(err)
 	}
 	return nil
+}
+
+// setKey sets one key and leaves every other line as written, so a hand edit survives.
+func setKey(directory string, note Note, key string, value string) error {
+	line := key + ": " + value + "\n"
+	return rewriteKey(directory, note, key, "set", func(lines []string, closing int, keyIndex int) []string {
+		if keyIndex < 0 {
+			return slices.Concat(lines[:closing], []string{line}, lines[closing:])
+		}
+		return slices.Concat(lines[:keyIndex], []string{line}, lines[keyIndex+1:])
+	})
 }
 
 func validDate(value string) bool {

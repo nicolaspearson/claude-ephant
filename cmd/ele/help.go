@@ -13,13 +13,13 @@ import (
 const overview = `ele: memory across Claude Code sessions.
 
 Notes
-  remember         save a decision, fact, question, handoff or dated reminder
+  remember         save a decision, fact, question, handoff, dated reminder or nudge
   context          the project's live notes and pending handoffs, unbudgeted
   handoff list     pending handoffs; --all adds closed and superseded
   handoff close    mark handoffs picked up or dropped
   handoff reopen   make closed handoffs pending again
   reminder list    open reminders; --all adds closed and superseded
-  reminder close   mark reminders done or dropped
+  reminder close   mark reminders done or dropped; a nudge comes back after its interval
   reminder reopen  make closed reminders open again
   forget           move mistaken notes out of the index; --restore brings them back
 
@@ -100,8 +100,9 @@ var purposes = map[string]string{
 	"plan start":           "Start working through a plan file in this checkout.",
 	"recall":               "Search past sessions and notes.",
 	"reindex":              "Rebuild the index from the archive and notes.",
-	"remember":             "Save a note that later sessions start with; a reminder, from its --due date.",
-	"reminder close":       "Mark open reminders done or dropped, so the start block stops showing them.",
+	"remember":             "Save a note that later sessions start with; a reminder, from its --due date; with --every, a nudge, again that many days after each close.",
+	"reminder":             "List, close or reopen reminders; save one with ele remember --kind reminder --due <YYYY-MM-DD>, or --every <days> for a nudge.",
+	"reminder close":       "Mark open reminders done or dropped, so the start block stops showing them; a nudge is re-armed for its interval instead.",
 	"reminder list":        "Open reminders for the project and the owner's global ones, soonest due first.",
 	"reminder reopen":      "Make closed reminders open, so the start block shows them again from their due date.",
 	"session-start":        "Print the SessionStart block and start a background sync.",

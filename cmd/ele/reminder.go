@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"slices"
 	"strings"
 	"time"
@@ -22,7 +23,14 @@ func closedReminders(all []notes.Note, project string) []notes.Note {
 
 func dueReminders(all []notes.Note, project string, now time.Time) []notes.Note {
 	today := now.Format(time.DateOnly)
-	return slices.DeleteFunc(openReminders(all, project), func(note notes.Note) bool { return note.Due > today })
+	return slices.DeleteFunc(withNextDue(openReminders(all, project), now), func(note notes.Note) bool { return note.Due > today })
+}
+
+func interval(note notes.Note) string {
+	if note.Every == 0 {
+		return ""
+	}
+	return fmt.Sprintf(", every %d days", note.Every)
 }
 
 func listReminders(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
@@ -39,9 +47,11 @@ func listReminders(ctx context.Context, args []string, stdout io.Writer, stderr 
 		return code
 	}
 	superseded := supersededBy(scope.all)
-	today := time.Now().Format(time.DateOnly)
+	now := time.Now()
+	today := now.Format(time.DateOnly)
 	var lines []string
-	for _, note := range remindersHere(scope.all, scope.project) {
+	nudges := false
+	for _, note := range withNextDue(remindersHere(scope.all, scope.project), now) {
 		state, open := "due", true
 		switch {
 		case superseded[note.ID] != "":
@@ -54,18 +64,35 @@ func listReminders(ctx context.Context, args []string, stdout io.Writer, stderr 
 		if !open && !*listAll {
 			continue
 		}
-		lines = append(lines, fmt.Sprintf("- %s  due %s, reminder %s (%s): %s\n", state, note.Due, note.ID, note.Scope, strings.Join(strings.Fields(redact.Redact(note.Body)), " ")))
+		nudges = nudges || note.Every > 0
+		lines = append(lines, fmt.Sprintf("- %s  due %s, reminder %s (%s%s): %s\n", state, note.Due, note.ID, note.Scope, interval(note), strings.Join(strings.Fields(redact.Redact(note.Body)), " ")))
 	}
 	where := present(scope.owner, scope.project)
 	switch {
 	case len(lines) > 0:
-		fmt.Fprintf(stdout, "Reminders for %s, soonest due first:\n%sele reminder close <id>... or ele reminder reopen <id>... to change one.\n", where, strings.Join(lines, ""))
+		trailer := "ele reminder close <id>... or ele reminder reopen <id>... to change one.\n"
+		if nudges {
+			trailer = "ele reminder close <id>... or ele reminder reopen <id>... to change one; closing one with an interval re-arms it, ele forget <id> drops it.\n"
+		}
+		fmt.Fprintf(stdout, "Reminders for %s, soonest due first:\n%s%s", where, strings.Join(lines, ""), trailer)
 	case *listAll:
 		fmt.Fprintf(stdout, "ele has no reminders for %s.\n", where)
 	default:
 		fmt.Fprintf(stdout, "ele has no open reminders for %s; --all adds closed and superseded ones.\n", where)
 	}
 	return 0
+}
+
+func nextDue(note notes.Note, now time.Time) string {
+	if note.DoneFile == "" {
+		return note.Due
+	}
+	info, err := os.Stat(note.DoneFile)
+	if err != nil {
+		// Unreadable done file: due at once.
+		return min(note.Due, now.Format(time.DateOnly))
+	}
+	return max(note.Due, info.ModTime().In(now.Location()).AddDate(0, 0, note.Every).Format(time.DateOnly))
 }
 
 func openReminders(all []notes.Note, project string) []notes.Note {
@@ -75,14 +102,29 @@ func openReminders(all []notes.Note, project string) []notes.Note {
 	})
 }
 
+func rearmed(note notes.Note, now time.Time) string {
+	return now.AddDate(0, 0, note.Every).Format(time.DateOnly)
+}
+
 func reminderCommand(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
 	now := time.Now()
 	changes := map[string]noteChange{
 		"close": {
-			apply:        func(directory string, note notes.Note) error { return notes.MarkClosed(directory, note, now) },
+			apply: func(directory string, note notes.Note) error {
+				if note.Every > 0 {
+					return notes.SetDue(directory, note, rearmed(note, now))
+				}
+				return notes.MarkClosed(directory, note, now)
+			},
 			confirmation: "Closed",
-			eligible:     openReminders,
-			refusal:      "an open reminder of %s; ele reminder list lists them",
+			detail: func(note notes.Note) string {
+				if note.Every == 0 {
+					return ""
+				}
+				return "; due again " + rearmed(note, now)
+			},
+			eligible: openReminders,
+			refusal:  "an open reminder of %s; ele reminder list lists them",
 		},
 		"reopen": {
 			apply:        notes.ClearClosed,
@@ -115,4 +157,13 @@ func remindersHere(all []notes.Note, project string) []notes.Note {
 		return cmp.Or(cmp.Compare(a.Due, b.Due), cmp.Compare(a.Time, b.Time), cmp.Compare(a.ID, b.ID))
 	})
 	return matched
+}
+
+// withNextDue replaces each nudge's Due with its next due date and sorts by it.
+func withNextDue(reminders []notes.Note, now time.Time) []notes.Note {
+	for at := range reminders {
+		reminders[at].Due = nextDue(reminders[at], now)
+	}
+	slices.SortStableFunc(reminders, func(a, b notes.Note) int { return cmp.Compare(a.Due, b.Due) })
+	return reminders
 }

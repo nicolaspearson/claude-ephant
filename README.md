@@ -102,7 +102,9 @@ them in a terminal. Open sessions read a change at their next hook.
 - **`reminders`**: on by default. A reminder saved with
   `ele remember --kind reminder --due <YYYY-MM-DD>`, or by asking
   `/ele:remember` to remind you, shows at every session start from that date
-  until `ele reminder close <id>`. Off, none shows
+  until `ele reminder close <id>`. With `--every <days>` it is a nudge:
+  closing it brings it back that many days later, and `--done-file <path>`
+  counts each change to that file as done. Off, none shows
 - `ELE_HOME` moves the data directory; `ele status` shows where it is
 
 ## Contributing

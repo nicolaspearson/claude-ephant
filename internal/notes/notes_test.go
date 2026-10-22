@@ -158,8 +158,8 @@ func TestParseRejectsInvalidNotes(t *testing.T) {
 	}{
 		{content: front + "kind: fact\n---\nx\n", message: `front matter key "kind" appears twice`, name: "duplicate key", path: "notes/personal/n.md"},
 		{content: front + "---\n\n", message: "notes/personal/n.md: empty body", name: "empty body", path: "notes/personal/n.md"},
-		{content: front + "closed: 2026-10-22T09:00:00Z\n---\nx\n", message: "decision with a due or closed key, which only a reminder takes", name: "closed on a decision", path: "notes/personal/n.md"},
-		{content: front + "due: 2026-10-23\n---\nx\n", message: "decision with a due or closed key, which only a reminder takes", name: "due on a decision", path: "notes/personal/n.md"},
+		{content: front + "closed: 2026-10-22T09:00:00Z\n---\nx\n", message: "decision with a closed, done-file, due or every key, which only a reminder takes", name: "closed on a decision", path: "notes/personal/n.md"},
+		{content: front + "due: 2026-10-23\n---\nx\n", message: "decision with a closed, done-file, due or every key, which only a reminder takes", name: "due on a decision", path: "notes/personal/n.md"},
 		{content: front + "---\nx\n", message: "no id", name: "empty id", path: "notes/personal/.md"},
 		{content: "No front matter\n", message: "first line is not ---", name: "first line not a fence", path: "notes/personal/n.md"},
 		{content: front, message: "front matter never closes", name: "front matter never closes", path: "notes/personal/n.md"},
@@ -174,6 +174,12 @@ func TestParseRejectsInvalidNotes(t *testing.T) {
 		{content: "---\nclosed: today\ndate: 2026-10-22\ndue: 2026-10-23\nkind: reminder\nowner: personal\nscope: global\n---\nx\n", message: `closed "today" is not an RFC 3339 timestamp`, name: "reminder closed not RFC 3339", path: "notes/personal/n.md"},
 		{content: "---\ndate: 2026-10-22\ndue: next week\nkind: reminder\nowner: personal\nscope: global\n---\nx\n", message: `due "next week" is not YYYY-MM-DD`, name: "reminder due not a date", path: "notes/personal/n.md"},
 		{content: "---\ndate: 2026-10-22\nkind: reminder\nowner: personal\nscope: global\n---\nx\n", message: "reminder with no due date", name: "reminder without due", path: "notes/personal/n.md"},
+		{content: front + "every: 7\n---\nx\n", message: "decision with a closed, done-file, due or every key, which only a reminder takes", name: "every on a decision", path: "notes/personal/n.md"},
+		{content: "---\ndate: 2026-10-22\ndone-file: /a\x07b\ndue: 2026-10-23\nevery: 7\nkind: reminder\nowner: personal\nscope: global\n---\nx\n", message: `done-file "/a\ab" holds a control character`, name: "reminder done-file with a control character", path: "notes/personal/n.md"},
+		{content: "---\ndate: 2026-10-22\ndone-file: /m\ndue: 2026-10-23\nkind: reminder\nowner: personal\nscope: global\n---\nx\n", message: "done-file with no every", name: "reminder done-file without every", path: "notes/personal/n.md"},
+		{content: "---\ndate: 2026-10-22\ndone-file: cache/m\ndue: 2026-10-23\nevery: 7\nkind: reminder\nowner: personal\nscope: global\n---\nx\n", message: `done-file "cache/m" is not an absolute path`, name: "reminder done-file relative", path: "notes/personal/n.md"},
+		{content: "---\ndate: 2026-10-22\ndue: 2026-10-23\nevery: 0\nkind: reminder\nowner: personal\nscope: global\n---\nx\n", message: `every "0" is not a whole number of days above 0`, name: "reminder every 0", path: "notes/personal/n.md"},
+		{content: "---\ndate: 2026-10-22\ndue: 2026-10-23\nevery: weekly\nkind: reminder\nowner: personal\nscope: global\n---\nx\n", message: `every "weekly" is not a whole number of days above 0`, name: "reminder every not a number", path: "notes/personal/n.md"},
 		{content: front + "project: a\x07b\n---\nx\n", message: `project "a\ab" holds a control character`, name: "project with a control character", path: "notes/personal/n.md"},
 		{content: front + "project: a\u0085b\n---\nx\n", message: `project "a\u0085b" holds a control character`, name: "project with a C1 control character", path: "notes/personal/n.md"},
 		{content: front + "session: a b\n---\nx\n", message: `session "a b" holds characters other than letters, digits, - and _`, name: "session with a space", path: "notes/personal/n.md"},
@@ -220,6 +226,24 @@ func TestReadOwnerSkipsInvalidNotesAndOtherOwners(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, read)
 	require.Zero(t, invalid)
+}
+
+func TestSetDueRewritesOnlyTheDueOfANudge(t *testing.T) {
+	root := t.TempDir()
+	nudge := Note{Body: "Run /hook-stats.", Date: "2026-10-22", DoneFile: "/home/u/.claude/cache/hook-stats.last", Due: "2026-10-22", Every: 7, ID: "20261022-a1b2c3", Kind: KindReminder, Owner: "personal", Scope: ScopeGlobal}
+	path, err := Write(root, nudge)
+	require.NoError(t, err)
+
+	require.NoError(t, SetDue(root, nudge, "2026-10-29"))
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, "---\ndate: 2026-10-22\ndone-file: /home/u/.claude/cache/hook-stats.last\ndue: 2026-10-29\nevery: 7\nkind: reminder\nowner: personal\nscope: global\n---\nRun /hook-stats.\n", string(content))
+	rearmed, err := Parse(path, content)
+	require.NoError(t, err)
+	nudge.Due = "2026-10-29"
+	require.Equal(t, nudge, rearmed)
+
+	require.ErrorIs(t, SetDue(root, nudge, "next week"), ErrInvalid)
 }
 
 func TestWriteRefusesANoteWithoutAnID(t *testing.T) {

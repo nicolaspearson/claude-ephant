@@ -10,7 +10,7 @@ In every directory an owner covers, the SessionStart block shows the project's d
 ## What a note holds
 
 - A decision with its reason, an open question, or a dated fact. What the code does stays in the code, where it cannot go stale
-- Or a reminder: what to come back to and when. It shows from its due date at every start until `ele reminder close <id>`
+- Or a reminder: what to come back to and when. It shows from its due date at every start until `ele reminder close <id>`; one that recurs, such as "every week", is a nudge, which closing re-arms
 - Or a handoff: what `/ele:handoff` says it holds, proposed like any other note
 - At most three lines; one is better. The reason inline, not a pointer to a file, ticket or plan
 - No secrets. A note is a plain file and is printed into sessions
@@ -20,9 +20,11 @@ In every directory an owner covers, the SessionStart block shows the project's d
 ```sh
 ele remember --kind decision|fact|handoff|question <words>
 ele remember --kind reminder --due YYYY-MM-DD <words>
+ele remember --kind reminder --every <days> [--due YYYY-MM-DD] <words>
 ```
 
 - `--due`: the local date a reminder first shows; work out a spoken date such as "next Tuesday" from `date +%F`, and give the date in the report
+- `--every <days>`: a nudge, shown again that many days after each close; with no `--due` it shows today
 - Owner and project come from the working directory unless `--project` names one; profile, session and time are recorded automatically
 - `--project <name>`: the note concerns a project other than the working directory's. Works from any directory; `ele` names the owner or refuses
 - `--global`: applies to every project of the owner, not just this one; never on a handoff

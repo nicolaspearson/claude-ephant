@@ -19,6 +19,7 @@ import (
 type noteChange struct {
 	apply        func(directory string, note notes.Note) error
 	confirmation string
+	detail       func(note notes.Note) string
 	eligible     func(all []notes.Note, project string) []notes.Note
 	refusal      string
 }
@@ -96,7 +97,11 @@ func applyChange(ctx context.Context, group string, args []string, change noteCh
 			fmt.Fprintf(stderr, "ele: %v\n", err)
 			return 1
 		}
-		fmt.Fprintf(stdout, "%s %s %s.\n", change.confirmation, group, identifier)
+		var detail string
+		if change.detail != nil {
+			detail = change.detail(candidates[identifier])
+		}
+		fmt.Fprintf(stdout, "%s %s %s%s.\n", change.confirmation, group, identifier, detail)
 	}
 	return 0
 }
