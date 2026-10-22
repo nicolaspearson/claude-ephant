@@ -287,7 +287,9 @@ func writeStats(ctx context.Context, stdout io.Writer) error {
 		}
 		superseded := map[string]bool{}
 		for _, note := range all {
-			superseded[note.Supersedes] = true
+			for _, target := range note.Supersedes {
+				superseded[target] = true
+			}
 		}
 		kinds := map[string]int{}
 		for _, note := range all {

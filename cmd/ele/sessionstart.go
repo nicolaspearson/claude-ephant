@@ -73,8 +73,8 @@ func hookSource(input io.Reader) string {
 func liveNotes(all []notes.Note, project string) (questions []notes.Note, others []notes.Note) {
 	superseded := map[string]bool{}
 	for _, note := range all {
-		if note.Supersedes != "" {
-			superseded[note.Supersedes] = true
+		for _, target := range note.Supersedes {
+			superseded[target] = true
 		}
 	}
 	for _, note := range all {

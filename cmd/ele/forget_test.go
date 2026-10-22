@@ -75,20 +75,24 @@ func TestRunForgetOfACorrectionRevivesWhatItSuperseded(t *testing.T) {
 	output, code := runCommand(t, "remember", "--kind", "decision", "--session", "", "Pin pydantic below 2.14.")
 	require.Equal(t, 0, code, output)
 	original := readRemembered(t, output)
-	output, code = runCommand(t, "remember", "--kind", "decision", "--session", "", "--supersedes", original.ID, "Pin pydantic below 2.15.")
+	output, code = runCommand(t, "remember", "--kind", "decision", "--session", "", "Pin httpx below 0.28.")
+	require.Equal(t, 0, code, output)
+	related := readRemembered(t, output)
+	output, code = runCommand(t, "remember", "--kind", "decision", "--session", "", "--supersedes", original.ID, "--supersedes", related.ID, "Pin pydantic below 2.15 and httpx below 0.29.")
 	require.Equal(t, 0, code, output)
 	correction := readRemembered(t, output)
 
-	output, code = runCommand(t, "forget", original.ID)
+	output, code = runCommand(t, "forget", related.ID)
 	require.Equal(t, 1, code, output)
-	require.Equal(t, "ele: note "+correction.ID+" supersedes "+original.ID+"; forget "+correction.ID+" first, or leave both\n", output)
+	require.Equal(t, "ele: note "+correction.ID+" supersedes "+related.ID+"; forget "+correction.ID+" first, or leave both\n", output)
 
 	output, code = runCommand(t, "forget", correction.ID)
 	require.Equal(t, 0, code, output)
-	require.Equal(t, "Forgot note "+correction.ID+".\nNote "+original.ID+", which it superseded, is live again.\n", output)
+	require.Equal(t, "Forgot note "+correction.ID+".\nNote "+original.ID+", which it superseded, is live again.\nNote "+related.ID+", which it superseded, is live again.\n", output)
 	output, code = runCommand(t, "context")
 	require.Equal(t, 0, code, output)
 	require.Contains(t, output, "Pin pydantic below 2.14.")
+	require.Contains(t, output, "Pin httpx below 0.28.")
 }
 
 func TestRunForgetRestoreRefusesANoteALiveNoteAlreadySays(t *testing.T) {

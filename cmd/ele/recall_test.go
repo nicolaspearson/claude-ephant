@@ -243,7 +243,7 @@ func TestRunReindexRebuildsFromTheArchiveAndNotes(t *testing.T) {
 	noteDirectory := filepath.Join(home, "data", "notes")
 	_, err := notes.Write(noteDirectory, notes.Note{Body: "Pin pydantic below 2.14.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject})
 	require.NoError(t, err)
-	_, err = notes.Write(noteDirectory, notes.Note{Body: "Pin pydantic through the wrapper.", Date: "2026-10-16", ID: "20261016-bbbbbb", Kind: notes.KindDecision, Owner: "corp", Project: "proxy", Scope: notes.ScopeProject, Supersedes: "20261015-aaaaaa"})
+	_, err = notes.Write(noteDirectory, notes.Note{Body: "Pin pydantic through the wrapper.", Date: "2026-10-16", ID: "20261016-bbbbbb", Kind: notes.KindDecision, Owner: "corp", Project: "proxy", Scope: notes.ScopeProject, Supersedes: []string{"20261015-aaaaaa"}})
 	require.NoError(t, err)
 	writeFile(t, filepath.Join(noteDirectory, "corp", "20261015-broken.md"), "no front matter\n")
 

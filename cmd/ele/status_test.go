@@ -35,7 +35,7 @@ func TestRunStatsCountsWhatTheIndexAndNotesHold(t *testing.T) {
 	for _, note := range []notes.Note{
 		{Body: "Pin pydantic.", Date: "2026-10-14", ID: "20261014-aaaaaa", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal},
 		{Body: "Old question.", Date: "2026-10-13", ID: "20261013-bbbbbb", Kind: notes.KindQuestion, Owner: "corp", Scope: notes.ScopeGlobal},
-		{Body: "Answer.", Date: "2026-10-14", ID: "20261014-cccccc", Kind: notes.KindFact, Owner: "corp", Scope: notes.ScopeGlobal, Supersedes: "20261013-bbbbbb"},
+		{Body: "Answer.", Date: "2026-10-14", ID: "20261014-cccccc", Kind: notes.KindFact, Owner: "corp", Scope: notes.ScopeGlobal, Supersedes: []string{"20261013-bbbbbb"}},
 		{Body: "Still open?", Date: "2026-10-14", ID: "20261014-dddddd", Kind: notes.KindQuestion, Owner: "corp", Scope: notes.ScopeGlobal},
 	} {
 		_, err := notes.Write(noteDirectory, note)

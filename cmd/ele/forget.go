@@ -109,16 +109,17 @@ func forget(ctx context.Context, args []string, stdout io.Writer, stderr io.Writ
 	before, remaining := supersessorCounts(live), supersessorCounts(after)
 	reported := map[string]bool{}
 	for _, identifier := range identifiers {
-		target := byID[identifier].Supersedes
-		if reported[target] || !slices.ContainsFunc(after, func(note notes.Note) bool { return note.ID == target }) {
-			continue
-		}
-		reported[target] = true
-		switch {
-		case !*restore && remaining[target] == 0:
-			fmt.Fprintf(stdout, "Note %s, which it superseded, is live again.\n", target)
-		case *restore && before[target] == 0:
-			fmt.Fprintf(stdout, "Note %s, which it supersedes, is superseded again.\n", target)
+		for _, target := range byID[identifier].Supersedes {
+			if reported[target] || !slices.ContainsFunc(after, func(note notes.Note) bool { return note.ID == target }) {
+				continue
+			}
+			reported[target] = true
+			switch {
+			case !*restore && remaining[target] == 0:
+				fmt.Fprintf(stdout, "Note %s, which it superseded, is live again.\n", target)
+			case *restore && before[target] == 0:
+				fmt.Fprintf(stdout, "Note %s, which it supersedes, is superseded again.\n", target)
+			}
 		}
 	}
 	return 0
@@ -127,8 +128,8 @@ func forget(ctx context.Context, args []string, stdout io.Writer, stderr io.Writ
 func supersessorCounts(all []notes.Note) map[string]int {
 	counts := map[string]int{}
 	for _, note := range all {
-		if note.Supersedes != "" {
-			counts[note.Supersedes]++
+		for _, target := range note.Supersedes {
+			counts[target]++
 		}
 	}
 	return counts

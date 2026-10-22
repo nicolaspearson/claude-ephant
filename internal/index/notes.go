@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/nicolaspearson/claude-ephant/internal/notes"
 )
@@ -117,7 +118,7 @@ func (x *Index) indexNote(ctx context.Context, note notes.Note, source string, c
 		return err
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO notes (fingerprint, id, kind, owner, path, project, scope, supersedes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		current, note.ID, note.Kind, note.Owner, source, note.Project, note.Scope, note.Supersedes)
+		current, note.ID, note.Kind, note.Owner, source, note.Project, note.Scope, strings.Join(note.Supersedes, ","))
 	if err != nil {
 		return err
 	}

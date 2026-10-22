@@ -224,7 +224,7 @@ func TestRunHandoffListShowsEachHandoffsState(t *testing.T) {
 
 	for _, note := range []notes.Note{
 		{Body: "Superseded task.", Date: "2026-10-10", ID: "20261010-dddddd", Kind: notes.KindHandoff, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Shown: "2026-10-10T12:00:00Z"},
-		{Body: "Done another way.", Date: "2026-10-11", ID: "20261011-eeeeee", Kind: notes.KindFact, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Supersedes: "20261010-dddddd"},
+		{Body: "Done another way.", Date: "2026-10-11", ID: "20261011-eeeeee", Kind: notes.KindFact, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Supersedes: []string{"20261010-dddddd"}},
 		{Body: "Closed task.\nSecond line.", Date: "2026-10-12", ID: "20261012-cccccc", Kind: notes.KindHandoff, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Shown: "2026-10-12T11:02:00Z", Time: "2026-10-12T09:00:00Z"},
 		{Body: "Pending task.", Date: "2026-10-14", ID: "20261014-aaaaaa", Kind: notes.KindHandoff, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Session: "0123456789", Time: "2026-10-14T10:00:00Z"},
 		{Body: "Another project's.", Date: "2026-10-14", ID: "20261014-bbbbbb", Kind: notes.KindHandoff, Owner: "corp", Project: "proxy", Scope: notes.ScopeProject},
@@ -259,7 +259,7 @@ func TestRunHandoffReopenChecksEveryIdFirst(t *testing.T) {
 	require.Equal(t, 0, code, output)
 	_, err := notes.Write(filepath.Join(home, "data", "notes"), notes.Note{Body: "Old next task.", Date: "2026-10-01", ID: "20261001-aaaaaa", Kind: notes.KindHandoff, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Shown: "2026-10-01T10:00:00Z"})
 	require.NoError(t, err)
-	_, err = notes.Write(filepath.Join(home, "data", "notes"), notes.Note{Body: "Done instead.", Date: "2026-10-02", ID: "20261002-bbbbbb", Kind: notes.KindFact, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Supersedes: "20261001-aaaaaa"})
+	_, err = notes.Write(filepath.Join(home, "data", "notes"), notes.Note{Body: "Done instead.", Date: "2026-10-02", ID: "20261002-bbbbbb", Kind: notes.KindFact, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Supersedes: []string{"20261001-aaaaaa"}})
 	require.NoError(t, err)
 
 	for _, identifier := range []string{pending.ID, "20261001-aaaaaa", "20200101-000000"} {
@@ -323,7 +323,7 @@ func TestRunSessionStartShowsOpenQuestionsThenNewestNotes(t *testing.T) {
 	for _, note := range []notes.Note{
 		{Body: "Should ele index\ntool output?", Date: "2026-10-10", ID: "20261010-aaaaaa", Kind: notes.KindQuestion, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject},
 		{Body: "Old question.", Date: "2026-10-09", ID: "20261009-bbbbbb", Kind: notes.KindQuestion, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject},
-		{Body: "Decided: no.", Date: "2026-10-12", ID: "20261012-cccccc", Kind: notes.KindDecision, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Supersedes: "20261009-bbbbbb"},
+		{Body: "Decided: no.", Date: "2026-10-12", ID: "20261012-cccccc", Kind: notes.KindDecision, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Supersedes: []string{"20261009-bbbbbb"}},
 		{Body: "Pin pydantic below 2.14; token=abc123secret", Date: "2026-10-14", ID: "20261014-dddddd", Kind: notes.KindDecision, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject},
 		{Body: "Corp deploys on Tuesdays.", Date: "2026-10-13", ID: "20261013-eeeeee", Kind: notes.KindFact, Owner: "corp", Project: "proxy", Scope: notes.ScopeGlobal},
 		{Body: "Proxy only.", Date: "2026-10-15", ID: "20261015-ffffff", Kind: notes.KindDecision, Owner: "corp", Project: "proxy", Scope: notes.ScopeProject},

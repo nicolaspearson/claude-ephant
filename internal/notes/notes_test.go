@@ -120,9 +120,9 @@ func TestNewIDIsDatedAndUnique(t *testing.T) {
 }
 
 func TestParseReadsAHandEditedNote(t *testing.T) {
-	note, err := Parse("notes/personal/20261015-a1b2c3.md", []byte("\xef\xbb\xbf---\nkind:  question \nscope: global\nowner: personal\ndate: 2026-10-15\n---\n\nShould ele index tool output?\nIt would triple the index.\n\n"))
+	note, err := Parse("notes/personal/20261015-a1b2c3.md", []byte("\xef\xbb\xbf---\nkind:  question \nscope: global\nowner: personal\nsupersedes: 20261014-aaaaaa ,20261014-bbbbbb,\ndate: 2026-10-15\n---\n\nShould ele index tool output?\nIt would triple the index.\n\n"))
 	require.NoError(t, err)
-	require.Equal(t, Note{Body: "Should ele index tool output?\nIt would triple the index.", Date: "2026-10-15", ID: "20261015-a1b2c3", Kind: KindQuestion, Owner: "personal", Scope: ScopeGlobal}, note)
+	require.Equal(t, Note{Body: "Should ele index tool output?\nIt would triple the index.", Date: "2026-10-15", ID: "20261015-a1b2c3", Kind: KindQuestion, Owner: "personal", Scope: ScopeGlobal, Supersedes: []string{"20261014-aaaaaa", "20261014-bbbbbb"}}, note)
 }
 
 func TestParseRejectsInvalidNotes(t *testing.T) {
@@ -150,7 +150,8 @@ func TestParseRejectsInvalidNotes(t *testing.T) {
 		{content: front + "project: a\u0085b\n---\nx\n", message: `project "a\u0085b" holds a control character`, name: "project with a C1 control character", path: "notes/personal/n.md"},
 		{content: front + "session: a b\n---\nx\n", message: `session "a b" holds characters other than letters, digits, - and _`, name: "session with a space", path: "notes/personal/n.md"},
 		{content: front + "shown: yesterday\n---\nx\n", message: `shown "yesterday" is not an RFC 3339 timestamp`, name: "shown not RFC 3339", path: "notes/personal/n.md"},
-		{content: front + "supersedes: n\n---\nx\n", message: "supersedes itself", name: "supersedes itself", path: "notes/personal/n.md"},
+		{content: front + "supersedes: a, a\n---\nx\n", message: `supersedes names "a" twice`, name: "supersedes an id twice", path: "notes/personal/n.md"},
+		{content: front + "supersedes: a, n\n---\nx\n", message: "supersedes itself", name: "supersedes itself", path: "notes/personal/n.md"},
 		{content: front + "time: 21:52\n---\nx\n", message: `time "21:52" is not an RFC 3339 timestamp`, name: "time not RFC 3339", path: "notes/personal/n.md"},
 		{content: front + " tag : x\n---\nx\n", message: `unknown front matter key "tag"`, name: "unknown key", path: "notes/personal/n.md"},
 		{content: "---\ndate: 2026-10-15\nkind: todo\nowner: personal\nscope: global\n---\nx\n", message: `kind "todo" is not one of`, name: "unknown kind", path: "notes/personal/n.md"},

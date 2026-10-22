@@ -37,7 +37,7 @@ func TestUpdateNotesFollowsTheFiles(t *testing.T) {
 	index, _ := searchFixture(t)
 	directory := filepath.Join(t.TempDir(), "notes")
 	first := notes.Note{Body: "Pin pydantic below 2.14.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject}
-	second := notes.Note{Body: "Pin pydantic through the wrapper, not the plugin.", Date: "2026-10-16", ID: "20261016-bbbbbb", Kind: notes.KindDecision, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Supersedes: first.ID}
+	second := notes.Note{Body: "Pin pydantic through the wrapper, not the plugin.", Date: "2026-10-16", ID: "20261016-bbbbbb", Kind: notes.KindDecision, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Supersedes: []string{first.ID}}
 	firstPath, err := notes.Write(directory, first)
 	require.NoError(t, err)
 	_, err = notes.Write(directory, second)
@@ -116,14 +116,14 @@ func TestUpdateNotesPicksTheLowestSuccessor(t *testing.T) {
 	original := notes.Note{Body: "Pin pydantic below 2.14.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal}
 	for _, note := range []notes.Note{
 		original,
-		{Body: "Later successor.", Date: "2026-10-17", ID: "20261017-cccccc", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal, Supersedes: original.ID},
+		{Body: "Later successor.", Date: "2026-10-17", ID: "20261017-cccccc", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal, Supersedes: []string{original.ID}},
 	} {
 		_, err := notes.Write(directory, note)
 		require.NoError(t, err)
 	}
 	_, err := index.UpdateNotes(context.Background(), directory)
 	require.NoError(t, err)
-	_, err = notes.Write(directory, notes.Note{Body: "Earlier successor.", Date: "2026-10-16", ID: "20261016-bbbbbb", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal, Supersedes: original.ID})
+	_, err = notes.Write(directory, notes.Note{Body: "Earlier successor.", Date: "2026-10-16", ID: "20261016-bbbbbb", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal, Supersedes: []string{original.ID}})
 	require.NoError(t, err)
 	_, err = index.UpdateNotes(context.Background(), directory)
 	require.NoError(t, err)
@@ -132,6 +132,30 @@ func TestUpdateNotesPicksTheLowestSuccessor(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, "20261016-bbbbbb", results[0].SupersededBy)
+}
+
+func TestUpdateNotesReadsASupersedesListAnOlderEleIndexed(t *testing.T) {
+	index := open(t, filepath.Join(t.TempDir(), "ele.db"))
+	directory := filepath.Join(t.TempDir(), "notes")
+	for _, note := range []notes.Note{
+		{Body: "Pin pydantic below 2.14.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal},
+		{Body: "Pin httpx below 0.28.", Date: "2026-10-15", ID: "20261015-bbbbbb", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal},
+		{Body: "Pin both.", Date: "2026-10-16", ID: "20261016-cccccc", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal, Supersedes: []string{"20261015-aaaaaa", "20261015-bbbbbb"}},
+	} {
+		_, err := notes.Write(directory, note)
+		require.NoError(t, err)
+	}
+	_, err := index.UpdateNotes(context.Background(), directory)
+	require.NoError(t, err)
+	_, err = index.db.Exec(`UPDATE notes SET supersedes = '20261015-aaaaaa, 20261015-bbbbbb' WHERE id = '20261016-cccccc'`)
+	require.NoError(t, err)
+
+	results, err := index.Search(context.Background(), Query{Kinds: []string{"note"}, Text: "below"})
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+	for _, result := range results {
+		require.Equal(t, "20261016-cccccc", result.SupersededBy, "an older ele indexed the front matter value as written, space included")
+	}
 }
 
 func TestUpdateNotesSkipsSymlinkedNoteFiles(t *testing.T) {

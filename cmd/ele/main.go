@@ -47,7 +47,7 @@ const usage = `usage:
   ele plan start <path>
   ele recall [--all | --owner <name>] [--kind <k,k>] [--project <name>] [--since <YYYY-MM-DD|Nd>] [--limit <n>] [--no-sync] <query>
   ele reindex
-  ele remember --kind decision|fact|handoff|question [--global] [--owner <name>] [--project <name>] [--session <id>] [--supersedes <id>] <words>
+  ele remember --kind decision|fact|handoff|question [--global] [--owner <name>] [--project <name>] [--session <id>] [--supersedes <id>...] <words>
   ele session-start [--no-sync]
   ele show [--around <text>] [--context <n>] <session>
   ele show --note <id> [--context <n>]

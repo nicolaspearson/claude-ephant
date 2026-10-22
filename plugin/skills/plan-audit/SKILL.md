@@ -124,7 +124,8 @@ Every other open `question` note of the project: propose a home. A plan's inbox,
 when an active plan's why covers it; a plan candidate, reworded to start
 `Plan candidate:`; or staying a question, when it waits on a measurement or a
 person. A note that moves is superseded through `ele remember --supersedes`, on
-approval.
+approval. Related questions become one candidate note, repeating `--supersedes`
+once per question.
 
 Done when every open question note has a proposed home.
 

@@ -51,7 +51,7 @@ type Note struct {
 	Scope      string
 	Session    string
 	Shown      string
-	Supersedes string
+	Supersedes []string
 	Time       string
 }
 
@@ -76,7 +76,7 @@ func Format(note Note) []byte {
 		{"scope", note.Scope},
 		{"session", note.Session},
 		{"shown", note.Shown},
-		{"supersedes", note.Supersedes},
+		{"supersedes", strings.Join(note.Supersedes, ", ")},
 		{"time", note.Time},
 	} {
 		if field.value != "" {
@@ -184,13 +184,14 @@ func Parse(path string, content []byte) (Note, error) {
 		return Note{}, fmt.Errorf("%w %s: %s", ErrInvalid, path, fmt.Sprintf(format, arguments...))
 	}
 	note := Note{ID: strings.TrimSuffix(filepath.Base(path), ".md")}
+	var supersedes string
 	scanner := bufio.NewScanner(bytes.NewReader(bytes.TrimPrefix(content, []byte("\xef\xbb\xbf"))))
 	if !scanner.Scan() || strings.TrimSpace(scanner.Text()) != "---" {
 		return invalid("first line is not ---")
 	}
 	fields := map[string]*string{
 		"date": &note.Date, "kind": &note.Kind, "owner": &note.Owner, "profile": &note.Profile,
-		"project": &note.Project, "scope": &note.Scope, "session": &note.Session, "shown": &note.Shown, "supersedes": &note.Supersedes, "time": &note.Time,
+		"project": &note.Project, "scope": &note.Scope, "session": &note.Session, "shown": &note.Shown, "supersedes": &supersedes, "time": &note.Time,
 	}
 	seen := map[string]bool{}
 	closed := false
@@ -217,6 +218,11 @@ func Parse(path string, content []byte) (Note, error) {
 	}
 	if !closed {
 		return invalid("front matter never closes")
+	}
+	for identifier := range strings.SplitSeq(supersedes, ",") {
+		if identifier = strings.TrimSpace(identifier); identifier != "" {
+			note.Supersedes = append(note.Supersedes, identifier)
+		}
 	}
 	var body []string
 	for scanner.Scan() {
@@ -339,12 +345,23 @@ func problem(note Note) string {
 		return fmt.Sprintf("project %q holds a control character", note.Project)
 	case !ValidSession(note.Session):
 		return fmt.Sprintf("session %q holds characters other than letters, digits, - and _", note.Session)
-	case note.Supersedes == note.ID:
+	case slices.Contains(note.Supersedes, note.ID):
 		return "supersedes itself"
+	case repeated(note.Supersedes) != "":
+		return fmt.Sprintf("supersedes names %q twice", repeated(note.Supersedes))
 	case note.Shown != "" && !validTime(note.Shown):
 		return fmt.Sprintf("shown %q is not an RFC 3339 timestamp", note.Shown)
 	case note.Time != "" && !validTime(note.Time):
 		return fmt.Sprintf("time %q is not an RFC 3339 timestamp", note.Time)
+	}
+	return ""
+}
+
+func repeated(identifiers []string) string {
+	for at, identifier := range identifiers {
+		if slices.Contains(identifiers[:at], identifier) {
+			return identifier
+		}
 	}
 	return ""
 }

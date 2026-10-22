@@ -28,7 +28,7 @@ END`
 
 const resultColumns = `e.kind, e.owner, e.profile, e.project, e.session, e.source LIKE 'claude-mem/%', e.subagent,
 	coalesce((SELECT n.kind FROM notes n WHERE n.path = e.source), ''),
-	coalesce((SELECT s.id FROM notes s WHERE s.supersedes = e.uuid AND e.kind = 'note' ORDER BY s.id LIMIT 1), ''),
+	coalesce((SELECT s.id FROM notes s WHERE instr(',' || replace(s.supersedes, ' ', '') || ',', ',' || e.uuid || ',') > 0 AND e.kind = 'note' ORDER BY s.id LIMIT 1), ''),
 	CASE WHEN e.kind = 'note' THEN e.uuid ELSE '' END`
 
 type Query struct {

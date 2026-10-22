@@ -191,8 +191,8 @@ func newestOfKind(all []notes.Note, kind string, project string) []notes.Note {
 func supersededBy(all []notes.Note) map[string]string {
 	superseded := map[string]string{}
 	for _, note := range all {
-		if note.Supersedes != "" {
-			superseded[note.Supersedes] = note.ID
+		for _, target := range note.Supersedes {
+			superseded[target] = note.ID
 		}
 	}
 	return superseded

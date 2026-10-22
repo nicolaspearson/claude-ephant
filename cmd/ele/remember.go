@@ -68,7 +68,8 @@ func remember(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 	owner := flags.String("owner", "", "file under this owner instead of the resolved one")
 	projectName := flags.String("project", "", "file under this project instead of the working directory's")
 	session := flags.String("session", os.Getenv("CLAUDE_CODE_SESSION_ID"), "id of the session the note came from")
-	supersedes := flags.String("supersedes", "", "id of the note this one replaces")
+	var supersedes repeatedFlag
+	flags.Var(&supersedes, "supersedes", "id of a note this one replaces; repeat for several")
 	positional, err := parseInterspersed(flags, args)
 	if err != nil {
 		return rejectCall(flags, err, stdout, stderr)
@@ -122,9 +123,16 @@ func remember(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return 1
 	}
-	if *supersedes != "" && !slices.ContainsFunc(existing, func(note notes.Note) bool { return note.ID == *supersedes }) {
-		fmt.Fprintf(stderr, "ele: %s has no note %s to supersede\n", *owner, *supersedes)
-		return 2
+	supersedes = slices.DeleteFunc(supersedes, func(target string) bool { return target == "" })
+	for at, target := range supersedes {
+		if slices.Contains(supersedes[:at], target) {
+			fmt.Fprintf(stderr, "ele: --supersedes %s given twice\n", target)
+			return 2
+		}
+		if !slices.ContainsFunc(existing, func(note notes.Note) bool { return note.ID == target }) {
+			fmt.Fprintf(stderr, "ele: %s has no note %s to supersede\n", *owner, target)
+			return 2
+		}
 	}
 	scope := notes.ScopeProject
 	if *global {
@@ -150,7 +158,7 @@ func remember(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 		Project:    project,
 		Scope:      scope,
 		Session:    *session,
-		Supersedes: *supersedes,
+		Supersedes: supersedes,
 		Time:       now.UTC().Format(time.RFC3339),
 	}
 	path, err := notes.Write(noteDirectory, note)

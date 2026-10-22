@@ -29,16 +29,26 @@ func TestRunRememberFilesANoteRecallFinds(t *testing.T) {
 	require.WithinDuration(t, time.Now(), written, time.Minute)
 	require.Equal(t, notes.Note{Body: "Should ele index tool output?", Date: time.Now().Format(time.DateOnly), ID: question.ID, Kind: notes.KindQuestion, Owner: "corp", Profile: "corp", Project: "gateway", Scope: notes.ScopeProject, Session: "s-1", Time: question.Time}, question)
 
-	output, code = runCommand(t, "remember", "--kind", "decision", "--global", "--supersedes", question.ID, "No: tool output would triple the index.")
+	output, code = runCommand(t, "remember", "--kind", "question", "--supersedes", "", "Should", "ele", "index", "subagents?")
+	require.Equal(t, 0, code, output)
+	related := readRemembered(t, output)
+	require.Nil(t, related.Supersedes, "an empty --supersedes names none")
+
+	output, code = runCommand(t, "remember", "--kind", "decision", "--supersedes", question.ID, "--supersedes", question.ID, "Twice.")
+	require.Equal(t, 2, code, output)
+	require.Equal(t, "ele: --supersedes "+question.ID+" given twice\n", output)
+
+	output, code = runCommand(t, "remember", "--kind", "decision", "--global", "--supersedes", question.ID, "--supersedes", related.ID, "No: tool output would triple the index.")
 	require.Equal(t, 0, code, output)
 	decision := readRemembered(t, output)
 	require.Equal(t, notes.ScopeGlobal, decision.Scope)
-	require.Equal(t, question.ID, decision.Supersedes)
+	require.Equal(t, []string{question.ID, related.ID}, decision.Supersedes)
 
 	output, code = runCommand(t, "recall", "--kind", "note", "index")
 	require.Equal(t, 0, code, output)
 	require.Contains(t, output, "note decision          "+decision.ID+" No: tool output would triple the «index».")
 	require.Contains(t, output, "note question          (superseded by "+decision.ID+") "+question.ID+" Should ele «index» tool output?")
+	require.Contains(t, output, "note question          (superseded by "+decision.ID+") "+related.ID+" Should ele «index» subagents?")
 }
 
 func TestRunRememberFilesUnderANamedOwnerOutsideTheMap(t *testing.T) {
