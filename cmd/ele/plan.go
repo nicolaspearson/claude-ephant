@@ -282,6 +282,12 @@ func planPath(root string, argument string) (string, error) {
 		absolute = parent
 	}
 	relative, err := filepath.Rel(root, absolute)
+	// ele prints plan paths from the checkout root.
+	if _, statErr := os.Stat(absolute); statErr != nil && filepath.IsLocal(argument) {
+		if resolved, rootErr := filepath.EvalSymlinks(filepath.Join(root, argument)); rootErr == nil {
+			relative, err = filepath.Rel(root, resolved)
+		}
+	}
 	if err != nil || !filepath.IsLocal(relative) {
 		return "", fmt.Errorf("%s is outside the project at %s", argument, root)
 	}

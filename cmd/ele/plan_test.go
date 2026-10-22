@@ -300,6 +300,17 @@ Next, line 12:
 - [ ] Commands
   next: done and list
 `, output)
+	for _, subcommand := range []string{"check", "show"} {
+		output, code = runCommand(t, "plan", subcommand, ".documentation/plans/build.md")
+		require.Equal(t, 0, code, "the printed path from the checkout root resolves from a subdirectory: "+output)
+		require.True(t, strings.HasPrefix(output, "Plan .documentation/plans/build.md: "), output)
+	}
+	outside := t.TempDir()
+	writeFile(t, filepath.Join(outside, "build.md"), planFile)
+	require.NoError(t, os.Symlink(outside, filepath.Join(gateway, "elsewhere")))
+	output, code = runCommand(t, "plan", "show", "elsewhere/build.md")
+	require.Equal(t, 1, code, output)
+	require.Contains(t, output, "is outside the project", "a symlink out of the checkout is refused from a subdirectory too")
 
 	output, code = runCommand(t, "plan", "list")
 	require.Equal(t, 0, code, output)
