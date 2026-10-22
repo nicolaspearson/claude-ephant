@@ -106,6 +106,7 @@ func TestAdvance(t *testing.T) {
 		{entries: tool("Edit: main.go"), name: "an edit is work", want: stopState{MidTask: true, Pending: true}},
 		{entries: tool("Bash: ele remember fact \"x\""), from: stopState{MidTask: true, Pending: true}, name: "an ele remember command proposes", want: stopState{MidTask: true}},
 		{entries: tool("Bash: ele remember fact \"x\""), from: stopState{InCheckpoint: true, Pending: true}, name: "an ele remember command proposes mid-checkpoint", want: stopState{InCheckpoint: true}},
+		{entries: tool("Bash: ele config get auto_note_writes"), from: stopState{Proposing: true}, name: "an option read is not work", want: stopState{Proposing: true}},
 		{events: run(transcript.EventSkill, "ele:recall"), from: stopState{Pending: true}, name: "another skill changes nothing", want: stopState{Pending: true}},
 		{entries: tool("Bash: ls"), name: "any Bash call is work", want: stopState{MidTask: true, Pending: true}},
 	}
@@ -223,6 +224,35 @@ func TestRunStopCheckAsksForNotesOncePerStretch(t *testing.T) {
 	run.write(`{"type":"assistant","sessionId":"` + stopCheckSession + `","message":{"id":"half`)
 	_, output = run.stop(run.gateway, false)
 	require.Equal(t, block, output, "past a half-written last line")
+}
+
+func TestRunStopCheckReasonFollowsAutoNoteWrites(t *testing.T) {
+	tests := []struct {
+		config string
+		name   string
+		want   string
+	}{
+		{config: `{"auto_note_writes": tru`, name: "broken file reads as off", want: rememberReason},
+		{name: "default off", want: rememberReason},
+		{config: `{"auto_note_writes": true, "owners": {"corp": {"auto_note_writes": false}}}`, name: "off for this owner", want: rememberReason},
+		{config: `{"auto_note_writes": true}`, name: "on", want: rememberWriteReason},
+		{config: `{"owners": {"personal": {"auto_note_writes": true}}}`, name: "on for another owner", want: rememberReason},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			run := newStopCheckRun(t)
+			if test.config != "" {
+				writeFile(t, filepath.Join(run.home, "data", "config.json"), test.config)
+			}
+			run.respond(1000, stopCheckEdit)
+			var stdout, stderr bytes.Buffer
+			input := fmt.Sprintf(`{"cwd":%q,"session_id":%q,"transcript_path":%q}`, run.gateway, run.session, run.transcriptPath)
+			require.Equal(t, 0, stopCheck(context.Background(), nil, strings.NewReader(input), &stdout, &stderr), stderr.String())
+			var output stopOutput
+			require.NoError(t, json.Unmarshal(stdout.Bytes(), &output), stdout.String())
+			require.Equal(t, stopOutput{Decision: "block", Reason: test.want}, output)
+		})
+	}
 }
 
 func TestRunStopCheckColoursTheHint(t *testing.T) {

@@ -5,7 +5,7 @@ description: Save a decision, an open question or a dated fact so later sessions
 
 # Remember
 
-In every directory an owner covers, the SessionStart block shows the project's open questions, then its newest decisions and facts, plus the owner's global notes. Write a note only when the user asks or approves.
+In every directory an owner covers, the SessionStart block shows the project's open questions, then its newest decisions and facts, plus the owner's global notes. Write a note only when the user asks or approves, or when `auto_note_writes` is on and the note is proposed per Propose below.
 
 ## What a note holds
 
@@ -42,7 +42,7 @@ When a skill or ele's Stop hook asks for notes, propose the note it names, or el
 - A question the user left open
 - A dated fact about the environment that the code does not hold
 
-Nothing worth keeping, say so in one line. Otherwise ask with AskUserQuestion, loading it through ToolSearch if it is deferred, and write each approved note yourself; never print the commands for the user to run. Ask in the same turn, one call, one question per note, at most four, the tool's limit:
+Nothing worth keeping, say so in one line. Otherwise run `ele config get auto_note_writes`. When it prints `true`, write each note yourself without asking, then report each id with the note's words, so a wrong one can be undone with `ele forget <id>`. Otherwise ask with AskUserQuestion, loading it through ToolSearch if it is deferred, and write each approved note yourself; never print the commands for the user to run. Ask in the same turn, one call, one question per note, at most four, the tool's limit:
 
 - `question`: the note's exact words, and the ids it supersedes, if any
 - `header`: its kind

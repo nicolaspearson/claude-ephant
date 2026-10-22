@@ -57,7 +57,7 @@ func TestSaveKeepsUnknownKeysAndDropsEmptyOwners(t *testing.T) {
 
 func TestSetRefusesAnUnknownOptionOrAValueOfTheWrongKind(t *testing.T) {
 	config := Defaults()
-	require.ErrorContains(t, config.Set("checkpoint_gat", "", "false"), `no option "checkpoint_gat"; options: checkpoint_gate`)
+	require.ErrorContains(t, config.Set("checkpoint_gat", "", "false"), `no option "checkpoint_gat"; options: auto_note_writes, checkpoint_gate`)
 	require.ErrorContains(t, config.Set("checkpoint_gate", "", "off"), `checkpoint_gate takes true or false, not "off"`)
 	require.Empty(t, config.Global)
 }

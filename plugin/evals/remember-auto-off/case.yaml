@@ -1,0 +1,11 @@
+schema_version: "1.1"
+name: remember-auto-off
+description: With auto_note_writes at its default, ele:remember asks Write or Skip and writes nothing unanswered
+runs: 1
+execution:
+  max_turns: 10
+  allowed_tools: [AskUserQuestion, Bash, Skill]
+  prompt: |
+    We just decided to pin pydantic below 2.14, because 2.14 reorders validators and breaks our request models. Propose notes for this per /ele:remember.
+context:
+  scaffold_script: scaffold.sh

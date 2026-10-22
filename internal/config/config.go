@@ -45,6 +45,12 @@ type Value struct {
 
 var Options = []Option{
 	{
+		Default:     false,
+		Description: "Writes the notes ele:remember proposes without asking Write or Skip, then reports each.",
+		Kind:        KindBoolean,
+		Name:        "auto_note_writes",
+	},
+	{
 		Default:     true,
 		Description: "Blocks a turn that changed files and claims done without running ele:checkpoint.",
 		Kind:        KindBoolean,

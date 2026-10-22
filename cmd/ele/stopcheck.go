@@ -27,11 +27,12 @@ import (
 )
 
 const (
-	hintBand        = 100000
-	noBand          = -1
-	rememberReason  = "Follow /ele:remember's Propose section now: one AskUserQuestion call, one Write/Skip question per note, then write each approved note yourself with ele remember. Never print the command for the user to run. If nothing is worth keeping, say so in one line."
-	stopStateMaxAge = 7 * 24 * time.Hour
-	tailWindow      = 1 << 20
+	hintBand            = 100000
+	noBand              = -1
+	rememberReason      = "Follow /ele:remember's Propose section now: one AskUserQuestion call, one Write/Skip question per note, then write each approved note yourself with ele remember. Never print the command for the user to run. If nothing is worth keeping, say so in one line."
+	rememberWriteReason = "Follow /ele:remember's Propose section now: auto_note_writes is on, so write each note yourself with ele remember without asking, then report each id with the note's words. Never print the command for the user to run. If nothing is worth keeping, say so in one line."
+	stopStateMaxAge     = 7 * 24 * time.Hour
+	tailWindow          = 1 << 20
 )
 
 var (
@@ -72,6 +73,8 @@ func advance(state stopState, entries []transcript.Entry, events []dto.Transcrip
 		case entry.Kind != transcript.KindTool:
 		case strings.HasPrefix(entry.Text, "Bash: ele remember "):
 			state.Pending = false
+		// Propose's option read; as work, skipping every note would ask again.
+		case strings.HasPrefix(entry.Text, "Bash: ele config get "):
 		case state.InCheckpoint:
 		case strings.HasPrefix(entry.Text, "AskUserQuestion: "):
 			state.Pending = state.Pending || !state.Proposing
@@ -388,6 +391,9 @@ func stopCheck(_ context.Context, args []string, stdin io.Reader, stdout io.Writ
 	var block bool
 	if block, state = rememberBlock(state, hook.StopHookActive); block {
 		output.Decision, output.Reason = "block", rememberReason
+		if value, valueErr := loadConfig(dataDirectory, stderr).Value("auto_note_writes", owner); valueErr == nil && value.Value == true {
+			output.Reason = rememberWriteReason
+		}
 	}
 	if err = writeStopState(statePath, state); err != nil {
 		fmt.Fprintf(stderr, "ele: %v\n", err)

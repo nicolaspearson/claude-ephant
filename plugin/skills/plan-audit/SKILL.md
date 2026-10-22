@@ -9,7 +9,7 @@ directory. Read it first and follow its sections, with each item standing for a
 ticket and the differences below. Then run this skill's own methods.
 
 Plan files are repository files: every fix is an edit made on approval, never a
-script. Notes go through the `ele:remember` skill, also on approval.
+script. Notes go through the `ele:remember` skill's Propose section.
 
 ## Which plans
 

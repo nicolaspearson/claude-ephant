@@ -10,10 +10,14 @@ vars:
   # A tool built by an older Go loads nothing under a newer one and reports no findings, so every gate checks this first.
   GO_VERSION:
     sh: go env GOVERSION
+  # One slot for clone builds and install.sh releases, so whichever ran last is the ele every session's hooks call.
+  INSTALL_DIR:
+    sh: echo "${ELE_INSTALL_DIR:-$HOME/.local/bin}"
+  REPOSITORY: nicolaspearson/claude-ephant
+  TAP_FORMULA: nicolaspearson/tap/ele
   # Gates call pinned tools here, not whatever PATH finds first.
   TOOLS:
     sh: 'go env GOBIN | grep . || echo "$(go env GOPATH | cut -d: -f1)/bin"'
-  INSTALLED: "{{.TOOLS}}/{{.BINARY}}"
 
 tasks:
   default:
@@ -68,46 +72,40 @@ tasks:
       - rm -rf dist coverage.out
 
   install:
-    desc: "Install ele with go install and check PATH finds it."
+    desc: "Build ele from the clone into ELE_INSTALL_DIR (default ~/.local/bin), where release:script and upgrade install, and check PATH finds it. upgrade puts the release back."
     cmds:
-      - go install ./cmd/ele
-      - |
-        found=$(command -v {{.BINARY}} || true)
-        if [ -z "$found" ]; then
-          echo "Installed {{.INSTALLED}}, but \`{{.BINARY}}\` is not on PATH. Put {{.TOOLS}} on PATH." >&2
-          exit 1
-        fi
-        if [ "$found" != "{{.INSTALLED}}" ]; then
-          echo "Installed {{.INSTALLED}}, but \`{{.BINARY}}\` resolves to $found. Put {{.TOOLS}} on PATH ahead of it." >&2
-          exit 1
-        fi
-        echo "Installed {{.INSTALLED}}"
+      - mkdir -p "{{.INSTALL_DIR}}"
+      - go build -o "{{.INSTALL_DIR}}/{{.BINARY}}" ./cmd/ele
+      - task: release:check
+        vars:
+          DIR: "{{.INSTALL_DIR}}"
 
-  run:
-    desc: "Run ele from source. Usage: task run -- recall pydantic"
-    cmds:
-      - go run ./cmd/ele {{.CLI_ARGS}}
-
-  uninstall:
-    desc: "Remove the installed ele binary."
-    cmds:
-      - rm -f {{.INSTALLED}}
-
-  upgrade:
-    desc: "Install the latest release's ele, check PATH and its version against the release, then update the plugin. ELE_INSTALL_DIR overrides ~/.local/bin."
+  release:brew:
+    desc: "Install or upgrade the latest release through Homebrew, then check it is the ele on PATH and prints the release's tag."
     preconditions:
+      - sh: command -v brew
+        msg: "brew is not installed"
       - sh: command -v gh
-        msg: "gh is not installed"
-      - sh: command -v claude
-        msg: "claude is not installed; it updates the plugin"
+        msg: "gh is not installed; it reads the latest release's tag"
+    cmds:
+      - brew update
+      - if brew list {{.TAP_FORMULA}} >/dev/null 2>&1; then brew upgrade {{.TAP_FORMULA}}; else brew install {{.TAP_FORMULA}}; fi
+      - task: release:check
+        vars:
+          DIR:
+            sh: echo "$(brew --prefix)/bin"
+          TAG:
+            sh: gh release view --repo {{.REPOSITORY}} --json tagName --jq .tagName
+
+  # Fails while another copy is ahead on PATH, and lists every copy: the check is that this route's binary is the one run.
+  release:check:
+    internal: true
+    requires:
+      vars: [DIR]
     cmds:
       - |
         set -eu
-        repo=nicolaspearson/claude-ephant
-        tag=$(gh release view --repo "$repo" --json tagName --jq .tagName)
-        dir="${ELE_INSTALL_DIR:-$HOME/.local/bin}"
-        ELE_VERSION="$tag" ELE_INSTALL_DIR="$dir" sh ./install.sh
-        dir=$(cd "$dir" && pwd -P)
+        dir=$(cd "{{.DIR}}" && pwd -P)
         found=$(command -v {{.BINARY}} || true)
         if [ -z "$found" ] || [ "$(cd "$(dirname "$found")" && pwd -P)" != "$dir" ]; then
           echo "Installed $dir/{{.BINARY}}, but \`{{.BINARY}}\` resolves to ${found:-nothing}. Every copy on PATH, first wins:" >&2
@@ -115,18 +113,68 @@ tasks:
           exit 1
         fi
         if ! installed=$({{.BINARY}} version 2>/dev/null); then
-          echo "\`{{.BINARY}} version\` fails: most likely $tag predates the command, else the binary does not run here" >&2
+          echo "\`{{.BINARY}} version\` fails: most likely the build predates the command, else the binary does not run here" >&2
           exit 1
         fi
-        if [ "$installed" != "$tag" ]; then
+        tag="{{.TAG}}"
+        if [ -n "$tag" ] && [ "$installed" != "$tag" ]; then
           echo "\`{{.BINARY}} version\` prints $installed; the latest release is $tag" >&2
           exit 1
         fi
         for copy in $(which -a {{.BINARY}}); do
           if [ "$(cd "$(dirname "$copy")" && pwd -P)" != "$dir" ]; then
-            echo "Also on PATH, behind it; remove it: $copy"
+            echo "Also on PATH, behind it: $copy"
           fi
         done
+        echo "Installed $dir/{{.BINARY}}, $installed"
+
+  release:go:
+    desc: "Install the latest release with go install …@<tag> into Go's bin directory, then check it is the ele on PATH and prints the release's tag."
+    preconditions:
+      - sh: command -v gh
+        msg: "gh is not installed; it reads the latest release's tag"
+    vars:
+      TAG:
+        sh: gh release view --repo {{.REPOSITORY}} --json tagName --jq .tagName
+    cmds:
+      - go install github.com/{{.REPOSITORY}}/cmd/ele@{{.TAG}}
+      - task: release:check
+        vars:
+          DIR: "{{.TOOLS}}"
+          TAG: "{{.TAG}}"
+
+  release:script:
+    desc: "Install the latest release through install.sh into ELE_INSTALL_DIR (default ~/.local/bin), then check it is the ele on PATH and prints the release's tag."
+    preconditions:
+      - sh: command -v gh
+        msg: "gh is not installed; it reads the latest release's tag"
+    vars:
+      TAG:
+        sh: gh release view --repo {{.REPOSITORY}} --json tagName --jq .tagName
+    cmds:
+      - ELE_VERSION="{{.TAG}}" ELE_INSTALL_DIR="{{.INSTALL_DIR}}" sh ./install.sh
+      - task: release:check
+        vars:
+          DIR: "{{.INSTALL_DIR}}"
+          TAG: "{{.TAG}}"
+
+  run:
+    desc: "Run ele from source. Usage: task run -- recall pydantic"
+    cmds:
+      - go run ./cmd/ele {{.CLI_ARGS}}
+
+  uninstall:
+    desc: "Remove ele from ELE_INSTALL_DIR (default ~/.local/bin), the copy install and release:script write."
+    cmds:
+      - rm -f "{{.INSTALL_DIR}}/{{.BINARY}}"
+
+  upgrade:
+    desc: "Install the latest release through release:script, then update the plugin. ELE_INSTALL_DIR overrides ~/.local/bin."
+    preconditions:
+      - sh: command -v claude
+        msg: "claude is not installed; it updates the plugin"
+    cmds:
+      - task: release:script
       - claude plugin marketplace update claude-ephant
       - claude plugin update ele@claude-ephant
       - echo "Sessions already open load the updated plugin after /reload-plugins, or a restart."
@@ -261,4 +309,4 @@ tasks:
         msg: "claude is not installed"
     cmds:
       # --ablation none keeps Skill graders scored.
-      - claude plugin eval {{.CLI_ARGS | default "ele@claude-ephant"}} --ablation none --allow-tools Bash --no-publish --output-dir .task/eval --report .task/eval/report.html --trust-plugin
+      - claude plugin eval {{.CLI_ARGS | default "ele@claude-ephant"}} --ablation none --allow-tools Bash --no-publish --scaffold --output-dir .task/eval --report .task/eval/report.html --trust-plugin

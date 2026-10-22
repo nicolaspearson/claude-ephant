@@ -18,6 +18,22 @@ func TestConfigGetReadsABrokenFileAsDefaults(t *testing.T) {
 	require.Contains(t, output, "true\n")
 }
 
+func TestConfigGetReadsAutoNoteWritesOffByDefault(t *testing.T) {
+	home := recallFixture(t)
+
+	output, code := runCommand(t, "config", "get", "auto_note_writes")
+	require.Equal(t, 0, code, output)
+	require.Equal(t, "false\n", output)
+
+	writeFile(t, filepath.Join(home, "data", "config.json"), `{"auto_note_writes": true}`)
+	output, code = runCommand(t, "config", "get", "auto_note_writes")
+	require.Equal(t, 0, code, output)
+	require.Equal(t, "true\n", output)
+	output, code = runCommand(t, "config", "list")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "auto_note_writes  true  (global)\n")
+}
+
 func TestConfigListFlagsKeysNoOptionTakes(t *testing.T) {
 	home := recallFixture(t)
 	writeFile(t, filepath.Join(home, "data", "config.json"), `{"later_option": 3, "owners": {"corp": {"other": true}}}`)

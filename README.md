@@ -94,6 +94,9 @@ from. `ele config set <key> <value>` sets one for every project, and
 clears either. `set` and `unset` refuse inside a Claude Code session, so type
 them in a terminal. Open sessions read a change at their next hook.
 
+- **`auto_note_writes`**: off by default. On, notes ele proposes are written
+  without the Write/Skip question, and each is reported with its id so a wrong
+  one can be undone with `ele forget <id>`
 - **`checkpoint_gate`**: on by default. Off, a turn that changed files and
   claims done is not blocked for `ele:checkpoint`
 - `ELE_HOME` moves the data directory; `ele status` shows where it is
@@ -101,7 +104,14 @@ them in a terminal. Open sessions read a change at their next hook.
 ## Contributing
 
 Working from a clone needs [Task](https://taskfile.dev). `task install` builds
-and installs `ele` from the clone, and `task check` runs every gate but `audit`;
+`ele` from the clone into `~/.local/bin` (`ELE_INSTALL_DIR` overrides), the
+directory the install script and `task upgrade` use, so a clone build replaces
+the release for every session's hooks until `task upgrade` puts the release
+back; `ele version` prints a tag for a release and a pseudo-version for a clone
+build. To test a release install route, `task release:brew`, `task release:go`
+and `task release:script` each install the latest release that way, then fail
+unless that copy is the `ele` on `PATH` and prints the release's tag, listing
+every copy on `PATH`. `task check` runs every gate but `audit`;
 its lint needs `shellcheck`. CI runs `task check` and `task audit` on every
 pull request, and the Release workflow runs them on every push to `main`.
 There, release-please keeps a release PR open with the next version and its
@@ -115,11 +125,8 @@ that repository's contents alone. It expires 2027-10-21: renew it with the same
 scope and run `gh secret set HOMEBREW_TAP_TOKEN` again.
 
 `task upgrade` does the whole update from a clone, with Go, `gh` and `claude`:
-it installs the latest release's binary through `install.sh` to `~/.local/bin`
-(`ELE_INSTALL_DIR` overrides), then fails unless that copy is the `ele` on
-`PATH` and `ele version` prints the release's tag, and names any copy left
-behind it on `PATH`. It then updates the marketplace and the plugin; sessions
-already open load it after `/reload-plugins`.
+it runs `task release:script`, then updates the marketplace and the plugin;
+sessions already open load it after `/reload-plugins`.
 
 `task eval` runs the installed plugin's eval cases with `claude plugin eval`,
 and `task eval -- ./plugin` the clone's cases, in `plugin/evals/`.
