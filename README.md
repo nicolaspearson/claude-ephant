@@ -108,7 +108,10 @@ Working from a clone needs [Task](https://taskfile.dev). `task install` builds
 directory the install script and `task upgrade` use, so a clone build replaces
 the release for every session's hooks until `task upgrade` puts the release
 back; `ele version` prints a tag for a release and a pseudo-version for a clone
-build. To test a release install route, `task release:brew`, `task release:go`
+build. `task dev` runs `task install`, then starts Claude Code with
+`--plugin-dir ./plugin`, which as of 2026-10-22 loads the clone's plugin in
+place of the installed `ele@claude-ephant` for that session only; flags after
+`--` go to `claude`. To test a release install route, `task release:brew`, `task release:go`
 and `task release:script` each install the latest release that way, then fail
 unless that copy is the `ele` on `PATH` and prints the release's tag, listing
 every copy on `PATH`. `task check` runs every gate but `audit`;

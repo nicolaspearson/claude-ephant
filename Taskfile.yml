@@ -71,6 +71,16 @@ tasks:
     cmds:
       - rm -rf dist coverage.out
 
+  dev:
+    desc: "Install the clone's ele, then start Claude Code with the clone's plugin in place of the installed one, for that session only. Usage: task dev [-- <claude flags>]"
+    interactive: true
+    preconditions:
+      - sh: command -v claude
+        msg: "claude is not installed"
+    cmds:
+      - task: install
+      - claude --plugin-dir ./plugin {{.CLI_ARGS}}
+
   install:
     desc: "Build ele from the clone into ELE_INSTALL_DIR (default ~/.local/bin), where release:script and upgrade install, and check PATH finds it. upgrade puts the release back."
     cmds:
@@ -79,6 +89,13 @@ tasks:
       - task: release:check
         vars:
           DIR: "{{.INSTALL_DIR}}"
+
+  install:local:
+    desc: "Run task install and update plugin from repository"
+    cmds:
+      - task install
+      - claude plugin marketplace update claude-ephant
+      - claude plugin update ele@claude-ephant
 
   release:brew:
     desc: "Install or upgrade the latest release through Homebrew, then check it is the ele on PATH and prints the release's tag."
@@ -102,6 +119,7 @@ tasks:
     internal: true
     requires:
       vars: [DIR]
+    silent: true
     cmds:
       - |
         set -eu
