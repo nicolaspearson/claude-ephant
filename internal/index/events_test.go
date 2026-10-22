@@ -173,7 +173,9 @@ func TestEventsDuringKeepsOnlyARunsEvents(t *testing.T) {
 		skill("s1", "18:00:00", "ele:checkpoint")+failure("s1", "18:01:00")+prompt("18:05:00", "never mind")+failure("s1", "18:10:00")+
 		command("s1", "19:00:00", "checkpoint")+failure("s1", "19:10:00")+bash("19:30:00", "ele checkpoint log /w")+failure("s1", "19:31:00")+prompt("19:32:00", "next")+failure("s1", "19:33:00")+
 		skill("s1", "21:00:00", "checkpoint")+failure("s1", "21:01:00")+prompt("21:02:00", "yes")+failure("s1", "21:03:00")+
-		bash("21:04:00", "~/.claude/hooks/checkpoint-log.sh /w")+prompt("21:05:00", "next")+failure("s1", "21:06:00"))
+		bash("21:04:00", "~/.claude/hooks/checkpoint-log.sh /w")+prompt("21:05:00", "next")+failure("s1", "21:06:00")+
+		skill("s1", "22:00:00", "ele:plan-audit")+failure("s1", "22:01:00")+prompt("22:02:00", "yes, apply them")+failure("s1", "22:03:00")+
+		bash("22:04:00", "ele ticket ledger record --manifest m --records r")+prompt("22:05:00", "next")+failure("s1", "22:06:00"))
 	write(t, filepath.Join(projects, "-w", "s1", "subagents", "agent-1.jsonl"), failure("s1", "10:02:00")+skill("s1", "10:02:30", "ele:remember")+failure("s1", "10:02:40"))
 	write(t, filepath.Join(projects, "-w", "s2.jsonl"), failure("s2", "10:01:00"))
 	index := open(t, filepath.Join(root, "ele.db"))
@@ -198,5 +200,6 @@ func TestEventsDuringKeepsOnlyARunsEvents(t *testing.T) {
 	}, during("checkpoint"), "a prompt ends a run only after its own closing call, not a later run's, or where it has none; a subagent's skill call never does")
 	require.Equal(t, during("checkpoint"), during("ele:checkpoint"))
 	require.Equal(t, []string{"failed at 17:01:00"}, during("ticket-audit"))
+	require.Equal(t, []string{"failed at 22:01:00", "failed at 22:03:00"}, during("plan-audit"))
 	require.Empty(t, during("point"), "a name matches whole, with or without a plugin")
 }

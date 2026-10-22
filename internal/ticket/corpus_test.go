@@ -204,10 +204,32 @@ func TestCorpusRefusesTwoPlanItemsWithOneKey(t *testing.T) {
 	plan := writePlan(t, strings.Replace(corpusPlan, "Ship the thing", "Build the thing", 1))
 	var stderr bytes.Buffer
 
-	code := Corpus(context.Background(), &bytes.Buffer{}, &stderr, (&fakeTracker{}).commands(), CorpusOptions{Out: t.TempDir(), Plan: plan})
+	code := Corpus(context.Background(), &bytes.Buffer{}, &stderr, (&fakeTracker{}).commands(), CorpusOptions{Out: t.TempDir(), Plans: []string{plan}})
 
 	require.Equal(t, 1, code)
 	require.Equal(t, "ele: two items share a key, so a ruling could land on either: repo/.documentation/plans/plan.md: Build the thing\n", stderr.String())
+}
+
+func TestCorpusRefusesTwoPlansOfOneFileName(t *testing.T) {
+	plans := []string{writePlanAt(t, "first", "plan.md", corpusPlan), writePlanAt(t, "second", "plan.md", corpusPlan)}
+	var stderr bytes.Buffer
+
+	code := Corpus(context.Background(), &bytes.Buffer{}, &stderr, (&fakeTracker{}).commands(), CorpusOptions{Out: t.TempDir(), Plans: plans})
+
+	require.Equal(t, 1, code)
+	require.Equal(t, "ele: two plans share a file name, so one would overwrite the other: plan-01.md; plan-02.md; plan-03.md\n", stderr.String())
+}
+
+func TestCorpusWritesNoManifestWhenALaterPlanCannotBeRead(t *testing.T) {
+	out := t.TempDir()
+	plans := []string{writePlan(t, corpusPlan), filepath.Join(t.TempDir(), "missing.md"), writePlanAt(t, "other", "third.md", corpusPlan)}
+	var stderr bytes.Buffer
+
+	code := Corpus(context.Background(), &bytes.Buffer{}, &stderr, (&fakeTracker{}).commands(), CorpusOptions{Out: out, Plans: plans})
+
+	require.Equal(t, 1, code)
+	require.Contains(t, stderr.String(), "missing.md")
+	require.NoFileExists(t, filepath.Join(out, manifestName))
 }
 
 func TestCorpusKeysANamedPlanItemOnItsNameSoARewordKeepsItsRulings(t *testing.T) {
@@ -234,11 +256,11 @@ func TestCorpusSplitsAPlanIntoActionsThenInboxItems(t *testing.T) {
 
 	require.Equal(t, []string{"repo/.documentation/plans/plan.md: Build the thing", "repo/.documentation/plans/plan.md: Ship the thing", "repo/.documentation/plans/plan.md: An idea"}, fieldOf(entries, "key"))
 	require.Equal(t, []string{"closed", "open", "inbox"}, fieldOf(entries, "state"))
-	require.Equal(t, []string{"01.md", "02.md", "03.md"}, fieldOf(entries, "file"))
-	collapsed, err := os.ReadFile(filepath.Join(out, "01.md"))
+	require.Equal(t, []string{"plan-01.md", "plan-02.md", "plan-03.md"}, fieldOf(entries, "file"))
+	collapsed, err := os.ReadFile(filepath.Join(out, "plan-01.md"))
 	require.NoError(t, err)
-	require.Equal(t, "# 01 [closed] Build the thing\n- [x] Build the thing - as of 2026-10-17: the premise\n", string(collapsed), "sub-bullets are in the item; Context is not")
-	raw, err := os.ReadFile(filepath.Join(out, "raw", "01.md"))
+	require.Equal(t, "# plan-01 [closed] Build the thing\n- [x] Build the thing - as of 2026-10-17: the premise\n", string(collapsed), "sub-bullets are in the item; Context is not")
+	raw, err := os.ReadFile(filepath.Join(out, "raw", "plan-01.md"))
 	require.NoError(t, err)
 	require.Contains(t, string(raw), "\n  - as of", "raw keeps the indent")
 
@@ -248,6 +270,22 @@ func TestCorpusSplitsAPlanIntoActionsThenInboxItems(t *testing.T) {
 	require.NotEqual(t, entries[0]["hash"], edited[0]["hash"], "a sub-bullet edit is")
 	require.Equal(t, entries[1]["hash"], edited[1]["hash"])
 	require.Equal(t, []string{"closed"}, statesOf(planItems("## Inbox\n\n- [x] Done")), "a ticked Inbox item is closed")
+}
+
+func TestCorpusTakesSeveralPlansInTheOrderGiven(t *testing.T) {
+	out := t.TempDir()
+	plans := []string{writePlanAt(t, "repo", "second.md", "## Actions\n\n- [ ] ship-it: Ship\n"), writePlanAt(t, "other", "first.md", corpusPlan)}
+
+	code := Corpus(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, (&fakeTracker{}).commands(), CorpusOptions{Out: out, Plans: plans})
+	require.Equal(t, 0, code)
+	content, err := os.ReadFile(filepath.Join(out, manifestName))
+	require.NoError(t, err)
+	var entries []map[string]string
+	require.NoError(t, json.Unmarshal(content, &entries))
+
+	require.Equal(t, []string{"second-01.md", "first-01.md", "first-02.md", "first-03.md"}, fieldOf(entries, "file"))
+	require.Equal(t, "repo/.documentation/plans/second.md: ship-it", entries[0]["key"])
+	require.Equal(t, "other/.documentation/plans/first.md: Build the thing", entries[1]["key"])
 }
 
 func TestCorpusWritesBothCopiesAndAManifestAndFlagsAPartialCorpus(t *testing.T) {
@@ -437,7 +475,7 @@ func (tracker *fakeTracker) run(_ context.Context, name string, args ...string) 
 
 func corpusManifest(t *testing.T, out string, plan string) []map[string]string {
 	t.Helper()
-	code := Corpus(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, (&fakeTracker{}).commands(), CorpusOptions{Out: out, Plan: writePlan(t, plan)})
+	code := Corpus(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, (&fakeTracker{}).commands(), CorpusOptions{Out: out, Plans: []string{writePlan(t, plan)}})
 	require.Equal(t, 0, code)
 	content, err := os.ReadFile(filepath.Join(out, manifestName))
 	require.NoError(t, err)
@@ -470,9 +508,14 @@ func statesOf(entries []planEntry) []string {
 // The fake tracker's git names the directory two above the plan's as the top.
 func writePlan(t *testing.T, text string) string {
 	t.Helper()
-	directory := filepath.Join(t.TempDir(), "work", "repo", ".documentation", "plans")
+	return writePlanAt(t, "repo", "plan.md", text)
+}
+
+func writePlanAt(t *testing.T, repository string, file string, text string) string {
+	t.Helper()
+	directory := filepath.Join(t.TempDir(), "work", repository, ".documentation", "plans")
 	require.NoError(t, os.MkdirAll(directory, 0o700))
-	path := filepath.Join(directory, "plan.md")
+	path := filepath.Join(directory, file)
 	require.NoError(t, os.WriteFile(path, []byte(text), 0o600))
 	return path
 }

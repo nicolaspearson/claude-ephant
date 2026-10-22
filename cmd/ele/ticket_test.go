@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -56,6 +57,22 @@ func TestRunTicketCorpusRefusesOptionsThatDoNotGoTogether(t *testing.T) {
 		require.Equal(t, 2, code, args)
 		require.Equal(t, message, output.String(), args)
 	}
+}
+
+func TestRunTicketCorpusTakesEveryPlanFlagWhereverItSits(t *testing.T) {
+	repository := t.TempDir()
+	output, err := exec.Command("git", "-C", repository, "init", "--quiet").CombinedOutput()
+	require.NoError(t, err, string(output))
+	writeFile(t, filepath.Join(repository, "build.md"), "## Actions\n- [ ] parser: Parser\n")
+	writeFile(t, filepath.Join(repository, "ship.md"), "## Actions\n- [ ] release: Release\n")
+	out := filepath.Join(t.TempDir(), "corpus")
+	var stdout, stderr bytes.Buffer
+
+	code := ticketCommand(context.Background(), []string{"corpus", "--plan", filepath.Join(repository, "build.md"), "--out", out, "--plan", filepath.Join(repository, "ship.md")}, &stdout, &stderr)
+
+	require.Equal(t, 0, code, stderr.String())
+	require.FileExists(t, filepath.Join(out, "build-01.md"))
+	require.FileExists(t, filepath.Join(out, "ship-01.md"))
 }
 
 func TestRunTicketLedgerNeedsACommandAManifestAndForRecordTheRecords(t *testing.T) {

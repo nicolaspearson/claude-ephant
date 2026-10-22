@@ -18,6 +18,7 @@ const callQuery = `SELECT id, text FROM entries WHERE line_key >= ? AND line_key
 // checkpoint-log.sh was checkpoint's before ele checkpoint log.
 var closingCalls = map[string][]string{
 	"checkpoint":   {"checkpoint-log.sh", "ele checkpoint log"},
+	"plan-audit":   {"ele ticket ledger record"},
 	"ticket-audit": {"ele ticket ledger record"},
 }
 

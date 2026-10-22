@@ -95,7 +95,7 @@ var purposes = map[string]string{
 	"stop-check":           "Read a Stop hook's input. Block once per stretch between checkpoints to ask for notes on unproposed work, and suggest /compact or a handoff once per 100k of context past --hint-at.",
 	"sync":                 "Archive new transcripts and update the index.",
 	"ticket claims":        "Flag open GitHub tickets labelled wayfinder:map that grant themselves execution, and wayfinder:task tickets naming a source path; with numbers, only those tickets.",
-	"ticket corpus":        "Write each ticket of a map or a list, or each Actions and Inbox item of a plan, twice, whitespace collapsed and raw, with a manifest of keys and hashes and a table of each ticket's blockers; with --compare, read a ticket back after a write.",
+	"ticket corpus":        "Write each ticket of a map or a list, or each Actions and Inbox item of one or more plans, twice, whitespace collapsed and raw, with a manifest of keys and hashes and a table of each ticket's blockers; with --compare, read a ticket back after a write.",
 	"ticket ledger":        "With record, append a line per audited item carrying the hash of the text the audit read, refusing the whole set on a key or method the audit did not read or run; with rulings, print each earlier ruling on a manifest item and whether its text has changed since.",
 	"usage":                "Tool calls, injected bytes and tokens across sessions, main and subagents.",
 	"version":              "The release tag stamped at build; otherwise the version Go stamped, or devel where it stamped none.",

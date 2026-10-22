@@ -10,8 +10,10 @@ project. The `ele` plugin adds the skills and hooks that use it:
   plans
 - `/ele:checkpoint`, a review of the change in subagents before work is reported
   done, with a Stop hook that blocks a done claim made without one
-- `/ele:ticket-audit`, for stale premises and contradictions across tickets or a
-  plan, and `/ele:ticket-claims`, for open GitHub tickets mistyped as a task
+- `/ele:plan-audit`, for stale premises, contradictions, stuck waits and inbox
+  triage across the active plans
+- `/ele:ticket-audit`, for stale premises and contradictions across a tracker's
+  tickets, and `/ele:ticket-claims`, for open GitHub tickets mistyped as a task
 - `/ele:checkpoint-stats`, which reports what checkpoints found, and `/ele:mine`,
   which judges past checkpoint runs and review cycles
 

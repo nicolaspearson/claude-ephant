@@ -13,6 +13,17 @@ import (
 	"github.com/nicolaspearson/claude-ephant/internal/ticket"
 )
 
+type repeatedFlag []string
+
+func (values *repeatedFlag) Set(value string) error {
+	*values = append(*values, value)
+	return nil
+}
+
+func (values *repeatedFlag) String() string {
+	return strings.Join(*values, ",")
+}
+
 func ticketCommand(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
 	subcommands := map[string]func(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int{
 		"claims": ticketClaims,
@@ -63,7 +74,8 @@ func ticketCorpus(ctx context.Context, args []string, stdout io.Writer, stderr i
 	mapNumber := flags.String("map", "", "the map ticket's `number`; its children are discovered")
 	note := flags.Bool("note", false, "with --compare: match a comment, not the body")
 	out := flags.String("out", "", "the writable `directory` to build the corpus in")
-	plan := flags.String("plan", "", "an ele plan `file`; each Actions and Inbox item stands for a ticket")
+	var plans repeatedFlag
+	flags.Var(&plans, "plan", "an ele plan `file`, repeatable; each Actions and Inbox item stands for a ticket")
 	tickets := flags.String("tickets", "", "comma-separated ticket `numbers`")
 	positional, err := parseInterspersed(flags, args)
 	if err != nil || len(positional) > 0 {
@@ -88,7 +100,7 @@ func ticketCorpus(ctx context.Context, args []string, stdout io.Writer, stderr i
 			fmt.Fprintf(stderr, "ele: --compare %q is not a number\n", *compare)
 			return 2
 		}
-		if *expect == "" || *out != "" || *plan != "" || mapped != 0 || *tickets != "" || *clean {
+		if *expect == "" || *out != "" || len(plans) > 0 || mapped != 0 || *tickets != "" || *clean {
 			fmt.Fprintln(stderr, "ele: --compare takes --expect and no corpus options")
 			return 2
 		}
@@ -98,7 +110,7 @@ func ticketCorpus(ctx context.Context, args []string, stdout io.Writer, stderr i
 		fmt.Fprintln(stderr, "ele: --note and --expect go with --compare")
 		return 2
 	}
-	if (*plan != "") == (mapped != 0 || *tickets != "") {
+	if (len(plans) > 0) == (mapped != 0 || *tickets != "") {
 		fmt.Fprintln(stderr, "ele: one of --plan, or --map and --tickets, is required")
 		return 2
 	}
@@ -118,7 +130,11 @@ func ticketCorpus(ctx context.Context, args []string, stdout io.Writer, stderr i
 		}
 		numbers = append(numbers, number)
 	}
-	options := ticket.CorpusOptions{CLI: *cli, Clean: *clean, Map: mapped, Out: expandHome(*out), Plan: expandHome(*plan), Tickets: numbers}
+	var planPaths []string
+	for _, path := range plans {
+		planPaths = append(planPaths, expandHome(path))
+	}
+	options := ticket.CorpusOptions{CLI: *cli, Clean: *clean, Map: mapped, Out: expandHome(*out), Plans: planPaths, Tickets: numbers}
 	return ticket.Corpus(ctx, stdout, stderr, ticket.SystemCommands(), options)
 }
 

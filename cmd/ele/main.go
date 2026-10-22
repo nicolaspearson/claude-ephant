@@ -57,7 +57,7 @@ const usage = `usage:
   ele ticket claims [--quiet] [<number>...]
   ele ticket corpus --compare <number> --expect <file> [--note] [--cli glab|gh]
   ele ticket corpus --map <number> [--tickets <numbers>] --out <directory> [--clean] [--cli glab|gh]
-  ele ticket corpus --plan <file> --out <directory> [--clean]
+  ele ticket corpus --plan <file> [--plan <file>...] --out <directory> [--clean]
   ele ticket corpus --tickets <numbers> --out <directory> [--clean] [--cli glab|gh]
   ele ticket ledger record --manifest <file> --records <file> [--ledger <file>]
   ele ticket ledger rulings --manifest <file> [--ledger <file>]

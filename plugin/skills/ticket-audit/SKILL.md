@@ -1,6 +1,6 @@
 ---
 name: ticket-audit
-description: Audit a ticket map or ele plan against the code for stale premises and contradictions. Use before picking up a ticket, before closing a map, or when asked for an audit.
+description: Audit a tracker's ticket map against the code for stale premises and contradictions. Use before picking up a ticket, before closing a map, or when asked for a ticket audit; for ele plans, use ele:plan-audit.
 ---
 
 Tracker writes are the user's to run; §9 says how.
@@ -11,9 +11,6 @@ The audit's subject is what tickets say and how they link.
 
 A premise counts as checked only with §3's `file:line`. `/ele:ticket-claims`
 output is a label check on wayfinder tickets, not that.
-
-Auditing an ele plan rather than a tracker map: read `PLAN.md` beside this file
-first; it changes what each section below means.
 
 ## 0. What is already known
 
@@ -149,9 +146,8 @@ premises scope is that ticket and its blockers, closed ones included.
 Every subagent this audit launches gets the same brief: the corpus directory,
 what §0 recalled, §1's earlier rulings with their labels, the user's rulings and
 answers so far, the repository list with which are ours and which clones are
-current, the scope the user approved (proposed below), and for a plan,
-`PLAN.md`'s absolute path, resolved from this skill's base directory. It hands
-back questions instead of asking the user; put them to the user, then resume the
+current, and the scope the user approved (proposed below). It hands back
+questions instead of asking the user; put them to the user, then resume the
 same subagent with the answers rather than starting another. §9 and §10 stay
 here.
 

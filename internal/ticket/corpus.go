@@ -55,7 +55,7 @@ type CorpusOptions struct {
 	Clean   bool
 	Map     int
 	Out     string
-	Plan    string
+	Plans   []string
 	Tickets []int
 }
 
@@ -158,8 +158,14 @@ func Corpus(ctx context.Context, stdout io.Writer, stderr io.Writer, commands Co
 	var entries []corpusEntry
 	var failed []int
 	var err error
-	if options.Plan != "" {
-		entries, err = planEntries(ctx, commands, cleanPath(options.Plan))
+	if len(options.Plans) > 0 {
+		for _, path := range options.Plans {
+			var planned []corpusEntry
+			if planned, err = planEntries(ctx, commands, cleanPath(path)); err != nil {
+				break
+			}
+			entries = append(entries, planned...)
+		}
 	} else {
 		entries, failed, err = ticketEntries(ctx, stderr, commands, options)
 	}
@@ -167,19 +173,12 @@ func Corpus(ctx context.Context, stdout io.Writer, stderr io.Writer, commands Co
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return 1
 	}
-	counts := map[string]int{}
-	for _, entry := range entries {
-		counts[entry.key]++
-	}
-	var duplicates []string
-	for key, count := range counts {
-		if count > 1 {
-			duplicates = append(duplicates, key)
-		}
-	}
-	if len(duplicates) > 0 {
-		slices.Sort(duplicates)
+	if duplicates := repeated(entries, func(entry corpusEntry) string { return entry.key }); len(duplicates) > 0 {
 		fmt.Fprintf(stderr, "ele: two items share a key, so a ruling could land on either: %s\n", strings.Join(duplicates, "; "))
+		return 1
+	}
+	if duplicates := repeated(entries, func(entry corpusEntry) string { return entry.file }); len(duplicates) > 0 {
+		fmt.Fprintf(stderr, "ele: two plans share a file name, so one would overwrite the other: %s\n", strings.Join(duplicates, "; "))
 		return 1
 	}
 	if len(entries) == 0 {
@@ -214,7 +213,7 @@ func Corpus(ctx context.Context, stdout io.Writer, stderr io.Writer, commands Co
 	fmt.Fprintf(stdout, "\n%d ticket(s) in %s, raw bodies in %s\n", len(written), out, cleanPath(out+"/raw"))
 	fmt.Fprintf(stdout, "corpus: %s\n", strings.Join(names, " "))
 	fmt.Fprintf(stdout, "corpus hash: %s\n", hex.EncodeToString(digest.Sum(nil)))
-	if options.Plan == "" {
+	if len(options.Plans) == 0 {
 		fmt.Fprintln(stdout, "\nblocked by, from each ticket's 'Blocked by' lines; native links are not fetched:")
 		fmt.Fprintln(stdout, strings.Join(blockerTable(entries), "\n"))
 	}
@@ -585,9 +584,10 @@ func planEntries(ctx context.Context, commands Commands, path string) ([]corpusE
 	if err != nil {
 		return nil, err
 	}
+	stem := strings.TrimSuffix(filepath.Base(path), ".md")
 	var entries []corpusEntry
 	for index, item := range planItems(text) {
-		name := fmt.Sprintf("%02d", index+1)
+		name := fmt.Sprintf("%s-%02d", stem, index+1)
 		key := plan.Name(item.title)
 		if key == "" {
 			key = item.title
@@ -731,6 +731,21 @@ func referenceShadow(runes []rune) string {
 		}
 	}
 	return string(shadow)
+}
+
+func repeated(entries []corpusEntry, field func(corpusEntry) string) []string {
+	counts := map[string]int{}
+	for _, entry := range entries {
+		counts[field(entry)]++
+	}
+	var duplicates []string
+	for value, count := range counts {
+		if count > 1 {
+			duplicates = append(duplicates, value)
+		}
+	}
+	slices.Sort(duplicates)
+	return duplicates
 }
 
 func runJSON(ctx context.Context, commands Commands, value any, name string, args ...string) error {
