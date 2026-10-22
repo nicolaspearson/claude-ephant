@@ -307,13 +307,16 @@ Judge the item against its own text, not the change's intent. Every requirement
 it names met, any real-session test among them, no spec finding confirmed under
 §5 left unfixed, and every check §2 listed green under §6: the change completes
 it. Propose the tick, with one line under it saying what was asserted and at
-which boundary, `N` being the item's position
-under Actions:
+which boundary, `<name>` being the item's kebab name. The line names the commit
+that will carry it, not made yet, so no sha; in branch scope, name the shas of
+the commits already holding the work too:
 
 ```markdown
 - [x] <item>
-  - asserted in the item <N> commit: <what was observed, at which boundary>
+  - asserted in the <name> commit: <what was observed, at which boundary>
 ```
+
+The closing action, which deletes the plan, takes no tick line.
 
 Anything short of that: propose a dated progress line under the item instead,
 `as of <date>: <what is done>` and `next: <what is left>`. Code that exists but
