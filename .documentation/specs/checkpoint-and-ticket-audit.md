@@ -33,7 +33,6 @@ Moved from claude-ephant's design spec to the agent-skills repository on 2026-10
   - Prose and conventions are one reviewer, reporting under both labels so the Stop hook and the stats sources are unchanged
   - An `ele:checkpoint-reviewer` agent type on sonnet, without the Skill tool, runs it and the re-review; the bugs reviewer and the small-mode reviewer stay on the session's model. Replayed on the 04:22Z checkpoint's frozen diff of 2026-10-16, it found both conventions findings and 5 of 7 prose findings, missing a cut-off sentence and a grammar nit, in 74k tokens. An agent type without the Skill tool receives no skill list, tested 2026-10-16
   - Small mode up to 40 lines, 100 for Markdown or text, raised 2026-10-16 from 10 and 30. As of 2026-10-16 the log holds 3 small runs, so the bar is a judgment, not a measurement: re-read it once more small runs are logged
-- Mining baseline: `/ele:checkpoint-stats --baseline` (`ele checkpoint stats --baseline`) reports the runs mined from before the log as a second report, never merged into the log's or windowed. The file, `checkpoint-baseline.jsonl` in ele's data directory under `mining/`, is the 300-record backfill less the 3 runs the log also holds; both stay outside git for their excerpts
 
 ## Into ele
 
@@ -47,7 +46,7 @@ Decided 2026-10-17: checkpoint and ticket-audit move into ele and are ported to 
 - Phase 2, port mechanically: one `ele` subcommand per item, checked against the premigration script's output on the same inputs; each item deletes its script and test and verifies their absence
 - `premigration/` breaks the one-language rule on purpose and briefly: kept so a port can be checked against the old code. `task check` runs its Bash suites while it exists; the plan closes only once it is gone
 - Stay in claude-config: `/hook-stats`, `hook-firings.py` and the guards' `hook-log.sh`, which cover every hook. ele writes checkpoint's hook-log lines in the same path and format
-- Data stays at its paths: run log, audit ledger, reviewed-file cache, mined baseline
+- Data stays at its paths: run log, audit ledger, reviewed-file cache
 - Contract the port keeps: log formats, and the `reviewers/<name>.md` layout ele's mining reads. Mining matches runs by the old bare names as well as the `ele:` ones, since transcripts from before the move keep the old names
 - Sweep: before phase 1, search every root for every old path, every old skill and command name, every `ele` call from these files and every reference back from ele. Roots: `~/.claude` and the second profile's `~/.claude-<name>`, `~/.agents`, claude-ephant, each repository's `CLAUDE.md` and `AGENTS.md`, ele's notes. Its dated output is the plan's inventory; the close re-runs it and requires no hit on an old path or bare name outside the kept data paths, the kept log formats and mining's old-name matches
 - Done: a real checkpoint through `ele:checkpoint` logs a line and its Stop hook fires from ele; `bootstrap.sh` restores it for both profiles; one eval smoke case runs; `premigration/` gone

@@ -84,27 +84,7 @@ func TestRunCheckpointLogRefusesOutsideARepository(t *testing.T) {
 	}
 }
 
-func TestRunCheckpointStatsReadsTheBaselineOnlyWhenAsked(t *testing.T) {
-	directory := t.TempDir()
-	t.Setenv("CHECKPOINT_LOG", filepath.Join(directory, "checkpoints.jsonl"))
-	baselinePath := filepath.Join(directory, "baseline.jsonl")
-	t.Setenv("CHECKPOINT_BASELINE", baselinePath)
-
-	output, code := runCheckpointStats(t, "7", "--baseline")
-	require.Equal(t, 1, code, output)
-	require.True(t, strings.HasSuffix(output, "\nNo baseline at "+baselinePath+".\n"), output)
-
-	require.NoError(t, os.WriteFile(baselinePath, nil, 0o600))
-	output, code = runCheckpointStats(t)
-	require.Equal(t, 0, code, output)
-	require.NotContains(t, output, "\n\nBaseline,")
-
-	output, code = runCheckpointStats(t, "--baseline", "7")
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "\n\nBaseline, whatever the window: 0 checkpoints mined from transcripts, not logged; confidence high 0, medium 0, low 0.\n")
-}
-
-func TestRunCheckpointStatsRefusesDaysThatAreNotOneWholeNumber(t *testing.T) {
+func TestRunCheckpointStatsRefusesBadArguments(t *testing.T) {
 	t.Setenv("CHECKPOINT_LOG", filepath.Join(t.TempDir(), "checkpoints.jsonl"))
 
 	output, code := runCheckpointStats(t, "abc")
@@ -113,7 +93,11 @@ func TestRunCheckpointStatsRefusesDaysThatAreNotOneWholeNumber(t *testing.T) {
 
 	output, code = runCheckpointStats(t, "1", "2")
 	require.Equal(t, 2, code)
-	require.True(t, strings.HasPrefix(output, "ele checkpoint stats [--baseline] [<days>]\n"), output)
+	require.True(t, strings.HasPrefix(output, "ele checkpoint stats [<days>]\n"), output)
+
+	output, code = runCheckpointStats(t, "--baseline")
+	require.Equal(t, 2, code, "the mined baseline moved to ele mine --report")
+	require.Contains(t, output, "flag provided but not defined: -baseline")
 }
 
 func checkpointRepository(t *testing.T) (string, string) {

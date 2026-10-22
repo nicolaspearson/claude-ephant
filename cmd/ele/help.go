@@ -66,7 +66,7 @@ var purposes = map[string]string{
 	"backup":               "Copy the archive, notes, forgotten notes, mining runs, owner map and the index into a new or empty directory.",
 	"checkpoint density":   "Per file in the diff since --ref, the share of added lines that are comments, beside the file's own share and the median of its nearest peers of the same suffix; flags the outliers.",
 	"checkpoint log":       "Read a checkpoint's record on stdin, refuse one the stats would misread, and append it with its date, HEAD, repository and duration since the first freeze.",
-	"checkpoint stats":     "What the log's checkpoints found and which stage found it over the last <days> days, 30 by default; --baseline adds the mined runs.",
+	"checkpoint stats":     "What the log's checkpoints found and which stage found it over the last <days> days, 30 by default.",
 	"context":              "The project's live notes and pending handoffs, with no budget.",
 	"events":               "Agent, command, hook, skill and other events from session transcripts.",
 	"forget":               "Move mistaken notes out of the index into forgotten/, or bring them back with --restore.",

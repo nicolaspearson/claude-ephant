@@ -335,7 +335,7 @@ func writeSubagentEra(w io.Writer, runs []judged, cycles []judged, coveredCycles
 	reportRuns := make([]checkpoint.Run, 0, len(checkpoints))
 	var findings []finding
 	for _, unit := range checkpoints {
-		run := checkpoint.Run{Confidence: unit.result.Confidence, Mode: unit.result.Mode, Mutations: unit.result.Mutations, Notes: unit.result.Notes, Rereview: unit.result.Rereview}
+		run := checkpoint.Run{Mode: unit.result.Mode, Mutations: unit.result.Mutations, Notes: unit.result.Notes, Rereview: unit.result.Rereview}
 		if unit.result.Change.Lines == nil {
 			run.ChangeUnknown = true
 		} else {

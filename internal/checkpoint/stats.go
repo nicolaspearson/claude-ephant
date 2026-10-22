@@ -11,16 +11,11 @@ import (
 	"maps"
 	"math"
 	"os"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/nicolaspearson/claude-ephant/internal/datadir"
 )
-
-var ErrNoBaseline = errors.New("no baseline")
 
 type Finding struct {
 	AlsoRaisedBy []string
@@ -42,7 +37,6 @@ type Loaded struct {
 type Run struct {
 	ChangeLines   float64
 	ChangeUnknown bool
-	Confidence    string
 	Date          string
 	Duration      int64
 	Findings      []Finding
@@ -57,17 +51,6 @@ type Run struct {
 type counted[K comparable] struct {
 	count int
 	key   K
-}
-
-func BaselinePath() (string, error) {
-	if path := os.Getenv("CHECKPOINT_BASELINE"); path != "" {
-		return path, nil
-	}
-	directory, err := datadir.Path()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(directory, "mining", "2026-10-17-checkpoint-baseline-405865fa", "checkpoint-baseline.jsonl"), nil
 }
 
 // Load counts a line it cannot read as unreadable and skips it. A missing file loads as empty.
@@ -269,36 +252,6 @@ func Report(w io.Writer, runs []Run) {
 	fmt.Fprintf(w, "Duration, first freeze to log line: median %.1fm over %d of %d checkpoints (%s); longest %.1fm\n", Median(durations)/60, len(durations), len(runs), strings.Join(medians, ", "), slices.Max(durations)/60)
 }
 
-func WriteBaseline(w io.Writer, path string) error {
-	info, err := os.Stat(path)
-	if err != nil || !info.Mode().IsRegular() {
-		return ErrNoBaseline
-	}
-	// Fixed period; a window would cut it.
-	mined, err := Load(path, time.Time{})
-	if err != nil {
-		return err
-	}
-	confidence := map[string]int{}
-	last := ""
-	for _, run := range mined.Runs {
-		confidence[run.Confidence]++
-		last = max(last, run.Date)
-	}
-	period := ""
-	if len(mined.Runs) > 0 {
-		period = fmt.Sprintf(", %s to %s", mined.First, last[:10])
-	}
-	fmt.Fprintf(w, "\n\nBaseline, whatever the window: %d checkpoint%s mined from transcripts, not logged%s; confidence high %d, medium %d, low %d.\n\n", len(mined.Runs), plural(len(mined.Runs)), period, confidence["high"], confidence["medium"], confidence["low"])
-	if mined.Unreadable > 0 {
-		fmt.Fprintf(w, "%d baseline line%s unreadable or missing a field the report reads; skipped.\n\n", mined.Unreadable, plural(mined.Unreadable))
-	}
-	if len(mined.Runs) > 0 {
-		Report(w, mined.Runs)
-	}
-	return nil
-}
-
 func WriteMostCommon[K comparable](w io.Writer, keys []K, format func(K) string) {
 	var counts []counted[K]
 	at := map[K]int{}
@@ -431,7 +384,6 @@ func parseRun(line string) (Run, time.Time, bool) {
 		run.Findings = append(run.Findings, finding)
 	}
 	run.ChangeUnknown, _ = object["change_unknown"].(bool)
-	run.Confidence, _ = object["confidence"].(string)
 	run.Duration, run.Timed = integral(object["duration"])
 	run.Scope = "uncommitted"
 	if scope, present := object["scope"]; present {

@@ -9,12 +9,9 @@ Run the measurement and read it back:
 ele checkpoint stats $ARGUMENTS
 ```
 
-Argument is a number of days; the default is 30. Pass `--baseline` only when
-asked: it prints the same report again over the checkpoints mined from
-transcripts from before the log starts, whatever the window, so the two read as
-before and after. Its findings were classified after the fact, not logged by the
-run, and most carry no change size: weigh a difference against the confidence
-split it prints.
+Argument is a number of days; the default is 30. The checkpoints from before
+the log starts are not in it: `ele mine --report` reports them, from the
+judgments `/ele:mine` stored.
 
 Report what each section says about the skill, not the code:
 

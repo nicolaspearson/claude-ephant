@@ -33,28 +33,6 @@ func TestReportListsTheFifteenCommonestLateCategoriesTiesInFirstSeenOrder(t *tes
 	require.Equal(t, fmt.Sprintf("  %-9s %-32s 1", "gate", "c13"), lines[14])
 }
 
-func TestWriteBaselineRefusesAMissingFileOrADirectory(t *testing.T) {
-	directory := t.TempDir()
-
-	for _, path := range []string{filepath.Join(directory, "missing.jsonl"), directory} {
-		var output bytes.Buffer
-		require.ErrorIs(t, WriteBaseline(&output, path), ErrNoBaseline, path)
-		require.Empty(t, output.String())
-	}
-}
-
-func TestWriteBaselineReportsOnlyTheBaselineWhateverItsDates(t *testing.T) {
-	baselinePath := writeStatsLog(t,
-		strings.NewReplacer(`"lines":10`, `"lines":30`, statsNow.Format(time.RFC3339), "2026-01-01T00:00:00Z").Replace(statsRecord(`"confidence":"high",`, "[]", "small")),
-		strings.NewReplacer(`"lines":10`, `"lines":0`, statsNow.Format(time.RFC3339), "2026-01-02T00:00:00.000Z").Replace(statsRecord(`"change_unknown":true,"confidence":"low",`, "[]", "small")),
-	)
-	var output bytes.Buffer
-
-	require.NoError(t, WriteBaseline(&output, baselinePath))
-
-	require.True(t, strings.HasPrefix(output.String(), "\n\nBaseline, whatever the window: 2 checkpoints mined from transcripts, not logged, 2026-01-01 to 2026-01-02; confidence high 1, medium 0, low 1.\n\nMode: full 0, small 2. Median change 30 lines added plus removed, 1 of unknown size left out.\n"), output.String())
-}
-
 func TestWriteStatsCountsVerdictsRereviewsOlderFindingsMutationsAndNotes(t *testing.T) {
 	findings := []string{
 		statsFinding(``, "bugs", ``, "refuted"),

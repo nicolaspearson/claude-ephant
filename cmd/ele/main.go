@@ -23,7 +23,7 @@ const usage = `usage:
   ele backup <dir>
   ele checkpoint density [--ref <ref>] [<root>]
   ele checkpoint log [<root>] < <record.json>
-  ele checkpoint stats [--baseline] [<days>]
+  ele checkpoint stats [<days>]
   ele context [--owner <name>] [--project <name>]
   ele context --size
   ele events [--during <skill>] [--kind <kind>] [--name <name>] [--owner <name>] [--project <name>] [--session <id>] [--since <YYYY-MM-DD|Nd>] [--limit <n>] [--no-sync]

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -86,7 +85,6 @@ func checkpointLog(ctx context.Context, args []string, stdin io.Reader, stdout i
 
 func checkpointStats(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) int {
 	flags := newFlagSet("checkpoint stats", stderr)
-	baseline := flags.Bool("baseline", false, "also report the checkpoints mined from transcripts before the log, whatever the window")
 	positional, err := parseInterspersed(flags, args)
 	if err != nil || len(positional) > 1 {
 		return rejectCall(flags, err, stdout, stderr)
@@ -101,15 +99,6 @@ func checkpointStats(ctx context.Context, args []string, stdin io.Reader, stdout
 	logPath, err := checkpoint.LogPath()
 	if err == nil {
 		err = checkpoint.WriteStats(stdout, logPath, time.Now().UTC().AddDate(0, 0, -days))
-	}
-	if err == nil && *baseline {
-		var baselinePath string
-		if baselinePath, err = checkpoint.BaselinePath(); err == nil {
-			if err = checkpoint.WriteBaseline(stdout, baselinePath); errors.Is(err, checkpoint.ErrNoBaseline) {
-				fmt.Fprintf(stdout, "\nNo baseline at %s.\n", baselinePath)
-				return 1
-			}
-		}
 	}
 	if err != nil {
 		fmt.Fprintf(stderr, "ele: %v\n", err)
