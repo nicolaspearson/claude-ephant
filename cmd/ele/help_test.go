@@ -45,9 +45,9 @@ func TestRunPrintsTheOverviewNamingEveryCommand(t *testing.T) {
 }
 
 func TestRunAnswersHelpForEveryCommand(t *testing.T) {
-	invocations := [][]string{{"checkpoint", "density"}, {"checkpoint", "log"}, {"checkpoint", "stats"}, {"handoff", "close"}, {"handoff", "list"}, {"handoff", "reopen"}, {"import", "mining"}, {"owner", "add"}, {"owner", "add-path"}, {"owner", "add-project"}, {"owner", "remove-path"}, {"owner", "remove-project"}, {"plan", "done"}, {"plan", "list"}, {"plan", "show"}, {"plan", "start"}, {"ticket", "claims"}, {"ticket", "corpus"}, {"ticket", "ledger"}}
+	invocations := [][]string{{"checkpoint", "density"}, {"checkpoint", "log"}, {"checkpoint", "stats"}, {"config", "get"}, {"config", "list"}, {"config", "set"}, {"config", "unset"}, {"handoff", "close"}, {"handoff", "list"}, {"handoff", "reopen"}, {"import", "mining"}, {"owner", "add"}, {"owner", "add-path"}, {"owner", "add-project"}, {"owner", "remove-path"}, {"owner", "remove-project"}, {"plan", "done"}, {"plan", "list"}, {"plan", "show"}, {"plan", "start"}, {"ticket", "claims"}, {"ticket", "corpus"}, {"ticket", "ledger"}}
 	for name := range commands {
-		if !slices.Contains([]string{"checkpoint", "handoff", "import", "owner", "plan", "ticket"}, name) {
+		if !slices.Contains([]string{"checkpoint", "config", "handoff", "import", "owner", "plan", "ticket"}, name) {
 			invocations = append(invocations, []string{name})
 		}
 	}

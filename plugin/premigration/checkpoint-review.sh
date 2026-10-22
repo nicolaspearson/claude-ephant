@@ -7,7 +7,8 @@
 # the deliberate passes get skipped.
 set -uo pipefail
 
-case ${CLAUDE_PLUGIN_OPTION_CHECKPOINT_GATE:-true} in false | 0) exit 0 ;; esac
+# An ele too old for config, or a config.json that does not parse, leaves the gate on.
+[ "$(ele config get checkpoint_gate 2> /dev/null)" = false ] && exit 0
 
 # shellcheck source=checkpoint-state.sh
 . "$(dirname "${BASH_SOURCE[0]}")/checkpoint-state.sh"

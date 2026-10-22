@@ -88,8 +88,14 @@ latest release. From a clone, `task upgrade` does all of this; see Contributing.
 
 ## Options
 
-- **Checkpoint gate**, in `/config` under the `ele` plugin: on by default. Other
-  open sessions pick up a change after `/reload-plugins`
+`ele config list` shows each option, its value here and where that value comes
+from. `ele config set <key> <value>` sets one for every project, and
+`--owner <name>` overrides it for one owner's projects; `ele config unset`
+clears either. `set` and `unset` refuse inside a Claude Code session, so type
+them in a terminal. Open sessions read a change at their next hook.
+
+- **`checkpoint_gate`**: on by default. Off, a turn that changed files and
+  claims done is not blocked for `ele:checkpoint`
 - `ELE_HOME` moves the data directory; `ele status` shows where it is
 
 ## Contributing

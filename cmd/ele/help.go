@@ -39,8 +39,14 @@ Index
   status          data directory, sync state, owner here, plugins
   stats           index counts and disk use
   version         the release tag this binary was built from, the version Go stamped, or devel
-  backup          copy the archive, notes, forgotten notes, mining runs, owner map and index elsewhere
+  backup          copy the archive, notes, forgotten notes, mining runs, config, owner map and index elsewhere
   owner           add an owner, or add or remove a path rule or project entry
+
+Config
+  config list     each option's value here and where it comes from
+  config get      one option's value here
+  config set      set an option globally, or for one owner with --owner; not from inside a session
+  config unset    clear a global value or an owner's override; not from inside a session
 
 Mining
   mine            list and digest units to judge, or store judgments
@@ -63,10 +69,14 @@ Hooks
 ele <command> --help says what each flag does.`
 
 var purposes = map[string]string{
-	"backup":               "Copy the archive, notes, forgotten notes, mining runs, owner map and the index into a new or empty directory.",
+	"backup":               "Copy the archive, notes, forgotten notes, mining runs, config, owner map and the index into a new or empty directory.",
 	"checkpoint density":   "Per file in the diff since --ref, the share of added lines that are comments, beside the file's own share and the median of its nearest peers of the same suffix; flags the outliers.",
 	"checkpoint log":       "Read a checkpoint's record on stdin, refuse one the stats would misread, and append it with its date, HEAD, repository and duration since the first freeze.",
 	"checkpoint stats":     "What the log's checkpoints found and which stage found it over the last <days> days, 30 by default.",
+	"config get":           "One option's value: the owner's override, else the global value, else the default. A config.json that does not parse, or holds a known option of the wrong kind, reads as defaults, said on stderr.",
+	"config list":          "Each option's value, where it comes from and what it does, and any stored key no option takes.",
+	"config set":           "Store an option's value in config.json, globally or for --owner. Refuses inside a Claude Code session.",
+	"config unset":         "Remove a global value, or --owner's override, so the next level down applies. Refuses inside a Claude Code session.",
 	"context":              "The project's live notes and pending handoffs, with no budget.",
 	"events":               "Agent, command, hook, skill and other events from session transcripts.",
 	"forget":               "Move mistaken notes out of the index into forgotten/, or bring them back with --restore.",

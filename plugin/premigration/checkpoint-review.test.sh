@@ -30,6 +30,14 @@ mkdir -p "$TMPDIR"
 # Inherited from a Claude Code session, it holds runs open across cases.
 unset CLAUDE_CODE_SESSION_ID
 
+# The hooks read the gate through ele; an installed one may predate config.
+export ELE_HOME=$WORK/ele
+mkdir -p "$ELE_HOME"
+(cd "$HERE/../.." && go build -o "$WORK/bin/ele" ./cmd/ele) || exit 1
+export PATH=$WORK/bin:$PATH
+gate_off() { CLAUDECODE='' ele config set checkpoint_gate false > /dev/null; }
+gate_on() { rm -f "$ELE_HOME/config.json"; }
+
 REPO=$WORK/repo
 git init -q "$REPO"
 git -C "$REPO" config user.email test@example.com
@@ -130,16 +138,22 @@ probe BLOCK "tracked edit, claimed done, nothing reported" \
 clean
 snapshot
 dirty
-CLAUDE_PLUGIN_OPTION_CHECKPOINT_GATE=false probe PASS "gate option false" \
+gate_off
+probe PASS "gate option false" \
   "$(transcript PROMPT:go "$DONE")"
+gate_on
 clean
 snapshot
 dirty
-CLAUDE_PLUGIN_OPTION_CHECKPOINT_GATE=0 probe PASS "gate option 0" \
+printf '{"checkpoint_gate": fals' > "$ELE_HOME/config.json"
+probe BLOCK "config.json that does not parse keeps the gate on" \
   "$(transcript PROMPT:go "$DONE")"
+gate_on
 clean
 rm -f "$TMPDIR"/claude-checkpoint/* 2> /dev/null
-CLAUDE_PLUGIN_OPTION_CHECKPOINT_GATE=false snapshot
+gate_off
+snapshot
+gate_on
 dirty
 probe PASS "gate option off: snapshot writes no baseline" \
   "$(transcript PROMPT:go "$DONE")"

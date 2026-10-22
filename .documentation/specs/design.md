@@ -124,6 +124,7 @@ Global rollups are a future section with its own budget.
 ```
 claude-ephant/
   archive/                  transcripts, claude-mem export
+  config.json               options: global values and per-owner overrides; ele config
   ele.db                    index, disposable
   forgotten/                notes ele forget moved out of the index, by owner
   mining/                   dated mining runs, e.g. 2026-10-15/
@@ -132,7 +133,19 @@ claude-ephant/
   owner-map.json            owners, path rules, project entries; by hand or ele owner
 ```
 
-Data never lives in the repo, not even gitignored. `ele backup <dir>` copies `archive/`, `forgotten/`, `mining/`, `notes/`, `owner-map.json` and the database via `VACUUM INTO`. It holds the archive lock, and the mining lock when the cache exists, for the whole copy, leaves out lock files, and refuses a directory that is not empty or lies inside the data directory or a git checkout.
+Data never lives in the repo, not even gitignored. `ele backup <dir>` copies `archive/`, `config.json`, `forgotten/`, `mining/`, `notes/`, `owner-map.json` and the database via `VACUUM INTO`. It holds the archive lock, and the mining lock when the cache exists, for the whole copy, leaves out lock files, and refuses a directory that is not empty or lies inside the data directory or a git checkout.
+
+## Configuration
+
+Decided 2026-10-22 with the user, in rounds.
+
+- One file, `config.json` in the data dir, holds every option, so one value covers both profiles. Not plugin `userConfig`: as of 2026-10-22 Claude Code exports its values only to hook processes, not to commands Claude runs through the Bash tool, where skills call `ele`, and stores them per profile in `settings.json` under `pluginConfigs`
+- Top-level keys are global values; `owners` maps an owner to its overrides, so no option takes that name. A value resolves as the session's owner's override, then the global value, then the option's built-in default; a session no owner covers reads global values
+- Options are declared once, in `Options` in `internal/config`, with a kind, a default and a description. A key no option takes is kept on write and ignored on read; `ele config list` names it. A file that does not parse, or a known option of the wrong kind, reads as all defaults, so a broken edit leaves `checkpoint_gate` on; `ele config get` says so on stderr, `ele status` on its Config row and the start block in a line
+- CLI: `ele config list|get [--owner <name>]` resolve the owner from the working directory, as recall does; `ele config set|unset [--owner <name>]` change the global value unless `--owner` names a listed owner. `set` and `unset` refuse when `CLAUDECODE` is set, printing the command for the user to run outside the session; as of 2026-10-22 a `!` command at the prompt inherits `CLAUDECODE=1`, so it is refused too. A deterrent, not a lock, decided 2026-10-22 with the user: Claude can still write `config.json` or clear `CLAUDECODE`, and a hook guarding the file would leave scripts and copies open. What stops a silent bypass is visibility: the start block and `ele status` name an option off its default, and the edit shows in the transcript; `set` refuses an unknown key and a value of the wrong kind. `set` and `unset` refuse a file that does not parse rather than overwrite it
+- Hooks read an option with `ele config get <key>`, and so does any skill that comes to need one; as of 2026-10-22 none does. `ele help` lists the commands. A change applies at the next hook of every open session, with no reload
+- The start block carries one line naming each option whose value here differs from its default, and `ele status` a Config row
+- Options as of 2026-10-22: `checkpoint_gate`, boolean, default true. It moved off plugin `userConfig` with no fallback, a `/config` value lost with it
 
 ## Stack
 

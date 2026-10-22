@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/nicolaspearson/claude-ephant/internal/config"
 	"github.com/nicolaspearson/claude-ephant/internal/datadir"
 	"github.com/nicolaspearson/claude-ephant/internal/highlight"
 	"github.com/nicolaspearson/claude-ephant/internal/index"
@@ -306,6 +307,12 @@ func writeSessionStart(ctx context.Context, stdout io.Writer, dataDirectory stri
 		return "", err
 	}
 	project, owner := index.NewProjects(ownerMap).Resolve(directory)
+	settings, err := config.Load(configPath(dataDirectory))
+	if err != nil {
+		fmt.Fprintf(stdout, "ele: %v; every option reads as its default.\n", err)
+	} else if changed := offDefaults(settings, owner); len(changed) > 0 {
+		fmt.Fprintf(stdout, "Config from ele, off its defaults: %s.\n", strings.Join(changed, ", "))
+	}
 	if owner == "" {
 		fmt.Fprintf(stdout, "ele shows no notes here: no owner in owner-map.json covers %s. /ele:recall needs --owner <name> or --all.\n", directory)
 		return "", nil

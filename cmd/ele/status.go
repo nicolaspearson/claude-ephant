@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/nicolaspearson/claude-ephant/internal/archive"
+	"github.com/nicolaspearson/claude-ephant/internal/config"
 	"github.com/nicolaspearson/claude-ephant/internal/datadir"
 	"github.com/nicolaspearson/claude-ephant/internal/dto"
 	"github.com/nicolaspearson/claude-ephant/internal/index"
@@ -44,6 +45,22 @@ func age(elapsed time.Duration) string {
 		}
 	}
 	return strings.Join(parts[:min(len(parts), 2)], "")
+}
+
+func configState(dataDirectory string) string {
+	settings, err := config.Load(configPath(dataDirectory))
+	if err != nil {
+		return err.Error() + "; every option reads as its default"
+	}
+	scope, err := resolveConfigScope("", true)
+	if err != nil {
+		return err.Error()
+	}
+	changed := offDefaults(settings, scope.owner)
+	if len(changed) == 0 {
+		return "defaults"
+	}
+	return strings.Join(changed, ", ")
 }
 
 func dirSize(directory string) (int64, error) {
@@ -351,6 +368,7 @@ func writeStatus(stdout io.Writer, now time.Time) error {
 	}
 	fmt.Fprintf(table, "Sync running\t%s\n", syncRunning(filepath.Join(dataDirectory, "archive", "transcripts")))
 	fmt.Fprintf(table, "Here\t%s\n", where(dataDirectory))
+	fmt.Fprintf(table, "Config\t%s\n", configState(dataDirectory))
 	home, err := os.UserHomeDir()
 	if err != nil {
 		fmt.Fprintf(table, "Plugin %s\t%v\n", pluginName, err)

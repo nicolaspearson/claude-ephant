@@ -24,6 +24,10 @@ const usage = `usage:
   ele checkpoint density [--ref <ref>] [<root>]
   ele checkpoint log [<root>] < <record.json>
   ele checkpoint stats [<days>]
+  ele config get [--owner <name>] <key>
+  ele config list [--owner <name>]
+  ele config set [--owner <name>] <key> <value>
+  ele config unset [--owner <name>] <key>
   ele context [--owner <name>] [--project <name>]
   ele context --size
   ele events [--during <skill>] [--kind <kind>] [--name <name>] [--owner <name>] [--project <name>] [--session <id>] [--since <YYYY-MM-DD|Nd>] [--limit <n>] [--no-sync]
@@ -73,6 +77,7 @@ var commands = map[string]func(ctx context.Context, args []string, stdout io.Wri
 	"checkpoint": func(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
 		return checkpointCommand(ctx, args, os.Stdin, stdout, stderr)
 	},
+	"config":   configCommand,
 	"context":  projectContext,
 	"events":   events,
 	"forget":   forget,

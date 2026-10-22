@@ -28,23 +28,20 @@ Give ele a configuration a user can switch and tune from one place, reminders th
 
 ## Actions
 
-- [ ] config-structure: Settle with the user, in rounds, what of ele is configurable, where configuration lives (plugin `userConfig`, an ele config file, or both), and how it is read and set from the CLI, the skills and the guide; then build that layout with `checkpoint_gate` moved onto it
+- [x] config-structure: Settle with the user, in rounds, what of ele is configurable, where configuration lives (plugin `userConfig`, an ele config file, or both), and how it is read and set from the CLI, the skills and the guide; then build that layout with `checkpoint_gate` moved onto it
   - done when design.md holds a Configuration section naming the layout and how each surface reads and sets it, `checkpoint_gate` reads through it with a test seen red, and `task check FORCE=1` passes
+  - asserted in the config-structure commit: design.md's Configuration section names config.json's layout, its resolution order and how hooks, the CLI and `ele help` read and set it, skills reading it as hooks do once one needs to; both checkpoint hooks read `ele config get checkpoint_gate`, and checkpoint-review.test.sh's gate cases went red with the hooks reading a wrong key and with a broken file read as gate off; `task check FORCE=1` green. Not run through the installed plugin: that waits for a release
 - [ ] auto-note-writes: An option, off by default, that when on has ele write proposed notes without the Write/Skip ask
-  - blocked: config-structure
   - done when switching the option changes whether a proposed note is written without asking, each state tested and seen red at each surface config-structure names
 - [ ] reminders: Dated reminders: saved through the CLI and a skill with a date, shown in the session-start block from that date until closed, and listed and closed through the CLI
-  - blocked: config-structure
   - done when a reminder dated tomorrow does not show at session start, one dated today does, a closed one does not, and none shows with the option off, each tested and seen red; the CLI lists and closes them, and the skill saves one
 - [ ] nudges: Recurring reminders that come back N days after they were last marked done, with `measure-reminder.sh`'s hook-stats notice moved onto one
   - blocked: reminders
   - done when a nudge marked done does not show until N days later and none shows with the option off, each tested and seen red; the hook-stats notice comes from ele, running `/hook-stats` marks it done, and the claude-config changes are handed to the user as commands
   - next: settle whether ele reads `hook-stats.last` or `hook-firings.py` marks the nudge done; either way `measure-reminder.sh` is removed from claude-config
 - [ ] recipe-propose: ele:recipe proposes a reusable procedure seen in a session as a user skill, with the same Write/Skip approval as notes whatever auto note writes says, and writes the approved one under the user's skills
-  - blocked: config-structure
   - done when an eval or test seen red has ele:recipe propose a multi-step procedure from a session transcript, an approved recipe is written as a skill a fresh session lists, and with the option off nothing is proposed
 - [ ] recipe-audit: Audit the user's skills for commands, flags and versions that no longer exist, as plan-audit does for plans
-  - blocked: config-structure
   - done when the audit, run over a skill that names a removed command or a stale version, reports each one, tested and seen red
 - [ ] Fold what this plan built, and its out-of-scope lines as `Not doing:`, into the spec, run `ele plan done .documentation/plans/ele-features.md`, and delete this plan
 
