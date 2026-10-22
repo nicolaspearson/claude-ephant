@@ -13,7 +13,7 @@ import (
 func timedRun(t *testing.T) string {
 	t.Helper()
 	archiveDirectory := t.TempDir()
-	report := "Bugs reviewer found nothing. " + strings.Repeat("x", 800) + " The commit command: git add internal"
+	report := "Ready to commit.\n\n**Bugs reviewer:** no findings.\n**Prose reviewer:** one comment cut."
 	writeArchived(t, filepath.Join(archiveDirectory, "claude", "-gateway", "t1.jsonl.gz"),
 		transcriptLine(t, "10:00:00", "assistant", toolUse("tu0", "Skill", map[string]any{"skill": "checkpoint"})),
 		transcriptLine(t, "10:01:00", "assistant", toolUse("tu1", "Agent", map[string]any{"description": "Bugs review", "prompt": "Read reviewers/bugs.md first"})),

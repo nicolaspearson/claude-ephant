@@ -31,14 +31,15 @@ const (
 
 var (
 	agentID           = regexp.MustCompile(`agentId: ([A-Za-z0-9]+)`)
-	checkpointCommand = regexp.MustCompile(`<command-name>/?(ele:)?checkpoint`)
+	checkpointCommand = regexp.MustCompile(`<command-name>/?(ele:)?checkpoint</command-name>`)
+	checkpointSkill   = regexp.MustCompile(`^(ele:)?checkpoint$`)
 	coveredLine       = regexp.MustCompile(`(?m)^(not )?covered: `)
 	cycleStyle        = style{bash: reviewGate, editTools: []string{"Edit", "MultiEdit", "Write"}, humanLimit: 1000, longAbove: 1200, textLimit: 1200}
 	generation        = regexp.MustCompile(`(\.g\d+)?\.jsonl\.gz$`)
 	handback          = regexp.MustCompile(`<tool-use-id>([^<]+)</tool-use-id>|<task-id>([^<]+)</task-id>|<agent-message from="([^"]+)"`)
 	harnessPrefixes   = []string{"<task-notification", "<agent-message", "Stop hook feedback", "<local-command", "Caveat:", "[Request interrupted", "Another Claude session", "<system-reminder"}
-	reportCommit      = regexp.MustCompile(`(?i)git (add|commit)|commit command|gate`)
-	reportReviewer    = regexp.MustCompile(`(?i)bugs reviewer`)
+	recordCommand     = regexp.MustCompile(`(?m)(^|[;&|{(]\s*)\S*(checkpoint-reviewed\.sh"?\s+record\b|checkpoint-log\.sh\b|ele checkpoint log\b)`)
+	reportLabel       = regexp.MustCompile(`\*\*(Bugs|Conventions|Prose|Spec)\b[^*\n]{0,30}reviewer`)
 	reviewGate        = regexp.MustCompile(`go test|go build|golangci|\btask [a-z]|npm (run )?(test|lint|build)|pnpm|vitest|tsc|pytest|make |test\.sh|bun |playwright|checkpoint-|ele checkpoint |mutat|sed -i|perl -pi|git stash|git diff`)
 	runGate           = regexp.MustCompile(`\b(go test|go build|go vet|golangci|task (test|lint|check|ci|gate|build|verify)|npm (run )?(test|lint|build|check)|pnpm|yarn (test|lint)|vitest|jest|pytest|make (test|lint|check|ci)|cargo test|tsc|eslint|test\.sh|bun test)\b`)
 	runStyle          = style{editTools: []string{"Edit", "MultiEdit", "NotebookEdit", "Write"}, humanLimit: 1200, longAbove: 1500, otherTools: true, textLimit: 1500}
@@ -418,25 +419,18 @@ func readTranscript(path string) (transcriptFile, error) {
 	}
 }
 
-// reportCut finds the last line reading as a checkpoint's report, or -1.
+// reportCut finds a checkpoint's report, or -1: the end of the turn that first runs the record or log command, else the last text carrying reviewer labels.
 func reportCut(window []digestLine) int {
-	cut := -1
+	labelled := -1
 	for position, line := range window {
-		if line.Type != "assistant" {
-			continue
+		if line.records() {
+			return turnEnd(window, position)
 		}
-		var texts []string
-		for _, block := range line.blocks {
-			if block.Type == "text" {
-				texts = append(texts, block.Text)
-			}
-		}
-		joined := strings.Join(texts, " ")
-		if reportReviewer.MatchString(joined) && reportCommit.MatchString(joined) && utf8.RuneCountInString(joined) > 800 {
-			cut = position
+		if reportLabel.MatchString(line.assistantText()) {
+			labelled = position
 		}
 	}
-	return cut
+	return labelled
 }
 
 func resultText(content json.RawMessage) string {
@@ -589,8 +583,9 @@ func runWindow(file transcriptFile, opening int, unit dto.MiningUnit) ([]digestL
 		}
 	}
 	window := lines[opening:end]
-	if report := reportCut(window); report >= 0 {
-		window = window[:report+1]
+	back := reviewersBack(file, window)
+	if report := reportCut(window[back:]); report >= 0 {
+		window = window[:back+report+1]
 	}
 	return window, nil
 }
@@ -608,6 +603,17 @@ func subagentPath(transcriptPath string, agent string) string {
 	return filepath.Join(directory, generation.ReplaceAllString(name, ""), "subagents", "agent-"+agent+".jsonl.gz")
 }
 
+// turnEnd is the last assistant text from position on before the user next speaks.
+func turnEnd(window []digestLine, position int) int {
+	end := position
+	for next := position + 1; next < len(window) && !window[next].isHuman(); next++ {
+		if window[next].assistantText() != "" {
+			end = next
+		}
+	}
+	return end
+}
+
 func writeFailure(digest *strings.Builder, call agentCall) {
 	if call.failure != "" {
 		digest.WriteString("--- launch failed\n" + quote(call.failure, 500) + "\n")
@@ -620,10 +626,23 @@ func writeLongs(digest *strings.Builder, longs [][2]string, limit int) {
 	}
 }
 
+func (l *digestLine) assistantText() string {
+	if l.Type != "assistant" {
+		return ""
+	}
+	var texts []string
+	for _, block := range l.blocks {
+		if block.Type == "text" {
+			texts = append(texts, block.Text)
+		}
+	}
+	return strings.Join(texts, " ")
+}
+
 func (l *digestLine) invokesCheckpoint() bool {
 	if l.Type == "assistant" {
 		for _, block := range l.blocks {
-			if skill, _ := block.Input["skill"].(string); block.Type == "tool_use" && block.Name == "Skill" && strings.Contains(skill, "checkpoint") {
+			if skill, _ := block.Input["skill"].(string); block.Type == "tool_use" && block.Name == "Skill" && checkpointSkill.MatchString(skill) {
 				return true
 			}
 		}
@@ -709,6 +728,18 @@ func (l *digestLine) readHandbacks() {
 			l.handbacks = append(l.handbacks, match[1]+match[2]+match[3])
 		}
 	}
+}
+
+func (l *digestLine) records() bool {
+	if l.Type != "assistant" {
+		return false
+	}
+	for _, block := range l.blocks {
+		if command, _ := block.Input["command"].(string); block.Type == "tool_use" && block.Name == "Bash" && recordCommand.MatchString(command) {
+			return true
+		}
+	}
+	return false
 }
 
 func (l *digestLine) textOf() string {

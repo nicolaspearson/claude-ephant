@@ -44,7 +44,7 @@ func writeArchived(t *testing.T, path string, lines ...string) {
 
 func TestDigestOfACheckpointRunLinksItsSubagentsAndStopsAtItsReport(t *testing.T) {
 	archiveDirectory := t.TempDir()
-	report := "Bugs reviewer found nothing. " + strings.Repeat("x", 800) + " The commit command: git add internal"
+	report := "Ready to commit.\n\n**Bugs reviewer:** no findings.\n**Prose reviewer:** one comment cut."
 	writeArchived(t, filepath.Join(archiveDirectory, "claude", "-gateway", "t1.jsonl.gz"),
 		transcriptLine(t, "09:00:00", "user", "add retries to the client"),
 		transcriptLine(t, "09:59:00", "user", "Stop hook feedback:\nno checkpoint was reported"),
@@ -101,8 +101,8 @@ func TestDigestOfACheckpointRunLinksItsSubagentsAndStopsAtItsReport(t *testing.T
 
 func TestDigestOfAReviewCycleCutsAtAReportOnlyOnceEveryReviewerHasHandedBack(t *testing.T) {
 	archiveDirectory := t.TempDir()
-	progress := "The bugs reviewer is back and the gate passes. " + strings.Repeat("x", 800)
-	report := "The bugs reviewer found nothing. " + strings.Repeat("y", 800) + " The commit command follows."
+	progress := "**Bugs reviewer:** no findings. The prose reviewer is still out."
+	report := "The checkpoint is recorded and logged.\n\n**Bugs reviewer:** no findings."
 	launched := func(clock string, id string, agent string) string {
 		line := transcriptLine(t, clock, "user", toolResult(id, "Async agent launched successfully.\nagentId: "+agent, false))
 		return strings.TrimSuffix(line, "}\n") + `,"toolUseResult":{"agentId":"` + agent + `","status":"async_launched"}}` + "\n"
@@ -142,7 +142,7 @@ func TestDigestOfAReviewCycleCutsAtAReportOnlyOnceEveryReviewerHasHandedBack(t *
 
 func TestDigestOfACheckpointRunClosesAtTheNextCycle(t *testing.T) {
 	archiveDirectory := t.TempDir()
-	report := "Bugs reviewer found nothing. " + strings.Repeat("x", 800) + " The commit command: git add internal"
+	report := "Ready to commit.\n\n**Bugs reviewer:** no findings.\n**Prose reviewer:** one comment cut."
 	writeArchived(t, filepath.Join(archiveDirectory, "claude", "-gateway", "t1.jsonl.gz"),
 		transcriptLine(t, "10:00:00", "assistant", toolUse("tu0", "Skill", map[string]any{"skill": "checkpoint"})),
 		transcriptLine(t, "10:05:00", "assistant", []map[string]any{{"text": "The checkpoint is done.", "type": "text"}}),
@@ -161,13 +161,15 @@ func TestDigestOfACheckpointRunClosesAtTheNextTypedPluginInvocation(t *testing.T
 	writeArchived(t, filepath.Join(archiveDirectory, "claude", "-gateway", "t1.jsonl.gz"),
 		transcriptLine(t, "09:59:00", "user", "add retries to the client"),
 		transcriptLine(t, "10:00:00", "user", "<command-name>/ele:checkpoint</command-name>"),
+		transcriptLine(t, "10:01:00", "user", "<command-name>/ele:checkpoint-stats</command-name>"),
+		transcriptLine(t, "10:02:00", "assistant", toolUse("tu1", "Skill", map[string]any{"skill": "ele:checkpoint-stats"})),
 		transcriptLine(t, "10:05:00", "assistant", []map[string]any{{"text": "first run", "type": "text"}}),
 		transcriptLine(t, "11:00:00", "user", "<command-name>/ele:checkpoint</command-name>"),
 		transcriptLine(t, "11:05:00", "assistant", []map[string]any{{"text": "second run", "type": "text"}}))
 
 	first, err := Digest(archiveDirectory, "checkpoint-runs", dto.MiningUnit{Session: "s1", Source: "claude/-gateway/t1.jsonl.gz", Timestamp: "2026-10-16T10:00:00Z"})
 	require.NoError(t, err)
-	require.Contains(t, first, "first run")
+	require.Contains(t, first, "first run", "another skill whose name starts checkpoint is not a checkpoint")
 	require.NotContains(t, first, "second run")
 
 	second, err := Digest(archiveDirectory, "checkpoint-runs", dto.MiningUnit{Session: "s1", Source: "claude/-gateway/t1.jsonl.gz", Timestamp: "2026-10-16T11:00:00Z"})
@@ -176,9 +178,55 @@ func TestDigestOfACheckpointRunClosesAtTheNextTypedPluginInvocation(t *testing.T
 	require.NotContains(t, second, "2026-10-16T10:00:00Z", "an invocation is not the user's asking")
 }
 
+func TestDigestOfACheckpointRunEndsTheTurnItRecordsIn(t *testing.T) {
+	progress := "The bugs reviewer found two problems and the gate passes; fixing both before the commit. " + strings.Repeat("x", 800)
+	launched := strings.TrimSuffix(transcriptLine(t, "10:01:01", "user", toolResult("tu1", "Async agent launched successfully.\nagentId: a1", false)), "}\n") + `,"toolUseResult":{"agentId":"a1","status":"async_launched"}}` + "\n"
+	for _, command := range []string{
+		`P=/plugin/premigration; "$P/checkpoint-reviewed.sh" record /repo`,
+		"~/.claude/hooks/checkpoint-log.sh /repo <<'EOF'\n{}\nEOF",
+		"R=/repo; ele checkpoint log $R <<'EOF'\n{}\nEOF",
+	} {
+		archiveDirectory := t.TempDir()
+		writeArchived(t, filepath.Join(archiveDirectory, "claude", "-gateway", "t1.jsonl.gz"),
+			transcriptLine(t, "10:00:00", "assistant", toolUse("tu0", "Skill", map[string]any{"skill": "ele:checkpoint"})),
+			transcriptLine(t, "10:01:00", "assistant", toolUse("tu1", "Agent", map[string]any{"description": "Bugs review", "prompt": "Read reviewers/bugs.md"})),
+			launched,
+			`{"type":"queue-operation","operation":"enqueue","timestamp":"2026-10-16T10:02:20Z","content":"<task-notification>\n<task-id>a1</task-id>\n<status>completed</status>"}`+"\n",
+			transcriptLine(t, "10:02:30", "assistant", toolUse("tu2", "Bash", map[string]any{"command": "find ~/.claude -name 'checkpoint-log.sh'"})),
+			transcriptLine(t, "10:02:40", "user", "keep going"),
+			transcriptLine(t, "10:02:55", "assistant", []map[string]any{{"text": progress, "type": "text"}}),
+			transcriptLine(t, "10:03:00", "assistant", toolUse("tu3", "Bash", map[string]any{"command": command})),
+			transcriptLine(t, "10:03:30", "assistant", []map[string]any{{"text": "Recorded. Logging the run.", "type": "text"}}),
+			transcriptLine(t, "10:04:00", "assistant", []map[string]any{{"text": "Item 3 is built and ready to commit.", "type": "text"}}),
+			transcriptLine(t, "10:05:00", "user", "thanks"),
+			transcriptLine(t, "10:06:00", "assistant", []map[string]any{{"text": "after the report, the checkpoint is recorded", "type": "text"}}))
+
+		digest, err := Digest(archiveDirectory, "checkpoint-runs", dto.MiningUnit{Session: "s1", Source: "claude/-gateway/t1.jsonl.gz", Timestamp: "2026-10-16T10:00:00Z"})
+		require.NoError(t, err)
+		require.Contains(t, digest, `"end":"2026-10-16T10:04:00Z"`, "%s: a script named but not run and long progress are not the report; the turn that records ends at it", command)
+		require.NotContains(t, digest, "after the report", command)
+	}
+}
+
+func TestDigestOfACheckpointRunTakesNoReportWhileAReviewerIsOut(t *testing.T) {
+	archiveDirectory := t.TempDir()
+	launched := strings.TrimSuffix(transcriptLine(t, "10:01:01", "user", toolResult("tu1", "Async agent launched successfully.\nagentId: a1", false)), "}\n") + `,"toolUseResult":{"agentId":"a1","status":"async_launched"}}` + "\n"
+	writeArchived(t, filepath.Join(archiveDirectory, "claude", "-gateway", "t1.jsonl.gz"),
+		transcriptLine(t, "10:00:00", "assistant", toolUse("tu0", "Skill", map[string]any{"skill": "ele:checkpoint"})),
+		transcriptLine(t, "10:01:00", "assistant", toolUse("tu1", "Agent", map[string]any{"description": "Bugs review", "prompt": "Read reviewers/bugs.md"})),
+		launched,
+		transcriptLine(t, "10:02:00", "assistant", []map[string]any{{"text": "**Bugs reviewer:** no findings yet; it is still out.", "type": "text"}}),
+		`{"type":"queue-operation","operation":"enqueue","timestamp":"2026-10-16T10:03:00Z","content":"<task-notification>\n<task-id>a1</task-id>\n<status>completed</status>"}`+"\n",
+		transcriptLine(t, "10:04:00", "assistant", []map[string]any{{"text": "fixing what it found", "type": "text"}}))
+
+	digest, err := Digest(archiveDirectory, "checkpoint-runs", dto.MiningUnit{Session: "s1", Source: "claude/-gateway/t1.jsonl.gz", Timestamp: "2026-10-16T10:00:00Z"})
+	require.NoError(t, err)
+	require.Contains(t, digest, "fixing what it found", "a labelled text written while a reviewer is out is progress, so with no report the window runs on")
+}
+
 func TestDigestOfAReviewCycleOpensFifteenMinutesBackAndClosesAtTheNextCycle(t *testing.T) {
 	archiveDirectory := t.TempDir()
-	report := "Bugs reviewer found one issue. " + strings.Repeat("x", 800) + " Gate passed."
+	report := "The checkpoint is recorded. **Bugs reviewer:** one issue, fixed."
 	lines := []string{
 		transcriptLine(t, "09:00:00", "user", "the first ask"),
 		transcriptLine(t, "09:10:00", "assistant", []map[string]any{{"text": "first work", "type": "text"}}),
@@ -189,8 +237,8 @@ func TestDigestOfAReviewCycleOpensFifteenMinutesBackAndClosesAtTheNextCycle(t *t
 		transcriptLine(t, "11:20:30", "user", toolResult("tu1", "One issue.", false)),
 		transcriptLine(t, "11:21:00", "assistant", toolUse("tu2", "Bash", map[string]any{"command": "go test ./..."})),
 		transcriptLine(t, "11:22:00", "assistant", toolUse("tu3", "Bash", map[string]any{"command": "ls internal"})),
-		transcriptLine(t, "11:23:00", "assistant", toolUse("tu5", "Bash", map[string]any{"command": "~/.claude/hooks/checkpoint-log.sh . < record.json"})),
-		transcriptLine(t, "11:24:00", "assistant", toolUse("tu6", "Bash", map[string]any{"command": "ele checkpoint log . < record.json"})),
+		transcriptLine(t, "11:23:00", "assistant", toolUse("tu5", "Bash", map[string]any{"command": "~/.claude/hooks/checkpoint-reviewed.sh freeze ."})),
+		transcriptLine(t, "11:24:00", "assistant", toolUse("tu6", "Bash", map[string]any{"command": "ele checkpoint density ."})),
 		transcriptLine(t, "11:25:00", "user", "a question mid-cycle"),
 	}
 	unit := dto.MiningUnit{Reviewers: 1, Session: "s1", Source: "claude/-gateway/t1.jsonl.gz", Timestamp: "2026-10-16T11:20:00Z", Until: "2026-10-16T12:00:00Z"}
@@ -208,8 +256,8 @@ func TestDigestOfAReviewCycleOpensFifteenMinutesBackAndClosesAtTheNextCycle(t *t
 	require.NotContains(t, digest, "an earlier ask")
 	require.Contains(t, digest, "BASH go test ./...")
 	require.NotContains(t, digest, "ls internal", "only gate commands are shown")
-	require.Contains(t, digest, "BASH ~/.claude/hooks/checkpoint-log.sh")
-	require.Contains(t, digest, "BASH ele checkpoint log", "a ported script shows as its script did")
+	require.Contains(t, digest, "BASH ~/.claude/hooks/checkpoint-reviewed.sh freeze")
+	require.Contains(t, digest, "BASH ele checkpoint density", "a ported script shows as its script did")
 	require.Contains(t, digest, "HUMAN ship it")
 	require.NotContains(t, digest, "Next cycle")
 	require.NotContains(t, digest, "=== NEXT HUMAN", "with no report, nothing comes after")

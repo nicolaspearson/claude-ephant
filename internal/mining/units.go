@@ -200,7 +200,7 @@ func parseTimestamp(session string, timestamp string) (time.Time, error) {
 	return at, nil
 }
 
-// reviewCycles closes a cycle to re-reviews once a run follows its last launch, and a cycle opened on a re-review takes only re-reviews.
+// reviewCycles closes a cycle once a run follows its last launch, and a cycle opened on a re-review takes only re-reviews.
 func reviewCycles(launches []dto.Event, runs []dto.MiningUnit) ([]timedUnit, error) {
 	bySession := map[string][]timedUnit{}
 	for _, launch := range launches {
@@ -234,7 +234,7 @@ func reviewCycles(launches []dto.Event, runs []dto.MiningUnit) ([]timedUnit, err
 			switch {
 			case isRereview && open >= 0 && !runBetween:
 				cycles[open].unit.Rereviews++
-			case !isRereview && open >= 0 && !openedOnRereview && launch.at.Sub(last) <= cycleGap:
+			case !isRereview && open >= 0 && !openedOnRereview && !runBetween && launch.at.Sub(last) <= cycleGap:
 				cycles[open].unit.Reviewers++
 				last = launch.at
 			default:

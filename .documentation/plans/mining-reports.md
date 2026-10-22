@@ -55,11 +55,12 @@ ele's mining reports exist only as one-off Python scripts and run data on one ma
   - done when `ls` shows the folders gone, `ele import mining` is removed with its tests, a grep finds no name of them outside `.documentation/plans/`, and `task check FORCE=1` passes
   - blocked: judge-blocks, judge-notes-asks
   - as of 2026-10-22: `mining/2026-10-17-checkpoint-baseline-405865fa/` deleted by a plan audit, the user's call, nothing reading it since d8cf6ba; judge-notes-asks' folder added the same day, the user's call
-- [ ] unit-boundaries: Cut mining units where checkpoints actually start and report: anchor `checkpointCommand` in `internal/mining` to `checkpoint</command-name>`, so a typed `/ele:checkpoint-stats` no longer closes a run's window; tell a checkpoint's report from progress text by more than "bugs reviewer" plus a commit or gate over 800 characters (`reportCut`), which misses small-mode and newer reports; and whether two fresh reviewer launches under 5 minutes apart split a cycle, as re-reviews do, counting the runs affected first
+- [x] unit-boundaries: Cut mining units where checkpoints actually start and report: anchor `checkpointCommand` in `internal/mining` to `checkpoint</command-name>`, so a typed `/ele:checkpoint-stats` no longer closes a run's window; tell a checkpoint's report from progress text by more than "bugs reviewer" plus a commit or gate over 800 characters (`reportCut`), which misses small-mode and newer reports; and whether two fresh reviewer launches under 5 minutes apart split a cycle, as re-reviews do, counting the runs affected first
   - moved 2026-10-22 from this plan's inbox by a plan audit; first captured from question notes 20261020-ead7f7, 20261016-4c7d8f and 20261016-628f80
   - done when windows anchor on the command tag, the report check catches small-mode and current reports, the split-cycle count is measured and acted on or ruled out, each change has a test seen red, and `ele mine --report` is re-run with the figures it changes named
+  - asserted in the unit-boundaries commit: digest tests seen red for the exact checkpoint command and skill names, the record-turn report cut (all three record forms, a named-but-not-run script, a label while a reviewer is out) and the run-split cycle; on real data as of 2026-10-22, runs with no report 46→8 of 187, cycles 100→22 of 166, 2 cycles split, `ele mine --report` re-run with its changed figures in design.md
 - [ ] Fold what this plan built, its lasting Decisions (scripts and run data stay out of the repository; no per-user baseline) and its out-of-scope lines as `Not doing:` into the spec, and the hook-block changes into `checkpoint-and-ticket-audit.md`, its Open questions' Judging Stop-hook blocks entry and the line naming this plan's items included, run `ele plan done .documentation/plans/mining-reports.md`, and delete this plan
-  - blocked: delete-mining-runs, unit-boundaries
+  - blocked: delete-mining-runs
 
 ## Inbox
 

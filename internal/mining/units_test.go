@@ -134,24 +134,29 @@ func TestReviewCyclesSkipTheFirstCycleASubagentEraRunCovers(t *testing.T) {
 	}, starts, "an inline-era run covers nothing, a run at the era's start does, a run covers only its first cycle and only within 30 minutes, and never another session's")
 }
 
-func TestReviewCyclesSplitOffAnyRereviewARunPrecedes(t *testing.T) {
+func TestReviewCyclesSplitOffAnyLaunchARunPrecedes(t *testing.T) {
 	cycles, err := ReviewCycles([]dto.Event{
 		launch("s1", "2026-10-06T08:00:00Z", "Bugs review", "bugs"),
 		launch("s1", "2026-10-06T08:10:00Z", "Re-review bugs", "bugs"),
 		launch("s1", "2026-10-06T08:30:00Z", "Re-review bugs", "bugs"),
 		launch("s2", "2026-10-06T08:00:00Z", "Bugs review", "bugs"),
 		launch("s2", "2026-10-06T08:03:00Z", "Re-review bugs", "bugs"),
+		launch("s3", "2026-10-06T08:00:00Z", "Bugs review", "bugs"),
+		launch("s3", "2026-10-06T08:04:00Z", "Bugs review 2", "bugs"),
 	}, []dto.MiningUnit{
 		{Session: "s1", Timestamp: "2026-10-06T08:20:00Z"},
 		{Session: "s2", Timestamp: "2026-10-06T08:02:00Z"},
+		{Session: "s3", Timestamp: "2026-10-06T08:03:00Z"},
 	})
 	require.NoError(t, err)
 	require.Equal(t, []dto.MiningUnit{
 		{Project: "gateway", Rereviews: 1, Reviewers: 1, Session: "s1", Timestamp: "2026-10-06T08:00:00Z", Until: "2026-10-06T08:30:00Z"},
 		{Project: "gateway", Reviewers: 1, Session: "s2", Timestamp: "2026-10-06T08:00:00Z", Until: "2026-10-06T08:03:00Z"},
+		{Project: "gateway", Reviewers: 1, Session: "s3", Timestamp: "2026-10-06T08:00:00Z", Until: "2026-10-06T08:04:00Z"},
 		{Project: "gateway", Reviewers: 1, Session: "s2", Timestamp: "2026-10-06T08:03:00Z"},
+		{Project: "gateway", Reviewers: 1, Session: "s3", Timestamp: "2026-10-06T08:04:00Z"},
 		{Project: "gateway", Reviewers: 1, Session: "s1", Timestamp: "2026-10-06T08:30:00Z"},
-	}, cycles, "a run between two re-reviews closes the cycle to the second, and a re-review a run closed out never joins as a fresh launch, however soon")
+	}, cycles, "a run between two launches closes the cycle to the second, re-review or fresh, however soon; a re-review a run closed out never joins as a fresh launch")
 }
 
 func TestPendingListsUnjudgedUnitsPastTheWatermarkAndCountsTheRest(t *testing.T) {
