@@ -106,6 +106,15 @@ func Load(path string, since time.Time) (Loaded, error) {
 	}
 }
 
+func Median(values []float64) float64 {
+	sorted := slices.Sorted(slices.Values(values))
+	middle := len(sorted) / 2
+	if len(sorted)%2 == 1 {
+		return sorted[middle]
+	}
+	return (sorted[middle-1] + sorted[middle]) / 2
+}
+
 func Report(w io.Writer, runs []Run) {
 	modes := map[string]int{}
 	scopes := map[string]int{}
@@ -119,7 +128,7 @@ func Report(w io.Writer, runs []Run) {
 	}
 	size := "No change size known"
 	if len(sized) > 0 {
-		size = fmt.Sprintf("Median change %.6g lines added plus removed", median(sized))
+		size = fmt.Sprintf("Median change %.6g lines added plus removed", Median(sized))
 	}
 	if unsized := len(runs) - len(sized); unsized > 0 {
 		size += fmt.Sprintf(", %d of unknown size left out", unsized)
@@ -254,10 +263,10 @@ func Report(w io.Writer, runs []Run) {
 	var medians []string
 	for _, mode := range []string{"full", "small"} {
 		if len(byMode[mode]) > 0 {
-			medians = append(medians, fmt.Sprintf("%s %.1fm", mode, median(byMode[mode])/60))
+			medians = append(medians, fmt.Sprintf("%s %.1fm", mode, Median(byMode[mode])/60))
 		}
 	}
-	fmt.Fprintf(w, "Duration, first freeze to log line: median %.1fm over %d of %d checkpoints (%s); longest %.1fm\n", median(durations)/60, len(durations), len(runs), strings.Join(medians, ", "), slices.Max(durations)/60)
+	fmt.Fprintf(w, "Duration, first freeze to log line: median %.1fm over %d of %d checkpoints (%s); longest %.1fm\n", Median(durations)/60, len(durations), len(runs), strings.Join(medians, ", "), slices.Max(durations)/60)
 }
 
 func WriteBaseline(w io.Writer, path string) error {
@@ -341,15 +350,6 @@ func integral(value any) (int64, bool) {
 	}
 	parsed, err := literal.Int64()
 	return parsed, err == nil
-}
-
-func median(values []float64) float64 {
-	sorted := slices.Sorted(slices.Values(values))
-	middle := len(sorted) / 2
-	if len(sorted)%2 == 1 {
-		return sorted[middle]
-	}
-	return (sorted[middle-1] + sorted[middle]) / 2
 }
 
 func parseCounts(value any, required string) (map[string]float64, bool) {

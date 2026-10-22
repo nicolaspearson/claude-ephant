@@ -206,7 +206,7 @@ func peerDensity(root string, changed string, tracked []string) (float64, int, b
 				}
 			}
 			if len(densities) >= minimumPeers {
-				return median(densities), len(densities), true
+				return Median(densities), len(densities), true
 			}
 		}
 		if directory == "" {

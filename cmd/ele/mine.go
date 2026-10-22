@@ -26,14 +26,14 @@ func mine(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer
 	judgmentsFile := flags.String("judgments", "", "read the classifications to store from this JSON Lines file, one per unit")
 	noSync := flags.Bool("no-sync", false, "read without syncing first")
 	promptFile := flags.String("prompt", "", "the classifier prompt the judgments were made with")
-	report := flags.Bool("report", false, "report figures from the last stored judgment per unit, both analyses together")
+	report := flags.Bool("report", false, "report figures from the last stored judgment per unit, both analyses together, with each subagent-era unit's timing read from its archived transcript")
 	unitsFile := flags.String("units", "", "list the units this JSON Lines file names by session and timestamp, judged or not")
 	err := flags.Parse(args)
 	if err == nil && *report {
-		if flags.NFlag() != 1 || flags.NArg() != 0 {
+		if flags.NArg() != 0 || *digests != "" || *judgmentsFile != "" || *promptFile != "" || *unitsFile != "" {
 			return rejectCall(flags, nil, stdout, stderr)
 		}
-		return reportJudgments(stdout, stderr)
+		return reportJudgments(ctx, *noSync, stdout, stderr)
 	}
 	if err != nil || flags.NArg() != 1 || (*judgmentsFile == "") != (*promptFile == "") || (*judgmentsFile != "" && (*digests == "" || *unitsFile != "")) {
 		return rejectCall(flags, err, stdout, stderr)
@@ -142,7 +142,7 @@ func pendingUnits(cache string, analysis string, units []dto.MiningUnit) ([]dto.
 	return pending, behind, watermark, err
 }
 
-func reportJudgments(stdout io.Writer, stderr io.Writer) int {
+func reportJudgments(ctx context.Context, noSync bool, stdout io.Writer, stderr io.Writer) int {
 	dataDirectory, err := datadir.Path()
 	if err != nil {
 		fmt.Fprintf(stderr, "ele: %v\n", err)
@@ -159,11 +159,44 @@ func reportJudgments(stdout io.Writer, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return 1
 	}
-	if err = mining.Report(stdout, runs, cycles); err != nil {
+	timings, err := timeJudgedUnits(ctx, noSync, dataDirectory, map[string][]mining.Judgment{"checkpoint-runs": runs, "review-cycles": cycles}, stderr)
+	if err != nil {
+		fmt.Fprintf(stderr, "ele: %v\n", err)
+		return 1
+	}
+	if err = mining.Report(stdout, runs, cycles, timings); err != nil {
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return 1
 	}
 	return 0
+}
+
+// timeJudgedUnits times only subagent-era units: an inline-era run has no reviewer subagents to time.
+func timeJudgedUnits(ctx context.Context, noSync bool, dataDirectory string, judgments map[string][]mining.Judgment, stderr io.Writer) (map[mining.UnitKey]mining.Timing, error) {
+	searchIndex, err := syncedIndex(ctx, noSync, stderr, "these units")
+	if err != nil {
+		return nil, err
+	}
+	defer searchIndex.Close()
+	var timed []mining.TimedUnit
+	for _, analysis := range analyses {
+		reported := map[[2]string]string{}
+		for _, judgment := range judgments[analysis] {
+			if judgment.Era != "inline" {
+				reported[[2]string{judgment.Session, judgment.Timestamp}] = mining.ReportedAt(judgment)
+			}
+		}
+		units, err := miningUnits(ctx, searchIndex, analysis)
+		if err != nil {
+			return nil, err
+		}
+		for _, unit := range units {
+			if reportedAt, judged := reported[[2]string{unit.Session, unit.Timestamp}]; judged {
+				timed = append(timed, mining.TimedUnit{Analysis: analysis, ReportedAt: reportedAt, Unit: unit})
+			}
+		}
+	}
+	return mining.Time(filepath.Join(dataDirectory, "archive", "transcripts"), timed), nil
 }
 
 func takeJudgments(cache string, digests string, analysis string, promptFile string, judgmentsFile string, units []dto.MiningUnit, stdout io.Writer, stderr io.Writer) int {

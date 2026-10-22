@@ -157,15 +157,9 @@ func Digest(archiveDirectory string, analysis string, unit dto.MiningUnit) (stri
 	if err != nil {
 		return "", err
 	}
-	opening := -1
-	for position, line := range file.lines {
-		if line.Timestamp == unit.Timestamp {
-			opening = position
-			break
-		}
-	}
-	if opening < 0 {
-		return "", fmt.Errorf("unit %s %s: no line at that time in %s", unit.Session, unit.Timestamp, unit.Source)
+	opening, err := openingLine(file, unit)
+	if err != nil {
+		return "", err
 	}
 	if analysis == "review-cycles" {
 		return cycleDigest(file, opening, unit)
@@ -254,35 +248,14 @@ func collect(file transcriptFile, window []digestLine, how style) collected {
 	return result
 }
 
-// A cycle's window opens at the last human message before its first launch or the first line 15 minutes back, whichever is nearer, and closes at its session's next cycle, three hours on, or its report.
 func cycleDigest(file transcriptFile, opening int, unit dto.MiningUnit) (string, error) {
-	lines := file.lines
-	started := lines[opening].at
-	until, err := optionalTime(unit.Until)
+	window, next, err := cycleWindow(file, opening, unit)
 	if err != nil {
 		return "", err
 	}
-	first := opening
-	for first > 0 {
-		line := lines[first]
-		if !line.at.IsZero() && (line.isHuman() || started.Sub(line.at) >= cycleLeadIn) {
-			break
-		}
-		first--
-	}
-	end := opening
-	for ; end < len(lines); end++ {
-		at := lines[end].at
-		if !at.IsZero() && ((!until.IsZero() && !at.Before(until)) || at.Sub(started) > cycleReach) {
-			break
-		}
-	}
-	window := lines[first:end]
 	var after []digestLine
-	back := reviewersBack(file, window)
-	if report := reportCut(window[back:]); report >= 0 {
-		window = window[:back+report+1]
-		after = nextHumans(lines[first+back+report+1:])
+	if next >= 0 {
+		after = nextHumans(file.lines[next:])
 	}
 	found := collect(file, window, cycleStyle)
 
@@ -309,6 +282,37 @@ func cycleDigest(file transcriptFile, opening int, unit dto.MiningUnit) (string,
 	return digest.String(), nil
 }
 
+// A cycle's window opens at the last human message before its first launch or the first line 15 minutes back, whichever is nearer, and closes at its session's next cycle, three hours on, or its report. next is the line after a report that closed it, or -1.
+func cycleWindow(file transcriptFile, opening int, unit dto.MiningUnit) (window []digestLine, next int, err error) {
+	lines := file.lines
+	started := lines[opening].at
+	until, err := optionalTime(unit.Until)
+	if err != nil {
+		return nil, -1, err
+	}
+	first := opening
+	for first > 0 {
+		line := lines[first]
+		if !line.at.IsZero() && (line.isHuman() || started.Sub(line.at) >= cycleLeadIn) {
+			break
+		}
+		first--
+	}
+	end := opening
+	for ; end < len(lines); end++ {
+		at := lines[end].at
+		if !at.IsZero() && ((!until.IsZero() && !at.Before(until)) || at.Sub(started) > cycleReach) {
+			break
+		}
+	}
+	window = lines[first:end]
+	back := reviewersBack(file, window)
+	if report := reportCut(window[back:]); report >= 0 {
+		return window[:back+report+1], first + back + report + 1, nil
+	}
+	return window, -1, nil
+}
+
 func nextHumans(lines []digestLine) []digestLine {
 	var humans []digestLine
 	for _, line := range lines {
@@ -320,6 +324,15 @@ func nextHumans(lines []digestLine) []digestLine {
 		}
 	}
 	return humans
+}
+
+func openingLine(file transcriptFile, unit dto.MiningUnit) (int, error) {
+	for position, line := range file.lines {
+		if line.Timestamp == unit.Timestamp {
+			return position, nil
+		}
+	}
+	return -1, fmt.Errorf("unit %s %s: no line at that time in %s", unit.Session, unit.Timestamp, unit.Source)
 }
 
 func optionalTime(timestamp string) (time.Time, error) {
@@ -470,27 +483,12 @@ func reviewersBack(file transcriptFile, window []digestLine) int {
 	return back
 }
 
-// A run's window closes at the next checkpoint invocation, its Until, four hours on, or its report.
 func runDigest(file transcriptFile, opening int, unit dto.MiningUnit) (string, error) {
 	lines := file.lines
 	started := lines[opening].at
-	until, err := optionalTime(unit.Until)
+	window, err := runWindow(file, opening, unit)
 	if err != nil {
 		return "", err
-	}
-	end := opening + 1
-	for ; end < len(lines); end++ {
-		line := lines[end]
-		if !line.at.IsZero() && ((!until.IsZero() && !line.at.Before(until)) || line.at.Sub(started) > runReach) {
-			break
-		}
-		if line.invokesCheckpoint() {
-			break
-		}
-	}
-	window := lines[opening:end]
-	if report := reportCut(window); report >= 0 {
-		window = window[:report+1]
 	}
 	var askings []digestLine
 	for position := opening - 1; position >= 0 && len(askings) < shownAskings; position-- {
@@ -570,6 +568,31 @@ func runDigest(file transcriptFile, opening int, unit dto.MiningUnit) (string, e
 		fmt.Fprintf(&digest, "\n=== NEXT HUMAN %s\n%s\n", human.Timestamp, quote(human.textOf(), 1500))
 	}
 	return digest.String(), nil
+}
+
+// A run's window closes at the next checkpoint invocation, its Until, four hours on, or its report.
+func runWindow(file transcriptFile, opening int, unit dto.MiningUnit) ([]digestLine, error) {
+	lines := file.lines
+	started := lines[opening].at
+	until, err := optionalTime(unit.Until)
+	if err != nil {
+		return nil, err
+	}
+	end := opening + 1
+	for ; end < len(lines); end++ {
+		line := lines[end]
+		if !line.at.IsZero() && ((!until.IsZero() && !line.at.Before(until)) || line.at.Sub(started) > runReach) {
+			break
+		}
+		if line.invokesCheckpoint() {
+			break
+		}
+	}
+	window := lines[opening:end]
+	if report := reportCut(window); report >= 0 {
+		window = window[:report+1]
+	}
+	return window, nil
 }
 
 func seconds(run *subagentRun) string {

@@ -34,7 +34,7 @@ const usage = `usage:
   ele import mining <run>
   ele mine [--digests <dir>] [--units <file>] [--no-sync] checkpoint-runs|review-cycles
   ele mine --judgments <file> --prompt <file> --digests <dir> [--no-sync] checkpoint-runs|review-cycles
-  ele mine --report
+  ele mine --report [--no-sync]
   ele owner add [--move] [--move-to <owner>] [--no-sync] <name>
   ele owner add-path [--move] [--move-to <owner>] [--no-sync] <dir> <owner>
   ele owner add-project [--move] [--move-to <owner>] [--no-sync] <name> <owner>

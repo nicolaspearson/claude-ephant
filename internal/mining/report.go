@@ -40,10 +40,12 @@ type finding struct {
 }
 
 type judged struct {
-	at      time.Time
-	date    string
-	result  result
-	session string
+	analysis  string
+	at        time.Time
+	date      string
+	result    result
+	session   string
+	timestamp string
 }
 
 func (unit judged) checkpoint() bool {
@@ -81,12 +83,12 @@ type result struct {
 }
 
 // Report reads the last stored judgment per unit, and leaves out a review cycle starting inside a subagent-era run's window, which that run's judgment already covers.
-func Report(w io.Writer, runs []Judgment, cycles []Judgment) error {
-	runUnits, err := lastPerUnit(runs)
+func Report(w io.Writer, runs []Judgment, cycles []Judgment, timings map[UnitKey]Timing) error {
+	runUnits, err := lastPerUnit(runs, "checkpoint-runs")
 	if err != nil {
 		return err
 	}
-	cycleUnits, err := lastPerUnit(cycles)
+	cycleUnits, err := lastPerUnit(cycles, "review-cycles")
 	if err != nil {
 		return err
 	}
@@ -102,7 +104,7 @@ func Report(w io.Writer, runs []Judgment, cycles []Judgment) error {
 	if err != nil {
 		return err
 	}
-	writeSubagentEra(w, subagent, kept, len(cycleUnits)-len(kept))
+	writeSubagentEra(w, subagent, kept, len(cycleUnits)-len(kept), timings)
 	writeInlineEra(w, inline)
 	return nil
 }
@@ -144,7 +146,7 @@ func joinCounts(counts map[string]int) string {
 	return strings.Join(parts, ", ")
 }
 
-func lastPerUnit(judgments []Judgment) ([]eraUnit, error) {
+func lastPerUnit(judgments []Judgment, analysis string) ([]eraUnit, error) {
 	at := map[[2]string]int{}
 	var units []eraUnit
 	for _, judgment := range judgments {
@@ -156,7 +158,7 @@ func lastPerUnit(judgments []Judgment) ([]eraUnit, error) {
 		if err != nil {
 			return nil, err
 		}
-		unit := eraUnit{era: judgment.Era, judged: judged{at: when, date: when.Format(time.DateOnly), result: parsed, session: judgment.Session}}
+		unit := eraUnit{era: judgment.Era, judged: judged{analysis: analysis, at: when, date: when.Format(time.DateOnly), result: parsed, session: judgment.Session, timestamp: judgment.Timestamp}}
 		key := [2]string{judgment.Session, judgment.Timestamp}
 		if position, seen := at[key]; seen {
 			units[position] = unit
@@ -197,6 +199,17 @@ func uncovered(runs []judged, cycles []eraUnit) ([]judged, error) {
 		}
 	}
 	return kept, nil
+}
+
+// upperQuartile is the exclusive method: lower index 3(n+1)/4, clamped to 1..n-1, so a short slice extrapolates.
+func upperQuartile(values []float64) (float64, bool) {
+	if len(values) < 2 {
+		return 0, false
+	}
+	sorted := slices.Sorted(slices.Values(values))
+	position := min(max(3*(len(sorted)+1)/4, 1), len(sorted)-1)
+	delta := float64(3*(len(sorted)+1) - 4*position)
+	return (sorted[position-1]*(4-delta) + sorted[position]*delta) / 4, true
 }
 
 func writeInlineEra(w io.Writer, units []judged) {
@@ -292,7 +305,7 @@ func writeOutcomes(w io.Writer, checkpoints []judged, units []judged) {
 	fmt.Fprintf(w, "Repeated work noted: checkpoints %d. A saved note would have helped: units %d.\n", repeated, memory)
 }
 
-func writeSubagentEra(w io.Writer, runs []judged, cycles []judged, coveredCycles int) {
+func writeSubagentEra(w io.Writer, runs []judged, cycles []judged, coveredCycles int, timings map[UnitKey]Timing) {
 	units := append(slices.Clone(runs), cycles...)
 	var checkpoints []judged
 	confidence := map[string]int{}
@@ -424,4 +437,70 @@ func writeSubagentEra(w io.Writer, runs []judged, cycles []judged, coveredCycles
 	fmt.Fprintf(w, "Re-raised a decision the user had made: findings %d, checkpoints %d.\n", reraised, reraisedIn)
 
 	writeOutcomes(w, checkpoints, units)
+	writeTiming(w, units, timings)
+}
+
+func writeTiming(w io.Writer, units []judged, timings map[UnitKey]Timing) {
+	var windows, parentBash, parentGate, subagentBash, subagentGate []float64
+	reviewers := map[string][]ReviewerTiming{}
+	for _, unit := range units {
+		timing, ok := timings[UnitKey{Analysis: unit.analysis, Session: unit.session, Timestamp: unit.timestamp}]
+		if !ok {
+			continue
+		}
+		windows = append(windows, timing.Seconds)
+		parentBash = append(parentBash, timing.ParentBash)
+		parentGate = append(parentGate, timing.ParentGate)
+		subagentBash = append(subagentBash, timing.SubagentBash)
+		subagentGate = append(subagentGate, timing.SubagentGate)
+		for _, reviewer := range timing.Reviewers {
+			key := fmt.Sprintf("%s %d", reviewer.Role, reviewer.Round)
+			reviewers[key] = append(reviewers[key], reviewer)
+		}
+	}
+	fmt.Fprintf(w, "\nTiming, from the archived transcript in each unit's window: units timed %d of %d.\n", len(windows), len(units))
+	if len(windows) == 0 {
+		return
+	}
+	hours := func(values []float64) float64 {
+		total := 0.0
+		for _, value := range values {
+			total += value
+		}
+		return total / 3600
+	}
+	mostGate := slices.Sorted(slices.Values(parentGate))
+	slices.Reverse(mostGate)
+	var minutes []string
+	for _, seconds := range mostGate[:min(8, len(mostGate))] {
+		minutes = append(minutes, fmt.Sprintf("%.1f", seconds/60))
+	}
+	fmt.Fprintf(w, "Window, opening to last line: median %.1fm, summed %.1fh.\n", checkpoint.Median(windows)/60, hours(windows))
+	fmt.Fprintf(w, "Bash in the main thread: median %.0fs, gate median %.0fs; summed %.1fh, gate %.1fh. Most gate time in one unit, minutes: %s.\n", checkpoint.Median(parentBash), checkpoint.Median(parentGate), hours(parentBash), hours(parentGate), strings.Join(minutes, ", "))
+	fmt.Fprintf(w, "Bash in subagents, summed across parallel runs: median %.0fs, gate median %.0fs; summed %.1fh, gate %.1fh.\n", checkpoint.Median(subagentBash), checkpoint.Median(subagentGate), hours(subagentBash), hours(subagentGate))
+
+	fmt.Fprintln(w, "\nReviewers by role and round (2 a re-review), seconds from their first line to their last")
+	fmt.Fprintf(w, "%-20s %8s %6s %7s %5s %11s %16s %6s\n", "role round", "launches", "timed", "median", "p75", "ran a gate", "convention reads", "tools")
+	for _, key := range slices.Sorted(maps.Keys(reviewers)) {
+		var seconds, conventionReads, tools []float64
+		gated := 0
+		for _, reviewer := range reviewers[key] {
+			if reviewer.Seconds != nil {
+				seconds = append(seconds, *reviewer.Seconds)
+			}
+			conventionReads = append(conventionReads, float64(reviewer.ConventionReads))
+			tools = append(tools, float64(reviewer.Tools))
+			if reviewer.GateRuns > 0 {
+				gated++
+			}
+		}
+		middle, upper := "-", "-"
+		if len(seconds) > 0 {
+			middle = fmt.Sprintf("%.0f", checkpoint.Median(seconds))
+		}
+		if quartile, ok := upperQuartile(seconds); ok {
+			upper = fmt.Sprintf("%.0f", quartile)
+		}
+		fmt.Fprintf(w, "%-20s %8d %6d %7s %5s %11d %16g %6g\n", key, len(reviewers[key]), len(seconds), middle, upper, gated, checkpoint.Median(conventionReads), checkpoint.Median(tools))
+	}
 }

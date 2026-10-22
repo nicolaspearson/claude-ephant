@@ -21,7 +21,7 @@ func TestReportLeavesOutACycleInsideAJudgedRunsWindow(t *testing.T) {
 	}
 	var report bytes.Buffer
 
-	require.NoError(t, Report(&report, runs, cycles))
+	require.NoError(t, Report(&report, runs, cycles, nil))
 
 	require.Contains(t, report.String(), "run judgments 1, review-cycle judgments 2, cycles inside a judged run's window left out 1, checkpoints 3.")
 	require.Contains(t, report.String(), "Review cycles started by after 1, elsewhere 1.")
@@ -35,7 +35,7 @@ func TestReportLeavesOutAnInlineRunJudgedWithoutPerPassCounts(t *testing.T) {
 	}
 	var report bytes.Buffer
 
-	require.NoError(t, Report(&report, runs, nil))
+	require.NoError(t, Report(&report, runs, nil, nil))
 
 	require.Contains(t, report.String(), "Inline era: run judgments 2, checkpoints 1.")
 	require.Contains(t, report.String(), "Inline-era runs judged under the subagent-era prompt, with no per-pass counts, left out: 1.")
@@ -51,9 +51,28 @@ func TestReportReadsTheLastStoredJudgmentPerUnit(t *testing.T) {
 	}
 	var report bytes.Buffer
 
-	require.NoError(t, Report(&report, runs, nil))
+	require.NoError(t, Report(&report, runs, nil, nil))
 
 	require.Contains(t, report.String(), "Subagent era: run judgments 1, review-cycle judgments 0")
 	require.Contains(t, report.String(), "Mode: full 0, small 1.")
 	require.Contains(t, report.String(), "Refuted: 0 of 0 findings")
+}
+
+func TestReportTimesTheUnitsItHasATimingFor(t *testing.T) {
+	runs := []Judgment{
+		judgment("subagent", "s1", "2026-10-08T10:00:00Z", `{}`),
+		judgment("subagent", "s1", "2026-10-08T11:00:00Z", `{}`),
+	}
+	seconds := 90.0
+	timings := map[UnitKey]Timing{{Analysis: "checkpoint-runs", Session: "s1", Timestamp: "2026-10-08T10:00:00Z"}: {
+		ParentBash: 60, ParentGate: 30, Reviewers: []ReviewerTiming{{ConventionReads: 2, GateRuns: 1, Role: "bugs", Round: 1, Seconds: &seconds, Tools: 7}}, Seconds: 600,
+	}}
+	var report bytes.Buffer
+
+	require.NoError(t, Report(&report, runs, nil, timings))
+
+	require.Contains(t, report.String(), "units timed 1 of 2.")
+	require.Contains(t, report.String(), "Window, opening to last line: median 10.0m")
+	require.Contains(t, report.String(), "Bash in the main thread: median 60s, gate median 30s")
+	require.Contains(t, report.String(), "bugs 1                      1      1      90     -           1                2      7")
 }

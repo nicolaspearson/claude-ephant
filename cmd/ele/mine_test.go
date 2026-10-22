@@ -40,9 +40,7 @@ func TestRunMineDigestClosesACycleAtItsSessionsNextCycle(t *testing.T) {
 }
 
 func TestRunMineReportReadsBothAnalysesAndTakesNothingElse(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("ELE_HOME", home)
-	cache := filepath.Join(home, "mining", "cache")
+	cache := filepath.Join(recallFixture(t), "data", "mining", "cache")
 	_, err := mining.Store(cache, "checkpoint-runs", []mining.Judgment{{Classifier: "c", Era: "subagent", Result: json.RawMessage(`{"mode":"small"}`), Session: "s1", Timestamp: "2026-10-08T10:00:00Z"}})
 	require.NoError(t, err)
 	_, err = mining.Store(cache, "review-cycles", []mining.Judgment{{Classifier: "c", Result: json.RawMessage(`{"mode":"full"}`), Session: "s1", Timestamp: "2026-10-08T11:00:00Z"}})
@@ -52,8 +50,9 @@ func TestRunMineReportReadsBothAnalysesAndTakesNothingElse(t *testing.T) {
 	require.Equal(t, 0, run(context.Background(), []string{"mine", "--report"}, &stdout, &stderr), stderr.String())
 	require.Contains(t, stdout.String(), "Subagent era: run judgments 1, review-cycle judgments 1")
 	require.Contains(t, stdout.String(), "Mode: full 1, small 1.")
+	require.Contains(t, stdout.String(), "units timed 0 of 2.", "no archived unit carries these judgments' times")
 
-	for _, args := range [][]string{{"mine", "--report", "checkpoint-runs"}, {"mine", "--report", "--no-sync"}} {
+	for _, args := range [][]string{{"mine", "--report", "checkpoint-runs"}, {"mine", "--report", "--units", "units.jsonl"}} {
 		stdout.Reset()
 		stderr.Reset()
 		require.Equal(t, 2, run(context.Background(), args, &stdout, &stderr), args)
