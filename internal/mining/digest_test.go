@@ -208,6 +208,26 @@ func TestDigestOfACheckpointRunEndsTheTurnItRecordsIn(t *testing.T) {
 	}
 }
 
+func TestDigestOfACheckpointRunOpensAtItsCallNotALineSharingItsTime(t *testing.T) {
+	archiveDirectory := t.TempDir()
+	writeArchived(t, filepath.Join(archiveDirectory, "claude", "-gateway", "t1.jsonl.gz"),
+		`{"type":"attachment","attachment":{"type":"deferred_tools_record"},"sessionId":"s1","timestamp":"2026-10-16T10:00:00Z"}`+"\n",
+		transcriptLine(t, "10:00:00", "assistant", toolUse("tu0", "Skill", map[string]any{"skill": "checkpoint"})),
+		transcriptLine(t, "10:01:00", "assistant", toolUse("tu1", "Bash", map[string]any{"command": "ele checkpoint log /repo <<'EOF'\n{}\nEOF"})),
+		transcriptLine(t, "10:02:00", "assistant", []map[string]any{{"text": "Item 3 is built and ready to commit.", "type": "text"}}))
+	unit := dto.MiningUnit{Session: "s1", Source: "claude/-gateway/t1.jsonl.gz", Timestamp: "2026-10-16T10:00:00Z"}
+
+	digest, err := Digest(archiveDirectory, "checkpoint-runs", unit)
+	require.NoError(t, err)
+	require.Contains(t, digest, `"end":"2026-10-16T10:02:00Z"`, "the run opens at its Skill call, not the attachment written at the same time")
+
+	file, err := readTranscript(filepath.Join(archiveDirectory, "claude", "-gateway", "t1.jsonl.gz"))
+	require.NoError(t, err)
+	timing, err := timeUnit(file, TimedUnit{Analysis: "checkpoint-runs", Unit: unit})
+	require.NoError(t, err)
+	require.Equal(t, 120.0, timing.Seconds, "timing opens at the call too")
+}
+
 func TestDigestOfACheckpointRunReadsACompactionAsNoPrompt(t *testing.T) {
 	archiveDirectory := t.TempDir()
 	compaction := strings.TrimSuffix(transcriptLine(t, "10:03:30", "user", "This session is being continued from a previous conversation that ran out of context."), "}\n") + `,"isCompactSummary":true,"isVisibleInTranscriptOnly":true}` + "\n"

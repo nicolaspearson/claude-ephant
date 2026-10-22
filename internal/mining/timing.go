@@ -153,7 +153,7 @@ func reviewerTiming(lines []digestLine, role string, round int) ReviewerTiming {
 }
 
 func timeUnit(file transcriptFile, timed TimedUnit) (Timing, error) {
-	opening, err := openingLine(file, timed.Unit)
+	opening, err := openingLine(file, timed.Analysis, timed.Unit)
 	if err != nil {
 		return Timing{}, err
 	}

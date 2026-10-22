@@ -159,7 +159,7 @@ func Digest(archiveDirectory string, analysis string, unit dto.MiningUnit) (stri
 	if err != nil {
 		return "", err
 	}
-	opening, err := openingLine(file, unit)
+	opening, err := openingLine(file, analysis, unit)
 	if err != nil {
 		return "", err
 	}
@@ -328,11 +328,23 @@ func nextHumans(lines []digestLine) []digestLine {
 	return humans
 }
 
-func openingLine(file transcriptFile, unit dto.MiningUnit) (int, error) {
-	for position, line := range file.lines {
-		if line.Timestamp == unit.Timestamp {
+// An attachment can share the call's time; a run opened on it closes at once on the call.
+func openingLine(file transcriptFile, analysis string, unit dto.MiningUnit) (int, error) {
+	first := -1
+	for position := range file.lines {
+		line := &file.lines[position]
+		if line.Timestamp != unit.Timestamp {
+			continue
+		}
+		if analysis != "review-cycles" && line.invokesCheckpoint() {
 			return position, nil
 		}
+		if first < 0 {
+			first = position
+		}
+	}
+	if first >= 0 {
+		return first, nil
 	}
 	return -1, fmt.Errorf("unit %s %s: no line at that time in %s", unit.Session, unit.Timestamp, unit.Source)
 }
