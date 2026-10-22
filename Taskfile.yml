@@ -25,9 +25,10 @@ tasks:
   ##################################################
 
   check:
-    desc: "Run lint, dead code, module tidiness, tests and the premigration suites. audit needs the network, so it runs on its own."
+    desc: "Run lint, docs lint, dead code, module tidiness, tests and the premigration suites. audit needs the network, so it runs on its own."
     cmds:
       - task: lint
+      - task: lint-docs
       - task: unused
       - task: tidy-check
       - task: test
