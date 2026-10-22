@@ -39,7 +39,7 @@ Give ele a configuration a user can switch and tune from one place, reminders th
 - Closing a nudge re-arms it: `due` becomes the close date plus N and `closed` stays empty, `ele reminder list` shows it open with its interval, and `ele forget` retires it, decided 2026-10-22 by the user
 - Nudges switch with the `reminders` option, no option of their own, decided 2026-10-22 by the user: a nudge is a reminder
 - A nudge is saved with `ele remember --kind reminder --every N [--due D] [--done-file P]`, `--due` defaulting to today with `--every`, decided 2026-10-22 by the user
-- The hook-stats nudge is one `--global` nudge per owner running `measure-reminder.sh` today, personal and hyve, each naming `~/.claude/cache/hook-stats.last`, handed to the user as commands with the hook's removal from both profiles' settings, decided 2026-10-22 by the user
+- The hook-stats nudge is one `--global` nudge per owner in the owner map, personal, hyve and bitgorilla as of 2026-10-22, each naming `~/.claude/cache/hook-stats.last`, handed to the user as commands with the hook's removal from both profiles' settings, decided 2026-10-22 by the user
 - `ele reminder`'s usage names `ele remember --kind reminder` for saving one, decided 2026-10-22 by the user: the user looked for it under `ele reminder`
 
 ## Actions
@@ -71,7 +71,7 @@ Give ele a configuration a user can switch and tune from one place, reminders th
   - as of 2026-10-22: `~/.claude/hooks/measure-reminder.sh` prints its notice when `~/.claude/cache/hook-stats.last` is missing or older than 7 days; it is a SessionStart hook in both `~/.claude/settings.json:87` and `~/.claude-hyve/settings.json:87`. `hook-firings.py:195-196` rewrites the marker on every run
   - as of 2026-10-22, before the build: `ele reminder close` set the note's `closed` key (`notes.MarkClosed`, from `reminderCommand` in `cmd/ele/reminder.go`); `dueReminders` showed an open reminder once `due` was today or earlier; `Parse` in `internal/notes` knew no `every` key; session start reads the `reminders` option in `cmd/ele/sessionstart.go`. `ele plan check` listed no warnings
   - as of 2026-10-22: built, uncommitted: nudge keys `every` and `done-file` in `internal/notes` (`SetDue`, done-file control characters refused); `ele remember --every --done-file` (`~` expanded, `--every 0` refused); close re-arming a nudge; `nextDue` and `withNextDue`; the interval in the start block and `ele reminder list`; `ele reminder`'s usage naming `ele remember`; design.md, README, the remember skill. The checkpoint's mutations went red, ten in all; `task check FORCE=1` and `task audit` green; clone build installed. In a scratch `ELE_HOME`, a nudge on the real `hook-stats.last` (changed 2026-10-16) listed due 2026-10-23. Not run: the remember evals after the skill's `--every` lines
-  - next: the user saves one hook-stats nudge per owner and removes `measure-reminder.sh`, its test and its SessionStart entry, from the commands handed over; then a real `/hook-stats` run moves the nudge's due date in `ele reminder list`, and the item ticks
+  - next: a real `/hook-stats` run from 2026-10-23 moves the nudges' due dates a week later in `ele reminder list`, and the item ticks
 - [ ] recipe-propose: ele:recipe proposes a reusable procedure seen in a session as a user skill, with the same Write/Skip approval as notes whatever auto note writes says, and writes the approved one under the user's skills
   - done when an eval or test seen red has ele:recipe propose a multi-step procedure from a session transcript, an approved recipe is written as a skill a fresh session lists, and with the option off nothing is proposed
   - next: settle whether ele gets a scope spanning owners, or one keyed to repo traits such as every Go repo, for multi-step recipes like a Go upgrade; as of 2026-10-22 `--global` covers one owner and notes cap at 3 lines and load every session, so such recipes go in `~/.claude/conventions`, and a user skill already spans owners (raised 2026-10-22 in a Go upgrade discussion)
@@ -83,5 +83,6 @@ Give ele a configuration a user can switch and tune from one place, reminders th
 
 - 2026-10-21, from the user's config candidates: options beyond those planned, to list with the user once config-structure is done
 - 2026-10-21, from the user's config candidates: "Claude heads-up integration", undefined when raised; meaning to be drawn with the user once config-structure is done
+- 2026-10-22, from the nudges work: a note scope spanning every owner, so a machine-wide nudge such as the hook-stats one is saved once and covers owners added later; as of 2026-10-22 the hook-stats nudge is saved once per owner, three notes. Shares the cross-owner scope question with recipe-propose
 
 ## Out of scope
