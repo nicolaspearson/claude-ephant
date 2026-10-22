@@ -248,3 +248,16 @@ tasks:
           echo "Dead code. Remove it, or name a parameter _ where an interface fixes its shape."
           exit 1
         fi
+
+  ##################################################
+  # Evals, run by hand
+  ##################################################
+
+  eval:
+    desc: "Run the plugin's eval cases against the installed ele plugin, or a plugin path. Usage: task eval [-- ./plugin]. Each run costs model calls."
+    preconditions:
+      - sh: command -v claude
+        msg: "claude is not installed"
+    cmds:
+      # --ablation none keeps Skill graders scored.
+      - claude plugin eval {{.CLI_ARGS | default "ele@claude-ephant"}} --ablation none --allow-tools Bash --no-publish --output-dir .task/eval --report .task/eval/report.html --trust-plugin

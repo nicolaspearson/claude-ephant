@@ -115,4 +115,9 @@ it installs the latest release's binary through `install.sh` to `~/.local/bin`
 behind it on `PATH`. It then updates the marketplace and the plugin; sessions
 already open load it after `/reload-plugins`.
 
+`task eval` runs the installed plugin's eval cases with `claude plugin eval`,
+and `task eval -- ./plugin` the clone's cases, in `plugin/evals/`.
+Each run is a real session on your account and costs model calls, so no gate
+runs it.
+
 The specs are in [`.documentation/specs/`](.documentation/specs/).
