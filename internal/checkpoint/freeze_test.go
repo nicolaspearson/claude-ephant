@@ -34,7 +34,7 @@ func TestBaseTakesTheUpstreamElseOriginsDefaultBranch(t *testing.T) {
 
 	runGit(t, root, "config", "--unset", "branch."+branch+".remote")
 	runGit(t, root, "config", "--unset", "branch."+branch+".merge")
-	orphan := strings.TrimSpace(gitOutput(t, root, "commit-tree", "-m", "orphan", strings.TrimSpace(gitOutput(t, root, "hash-object", "-w", "-t", "tree", "/dev/null"))))
+	orphan := strings.TrimSpace(gitOutput(t, root, "-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "commit.gpgsign=false", "commit-tree", "-m", "orphan", strings.TrimSpace(gitOutput(t, root, "hash-object", "-w", "-t", "tree", "/dev/null"))))
 	runGit(t, root, "update-ref", "refs/remotes/origin/main", orphan)
 	_, err = Base(context.Background(), root)
 	require.ErrorContains(t, err, "shares no history")
