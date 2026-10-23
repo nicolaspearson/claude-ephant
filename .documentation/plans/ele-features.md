@@ -114,4 +114,6 @@ Give ele a configuration a user can switch and tune from one place, reminders th
 
 ## Inbox
 
+- 2026-10-23, from the colour-option checkpoint's bugs reviewer: stop-check now loads config.json on every Stop, not only when it asks for notes, so a config.json that does not parse writes its parse error to stderr on every turn. Whether Claude Code shows a Stop hook's stderr on exit 0 is unchecked. Keep it, or load only when it is needed?
+
 ## Out of scope
