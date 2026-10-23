@@ -221,13 +221,19 @@ tasks:
       - go fix ./...
 
   format:
-    desc: "Format Go source."
+    desc: "Format Go source and Markdown."
+    preconditions:
+      - sh: command -v rumdl
+        msg: "rumdl is not installed — brew install rumdl, or pip install rumdl"
     cmds:
       - gofmt -w .
+      - rumdl fmt .
 
   lint:
-    desc: "Check formatting, vet, catch shadowed variables, run staticcheck and shellcheck."
+    desc: "Check formatting, vet, catch shadowed variables, run staticcheck and shellcheck, and lint Markdown with rumdl."
     preconditions:
+      - sh: command -v rumdl
+        msg: "rumdl is not installed — brew install rumdl, or pip install rumdl"
       - sh: test -x {{.TOOLS}}/shadow
         msg: "shadow is not installed — run: task setup-tools"
       - sh: '[ "$(go version {{.TOOLS}}/shadow | cut -d" " -f2)" = "{{.GO_VERSION}}" ]'
@@ -251,9 +257,11 @@ tasks:
       # Package doc comments not required.
       - "{{.TOOLS}}/staticcheck -checks=all,-ST1000 -f stylish -fail=all ./..."
       - shellcheck install.sh
+      # Also fails a relative link to a missing file (MD057) or a heading it does not have (MD051).
+      - rumdl check .
 
   lint-docs:
-    desc: "Reject source line-number citations in .documentation and docs, and relative links in docs that resolve to nothing."
+    desc: "Reject source line-number citations in .documentation and docs."
     silent: true
     cmds:
       # A file:line citation is wrong on the next edit and reads as authoritative
@@ -261,20 +269,6 @@ tasks:
       - |
         if grep -rnE '\.(go|html):[0-9]+' .documentation/ docs/; then
           echo "Linting failed: cite a package and an identifier, never a source line number.";
-          exit 1;
-        fi
-      - |
-        broken=0
-        for page in docs/*.md; do
-          for target in $(grep -oE '\]\([^)]+\)' "$page" | sed -E 's/^\]\(//; s/\)$//; s/#.*//' | grep -vE '^(https?:|mailto:|$)'); do
-            if [ ! -e "$(dirname "$page")/$target" ]; then
-              echo "$page: $target";
-              broken=1;
-            fi
-          done
-        done
-        if [ "$broken" -ne 0 ]; then
-          echo "Linting failed: each relative link above resolves to nothing.";
           exit 1;
         fi
 

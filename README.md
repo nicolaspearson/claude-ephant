@@ -129,9 +129,9 @@ install route, `task release:brew`, `task release:go` and
 `task release:script` each install the latest release that way, then fail
 unless that copy is the `ele` on `PATH` and prints the release's tag, listing
 every copy on `PATH`.
-`task check` runs every gate but `audit`; its lint needs `shellcheck`. CI runs
-`task check` and `task audit` on every pull request, and the Release workflow
-runs them on every push to `main`.
+`task check` runs every gate but `audit`; its lint needs `shellcheck` and
+`rumdl`. CI runs `task check` and `task audit` on every pull request, and the
+Release workflow runs them on every push to `main`.
 There, release-please keeps a release PR open with the next version and its
 changelog, worked out from the conventional commit messages; merging it tags
 the release, the binaries are attached to it, and the Tap workflow updates the

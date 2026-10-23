@@ -25,7 +25,7 @@ v1 is for users other than the author. The code still indexed a one-off claude-m
 - Specs drop "decided <date>" stamps and every dated figure about ele's own data, but keep a dated `as of` on a fact about Claude Code's behaviour that a decision rests on, since that date tells a reader to re-check it. Decided 2026-10-23
 - `specs-current` cuts the mining material too: the run-folder pointers, the Rollups figures and the Stop-hook blocks section. `mining-reports`' items are reworded so that plan's fold adds design, not figures. Decided 2026-10-23
 - Open questions in a spec become `question` notes, and build briefs' Done means, move history and author-only references (claude-config, `hook-firings.py`, `~/.agents`, `~/ele-backup`) are cut, keeping the behaviour behind them. Decided 2026-10-23
-- A docs item is done when the page exists, every relative link in it resolves, `task lint-docs` passes, and each command or flag it names is checked against `ele <command> --help`
+- A docs item is done when the page exists, `task lint` (whose rumdl run fails a relative link to a missing file or heading) and `task lint-docs` pass, and each command or flag it names is checked against `ele <command> --help`
 
 ## Actions
 
@@ -43,6 +43,9 @@ v1 is for users other than the author. The code still indexed a one-off claude-m
 - [x] user-guides: Write `docs/` pages: owners, notes and recall, plans, handoffs and reminders, checkpoint and ticket-audit, data and privacy (storage, backup, redaction, no background model), and a command reference
   - done when each page meets the docs done-when decision
   - asserted in the user-guides commit: the seven docs/ pages exist; task lint-docs, extended in the same commit to scan docs/ for file:line citations and fail on a relative link whose file is missing (shown red on a planted broken link), passes; a one-off check found every #anchor matches a heading, every --flag in ele's help, and every synopsis in commands.md verbatim in ele --help; three reviewers' claims checked against the code; task check FORCE=1 passes
+- [x] markdown-lint: Add rumdl, installed like shellcheck, to `task lint` and `task format`, with heading-anchor checks; reformat the existing `.md` files in their own commit
+  - done when `task lint` fails a link to a missing heading or file, and `task format` on the reformatted tree changes nothing
+  - asserted in the markdown-lint commit: on a copy of `docs/`, a planted `#handoffsx` failed MD051 and a planted `missing.md` failed MD057, so lint-docs' own relative-link loop was dropped; `.rumdl.toml` turns MD013 off and leaves out `CHANGELOG.md` and `plugin/evals/`; CI installs rumdl 0.3.0 with pipx, a step not yet run as of 2026-10-23
 - [ ] readme-for-users: Rewrite `README.md` for users: what ele is, install, quick start, the skills at a glance, options, update, and links to `docs/` and `CONTRIBUTING.md`
   - blocked: user-guides
   - done when the README meets the docs done-when decision and holds no contributor material
@@ -56,7 +59,6 @@ v1 is for users other than the author. The code still indexed a one-off claude-m
 ## Inbox
 
 - 2026-10-23, from specs-current: `internal/checkpoint/gate.go`'s HookLog doc comment names claude-config ("the format claude-config's hooks write"); say what the format is instead, as checkpoint-and-ticket-audit.md now does
-- 2026-10-23, from user-guides: add a Markdown linter and formatter (rumdl, installed like shellcheck) to task lint and task format, with heading-anchor checks over docs/; lint-docs checks only that each relative link's file exists. Reformat the existing .md files in their own commit
 
 ## Out of scope
 

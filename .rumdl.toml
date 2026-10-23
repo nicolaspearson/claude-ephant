@@ -1,0 +1,13 @@
+[global]
+# Wrapping is left to each file: plans and specs keep a bullet or paragraph on one line.
+disable = ["MD013"]
+# CHANGELOG.md is release-please's; plugin/evals holds model input, not documents.
+exclude = ["CHANGELOG.md", "plugin/evals"]
+
+[per-file-ignores]
+# Prompts, not pages: the body opens after front matter with no title.
+"plugin/{agents,commands,skills}/**/*.md" = ["MD041"]
+# The trailing space in `word: ` is the syntax the skill describes.
+"plugin/skills/plan/SKILL.md" = ["MD038"]
+# Angle-bracket placeholders, not HTML.
+"plugin/skills/plan/template.md" = ["MD033"]
