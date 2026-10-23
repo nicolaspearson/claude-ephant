@@ -99,7 +99,7 @@ func TestOpenSupportsFTS5(t *testing.T) {
 
 	_, err = db.Exec(`CREATE VIRTUAL TABLE documents USING fts5(body)`)
 	require.NoError(t, err)
-	_, err = db.Exec(`INSERT INTO documents (body) VALUES ('freeze claude-mem before import'), ('pin pydantic below 2.14')`)
+	_, err = db.Exec(`INSERT INTO documents (body) VALUES ('freeze the plugin before import'), ('pin pydantic below 2.14')`)
 	require.NoError(t, err)
 
 	var body string

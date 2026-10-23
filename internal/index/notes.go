@@ -142,6 +142,49 @@ func (x *Index) recordedNotes(ctx context.Context) (map[string]string, error) {
 	return recorded, rows.Err()
 }
 
+// deleteSource tells the external-content FTS table each deleted row's text.
+func deleteSource(ctx context.Context, tx *sql.Tx, source string) error {
+	rows, err := tx.QueryContext(ctx, `SELECT id, text FROM entries WHERE source = ?`, source)
+	if err != nil {
+		return err
+	}
+	type deleted struct {
+		id   int64
+		text string
+	}
+	var removed []deleted
+	for rows.Next() {
+		var row deleted
+		if err = rows.Scan(&row.id, &row.text); err != nil {
+			_ = rows.Close()
+			return err
+		}
+		removed = append(removed, row)
+	}
+	if err = rows.Err(); err != nil {
+		_ = rows.Close()
+		return err
+	}
+	if err = rows.Close(); err != nil {
+		return err
+	}
+	for _, row := range removed {
+		if _, err = tx.ExecContext(ctx, `INSERT INTO entries_fts (entries_fts, rowid, text) VALUES ('delete', ?, ?)`, row.id, row.text); err != nil {
+			return err
+		}
+	}
+	_, err = tx.ExecContext(ctx, `DELETE FROM entries WHERE source = ?`, source)
+	return err
+}
+
+func fingerprint(path string) (string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%d:%d", info.Size(), info.ModTime().UnixNano()), nil
+}
+
 // WalkDir does not descend a symlinked root, so the root is resolved first. A symlinked note file is skipped: an editor's lock file is a dangling one.
 func noteFiles(directory string) (map[string]noteFile, error) {
 	files := map[string]noteFile{}

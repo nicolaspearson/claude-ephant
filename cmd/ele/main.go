@@ -296,10 +296,6 @@ func syncAll(ctx context.Context, stdout io.Writer, wait bool, rebuild bool) err
 	if err != nil {
 		return err
 	}
-	remembered, err := searchIndex.UpdateClaudeMem(ctx, filepath.Join(dataDirectory, "archive", "claude-mem"), ownerMap)
-	if err != nil {
-		return err
-	}
 	noted, err := searchIndex.UpdateNotes(ctx, filepath.Join(dataDirectory, "notes"))
 	if err != nil {
 		return err
@@ -336,12 +332,6 @@ func syncAll(ctx context.Context, stdout io.Writer, wait bool, rebuild bool) err
 	}
 	if indexed.Malformed > 0 {
 		fmt.Fprintf(stdout, ", skipped %d malformed lines", indexed.Malformed)
-	}
-	if remembered.Files > 0 {
-		fmt.Fprintf(stdout, "; re-indexed %d entries from %d claude-mem tables", remembered.Entries, remembered.Files)
-		if remembered.Malformed > 0 {
-			fmt.Fprintf(stdout, ", skipped %d malformed rows", remembered.Malformed)
-		}
 	}
 	if noted.Entries > 0 {
 		fmt.Fprintf(stdout, "; indexed %s", plural(noted.Entries, "note", "notes"))

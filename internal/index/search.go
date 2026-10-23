@@ -12,21 +12,18 @@ import (
 
 var ErrAmbiguousSession = errors.New("session prefix matches more than one session")
 
-// Kinds is in rank order, except that claude-mem tool rows rank last.
-var Kinds = []string{KindNote, transcript.KindPrompt, transcript.KindConversation, transcript.KindTool, KindSummary, KindObservation}
+var Kinds = []string{KindNote, transcript.KindPrompt, transcript.KindConversation, transcript.KindTool}
 
 // Kinds rank before relevance: notes and the user's own words outrank what was said about them.
 const kindRank = `CASE
 	WHEN e.kind = 'note' THEN 0
 	WHEN e.kind = 'prompt' THEN 1
 	WHEN e.kind = 'conversation' THEN 2
-	WHEN e.kind = 'tool' AND e.source NOT LIKE 'claude-mem/%' THEN 3
-	WHEN e.kind = 'summary' THEN 4
-	WHEN e.kind = 'observation' THEN 5
-	ELSE 6
+	WHEN e.kind = 'tool' THEN 3
+	ELSE 4
 END`
 
-const resultColumns = `e.kind, e.owner, e.profile, e.project, e.session, e.source LIKE 'claude-mem/%', e.subagent,
+const resultColumns = `e.kind, e.owner, e.profile, e.project, e.session, e.subagent,
 	coalesce((SELECT n.kind FROM notes n WHERE n.path = e.source), ''),
 	coalesce((SELECT s.id FROM notes s WHERE instr(',' || replace(s.supersedes, ' ', '') || ',', ',' || e.uuid || ',') > 0 AND e.kind = 'note' ORDER BY s.id LIMIT 1), ''),
 	CASE WHEN e.kind = 'note' THEN e.uuid ELSE '' END`
@@ -41,7 +38,6 @@ type Query struct {
 }
 
 type Result struct {
-	ClaudeMem    bool
 	Kind         string
 	NoteID       string
 	NoteKind     string
@@ -166,7 +162,7 @@ func (x *Index) SessionExactly(ctx context.Context, session string) ([]Result, e
 	return scanResults(rows)
 }
 
-// FTS5 syntax in user text (claude-mem, a:b, AND, NEAR) stays plain words.
+// FTS5 syntax in user text (stop-check, a:b, AND, NEAR) stays plain words.
 func matchExpression(text string) string {
 	var terms []string
 	for term := range strings.FieldsSeq(text) {
@@ -180,7 +176,7 @@ func scanResults(rows *sql.Rows) ([]Result, error) {
 	var results []Result
 	for rows.Next() {
 		var result Result
-		if err := rows.Scan(&result.Kind, &result.Owner, &result.Profile, &result.Project, &result.Session, &result.ClaudeMem, &result.Subagent, &result.NoteKind, &result.SupersededBy, &result.NoteID, &result.Text, &result.Timestamp); err != nil {
+		if err := rows.Scan(&result.Kind, &result.Owner, &result.Profile, &result.Project, &result.Session, &result.Subagent, &result.NoteKind, &result.SupersededBy, &result.NoteID, &result.Text, &result.Timestamp); err != nil {
 			return nil, err
 		}
 		results = append(results, result)

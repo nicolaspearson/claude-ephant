@@ -34,7 +34,7 @@ func TestUpdateNotesFollowsAMoveBetweenFolders(t *testing.T) {
 }
 
 func TestUpdateNotesFollowsTheFiles(t *testing.T) {
-	index, _ := searchFixture(t)
+	index := searchFixture(t)
 	directory := filepath.Join(t.TempDir(), "notes")
 	first := notes.Note{Body: "Pin pydantic below 2.14.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject}
 	second := notes.Note{Body: "Pin pydantic through the wrapper, not the plugin.", Date: "2026-10-16", ID: "20261016-bbbbbb", Kind: notes.KindDecision, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Supersedes: []string{first.ID}}
@@ -48,7 +48,7 @@ func TestUpdateNotesFollowsTheFiles(t *testing.T) {
 	require.Equal(t, Summary{Entries: 2}, summary)
 	results, err := index.Search(context.Background(), Query{Owner: "corp", Text: "pydantic"})
 	require.NoError(t, err)
-	require.Equal(t, []string{"note", "note", "prompt", "conversation", "summary", "observation", "tool"}, kinds(results))
+	require.Equal(t, []string{"note", "note", "prompt", "conversation", "tool"}, kinds(results))
 	require.Equal(t, "decision", results[0].NoteKind)
 	superseded := map[string]string{}
 	for _, result := range results[:2] {

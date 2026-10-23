@@ -78,10 +78,6 @@ func TestUsageCountsPromptsToolsInjectionsAndReplies(t *testing.T) {
 	index := open(t, filepath.Join(root, "ele.db"))
 	ownerMap := ownermap.OwnerMap{Owners: []string{"corp", "personal"}, Projects: map[string]string{"gateway": "corp", "notes": "personal"}}
 	update(t, index, projects, filepath.Join(root, "archive"), ownerMap)
-	_, err := index.db.Exec(`INSERT INTO entries (kind, owner, profile, project, session, source, subagent, text, timestamp, uuid) VALUES
-		('prompt', 'corp', '', 'gateway', 'm1', 'claude-mem/user_prompts.jsonl', 0, 'an old prompt', '2026-10-15', 'm'),
-		('tool', 'corp', '', 'gateway', 'm1', 'claude-mem/observations.jsonl', 0, 'Bash: ls', '2026-10-15', 'n')`)
-	require.NoError(t, err)
 
 	usage, err := index.Usage(context.Background(), dto.UsageQuery{Owner: "corp"})
 	require.NoError(t, err)
@@ -92,7 +88,7 @@ func TestUsageCountsPromptsToolsInjectionsAndReplies(t *testing.T) {
 		ReplyCharacters: 15,
 		Sessions:        1,
 		Tools:           []dto.UsageCount{{Main: 2, Name: "Bash", Subagent: 1}, {Main: 1, Name: "Read"}},
-	}, usage, "a subagent's brief is no prompt and its prose no reply; claude-mem rows are left out")
+	}, usage, "a subagent's brief is no prompt and its prose no reply")
 
 	usage, err = index.Usage(context.Background(), dto.UsageQuery{})
 	require.NoError(t, err)

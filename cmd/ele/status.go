@@ -287,14 +287,7 @@ func writeStats(ctx context.Context, stdout io.Writer) error {
 	fmt.Fprintf(table, "  by source\t%s\n", listCounts(bySource))
 	fmt.Fprintf(table, "  by kind\t%s\n", listCounts(byKind))
 	fmt.Fprintf(table, "  by owner\t%s\n", listCounts(byOwner))
-	sessions := map[string]int{}
-	for name, count := range indexStats.Sessions {
-		if name == "" {
-			name = "(claude-mem only)"
-		}
-		sessions[name] = count
-	}
-	fmt.Fprintf(table, "Sessions\t%s\n", listCounts(sessions))
+	fmt.Fprintf(table, "Sessions\t%s\n", listCounts(indexStats.Sessions))
 
 	noteDirectory := filepath.Join(dataDirectory, "notes")
 	for _, owner := range ownerMap.Owners {

@@ -16,7 +16,7 @@ func TestCurrentNamesTheProfileFromItsDirectory(t *testing.T) {
 
 func TestDiscoverNamesProfilesByDirectory(t *testing.T) {
 	home := t.TempDir()
-	for _, directory := range []string{".claude/projects", ".claude-corp/projects", ".claude-mem", ".claude-notes/projects-not"} {
+	for _, directory := range []string{".claude/projects", ".claude-corp/projects", ".claude-cache", ".claude-notes/projects-not"} {
 		require.NoError(t, os.MkdirAll(filepath.Join(home, directory), 0o700))
 	}
 	require.NoError(t, os.WriteFile(filepath.Join(home, ".claude-backup.json"), []byte("{}"), 0o600))

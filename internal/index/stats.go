@@ -7,7 +7,7 @@ import (
 	"github.com/nicolaspearson/claude-ephant/internal/dto"
 )
 
-const sourceGroup = `CASE WHEN source LIKE 'claude-mem/%' THEN 'claude-mem' WHEN source LIKE 'notes/%' THEN 'notes' ELSE 'transcripts' END`
+const sourceGroup = `CASE WHEN source LIKE 'notes/%' THEN 'notes' ELSE 'transcripts' END`
 
 func (x *Index) Stats(ctx context.Context) (dto.IndexStats, error) {
 	stats := dto.IndexStats{Sessions: map[string]int{}}
@@ -27,7 +27,7 @@ func (x *Index) Stats(ctx context.Context) (dto.IndexStats, error) {
 		return dto.IndexStats{}, err
 	}
 
-	sessions, err := x.db.QueryContext(ctx, `SELECT profile, count(DISTINCT session) FROM entries WHERE session != '' GROUP BY profile`)
+	sessions, err := x.db.QueryContext(ctx, `SELECT profile, count(DISTINCT session) FROM entries WHERE session != '' AND source NOT LIKE 'notes/%' GROUP BY profile`)
 	if err != nil {
 		return dto.IndexStats{}, fmt.Errorf("count sessions: %w", err)
 	}

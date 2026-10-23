@@ -170,9 +170,6 @@ func matchLine(result index.Result) string {
 	if result.NoteKind != "" {
 		kind = "note " + result.NoteKind
 	}
-	if result.ClaudeMem {
-		kind = "claude-mem " + kind
-	}
 	if result.Subagent {
 		kind = "subagent " + kind
 	}

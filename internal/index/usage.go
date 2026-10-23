@@ -29,7 +29,7 @@ func (x *Index) Usage(ctx context.Context, query dto.UsageQuery) (dto.Usage, err
 	}
 
 	var usage dto.Usage
-	err := x.db.QueryRowContext(ctx, `SELECT count(*), count(DISTINCT session) FROM entries`+where("prompt")+` AND source NOT LIKE 'claude-mem/%'`, arguments...).Scan(&usage.Prompts, &usage.Sessions)
+	err := x.db.QueryRowContext(ctx, `SELECT count(*), count(DISTINCT session) FROM entries`+where("prompt"), arguments...).Scan(&usage.Prompts, &usage.Sessions)
 	if err != nil {
 		return dto.Usage{}, fmt.Errorf("count prompts: %w", err)
 	}
@@ -57,7 +57,7 @@ func (x *Index) Usage(ctx context.Context, query dto.UsageQuery) (dto.Usage, err
 	if err = rows.Err(); err != nil {
 		return dto.Usage{}, fmt.Errorf("count tokens: %w", err)
 	}
-	if usage.Tools, err = x.usageCounts(ctx, `SELECT substr(text, 1, instr(text, ':') - 1) AS name, sum(subagent = 0) AS main, sum(subagent = 1) AS subagents FROM entries`+where("tool")+` AND source NOT LIKE 'claude-mem/%' GROUP BY name`, arguments); err != nil {
+	if usage.Tools, err = x.usageCounts(ctx, `SELECT substr(text, 1, instr(text, ':') - 1) AS name, sum(subagent = 0) AS main, sum(subagent = 1) AS subagents FROM entries`+where("tool")+` GROUP BY name`, arguments); err != nil {
 		return dto.Usage{}, fmt.Errorf("count tool calls: %w", err)
 	}
 	if usage.Injections, err = x.usageCounts(ctx, `SELECT name, sum(iif(subagent = 0, json_extract(attributes, '$.bytes'), 0)) AS main, sum(iif(subagent = 1, json_extract(attributes, '$.bytes'), 0)) AS subagents FROM events`+where("injection")+` GROUP BY name`, arguments); err != nil {

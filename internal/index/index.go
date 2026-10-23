@@ -25,10 +25,6 @@ CREATE TABLE IF NOT EXISTS archive_files (
 	indexed_bytes INTEGER NOT NULL,
 	path          TEXT PRIMARY KEY
 );
-CREATE TABLE IF NOT EXISTS claude_mem_tables (
-	fingerprint TEXT NOT NULL,
-	path        TEXT PRIMARY KEY
-);
 CREATE TABLE IF NOT EXISTS directories (
 	directory TEXT NOT NULL,
 	project   TEXT NOT NULL,
@@ -87,7 +83,7 @@ CREATE INDEX IF NOT EXISTS events_session_kind ON events (session, kind, timesta
 CREATE VIRTUAL TABLE IF NOT EXISTS entries_fts USING fts5(text, content='entries', content_rowid='id');`
 
 // Version is bumped when the schema or what sync derives changes; an index holding another version is rebuilt.
-const Version = "10"
+const Version = "11"
 
 type Index struct {
 	db       *sql.DB
