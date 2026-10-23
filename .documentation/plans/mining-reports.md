@@ -15,6 +15,7 @@ ele's mining reports exist only as one-off Python scripts and run data on one ma
 - As of 2026-10-22: ele's data directory holds `mining/2026-10-15/` (the 2026-10-15 scripts, prompts, data and reports), `mining/2026-10-16-hook-blocks/` and `mining/2026-10-16-hook-blocks-claude-d7/` (the 2026-10-16 Stop-hook judging run) and `mining/cache/`
 - As of 2026-10-22: `mining/cache/checkpoint-runs.jsonl` holds 586 judgments over 517 units, pre-log runs included
 - As of 2026-10-22: specs naming the private runs are `design.md`'s Storage and Rollups for mining sections and `checkpoint-and-ticket-audit.md`'s Judging Stop-hook blocks line; the cleanup's grep finds any other
+- As of 2026-10-23: `v1-docs/specs-current` cut those sections and lines; the specs' only remaining name for the runs is `ele import mining`, in `design.md`'s Mining section
 
 ## Decisions
 
@@ -52,7 +53,7 @@ ele's mining reports exist only as one-off Python scripts and run data on one ma
   - moved 2026-10-22 from this plan's inbox by a plan audit; first captured 2026-10-20 from the install of 8596ec2, and moved 2026-10-21 from `skill-lessons.md` when it closed
   - done when each ask in the week is listed with its trigger, the notes written after it, and whether it repeated without new work, in its own run folder under `mining/`, with the sessions that got no ask counted, and question note 20261021-93f75e is answered from it
   - after: 2026-10-27
-- [ ] delete-mining-runs: Delete `mining/2026-10-15/`, `mining/2026-10-16-hook-blocks*/`, and judge-blocks' and judge-notes-asks' run folders from ele's data directory, remove `ele import mining`, and drop the specs' pointers to them; verify with `ls` that the folders are gone and with `git grep` that nothing outside `.documentation/plans/` names them
+- [ ] delete-mining-runs: Delete `mining/2026-10-15/`, `mining/2026-10-16-hook-blocks*/`, and judge-blocks' and judge-notes-asks' run folders from ele's data directory, remove `ele import mining`, and drop `ele import mining` from design.md; verify with `ls` that the folders are gone and with `git grep` that nothing outside `.documentation/plans/` names them
   - done when `ls` shows the folders gone, `ele import mining` is removed with its tests, a grep finds no name of them outside `.documentation/plans/`, and `task check FORCE=1` passes
   - blocked: judge-notes-asks
   - as of 2026-10-22: `mining/2026-10-17-checkpoint-baseline-405865fa/` deleted by a plan audit, the user's call, nothing reading it since d8cf6ba; judge-notes-asks' folder added the same day, the user's call
@@ -60,7 +61,7 @@ ele's mining reports exist only as one-off Python scripts and run data on one ma
   - moved 2026-10-22 from this plan's inbox by a plan audit; first captured from question notes 20261020-ead7f7, 20261016-4c7d8f and 20261016-628f80
   - done when windows anchor on the command tag, the report check catches small-mode and current reports, the split-cycle count is measured and acted on or ruled out, each change has a test seen red, and `ele mine --report` is re-run with the figures it changes named
   - asserted in the unit-boundaries commit: digest tests seen red for the exact checkpoint command and skill names, the record-turn report cut (all three record forms, a named-but-not-run script, a label while a reviewer is out) and the run-split cycle; on real data as of 2026-10-22, runs with no report 46→8 of 187, cycles 100→22 of 166, 2 cycles split, `ele mine --report` re-run with its changed figures in design.md
-- [ ] Fold what this plan built, its lasting Decisions (scripts and run data stay out of the repository; no per-user baseline) and its out-of-scope lines as `Not doing:` into the spec, and the hook-block changes into `checkpoint-and-ticket-audit.md`, its Stop-hook blocks section's pointer to the mining run folders included, run `ele plan done .documentation/plans/mining-reports.md`, and delete this plan
+- [ ] Fold what this plan built, its lasting Decisions (scripts and run data stay out of the repository; no per-user baseline) and its out-of-scope lines as `Not doing:` into the spec, and the hook-block changes into `checkpoint-and-ticket-audit.md` as current design, run `ele plan done .documentation/plans/mining-reports.md`, and delete this plan
   - blocked: delete-mining-runs
 
 ## Inbox
