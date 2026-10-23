@@ -1,6 +1,7 @@
 ---
 name: handoff
 description: Write an ele handoff note that the session after /clear opens with. Use when the user asks for a handoff note before /clear, rather than a handoff document for another agent.
+argument-hint: "[what the next session is for]"
 ---
 
 # Handoff
@@ -9,7 +10,9 @@ The next fresh start or `/clear` in the project opens with the handoff. The user
 
 ## Write
 
-At most three lines: the next task, where the work stands, and the files and command to resume from. The next session reads the code and `git status` itself; spend the lines on what it cannot see there, such as an approach that failed and why.
+At most three lines: the next task, where the work stands, and the files and command to resume from. An argument, if given, is the next task; keep what bears on it. The next session reads the code, `git status` and the active plans' next items itself; spend the lines on what it cannot see there, such as an approach that failed and why. Name a plan item rather than restating it.
+
+Write as fact only what this session verified; mark the rest as a guess. Name only paths that survive `/clear` and a reboot: a file in the scratchpad or `/tmp` gets left out, or moved first: into the repo if the project would keep it, under `~/.claude/` if only the agent would run it.
 
 ```sh
 ele remember --kind handoff "<words>"
