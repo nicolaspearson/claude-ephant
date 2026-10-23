@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.12.0](https://github.com/nicolaspearson/claude-ephant/compare/v0.11.0...v0.12.0) (2026-10-23)
+
+
+### Features
+
+* **checkpoint:** port the checkpoint hooks and state scripts to ele checkpoint ([33168d0](https://github.com/nicolaspearson/claude-ephant/commit/33168d0f9cb77aa8f9b1bd7e59051cec53b24f1c))
+* **config:** auto_note_writes writes proposed notes without asking; task install builds into the release slot ([a90c3c0](https://github.com/nicolaspearson/claude-ephant/commit/a90c3c0906d4264867b86dfcc66a659b8d3ee144))
+* **config:** colour option turns off the start block's and Stop hook's highlighting ([8da515c](https://github.com/nicolaspearson/claude-ephant/commit/8da515c0cc45947af3d5c15349adc68d55ce6eec))
+* **handoff:** a handoff's first line points at the next plan item or issue URL; wrap skips it only with one active plan and no ticket ([f809502](https://github.com/nicolaspearson/claude-ephant/commit/f809502eef65f0659a7fad848334bdea6775f7af))
+* **handoff:** mark guesses, durable paths only, name plan items, take a focus argument ([cc59379](https://github.com/nicolaspearson/claude-ephant/commit/cc59379bbabe5e984145c928d2e8c84ff16ea265))
+* **reminders:** dated reminders shown at session start from their due date until closed ([fb12e2f](https://github.com/nicolaspearson/claude-ephant/commit/fb12e2faea48710b7d3ff3e9faf67700019dff6c))
+* **reminders:** ele reminder list --colour highlights as the start block does; the plain list drops control characters ([c1be2e1](https://github.com/nicolaspearson/claude-ephant/commit/c1be2e1f67ea3b35a412b0c278d9107fba8895aa))
+* **reminders:** nudges come back N days after each close, or after a done file changes ([0cc19d4](https://github.com/nicolaspearson/claude-ephant/commit/0cc19d4eae0bd82f1b2bd71c316eed98f9283f55))
+* **reminders:** start block's reminders header bold, due date yellow, a nudge's ↻ and interval magenta ([4d4f8d7](https://github.com/nicolaspearson/claude-ephant/commit/4d4f8d789776bd4d72267c1ac96327cd61df46ba))
+* **session-start:** keep the start block under Claude Code's hook output cap, cutting oldest questions past it ([50db5c9](https://github.com/nicolaspearson/claude-ephant/commit/50db5c948e7c959e76cd4861ff858d3c9db4b14e))
+* **wrap:** add ele:wrap, a session wrap-up that asks before recording ([0d2ff6f](https://github.com/nicolaspearson/claude-ephant/commit/0d2ff6f09cc933449b188b47d8c9d0a011de59a1))
+
+
+### Bug Fixes
+
+* **checkpoint:** the orphan commit in TestBaseTakesTheUpstreamElseOriginsDefaultBranch sets its own git identity, so CI passes ([63c6b75](https://github.com/nicolaspearson/claude-ephant/commit/63c6b7587f30779dd5138a7a9f80333cdf79ca64))
+* **stop-check:** a proposal's own calls, cd-prefixed ele remember and read-only Bash stop asking for notes ([e8be496](https://github.com/nicolaspearson/claude-ephant/commit/e8be4964af093a08d84fbc30587bb6464ad5a750))
+* **stop-check:** a quoted heredoc in a note's body is a read, a read after a note marks mid-task; TestAdvance sorted ([7f042de](https://github.com/nicolaspearson/claude-ephant/commit/7f042de8e14df4077362c083c78c4ebd346e00e2))
+* **stop-check:** a read in a note's substitution marks mid-task; quoted ) and &lt;&lt; inside $( ) no longer end it ([d170ef9](https://github.com/nicolaspearson/claude-ephant/commit/d170ef9451ad27ad5f22d47734a5001bd0035c8d))
+* **stop-check:** a write chained after ele remember is still work; eval graders read past escaped quotes and newlines ([7897e10](https://github.com/nicolaspearson/claude-ephant/commit/7897e10048a441eeded71acaa586ae13d62eed9c))
+* **wrap:** end line names deferred and skipped work; wrap evals get their own repository ([8e7f9ef](https://github.com/nicolaspearson/claude-ephant/commit/8e7f9ef3fcd8094a69b7a0640f4465f19b2657d8))
+* **wrap:** propose a handoff unless the start block covers the next step; write it after the rest are answered ([19e931b](https://github.com/nicolaspearson/claude-ephant/commit/19e931bb7bf37b784c1a8bf6ca21b0cbfac3afae))
+
 ## [0.11.0](https://github.com/nicolaspearson/claude-ephant/compare/v0.10.0...v0.11.0) (2026-10-22)
 
 
