@@ -54,6 +54,8 @@ v1 is for users other than the author. The code still indexed a one-off claude-m
 
 ## Inbox
 
+- 2026-10-23, from specs-current: `internal/checkpoint/gate.go`'s HookLog doc comment names claude-config ("the format claude-config's hooks write"); say what the format is instead, as checkpoint-and-ticket-audit.md now does
+
 ## Out of scope
 
 - Reword ele-features' `ContextBudget.ts` citation: it cites prior art, depends on nothing, and goes with that plan when it closes (ruled 2026-10-23, from drop-claude-mem)
