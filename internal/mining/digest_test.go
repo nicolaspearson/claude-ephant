@@ -182,7 +182,7 @@ func TestDigestOfACheckpointRunEndsTheTurnItRecordsIn(t *testing.T) {
 	progress := "The bugs reviewer found two problems and the gate passes; fixing both before the commit. " + strings.Repeat("x", 800)
 	launched := strings.TrimSuffix(transcriptLine(t, "10:01:01", "user", toolResult("tu1", "Async agent launched successfully.\nagentId: a1", false)), "}\n") + `,"toolUseResult":{"agentId":"a1","status":"async_launched"}}` + "\n"
 	for _, command := range []string{
-		`P=/plugin/premigration; "$P/checkpoint-reviewed.sh" record /repo`,
+		`P=/plugin/scripts; "$P/checkpoint-reviewed.sh" record /repo`,
 		"~/.claude/hooks/checkpoint-log.sh /repo <<'EOF'\n{}\nEOF",
 		"R=/repo; ele checkpoint log $R <<'EOF'\n{}\nEOF",
 		"ele checkpoint freeze /repo /tmp -- a.go && ele checkpoint record /repo",

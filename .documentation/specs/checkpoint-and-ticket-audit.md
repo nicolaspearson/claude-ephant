@@ -1,6 +1,6 @@
 # Checkpoint and ticket-audit
 
-Moved from claude-ephant's design spec to the agent-skills repository on 2026-10-17, and back here with the code on 2026-10-20. Phase 1 of the redesign from the 2026-10-15 history mining shipped on 2026-10-15 and the rest on 2026-10-17. Scripts named below live in `plugin/premigration/` until each is ported to an `ele` subcommand.
+Moved from claude-ephant's design spec to the agent-skills repository on 2026-10-17, and back here with the code on 2026-10-20. Phase 1 of the redesign from the 2026-10-15 history mining shipped on 2026-10-15 and the rest on 2026-10-17. As of 2026-10-23 every script checkpoint and ticket-audit ran is ported to an `ele checkpoint` or `ele ticket` subcommand.
 
 ## Ticket-audit
 
@@ -36,24 +36,23 @@ Moved from claude-ephant's design spec to the agent-skills repository on 2026-10
 
 ## Into ele
 
-Decided 2026-10-17: checkpoint and ticket-audit move into ele and are ported to Go. ele already depends on them both ways, and split across repositories that coupling is untested. Started 2026-10-17, decided that day; the Stop-hook and prompt-hook ports wait for the Stop-hook blocks' measurement week. Built under `.documentation/plans/move-checkpoint-into-ele.md`.
+Decided 2026-10-17: checkpoint and ticket-audit move into ele and are ported to Go. ele already depends on them both ways, and split across repositories that coupling is untested. Done 2026-10-23.
 
 - Why: `claude plugin eval` needs a plugin; hooks, scripts, skills and agent type ship and version together; one language. Shareable: the plugin needs no file outside itself and the ele binary, and names its prerequisites
 - Prerequisites: in the [README](../../README.md). ele on `PATH` is a hard one, since the plugin's hooks call it
 - The checkpoint gate, the Stop hook's block and the prompt hook's snapshot, is ele's option `checkpoint_gate`, on by default; with it `false` both hooks only clear the session's baseline, so turning it back on starts from the next prompt, and a `config.json` that does not parse leaves the gate on. Claude Code cannot turn off one hook of a plugin
 - The convention files in the brief are the user's `CLAUDE.md`, under `$CLAUDE_CONFIG_DIR` when set, else `~/.claude`, with what it imports or says to read, and the repository's; the prose reviewer's per-comment tests apply where those hold no comment rules
-- Phase 1, move and cut over in one change: skills, reviewer files and the `checkpoint-reviewer` agent into ele's plugin; Bash and Python as they are under `plugin/premigration/`, reached through `${CLAUDE_PLUGIN_ROOT}`; hooks from `settings.json` into the plugin's `hooks/hooks.json`, since both registered fire twice; `/ticket-claims` and `/checkpoint-stats` with their scripts; every reference renamed to `ele:`-qualified names; old copies deleted and their absence verified
-- Phase 2, port mechanically: one `ele` subcommand per item, checked against the premigration script's output on the same inputs; each item deletes its script and test and verifies their absence
-- `premigration/` breaks the one-language rule on purpose and briefly: kept so a port can be checked against the old code. `task check` runs its Bash suites while it exists; the plan closes only once it is gone
-- Stay in claude-config: `/hook-stats`, `hook-firings.py` and the guards' `hook-log.sh`, which cover every hook. ele writes checkpoint's hook-log lines in the same path and format
+- In the plugin: the `checkpoint` and `ticket-audit` skills with their reviewer files, the `checkpoint-reviewer` agent, addressed as `ele:checkpoint-reviewer`, and `/ele:checkpoint-stats` and `/ele:ticket-claims` in `commands/`
+- Every script is a grouped subcommand, as `plan`, `owner` and `handoff` are: `ele checkpoint base|check|close|density|freeze|hash|log|optout|record|stats`, `ele checkpoint gate` (Stop) and `ele checkpoint snapshot` (UserPromptSubmit), and `ele ticket claims|corpus|ledger`. Each was run beside the script it replaced on the same inputs before the script was deleted, every difference on purpose listed in its plan item
+- A checkpoint run's markers, open, frozen paths and start time, are per session and repository, so two sessions checkpointing one repository neither close nor time each other's runs; the record of reviewed bytes stays per repository, since identical bytes were reviewed whichever session asks. Only `freeze --start` restarts a run's clock, and `log` ends it: before 2026-10-23 a freeze after `record`, or another session's freeze, reset it, and runs logged durations of seconds
+- The Stop hook's block keeps its wording, "no checkpoint was reported" word for word since `hook-firings.py` and mining match it, but names `ele:checkpoint` and `ele checkpoint optout`. ele writes its hook-log lines itself, in claude-config's path and format, so the plugin depends on no file of claude-config's
+- Stay in claude-config: `/hook-stats`, `hook-firings.py` and the guards' `hook-log.sh`, which cover every hook
 - Data stays at its paths: run log, audit ledger, reviewed-file cache
-- Contract the port keeps: log formats, and the `reviewers/<name>.md` layout ele's mining reads. Mining matches runs by the old bare names as well as the `ele:` ones, since transcripts from before the move keep the old names
-- Sweep: before phase 1, search every root for every old path, every old skill and command name, every `ele` call from these files and every reference back from ele. Roots: `~/.claude` and the second profile's `~/.claude-<name>`, `~/.agents`, claude-ephant, each repository's `CLAUDE.md` and `AGENTS.md`, ele's notes. Its dated output is the plan's inventory; the close re-runs it and requires no hit on an old path or bare name outside the kept data paths, the kept log formats and mining's old-name matches
-- Done: a real checkpoint through `ele:checkpoint` logs a line and its Stop hook fires from ele; `bootstrap.sh` restores it for both profiles; one eval smoke case runs; `premigration/` gone
+- Contract kept: log formats, and the `reviewers/<name>.md` layout ele's mining reads. Mining matches runs by the old bare names as well as the `ele:` ones, since transcripts from before the move keep the old names; the Stop gate and stop-check accept the bare `checkpoint` name too, for a session resumed from before the move
+- `claude plugin eval` runs against the plugin: `task eval` runs the cases in `plugin/evals/`, as of 2026-10-23 recall's and remember's, none yet checkpoint's or ticket-audit's
 
 ## Open questions
 
-The first is now mining-reports' plan items `block-follow-up` and `judge-blocks`; the second waits on the move into ele:
+This one is mining-reports' plan items `block-follow-up` and `judge-blocks`:
 
 - Judging Stop-hook blocks: `ele events --kind hook-block` reads each block's `Changed:` paths, the next main-thread reply with its time, whether a checkpoint then ran and whether the reply disputes the block, and `ele show <session> --at <time>` opens the session at its turn. As of 2026-10-22, by that reading, 56 of 95 checkpoint blocks in the week before claude-config's 9fbce04 (2026-10-08 19:28Z to 2026-10-15 19:28Z) were disputed and 23 followed by a checkpoint; in the week after, to 2026-10-22 11:08Z, 12 of 47 were disputed and 28 followed by a checkpoint. The 2026-10-16 count of 52 of 89 disputed used `hook-firings.py`'s pattern over a window starting before that run's 7 days; that pattern over these replies' first 300 characters disputes 53 of the 95. The read-only sort ran 2026-10-16 over 90 blocks across both profiles: 67 hook wrong, 21 agent dodged, 2 unclear, all before 9fbce04; findings in `mining/2026-10-16-hook-blocks/` in ele's data directory
-- Eval suites with `claude plugin eval`, a plan of their own once the move into ele lands; the move proves the harness with one smoke case. A checkpoint case is a fixture repository with planted defects, a settled decision that must not be re-raised, and a CI check the local gate lacks. Five to ten cases, run when a skill changes
