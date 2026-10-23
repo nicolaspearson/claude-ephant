@@ -48,8 +48,11 @@ Done when every proposal is written, skipped or closed as answered.
 - The words of each one written without asking, so a wrong one can be undone with `ele forget <id>`
 - Each plan file edited and left uncommitted
 
-End with one line, naming first any plan file left to commit:
+End with one line. It names first any plan file left to commit, then any open work skipped, as `Open, not recorded: <gist>.`, then:
 
 - a handoff written: `/clear, then continue`
 - otherwise, a progress line written: `/clear, then /ele:plan`
-- otherwise: `Nothing pending; safe to end or /clear`
+- otherwise, work deferred to an inbox item or a note: `Deferred: <gist> (<note id or plan>); safe to end or /clear`
+- otherwise, with no open work skipped: `Nothing pending; safe to end or /clear`
+
+Print these lines only here, as a wrap's last line.

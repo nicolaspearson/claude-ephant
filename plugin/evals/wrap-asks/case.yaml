@@ -1,7 +1,7 @@
 schema_version: "1.1"
 name: wrap-asks
 description: With work finished, ele:wrap proposes the session's decision and deferred idea, asks Write or Skip, and writes nothing unanswered
-runs: 1
+runs: 3
 execution:
   max_turns: 15
   allowed_tools: [AskUserQuestion, Bash, Skill]

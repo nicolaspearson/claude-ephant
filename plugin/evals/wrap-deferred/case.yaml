@@ -1,0 +1,11 @@
+schema_version: "1.1"
+name: wrap-deferred
+description: With planned work not yet started and every proposal skipped, ele:wrap ends naming the work as open, not as nothing pending
+runs: 3
+execution:
+  max_turns: 15
+  allowed_tools: [AskUserQuestion, Bash, Skill]
+  prompt: |
+    Nothing in the repository has changed yet. We planned a fix to the upload client's retry logic but have not started it. Wrap up the session anyway with /ele:wrap, and skip every proposal: record nothing.
+context:
+  scaffold_script: scaffold.sh
