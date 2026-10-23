@@ -25,8 +25,10 @@ var (
 	}
 	findWrites = []string{"-delete", "-exec", "-execdir", "-fls", "-fprint", "-fprint0", "-fprintf", "-ok", "-okdir"}
 	gitReads   = []string{"blame", "diff", "for-each-ref", "log", "ls-files", "rev-parse", "show", "status"}
-	loopWords  = []string{"!", "do", "done", "elif", "else", "fi", "if", "then", "until", "while", "{", "}"}
-	plainReads = []string{"[", "basename", "cat", "cd", "cut", "date", "diff", "dirname", "echo", "find", "grep", "head", "jq", "ls", "nl", "printf", "pwd", "rg", "sed", "sort", "stat", "tail", "test", "uniq", "wc"}
+	// A quoted delimiter keeps the body literal; anything after it on the line is an argument or redirect.
+	heredocHead = regexp.MustCompile(`^cat <<-? *('[^'\n]+'|"[^"\n]+") *$`)
+	loopWords   = []string{"!", "do", "done", "elif", "else", "fi", "if", "then", "until", "while", "{", "}"}
+	plainReads  = []string{"[", "basename", "cat", "cd", "cut", "date", "diff", "dirname", "echo", "find", "grep", "head", "jq", "ls", "nl", "printf", "pwd", "rg", "sed", "sort", "stat", "tail", "test", "uniq", "wc"}
 	// Prints, deletes from the output, quits or substitutes with / and no w or e flag; sed's w and e write and run.
 	sedPrint = regexp.MustCompile(`^(((\d+|\$|/[^/]*/)(,(\d+|\$|/[^/]*/))?)?[dpq=]|s/([^/\\]|\\.)*/([^/\\]|\\.)*/[gpiI0-9]*)$`)
 	variable = regexp.MustCompile(`^\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?`)
@@ -37,6 +39,18 @@ type shellScan struct {
 	commands [][]string
 	nested   []string
 	targets  []string
+}
+
+// Whether a note's command runs anything beside its ele remember and cd calls, and whether any of it is work.
+func besideNotes(command string) (other bool, work bool) {
+	work = scanIsWork(command, func(words []string) bool {
+		if slices.Equal(words[:min(2, len(words))], []string{"ele", "remember"}) || words[0] == "cd" {
+			return false
+		}
+		other = true
+		return simpleCommandIsWork(words)
+	})
+	return other, work
 }
 
 // Defaults to work: a command it cannot read whole may write.
@@ -79,6 +93,61 @@ globals:
 	return !slices.Contains(gitReads, args[0]) || slices.ContainsFunc(args[1:], func(arg string) bool { return strings.HasPrefix(arg, "--output") })
 }
 
+// A cat of a heredoc whose delimiter is quoted, so its body is literal text: the usual way to pass a multi-line note.
+// The first delimiter line must end the body: lines after it run as commands.
+func heredocCat(body string) bool {
+	trimmed := strings.TrimSpace(body)
+	head, _, _ := strings.Cut(trimmed, "\n")
+	if !heredocHead.MatchString(head) {
+		return false
+	}
+	runes := []rune(trimmed)
+	end, ok := heredocEnd(runes, len("cat "))
+	return ok && end == len(runes)-1
+}
+
+// The index of the last character of the closing delimiter line of the heredoc whose << is at start.
+func heredocEnd(runes []rune, start int) (int, bool) {
+	index := start + 2
+	strip := index < len(runes) && runes[index] == '-'
+	if strip {
+		index++
+	}
+	for index < len(runes) && runes[index] == ' ' {
+		index++
+	}
+	var delimiter []rune
+	if index < len(runes) && (runes[index] == '\'' || runes[index] == '"') {
+		closing := slices.Index(runes[index+1:], runes[index])
+		if closing < 0 {
+			return 0, false
+		}
+		delimiter = runes[index+1 : index+1+closing]
+	} else {
+		for index < len(runes) && !strings.ContainsRune(" \t\n;&|()", runes[index]) {
+			delimiter = append(delimiter, runes[index])
+			index++
+		}
+	}
+	newline := slices.Index(runes[index:], '\n')
+	if len(delimiter) == 0 || newline < 0 {
+		return 0, false
+	}
+	offset := index + newline + 1
+	for line := range strings.SplitSeq(string(runes[offset:]), "\n") {
+		text := line
+		if strip {
+			text = strings.TrimLeft(text, "\t")
+		}
+		length := len([]rune(line))
+		if text == string(delimiter) {
+			return offset + length - 1, true
+		}
+		offset += length + 1
+	}
+	return 0, false
+}
+
 // The body of the $( or backtick substitution at start, and the index of its closing character.
 func nestedBody(runes []rune, start int) (string, int, bool) {
 	if runes[start] == '`' {
@@ -97,6 +166,14 @@ func nestedBody(runes []rune, start int) (string, int, bool) {
 		switch runes[end] {
 		case '\\':
 			end++
+		case '<':
+			if end+1 < len(runes) && runes[end+1] == '<' {
+				closing, ok := heredocEnd(runes, end)
+				if !ok {
+					return "", 0, false
+				}
+				end = closing
+			}
 		case '\'':
 			closing := slices.Index(runes[end+1:], '\'')
 			if closing < 0 {
@@ -132,7 +209,7 @@ func scanIsWork(command string, isWork func(words []string) bool) bool {
 		return true
 	}
 	return slices.ContainsFunc(scan.targets, func(target string) bool { return !safeTarget(target) }) ||
-		slices.ContainsFunc(scan.nested, commandIsWork) ||
+		slices.ContainsFunc(scan.nested, func(body string) bool { return !heredocCat(body) && commandIsWork(body) }) ||
 		slices.ContainsFunc(scan.commands, isWork)
 }
 
@@ -363,12 +440,6 @@ func (scan shellScan) expand(target string) string {
 		return target
 	}
 	return value + target[len(match[0]):]
-}
-
-func workBesideNotes(command string) bool {
-	return scanIsWork(command, func(words []string) bool {
-		return !slices.Equal(words[:min(2, len(words))], []string{"ele", "remember"}) && simpleCommandIsWork(words)
-	})
 }
 
 func writesNote(command string) bool {

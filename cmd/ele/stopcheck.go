@@ -73,8 +73,9 @@ func advance(state stopState, entries []transcript.Entry, events []dto.Transcrip
 		case entry.Kind != transcript.KindTool:
 		case strings.HasPrefix(entry.Text, "Bash: ") && writesNote(entry.Command):
 			state.Pending = false
-			if !state.InCheckpoint && !state.Proposing && workBesideNotes(entry.Command) {
-				state.MidTask, state.Pending = true, true
+			if !state.InCheckpoint && !state.Proposing {
+				other, work := besideNotes(entry.Command)
+				state.MidTask, state.Pending = state.MidTask || other || work, work
 			}
 		case state.InCheckpoint || state.Proposing:
 		case strings.HasPrefix(entry.Text, "AskUserQuestion: "):
