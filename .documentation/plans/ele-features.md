@@ -89,5 +89,8 @@ Give ele a configuration a user can switch and tune from one place, reminders th
 
 ## Inbox
 
+- 2026-10-23, from claude-mem's `ContextBudget.ts`, which renders, measures and drops whole items: start-block-fits, the start block stays under Claude Code's hook output limit, dropping whole notes lowest priority first with a `+N not shown` line; claude-mem's comment gives the limit as 10,000 characters, unit unconfirmed; as of 2026-10-23 a start block of 10.2KB reached the model as a 2KB preview of a saved file
+- 2026-10-23, from the user after the nudge demo: reminder-styling, the reminders section of the user's message gets a bold header like the plan and handoff ones, a ↻ marker and coloured interval on a nudge, and its due date in yellow; as of 2026-10-23 `highlight.Message` has no rule for the section's header, due date or interval; its ids are dimmed and its bodies get the backtick, command and path rules
+- 2026-10-23, from the user: reminder-list-colour, `ele reminder list` highlights as the start block does, so `! ele reminder list` shows nudges in colour, in place of an ele:nudges skill; as of 2026-10-23 `!` rendered the colours of a command whose output went through a pipe, so a terminal check is not the switch, and whatever switches it keeps the escapes out of the model's own `ele reminder list` calls
 
 ## Out of scope
