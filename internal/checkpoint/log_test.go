@@ -74,22 +74,27 @@ func TestAppendLeavesHeadEmptyBeforeTheFirstCommit(t *testing.T) {
 
 func TestAppendTimesTheRunFromTheFirstFreezeAndEndsIt(t *testing.T) {
 	root, logPath := repository(t)
-	marker, err := ReviewedFile(context.Background(), root)
+	t.Setenv(sessionVariable, "this-session")
+	run, err := RunFile(context.Background(), root, "this-session")
+	require.NoError(t, err)
+	other, err := RunFile(context.Background(), root, "another-session")
 	require.NoError(t, err)
 	now := time.Now()
 	for _, started := range []string{"", "0x10\n", "12\n34\n"} {
-		require.NoError(t, os.WriteFile(marker+".started", []byte(started), 0o600))
+		require.NoError(t, os.WriteFile(run+".started", []byte(started), 0o600))
 		require.NoError(t, Append(context.Background(), root, map[string]any{}, logPath, now))
 	}
-	require.NoError(t, os.WriteFile(marker+".started", []byte(strconv.FormatInt(now.Unix()-90, 10)+"\n"), 0o600))
+	require.NoError(t, os.WriteFile(other+".started", []byte(strconv.FormatInt(now.Unix()-5, 10)+"\n"), 0o600))
+	require.NoError(t, os.WriteFile(run+".started", []byte(strconv.FormatInt(now.Unix()-90, 10)+"\n"), 0o600))
 	require.NoError(t, Append(context.Background(), root, map[string]any{}, logPath, now))
 
 	lines := logLines(t, logPath)
 	for _, line := range lines[:3] {
 		require.NotContains(t, line, "duration", "an unreadable freeze time is logged without a duration")
 	}
-	require.Equal(t, json.Number("90"), lines[3]["duration"])
-	require.NoFileExists(t, marker+".started", "freeze time removed once logged")
+	require.Equal(t, json.Number("90"), lines[3]["duration"], "another session's run on the same repository keeps its own clock")
+	require.NoFileExists(t, run+".started", "freeze time removed once logged")
+	require.FileExists(t, other+".started")
 }
 
 func TestProblemsAcceptsAValidRecord(t *testing.T) {
@@ -158,7 +163,7 @@ func TestProblemsReportsInputThatIsNotJSON(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestReviewedFileKeysByTheRepositoryRootAsTheBashStateDoes(t *testing.T) {
+func TestReviewedFileKeysByTheRepositoryRootAsRecordsWrittenBeforeThePort(t *testing.T) {
 	root, _ := repository(t)
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "sub"), 0o700))
 

@@ -27,7 +27,7 @@ the session already running.
 - `git`
 - Go, at the version in `go.mod`, only to install with `go install` or to work
   from a clone
-- `jq` and `shasum`, for the checkpoint hooks
+- `jq`, for `/ele:ticket-audit` against GitLab
 - `curl`, `tar` and `sha256sum` or `shasum`, for the install script
 
 ## Install

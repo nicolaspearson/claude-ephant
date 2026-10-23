@@ -185,6 +185,7 @@ func TestDigestOfACheckpointRunEndsTheTurnItRecordsIn(t *testing.T) {
 		`P=/plugin/premigration; "$P/checkpoint-reviewed.sh" record /repo`,
 		"~/.claude/hooks/checkpoint-log.sh /repo <<'EOF'\n{}\nEOF",
 		"R=/repo; ele checkpoint log $R <<'EOF'\n{}\nEOF",
+		"ele checkpoint freeze /repo /tmp -- a.go && ele checkpoint record /repo",
 	} {
 		archiveDirectory := t.TempDir()
 		writeArchived(t, filepath.Join(archiveDirectory, "claude", "-gateway", "t1.jsonl.gz"),

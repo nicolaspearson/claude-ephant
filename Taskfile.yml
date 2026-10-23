@@ -29,14 +29,13 @@ tasks:
   ##################################################
 
   check:
-    desc: "Run lint, docs lint, dead code, module tidiness, tests and the premigration suites. audit needs the network, so it runs on its own."
+    desc: "Run lint, docs lint, dead code, module tidiness and tests. audit needs the network, so it runs on its own."
     cmds:
       - task: lint
       - task: lint-docs
       - task: unused
       - task: tidy-check
       - task: test
-      - task: premigration
   precommit:
     desc: "Format, then run check."
     cmds:
@@ -269,19 +268,6 @@ tasks:
     desc: "Fix lint errors."
     cmds:
       - gofmt -s -w .
-
-  premigration:
-    desc: "Run the Bash suites under plugin/premigration/ until each is ported to Go."
-    cmds:
-      - |
-        work=$(mktemp -d)
-        trap 'rm -rf "$work"' EXIT
-        failed=0
-        for suite in plugin/premigration/*.test.sh; do
-          name=$(basename "$suite")
-          bash "$suite" > "$work/$name.log" 2>&1 || { echo "FAIL $suite"; cat "$work/$name.log"; failed=1; }
-        done
-        exit $failed
 
   test:
     desc: "Run the tests. Usage: task test [FORCE=1] to bypass the test cache."

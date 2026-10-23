@@ -38,7 +38,7 @@ var (
 	generation        = regexp.MustCompile(`(\.g\d+)?\.jsonl\.gz$`)
 	handback          = regexp.MustCompile(`<tool-use-id>([^<]+)</tool-use-id>|<task-id>([^<]+)</task-id>|<agent-message from="([^"]+)"`)
 	harnessPrefixes   = []string{"<task-notification", "<agent-message", "Stop hook feedback", "<local-command", "Caveat:", "[Request interrupted", "Another Claude session", "<system-reminder"}
-	recordCommand     = regexp.MustCompile(`(?m)(^|[;&|{(]\s*)\S*(checkpoint-reviewed\.sh"?\s+record\b|checkpoint-log\.sh\b|ele checkpoint log\b)`)
+	recordCommand     = regexp.MustCompile(`(?m)(^|[;&|{(]\s*)\S*(checkpoint-reviewed\.sh"?\s+record\b|checkpoint-log\.sh\b|ele checkpoint (log|record)\b)`)
 	reportLabel       = regexp.MustCompile(`\*\*(Bugs|Conventions|Prose|Spec)\b[^*\n]{0,30}reviewer`)
 	reviewGate        = regexp.MustCompile(`go test|go build|golangci|\btask [a-z]|npm (run )?(test|lint|build)|pnpm|vitest|tsc|pytest|make |test\.sh|bun |playwright|checkpoint-|ele checkpoint |mutat|sed -i|perl -pi|git stash|git diff`)
 	runGate           = regexp.MustCompile(`\b(go test|go build|go vet|golangci|task (test|lint|check|ci|gate|build|verify)|npm (run )?(test|lint|build|check)|pnpm|yarn (test|lint)|vitest|jest|pytest|make (test|lint|check|ci)|cargo test|tsc|eslint|test\.sh|bun test)\b`)

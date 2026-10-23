@@ -29,8 +29,8 @@ func Append(ctx context.Context, root string, record map[string]any, logPath str
 	line["date"] = now.UTC().Format("2006-01-02T15:04:05Z")
 	line["head"] = strings.TrimSpace(head)
 	line["repository"] = root
-	marker, markerErr := ReviewedFile(ctx, root)
-	if startedSeconds, ok := startedAt(marker); markerErr == nil && ok {
+	run, runErr := RunFile(ctx, root, Session())
+	if startedSeconds, ok := startedAt(run); runErr == nil && ok {
 		line["duration"] = now.Unix() - startedSeconds
 	}
 	var encoded bytes.Buffer
@@ -53,10 +53,10 @@ func Append(ctx context.Context, root string, record map[string]any, logPath str
 	if err = file.Close(); err != nil {
 		return err
 	}
-	if markerErr != nil {
+	if runErr != nil {
 		return nil
 	}
-	if err = os.Remove(marker + ".started"); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err = os.Remove(run + ".started"); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	return nil

@@ -13,13 +13,10 @@ for a tree §1 finds covered or a delta of `0 changed`.
 
 ## 1. Scope
 
-`<premigration>` is `premigration/` at the plugin root, two levels above this
-skill's base directory, here and in the files beside this one.
-
 Per repository the change touches, first:
 
 ```sh
-<premigration>/checkpoint-reviewed.sh check <root>
+ele checkpoint check <root>
 ```
 
 Covered in every repository: the last checkpoint reviewed these exact bytes, and
@@ -77,10 +74,10 @@ path on the change list as its own argument, relative to the root. Leave off any
 path the formatter returned to HEAD; it leaves the change list too:
 
 ```sh
-<premigration>/checkpoint-reviewed.sh freeze <root> <scratchpad> [--base <base>] --start -- <path> <path> ...
+ele checkpoint freeze <root> <scratchpad> [--base <base>] --start -- <path> <path> ...
 ```
 
-The script writes `checkpoint-<repo>.diff` and the fingerprint
+The command writes `checkpoint-<repo>.diff` and the fingerprint
 `checkpoint-<repo>.hash` for §8, `<repo>` being the basename of git's root for
 it. It refuses a path with no change and prints the line count and the mode this
 root alone implies.
@@ -88,11 +85,12 @@ root alone implies.
 **The run.** This freeze opens the run, and the Stop hook treats this session's
 checkpoint as in progress while it is open. Only this freeze passes `--start`:
 it starts the run's clock, which a run abandoned earlier in the session would
-otherwise keep; §8's freeze continues the run without it. Each freeze keeps the
-run open for two hours; §11's `record` or Stopping early's `close` ends it.
-`record` refuses without an open run of this session: none frozen, closed,
-another session's, a last freeze over two hours old, or `CLAUDE_CODE_SESSION_ID`
-unset.
+otherwise keep; every later freeze, one after `record` included, keeps the clock
+until §12's log. Each freeze keeps the run open for two hours; §11's `record` or
+Stopping early's `close` ends it. A run is this session's alone: another
+session's checkpoint of the same repository neither ends nor times it.
+`record` refuses without an open run of this session: none frozen, closed, a
+last freeze over two hours old, or `CLAUDE_CODE_SESSION_ID` unset.
 
 **Delta scope**: when the freeze prints `changed since the last checkpoint`,
 read `DELTA.md` beside this file; it can end the checkpoint here.
@@ -339,7 +337,7 @@ This step gates the report. Compare each repository's fingerprint with the one �
 saved:
 
 ```sh
-S=<scratchpad>; <premigration>/checkpoint-reviewed.sh hash <root> | cmp -s - "$S/checkpoint-<repo>.hash"; echo $?
+S=<scratchpad>; ele checkpoint hash <root> | cmp -s - "$S/checkpoint-<repo>.hash"; echo $?
 ```
 
 `0` in every repository, and no file outside git touched since §1: skip to §9.
@@ -422,7 +420,7 @@ Once every check passes or counts as green under §6, §8 has run or found the
 fingerprint unmoved, and every finding is fixed or reported, per repository:
 
 ```sh
-<premigration>/checkpoint-reviewed.sh record <root>
+ele checkpoint record <root>
 ```
 
 A record taken before the fixes marks unreviewed bytes as reviewed, and the next
@@ -517,15 +515,15 @@ A checkpoint that stops without a record — a red check §6 does not count as
 green, the user calling it off — ends the run (§1, The run):
 
 ```sh
-<premigration>/checkpoint-reviewed.sh close <root>
+ele checkpoint close <root>
 ```
 
 When the user says this work needs no checkpoint, exempt its paths for the
-session. The script refuses a glob that matches an arbitrary path, such as `*`,
+session. The command refuses a glob that matches an arbitrary path, such as `*`,
 `**` or `*.*`:
 
 ```sh
-<premigration>/checkpoint-reviewed.sh optout <root> "<glob>" ...
+ele checkpoint optout <root> "<glob>" ...
 ```
 
 Stopping early is done when `close` prints `closed: <root>` per repository.

@@ -9,7 +9,7 @@ Where its sections differ further:
 - §1: the base comes from
 
   ```sh
-  <premigration>/checkpoint-reviewed.sh base <root>
+  ele checkpoint base <root>
   ```
 
   It prints the merge-base with the upstream, else with `origin/HEAD`, and

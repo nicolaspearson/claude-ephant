@@ -37,7 +37,7 @@ As of 2026-10-17, ele's hooks (`plugin/hooks/hooks.json`) only print the Session
 
 2026-10-19:
 
-- The checkpoint `Stop` hook, `plugin/premigration/checkpoint-review.sh` since 2026-10-20, also blocks. Neither yields: both may block on one stop, and a remember block suppressed by `stop_hook_active` after a checkpoint block waits, like any pending work, for the first stop after the checkpoint ends
+- The checkpoint `Stop` hook, `ele checkpoint gate`, also blocks. Neither yields: both may block on one stop, and a remember block suppressed by `stop_hook_active` after a checkpoint block waits, like any pending work, for the first stop after the checkpoint ends
 - The remember skill's Propose section no longer falls back to printing the commands
 - The design spec's Session handoff section names the size hint as what suggests the handoff
 

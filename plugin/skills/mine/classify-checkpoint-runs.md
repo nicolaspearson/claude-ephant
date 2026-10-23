@@ -2,7 +2,7 @@
 
 You are mining past runs of a code-review skill called "checkpoint". Each run is one digest file; the paths and your output file are in the message that launched you.
 
-Judge each run by what its digest shows; the skill's text differs from run to run. In outline: the parent freezes the diff, launches fresh reviewer subagents, or a single combined reviewer in small mode, verifies each finding (confirmed and fixed, refuted with a reason, or left open as a question), mutates new tests, runs the gate, re-reviews the fixes if the tree's fingerprint moved, prints commit commands and records the run. "Covered" means `checkpoint-reviewed.sh check` found the tree already reviewed and the run stopped early.
+Judge each run by what its digest shows; the skill's text differs from run to run. In outline: the parent freezes the diff, launches fresh reviewer subagents, or a single combined reviewer in small mode, verifies each finding (confirmed and fixed, refuted with a reason, or left open as a question), mutates new tests, runs the gate, re-reviews the fixes if the tree's fingerprint moved, prints commit commands and records the run. "Covered" means `checkpoint-reviewed.sh check` or `ele checkpoint check` found the tree already reviewed and the run stopped early.
 
 Digest layout:
 

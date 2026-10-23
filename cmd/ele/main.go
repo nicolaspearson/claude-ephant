@@ -21,8 +21,17 @@ import (
 
 const usage = `usage:
   ele backup <dir>
+  ele checkpoint base [<root>]
+  ele checkpoint check [<root>]
+  ele checkpoint close [<root>]
   ele checkpoint density [--ref <ref>] [<root>]
+  ele checkpoint freeze <root> <dir> [--base <commit>] [--start] -- <path>...
+  ele checkpoint gate < <stop-hook.json>
+  ele checkpoint hash [<root>]
   ele checkpoint log [<root>] < <record.json>
+  ele checkpoint optout <root> <glob>...
+  ele checkpoint record [<root>]
+  ele checkpoint snapshot < <prompt-hook.json>
   ele checkpoint stats [<days>]
   ele config get [--owner <name>] <key>
   ele config list [--owner <name>]
