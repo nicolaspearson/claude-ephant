@@ -34,7 +34,7 @@ Read `<analysis>.err`. On a non-zero exit it holds the error. Otherwise it may w
 
 Split each analysis's units into batches of up to five. Launch one `general-purpose` subagent per batch, all in one message so they run in parallel, in the background. Each prompt is:
 
-```
+```text
 Read <prompt> first and follow it.
 Digests:
 <digest path>

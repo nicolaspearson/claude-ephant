@@ -109,7 +109,7 @@ Built from sections, each with its own budget; each handoff's is the three-line 
 
 ## Storage
 
-```
+```text
 claude-ephant/
   archive/                  transcripts
   config.json               options: global values and per-owner overrides; ele config

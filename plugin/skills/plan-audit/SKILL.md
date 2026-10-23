@@ -57,7 +57,6 @@ Done when every plan in scope is listed with its path and its check warnings, or
   name, so rewording keeps its rulings; an unnamed item's key is its title.
   Two plans of one file name, drafts in two repositories, are refused: audit
   each repository's plans in a run of its own
-
 - Frontier: per plan, the open actions `ele plan show <path>` does not list as
   blocked. A `blocked:` line naming items is an edge, `<name>` in its plan or
   `<plan>/<name>` in another; a line with prose before its `;` is no edge and

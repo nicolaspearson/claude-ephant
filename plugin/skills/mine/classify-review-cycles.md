@@ -16,7 +16,7 @@ Rules: read-only. Write only your output file. Never copy a token or credential.
 
 For each digest, read it whole and write ONE JSON object per line to your output file:
 
-```
+```text
 {"session": "<line 1 session, exactly>", "timestamp": "<line 1 timestamp, exactly>",
  "started_by": "user-asked|hook-block|parent-own-initiative|unclear",   // what prompted this cycle, judged from the events just before the first launch
  "is_checkpoint": true,            // false if the cycle aborted, was declared not a checkpoint, or had nothing to review
