@@ -15,6 +15,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unicode/utf16"
 
 	"github.com/nicolaspearson/claude-ephant/internal/config"
 	"github.com/nicolaspearson/claude-ephant/internal/datadir"
@@ -29,6 +30,10 @@ import (
 const contextBudget = 6000
 
 const (
+	// UTF-16 units, assumed from the docs' "characters". As of 2026-10-23 Claude
+	// Code shows the model only a preview of hook output past 10,000; the margin
+	// holds lines written outside writeSessionStart.
+	blockBudget    = 9500
 	hookInputLimit = 1 << 20
 	planBodyBudget = 2000
 	sessionHint    = "A note's discussion: ele show --note <id>.\n"
@@ -250,50 +255,75 @@ func writeHookOutput(stdout io.Writer, block string, shown string) error {
 	return encoder.Encode(output)
 }
 
-func writeNotes(stdout io.Writer, owner string, project string, all []notes.Note, invalid int, sessions int) {
+func writeNotes(stdout io.Writer, owner string, project string, all []notes.Note, invalid int, sessions int, room int) {
 	questions, others := liveNotes(all, project)
-	withSession := false
-	var out strings.Builder
+	header := fmt.Sprintf("Notes from ele for %s:\n", present(owner, project))
 	if len(questions)+len(others) == 0 {
-		fmt.Fprintf(&out, "ele has no notes for %s.\n", present(owner, project))
-	} else {
-		fmt.Fprintf(&out, "Notes from ele for %s:\n", present(owner, project))
+		header = fmt.Sprintf("ele has no notes for %s.\n", present(owner, project))
 	}
+	reserve := trailerRoom + len(sessionHint)
+	written, units := len(header), utf16Units(header)
+	var shown []notes.Note
 	for _, note := range questions {
-		out.WriteString(noteLine(note))
-		withSession = withSession || note.Session != ""
-	}
-	shown := 0
-	for _, note := range others {
 		next := noteLine(note)
-		if out.Len()+len(next) > contextBudget-trailerRoom-len(sessionHint) {
+		if units+utf16Units(next) > room-reserve {
 			break
 		}
-		out.WriteString(next)
-		withSession = withSession || note.Session != ""
-		shown++
+		written, units = written+len(next), units+utf16Units(next)
+		shown = append(shown, note)
+	}
+	shownQuestions := len(shown)
+	for _, note := range others {
+		next := noteLine(note)
+		if shownQuestions < len(questions) || written+len(next) > contextBudget-reserve || units+utf16Units(next) > room-reserve {
+			break
+		}
+		written, units = written+len(next), units+utf16Units(next)
+		shown = append(shown, note)
 	}
 
-	var closing []string
-	if hidden := len(others) - shown; hidden > 0 {
-		closing = append(closing, plural(hidden, "older note", "older notes")+" not shown")
+	render := func(count int) string {
+		var out strings.Builder
+		out.WriteString(header)
+		withSession := false
+		for _, note := range shown[:count] {
+			out.WriteString(noteLine(note))
+			withSession = withSession || note.Session != ""
+		}
+		var closing []string
+		if hidden := len(others) - max(count-shownQuestions, 0); hidden > 0 {
+			closing = append(closing, plural(hidden, "older note", "older notes")+" not shown")
+		}
+		if hidden := len(questions) - min(count, shownQuestions); hidden > 0 {
+			closing = append(closing, plural(hidden, "older question", "older questions")+" not shown, ele context lists them")
+		}
+		if invalid > 0 {
+			closing = append(closing, plural(invalid, "invalid note", "invalid notes")+" skipped; ele sync names each")
+		}
+		if sessions > 0 {
+			closing = append(closing, plural(sessions, "past session", "past sessions")+" indexed for "+project)
+		}
+		closing = append(closing, "search with /ele:recall")
+		out.WriteString(strings.Join(closing, "; "))
+		out.WriteString(".\n")
+		if withSession {
+			out.WriteString(sessionHint)
+		}
+		return out.String()
 	}
-	if invalid > 0 {
-		closing = append(closing, plural(invalid, "invalid note", "invalid notes")+" skipped; ele sync names each")
+	// The reserve is an estimate; a long project name can outgrow it.
+	count := len(shown)
+	text := render(count)
+	for count > 0 && utf16Units(text) > room {
+		count--
+		text = render(count)
 	}
-	if sessions > 0 {
-		closing = append(closing, plural(sessions, "past session", "past sessions")+" indexed for "+project)
-	}
-	closing = append(closing, "search with /ele:recall")
-	out.WriteString(strings.Join(closing, "; "))
-	out.WriteString(".\n")
-	if withSession {
-		out.WriteString(sessionHint)
-	}
-	fmt.Fprint(stdout, out.String())
+	fmt.Fprint(stdout, text)
 }
 
 func writeSessionStart(ctx context.Context, stdout io.Writer, dataDirectory string, now time.Time, source string) (string, error) {
+	written := &unitCounter{writer: stdout}
+	stdout = written
 	syncLog := filepath.Join(dataDirectory, "sync.log")
 	stamp, err := os.ReadFile(filepath.Join(dataDirectory, "last-sync"))
 	last, parseErr := time.Parse(time.RFC3339, strings.TrimSpace(string(stamp)))
@@ -367,6 +397,24 @@ func writeSessionStart(ctx context.Context, stdout io.Writer, dataDirectory stri
 	if err != nil {
 		fmt.Fprintf(stdout, "ele could not count past sessions: %v\n", err)
 	}
-	writeNotes(stdout, owner, project, all, invalid, sessions)
+	writeNotes(stdout, owner, project, all, invalid, sessions, blockBudget-written.units)
 	return strings.Join(shown, "\n"), nil
+}
+
+type unitCounter struct {
+	units  int
+	writer io.Writer
+}
+
+func (counter *unitCounter) Write(p []byte) (int, error) {
+	counter.units += utf16Units(string(p))
+	return counter.writer.Write(p)
+}
+
+func utf16Units(text string) int {
+	units := 0
+	for _, character := range text {
+		units += utf16.RuneLen(character)
+	}
+	return units
 }

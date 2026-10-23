@@ -95,9 +95,9 @@ Built from sections, each with its own budget; each handoff's is the three-line 
 - On a `startup` or `clear` source only, every handoff of the project not yet shown and not superseded, ahead of the notes; a lone one is then marked `shown`, several stay pending until closed (see Session handoff)
 - On a `startup`, `clear` or `compact` source, the project's active plans, after the handoffs, a lone plan's next item body capped at about 2,000 bytes (see Plans)
 - Notes for the current project and owner, plus `global` notes for the owner
-- Every open `question` (one no note supersedes), then decisions and facts newest first, capped at ~1.5k tokens (6,000 bytes). Oldest are cut first; questions never are
+- Every open `question` (one no note supersedes), then decisions and facts newest first, capped at ~1.5k tokens (6,000 bytes). Oldest are cut first; questions are cut only when the block would cross 9,500 UTF-16 units, decided 2026-10-23 with the user, as Claude Code then shows the model only a 2,000-character preview of hook output past 10,000 characters. Decisions and facts go first, then questions oldest first, and the closing line counts the questions cut and names `ele context`
 - Each note line shows its session id prefix when the note has one
-- A closing line: older notes not shown, invalid notes skipped, sessions indexed for the project, and how to search
+- A closing line: older notes not shown, older questions not shown, invalid notes skipped, sessions indexed for the project, and how to search
 - After it, when a shown note has a session: how to open that discussion, `ele show --note <id>`, which opens the note's session at the discussion that produced it (see `ele show --note` under Recall)
 - A directory no owner covers gets a line saying so, and no notes
 

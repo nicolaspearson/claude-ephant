@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf16"
 
 	"github.com/stretchr/testify/require"
 
@@ -348,7 +349,7 @@ func TestRunSessionStartShowsOpenQuestionsThenNewestNotes(t *testing.T) {
 func TestWriteNotesHintsOnlyForShownSessions(t *testing.T) {
 	question := notes.Note{Body: "Open?", Date: "2026-10-15", ID: "20261015-qqqqqq", Kind: notes.KindQuestion, Scope: notes.ScopeGlobal, Session: "abc1"}
 	var output bytes.Buffer
-	writeNotes(&output, "corp", "gateway", []notes.Note{question}, 0, 0)
+	writeNotes(&output, "corp", "gateway", []notes.Note{question}, 0, 0, blockBudget)
 	require.Contains(t, output.String(), "(session abc1)")
 	require.True(t, strings.HasSuffix(output.String(), sessionHint), output.String())
 
@@ -357,13 +358,13 @@ func TestWriteNotesHintsOnlyForShownSessions(t *testing.T) {
 		all = append(all, notes.Note{Body: strings.Repeat("word ", 30), Date: "2026-10-15", ID: fmt.Sprintf("n%02d", i), Kind: notes.KindFact, Scope: notes.ScopeGlobal})
 	}
 	output.Reset()
-	writeNotes(&output, "corp", "gateway", all, 0, 0)
+	writeNotes(&output, "corp", "gateway", all, 0, 0, blockBudget)
 	shown := strings.Count(output.String(), " fact n")
 	require.Less(t, shown, len(all))
 	// Newest first by id, so the first note the budget cuts is the one at index len-1-shown.
 	all[len(all)-1-shown].Session = "abc1"
 	output.Reset()
-	writeNotes(&output, "corp", "gateway", all, 0, 0)
+	writeNotes(&output, "corp", "gateway", all, 0, 0, blockBudget)
 	require.NotContains(t, output.String(), sessionHint)
 
 	var crowded []notes.Note
@@ -371,7 +372,7 @@ func TestWriteNotesHintsOnlyForShownSessions(t *testing.T) {
 		crowded = append(crowded, notes.Note{Body: "x", Date: "2026-10-15", ID: fmt.Sprintf("n%03d", i), Kind: notes.KindFact, Scope: notes.ScopeGlobal, Session: "abc1"})
 	}
 	output.Reset()
-	writeNotes(&output, "corp", strings.Repeat("long-project-name-", 3), crowded, 3, 12)
+	writeNotes(&output, "corp", strings.Repeat("long-project-name-", 3), crowded, 3, 12, blockBudget)
 	require.True(t, strings.HasSuffix(output.String(), sessionHint), output.String())
 	require.LessOrEqual(t, output.Len(), contextBudget)
 }
@@ -381,7 +382,7 @@ func TestWriteNotesNamesEachNotesSession(t *testing.T) {
 	writeNotes(&output, "corp", "gateway", []notes.Note{
 		{Body: "With a session.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Scope: notes.ScopeGlobal, Session: "010a2385-feef-4623-a164-763f5a52ec9b"},
 		{Body: "Without.", Date: "2026-10-14", ID: "20261014-bbbbbb", Kind: notes.KindFact, Scope: notes.ScopeGlobal},
-	}, 0, 0)
+	}, 0, 0, blockBudget)
 	require.Equal(t, "Notes from ele for corp · gateway:\n"+
 		"- 2026-10-15 decision 20261015-aaaaaa (session 010a2385): With a session.\n"+
 		"- 2026-10-14 fact 20261014-bbbbbb: Without.\n"+
@@ -389,7 +390,58 @@ func TestWriteNotesNamesEachNotesSession(t *testing.T) {
 		"A note's discussion: ele show --note <id>.\n", output.String())
 }
 
-func TestWriteNotesNeverCutsQuestions(t *testing.T) {
+func TestWriteNotesCutsOldestQuestionsPastTheRoomLeft(t *testing.T) {
+	var all []notes.Note
+	for i := range 40 {
+		all = append(all, notes.Note{Body: strings.Repeat("😀 open ", 40), Date: fmt.Sprintf("2026-09-%02d", i%28+1), ID: fmt.Sprintf("q%02d", i), Kind: notes.KindQuestion, Scope: notes.ScopeGlobal})
+	}
+	all = append(all, notes.Note{Body: "Decided.", Date: "2026-10-15", ID: "d00", Kind: notes.KindDecision, Scope: notes.ScopeGlobal})
+	var output bytes.Buffer
+	writeNotes(&output, "corp", "gateway", all, 0, 12, 5000)
+
+	text := output.String()
+	require.LessOrEqual(t, len(utf16.Encode([]rune(text))), 5000)
+	shown := len(regexp.MustCompile(`(?m)^- \S+ question q\d+:`).FindAllString(text, -1))
+	require.Positive(t, shown)
+	require.Less(t, shown, 40)
+	require.Contains(t, text, "question q27:", "the newest question is kept")
+	require.NotContains(t, text, "decision d00:")
+	require.True(t, strings.HasSuffix(text, fmt.Sprintf("1 older note not shown; %d older questions not shown, ele context lists them; 12 past sessions indexed for gateway; search with /ele:recall.\n", 40-shown)), text)
+}
+
+func TestWriteNotesFitsTheLongestClosingLine(t *testing.T) {
+	var all []notes.Note
+	for i := range 200 {
+		all = append(all, notes.Note{Body: "Open?", Date: "2026-10-15", ID: fmt.Sprintf("q%03d", i), Kind: notes.KindQuestion, Scope: notes.ScopeGlobal, Session: "abc1"})
+	}
+	all = append(all, notes.Note{Body: "Decided.", Date: "2026-10-15", ID: "d00", Kind: notes.KindDecision, Scope: notes.ScopeGlobal})
+	var output bytes.Buffer
+	writeNotes(&output, "corp", strings.Repeat("long-project-name-", 6), all, 3, 140, 3000)
+	require.Contains(t, output.String(), "older questions not shown, ele context lists them; 3 invalid notes skipped")
+	require.True(t, strings.HasSuffix(output.String(), sessionHint))
+	require.LessOrEqual(t, len(utf16.Encode([]rune(output.String()))), 3000)
+}
+
+func TestWriteSessionStartFitsHookOutputCap(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	dataDirectory := filepath.Join(home, "data")
+	noteDirectory := filepath.Join(dataDirectory, "notes")
+	_, err := notes.Write(noteDirectory, notes.Note{Body: "Run the measurement.", Date: "2026-10-01", Due: "2026-10-01", ID: "20261001-rrrrrr", Kind: notes.KindReminder, Owner: "corp", Scope: notes.ScopeGlobal})
+	require.NoError(t, err)
+	for i := range 60 {
+		_, err = notes.Write(noteDirectory, notes.Note{Body: strings.Repeat("Should ele index tool output? ", 10), Date: "2026-10-10", ID: fmt.Sprintf("20261010-q%05d", i), Kind: notes.KindQuestion, Owner: "corp", Scope: notes.ScopeGlobal})
+		require.NoError(t, err)
+	}
+
+	var output bytes.Buffer
+	_, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "startup")
+	require.NoError(t, err)
+	require.LessOrEqual(t, len(utf16.Encode([]rune(output.String()))), blockBudget)
+	require.Regexp(t, `\d+ older questions not shown, ele context lists them`, output.String())
+}
+
+func TestWriteNotesCutsDecisionsBeforeQuestions(t *testing.T) {
 	var all []notes.Note
 	for i := range 40 {
 		all = append(all, notes.Note{Body: strings.Repeat("decision ", 20), Date: fmt.Sprintf("2026-09-%02d", i%28+1), ID: fmt.Sprintf("d%02d", i), Kind: notes.KindDecision, Scope: notes.ScopeGlobal})
@@ -398,7 +450,7 @@ func TestWriteNotesNeverCutsQuestions(t *testing.T) {
 		all = append(all, notes.Note{Body: strings.Repeat("question ", 20), Date: "2026-01-01", ID: fmt.Sprintf("q%02d", i), Kind: notes.KindQuestion, Scope: notes.ScopeGlobal})
 	}
 	var output bytes.Buffer
-	writeNotes(&output, "corp", "gateway", all, 0, 0)
+	writeNotes(&output, "corp", "gateway", all, 0, 0, blockBudget)
 
 	text := output.String()
 	require.Len(t, regexp.MustCompile(`(?m)^- \S+ question q\d+:`).FindAllString(text, -1), 10)
@@ -415,7 +467,7 @@ func TestWriteNotesStaysWithinTheBudget(t *testing.T) {
 		all = append(all, notes.Note{Body: strings.Repeat("word ", 30), Date: "2026-10-15", ID: fmt.Sprintf("n%03d", i), Kind: notes.KindFact, Scope: notes.ScopeGlobal})
 	}
 	var output bytes.Buffer
-	writeNotes(&output, "corp", "gateway", all, 0, 12)
+	writeNotes(&output, "corp", "gateway", all, 0, 12, blockBudget)
 	require.LessOrEqual(t, output.Len(), contextBudget)
 	require.True(t, strings.HasSuffix(output.String(), "older notes not shown; 12 past sessions indexed for gateway; search with /ele:recall.\n"))
 }

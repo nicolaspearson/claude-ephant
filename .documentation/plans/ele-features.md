@@ -79,6 +79,8 @@ Give ele a configuration a user can switch and tune from one place, reminders th
   - as of 2026-10-23: claude-mem's `ContextBudget.ts`, which renders, measures and drops whole items, gives in a comment the limit as 10,000 characters, unit unconfirmed; a start block of 10.2KB reached the model as a 2KB preview of a saved file (moved from the inbox, raised 2026-10-23 from claude-mem)
   - as of 2026-10-23: of 220 ele start blocks in `~/.claude*/projects` transcripts, 35 were persisted as a preview; the largest arriving whole was 9,748 bytes (9,745 characters) and a persisted one was 10,454 bytes, so the limit lies between, bytes and characters too close to tell apart
   - as of 2026-10-23: the user's /clear start block that day, 10.8KB, arrived as a 2KB preview holding the plans and reminders and cut inside the notes
+  - as of 2026-10-23: built, uncommitted: `blockBudget` (9,500 UTF-16 units) caps the block `writeSessionStart` writes; past it decisions and facts go, then questions oldest first, counted as `N older questions not shown, ele context lists them`; the closing line is measured, not estimated. Claude Code's hooks docs give the limit as 10,000 characters per field, UTF-16 units assumed. three new tests, each seen red under its mutation; `task check FORCE=1` and `task audit` green; clone build installed, this repo's compact block 8,967 units, 6 questions cut
+  - next: the user's /clear shows the start block arriving whole, not as a preview, and the item ticks
 - [ ] colour-option: A `colour` option every user can switch through `ele config set`, on by default, turning off the highlighting of the start block and of every command that highlights
   - done when `ele config set colour false` leaves the start block and the Stop hook's message uncoloured, and `NO_COLOR` still turns colour off, each tested and seen red
   - as of 2026-10-23: only the `NO_COLOR` environment variable turns it off, read in `highlight.Message` (moved from the inbox, raised 2026-10-23 by the user, as not every client renders colour)
@@ -106,5 +108,6 @@ Give ele a configuration a user can switch and tune from one place, reminders th
 ## Inbox
 
 - 2026-10-23, from the user, as a week's wait was too long to test a nudge: sub-day intervals, `--every` taking `5m`, `2h` or `7d` and `--due` taking a time as well as a date; a reminder still shows only at a session start, /clear or compaction after it falls due. As of 2026-10-23 `--every` takes whole days and `--due` a date
+- 2026-10-23, moved from an open question by the skill-review plan audit: stop-check's `advance` counts `ele reminder close` and `ele handoff close` as work, so closing one at session start makes the Stop hook ask for notes; skip them as it skips `ele config get`?
 
 ## Out of scope
