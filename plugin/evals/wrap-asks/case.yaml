@@ -1,0 +1,11 @@
+schema_version: "1.1"
+name: wrap-asks
+description: With work finished, ele:wrap proposes the session's decision and deferred idea, asks Write or Skip, and writes nothing unanswered
+runs: 1
+execution:
+  max_turns: 15
+  allowed_tools: [AskUserQuestion, Bash, Skill]
+  prompt: |
+    This session's work is finished and committed. We decided to pin pydantic below 2.14, because 2.14 reorders validators and breaks our request models. I also said retries on the upload client are worth adding later, but not now. Wrap up the session with /ele:wrap.
+context:
+  scaffold_script: scaffold.sh

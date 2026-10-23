@@ -14,13 +14,13 @@ Decided 2026-10-15.
 
 ## Names
 
-| Thing             | Name                                                                                                                                |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Binary            | `ele`                                                                                                                               |
-| Data dir override | `ELE_HOME`                                                                                                                          |
-| Default data dir  | `~/Library/Application Support/claude-ephant/`                                                                                      |
-| Plugin            | `ele`                                                                                                                               |
-| Skills            | `/ele:checkpoint`, `/ele:handoff`, `/ele:mine`, `/ele:plan`, `/ele:plan-audit`, `/ele:recall`, `/ele:remember`, `/ele:ticket-audit` |
+| Thing             | Name                                                                                                                                             |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Binary            | `ele`                                                                                                                                            |
+| Data dir override | `ELE_HOME`                                                                                                                                       |
+| Default data dir  | `~/Library/Application Support/claude-ephant/`                                                                                                   |
+| Plugin            | `ele`                                                                                                                                            |
+| Skills            | `/ele:checkpoint`, `/ele:handoff`, `/ele:mine`, `/ele:plan`, `/ele:plan-audit`, `/ele:recall`, `/ele:remember`, `/ele:ticket-audit`, `/ele:wrap` |
 
 ## Owners
 
@@ -155,7 +155,7 @@ Decided 2026-10-22 with the user, in rounds.
 
 ## Integration
 
-- The repo is a marketplace, `claude-ephant` (`.claude-plugin/marketplace.json`), holding one plugin, `ele`, in `plugin/`: `.claude-plugin/plugin.json`, `agents/checkpoint-reviewer.md`, `commands/checkpoint-stats.md`, `commands/ticket-claims.md`, `hooks/hooks.json`, `skills/checkpoint`, `skills/handoff`, `skills/mine`, `skills/plan`, `skills/plan-audit`, `skills/recall`, `skills/remember`, `skills/ticket-audit`. Kept out of the repo root so Go sources and `dist/` are not copied into each profile's plugin cache
+- The repo is a marketplace, `claude-ephant` (`.claude-plugin/marketplace.json`), holding one plugin, `ele`, in `plugin/`: `.claude-plugin/plugin.json`, `agents/checkpoint-reviewer.md`, `commands/checkpoint-stats.md`, `commands/ticket-claims.md`, `hooks/hooks.json`, `skills/checkpoint`, `skills/handoff`, `skills/mine`, `skills/plan`, `skills/plan-audit`, `skills/recall`, `skills/remember`, `skills/ticket-audit`, `skills/wrap`. Kept out of the repo root so Go sources and `dist/` are not copied into each profile's plugin cache
 - Each profile adds the marketplace from GitHub (`nicolaspearson/claude-ephant`) and installs the plugin once, pinned at a commit: a skill edit reaches sessions only after a push, `/plugin marketplace update claude-ephant` and `/reload-plugins`. `task dev` installs the clone's `ele` and starts `claude --plugin-dir ./plugin`; as of 2026-10-22 that session loads the clone's plugin as `ele@inline` in place of the installed `ele@claude-ephant`, its SessionStart, Stop and UserPromptSubmit hooks each running once; SessionEnd not observed
 - `ele` on `PATH` must be at least as new as the plugin: an older binary answers a subcommand it lacks with its usage text, so the start block or the end-of-session sync does nothing, the Stop hook shows a hook error on every reply, and a skill's `ele context` call gets only the usage text and exit 2, which do not say the binary is stale. `task install` before enabling the plugin
 - Hooks: SessionStart runs `ele session-start` on startup, `/clear` and compaction. Not on resume, whose transcript already holds the block; a resume therefore starts no sync and shows no stale-sync warning, and relies on the previous session's SessionEnd sync. SessionEnd runs `ele sync --background`, so quitting does not wait for the sync. Stop runs `ele stop-check || exit 1`: the Stop check spec's size hint, and its block asking for notes once per stretch of work, counting a subagent's file changes and the session's questions. Stop also runs checkpoint's gate, `ele checkpoint gate`, and UserPromptSubmit its snapshot, `ele checkpoint snapshot`, each turning a failure into exit 1; see the checkpoint and ticket-audit spec

@@ -93,6 +93,7 @@ func TestAdvance(t *testing.T) {
 		{entries: tool("Bash: ls"), from: stopState{InCheckpoint: true}, name: "a checkpoint's own runs are not work", want: stopState{InCheckpoint: true}},
 		{entries: tool("Bash: grep -rn \"ele remember \" plugin"), name: "a command naming ele remember is work", want: stopState{MidTask: true, Pending: true}},
 		{events: run(transcript.EventSkill, "ele:handoff"), from: stopState{MidTask: true, Pending: true}, name: "a handoff proposes, still mid-task", want: stopState{MidTask: true, Proposing: true}},
+		{events: run(transcript.EventSkill, "ele:wrap"), from: stopState{MidTask: true, Pending: true}, name: "a wrap proposes, still mid-task", want: stopState{MidTask: true, Proposing: true}},
 		{entries: []transcript.Entry{{Kind: transcript.KindPrompt, Text: "go on"}}, from: stopState{Proposing: true}, name: "a prompt ends a proposal", want: stopState{}},
 		{entries: []transcript.Entry{{Kind: transcript.KindPrompt, Text: "go on"}}, from: stopState{InCheckpoint: true, StretchBlocked: true}, name: "a prompt ends the checkpoint, not the stretch", want: stopState{StretchBlocked: true}},
 		{entries: tool(`AskUserQuestion: {"questions":[]}`), from: stopState{Proposing: true}, name: "a question asking a remember block's notes is not work", want: stopState{Proposing: true}},

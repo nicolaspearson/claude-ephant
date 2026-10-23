@@ -37,7 +37,7 @@ const (
 
 var (
 	checkpointNames = []string{"checkpoint", "ele:checkpoint"}
-	proposalNames   = []string{"ele:handoff", "ele:remember"}
+	proposalNames   = []string{"ele:handoff", "ele:remember", "ele:wrap"}
 	// Not Bash: research and review subagents run it to read.
 	subagentWorkTools = []string{"Edit", "NotebookEdit", "Write"}
 	// Any Bash call: a command can change files, and /clear mid-task loses more than /compact between tasks.

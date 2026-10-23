@@ -8,6 +8,8 @@ project. The `ele` plugin adds the skills and hooks that use it:
 
 - `/ele:handoff`, `/ele:plan`, `/ele:recall` and `/ele:remember` for memory and
   plans
+- `/ele:wrap`, which at a session's end asks what to keep as notes, plan inbox
+  items or progress lines, which due reminders to close, and whether to hand off
 - `/ele:checkpoint`, a review of the change in subagents before work is reported
   done, with a Stop hook that blocks a done claim made without one
 - `/ele:plan-audit`, for stale premises, contradictions, stuck waits and inbox
