@@ -124,6 +124,8 @@ Give ele a configuration a user can switch and tune from one place, reminders th
 
 ## Inbox
 
+- 2026-10-23, from the user: session flags. `ele flag good|bad "<why>"` (and `/ele:flag`), stamped with session and time, `--session <id>` to flag afterwards; kept out of the start block, listed by `ele flag list`; an `ele mine` analysis `flagged` digests each around its flag and proposes plan candidates (bad) or patterns and eval fixtures (good)
+
 ## Out of scope
 
 - Loading config.json in stop-check only when it asks for notes: a config.json that does not parse is worth hearing about every turn, and loading it less often hides the error (ruled 2026-10-23, from the colour-option checkpoint's bugs reviewer)
