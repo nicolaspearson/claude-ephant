@@ -12,6 +12,11 @@ func TestParse(t *testing.T) {
 	entry := func(kind string, text string) Entry {
 		return Entry{Entrypoint: "cli", Kind: kind, SessionID: "s1", Text: text, Timestamp: "2026-10-15T10:00:00Z", UUID: "u1", WorkingDirectory: "/w/repo"}
 	}
+	bash := func(text string, command string) Entry {
+		parsed := entry(KindTool, text)
+		parsed.Command = command
+		return parsed
+	}
 
 	tests := []struct {
 		entries []Entry
@@ -24,7 +29,7 @@ func TestParse(t *testing.T) {
 			name:    "agent-written user line",
 		},
 		{
-			entries: []Entry{entry(KindConversation, "Done."), entry(KindTool, "Bash: go test ./...")},
+			entries: []Entry{entry(KindConversation, "Done."), bash("Bash: go test ./...", "go   test\n./...")},
 			line:    `{"type":"assistant",` + base + `,"message":{"content":[{"type":"thinking","thinking":"hidden"},{"type":"text","text":"Done."},{"type":"tool_use","name":"Bash","input":{"command":"go   test\n./...","description":"run"}}]}}`,
 			name:    "assistant text and tool call, thinking skipped",
 		},

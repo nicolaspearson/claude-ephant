@@ -107,8 +107,9 @@ Give ele a configuration a user can switch and tune from one place, reminders th
 - [ ] sub-day-intervals: `--every` takes `5m`, `2h` or `7d` and `--due` a time as well as a date, so a nudge can be tested without a week's wait; a reminder still shows only at a session start, /clear or compaction after it falls due
   - done when a nudge saved with `--every 5m` and closed does not show at a session start within 5 minutes and does after, and a reminder due at a time shows only from that time, each tested and seen red
   - as of 2026-10-23: `--every` takes whole days and `--due` a date (moved from the inbox, raised 2026-10-23 by the user, as a week's wait was too long to test a nudge)
-- [ ] advance-skips-close: stop-check's `advance` skips `ele reminder close` and `ele handoff close` as it skips `ele config get`, so closing one at session start does not make the Stop hook ask for notes
+- [x] advance-skips-close: stop-check's `advance` skips `ele reminder close` and `ele handoff close` as it skips `ele config get`, so closing one at session start does not make the Stop hook ask for notes
   - done when a turn whose only Bash calls are `ele reminder close` or `ele handoff close` ends without a notes ask, tested in `TestAdvance` and seen red
+  - asserted in the advance-skips-close commit, carried by fix(stop-check): a Bash call of `ele reminder close` or `ele handoff close` leaves notes unpending, as ele bookkeeping in the read rule (`eleNotWork` in `cmd/ele/bashwork.go`); `TestAdvance`'s rows "closing a reminder is not work for notes" and "closing a handoff is not work for notes" each went red with its `close` entry removed. Not observed in a real session
   - as of 2026-10-23: moved from the inbox (raised 2026-10-23 by the skill-review plan audit, from an open question)
 - [ ] Fold what this plan built, and its out-of-scope lines as `Not doing:`, into the spec, run `ele plan done .documentation/plans/ele-features.md`, and delete this plan
 

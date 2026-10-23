@@ -40,7 +40,7 @@ var (
 	proposalNames   = []string{"ele:handoff", "ele:remember", "ele:wrap"}
 	// Not Bash: research and review subagents run it to read.
 	subagentWorkTools = []string{"Edit", "NotebookEdit", "Write"}
-	// Any Bash call: a command can change files, and /clear mid-task loses more than /compact between tasks.
+	// Bash unless it is a read: a command can change files, and /clear mid-task loses more than /compact between tasks.
 	workTools = []string{"Bash", "Edit", "NotebookEdit", "Write"}
 )
 
@@ -63,21 +63,22 @@ type stopOutput struct {
 }
 
 // A checkpoint's own gate runs and fixes are not new work; the next prompt ends it. A checkpoint starts a stretch but
-// keeps unproposed work, so a stop after it still asks for notes. A question after a remember block or proposal, until
-// the next prompt, asks those notes: counted, skipping every note would ask again.
+// keeps unproposed work, so a stop after it still asks for notes. A proposal's own calls, after a remember block or
+// proposal until the next prompt, are not work: counted, a proposal that writes nothing would ask again.
 func advance(state stopState, entries []transcript.Entry, events []dto.TranscriptEvent) stopState {
 	for _, entry := range entries {
 		switch {
 		case entry.Kind == transcript.KindPrompt:
 			state.InCheckpoint, state.Proposing = false, false
 		case entry.Kind != transcript.KindTool:
-		case strings.HasPrefix(entry.Text, "Bash: ele remember "):
+		case strings.HasPrefix(entry.Text, "Bash: ") && writesNote(entry.Command):
 			state.Pending = false
-		// Propose's option read; as work, skipping every note would ask again.
-		case strings.HasPrefix(entry.Text, "Bash: ele config get "):
-		case state.InCheckpoint:
+		case state.InCheckpoint || state.Proposing:
 		case strings.HasPrefix(entry.Text, "AskUserQuestion: "):
-			state.Pending = state.Pending || !state.Proposing
+			state.Pending = true
+		// Mid-task, not work: /clear mid-investigation loses what the reads found.
+		case strings.HasPrefix(entry.Text, "Bash: ") && !commandIsWork(entry.Command):
+			state.MidTask = true
 		case slices.ContainsFunc(workTools, func(name string) bool { return strings.HasPrefix(entry.Text, name+": ") }):
 			state.MidTask, state.Pending = true, true
 		}

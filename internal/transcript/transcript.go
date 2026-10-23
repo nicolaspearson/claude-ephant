@@ -23,6 +23,8 @@ var harnessTags = []string{"<bash-stderr>", "<bash-stdout>", "<fork-boilerplate>
 var primaryInputs = []string{"command", "file_path", "path", "pattern", "query", "url", "skill", "description", "prompt"}
 
 type Entry struct {
+	// A Bash call's whole command: Text collapses whitespace and truncates it, which can hide a write.
+	Command          string
 	Entrypoint       string
 	Kind             string
 	SessionID        string
@@ -139,7 +141,11 @@ func Parse(raw []byte) ([]Entry, []dto.TranscriptEvent, error) {
 		case block.Type == "text" && parsed.Type == "assistant" && strings.TrimSpace(block.Text) != "":
 			entries = append(entries, with(base, KindConversation, block.Text))
 		case block.Type == "tool_use" && parsed.Type == "assistant":
-			entries = append(entries, with(base, KindTool, ToolLine(block.Name, block.Input)))
+			entry := with(base, KindTool, ToolLine(block.Name, block.Input))
+			if block.Name == "Bash" {
+				entry.Command, _ = block.Input["command"].(string)
+			}
+			entries = append(entries, entry)
 		}
 	}
 	return entries, events, nil
