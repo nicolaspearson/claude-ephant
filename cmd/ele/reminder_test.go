@@ -172,10 +172,10 @@ func TestRunSessionStartShowsANudgeItsIntervalAfterItsDoneFileChanged(t *testing
 
 	shown := start()
 	require.Contains(t, shown, "Reminders from ele, due:\n"+
-		"- due "+overdue.Due+", reminder "+overdue.ID+", every 7 days: Due twenty days ago.\n"+
-		"- due "+now.AddDate(0, 0, -1).Format(time.DateOnly)+", reminder "+stale.ID+", every 7 days: Done eight days ago.\n"+
-		"- due "+now.Format(time.DateOnly)+", reminder "+plain.ID+", every 7 days: Due today.\n"+
-		"- due "+now.Format(time.DateOnly)+", reminder "+missing.ID+", every 7 days: Never done.\n"+
+		"- ↻ due "+overdue.Due+", reminder "+overdue.ID+", every 7 days: Due twenty days ago.\n"+
+		"- ↻ due "+now.AddDate(0, 0, -1).Format(time.DateOnly)+", reminder "+stale.ID+", every 7 days: Done eight days ago.\n"+
+		"- ↻ due "+now.Format(time.DateOnly)+", reminder "+plain.ID+", every 7 days: Due today.\n"+
+		"- ↻ due "+now.Format(time.DateOnly)+", reminder "+missing.ID+", every 7 days: Never done.\n"+
 		"Tell the user each is due. Once the user says one is done or dropped, run ele reminder close <id>...; until then it shows at every startup, /clear and compaction.\n"+
 		"Closing one shown with an interval re-arms it for that many days; ele forget <id> drops it for good.\n\n")
 	require.NotContains(t, shown, fresh.ID, "done six days ago, it waits a seventh")

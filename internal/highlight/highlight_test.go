@@ -12,6 +12,7 @@ var markers = strings.NewReplacer(
 	"[c]", "\033[36m", "[/c]", "\033[39m",
 	"[d]", "\033[2m", "[/d]", "\033[22m",
 	"[g]", "\033[32m", "[/g]", "\033[39m",
+	"[m]", "\033[35m", "[/m]", "\033[39m",
 	"[r]", "\033[31m", "[/r]", "\033[39m",
 	"[y]", "\033[33m", "[/y]", "\033[39m",
 )
@@ -37,8 +38,10 @@ func TestMessage(t *testing.T) {
 		{name: "missing lone plan", highlighted: "[y]ele: plan a/b.md is not in this checkout[/y]; switch to its branch, or [c]ele plan done a/b.md[/c] closes it", text: "ele: plan a/b.md is not in this checkout; switch to its branch, or ele plan done a/b.md closes it"},
 		{name: "missing plan among several", highlighted: "- [y]plan b.md is not in this checkout[/y]; switch", text: "- plan b.md is not in this checkout; switch"},
 		{name: "note id alone", highlighted: "see [d]20261019-1ede12[/d] first", text: "see 20261019-1ede12 first"},
+		{name: "nudge marker and interval magenta, due date yellow", highlighted: "- [m]↻[/m] due [y]2026-10-22[/y], reminder [d]20261022-3abb91[/d], [m]every 7 days[/m]: Run [c]/hook-stats[/c].", text: "- ↻ due 2026-10-22, reminder 20261022-3abb91, every 7 days: Run /hook-stats."},
 		{name: "path inside a URL stays plain", highlighted: "see http://x/y.md", text: "see http://x/y.md"},
 		{name: "path is not a slash command", highlighted: "under /private/tmp/x and http://host/a", text: "under /private/tmp/x and http://host/a"},
+		{name: "plain reminder's due date yellow and body's words plain", highlighted: "[b]Reminders from ele[/b], due:\n- due [y]2026-10-23[/y], reminder [d]20261023-ba83b6[/d]: Due 2026-11-01, every 7 days.", text: "Reminders from ele, due:\n- due 2026-10-23, reminder 20261023-ba83b6: Due 2026-11-01, every 7 days."},
 		{name: "previous commit and date dimmed", highlighted: "[b]Previous:[/b] Add the rule [d](45404d0, 2026-10-17)[/d]\n[b]Next, line 22:[/b]\n- [ ] Item", text: "Previous: Add the rule (45404d0, 2026-10-17)\nNext, line 22:\n- [ ] Item"},
 		{name: "slash command before a curly apostrophe", highlighted: "run [c]/clear[/c]’s twin", text: "run /clear’s twin"},
 		{name: "slash command glued to a letter or digit stays plain", highlighted: "run /clearÉ and /clear2", text: "run /clearÉ and /clear2"},

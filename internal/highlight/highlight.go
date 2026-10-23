@@ -16,12 +16,13 @@ type style struct {
 
 // Never \033[0m: \033[39m is what restored the message's own colour in Claude Code, as of 2026-10-17.
 var (
-	bold   = style{close: "\033[22m", open: "\033[1m"}
-	cyan   = style{close: "\033[39m", open: "\033[36m"}
-	dim    = style{close: "\033[22m", open: "\033[2m"}
-	green  = style{close: "\033[39m", open: "\033[32m"}
-	red    = style{close: "\033[39m", open: "\033[31m"}
-	yellow = style{close: "\033[39m", open: "\033[33m"}
+	bold    = style{close: "\033[22m", open: "\033[1m"}
+	cyan    = style{close: "\033[39m", open: "\033[36m"}
+	dim     = style{close: "\033[22m", open: "\033[2m"}
+	green   = style{close: "\033[39m", open: "\033[32m"}
+	magenta = style{close: "\033[39m", open: "\033[35m"}
+	red     = style{close: "\033[39m", open: "\033[31m"}
+	yellow  = style{close: "\033[39m", open: "\033[33m"}
 )
 
 type rule struct {
@@ -62,7 +63,8 @@ var rules = []rule{
 	{expression: regexp.MustCompile("`[^`\n]+`"), styles: []func(string) style{always(cyan)}},
 	{expression: regexp.MustCompile(`(\d+ open), (\d+ blocked), (\d+ done), (\d+ in the inbox)`), styles: []func(string) style{count(yellow), count(red), count(green), count(cyan)}},
 	{expression: regexp.MustCompile(`\b(\d+ warnings?); ele plan check`), styles: []func(string) style{always(yellow)}},
-	{expression: regexp.MustCompile(`(?m)^(?:Handoff from ele|\d+ handoffs from ele|Active plan from ele:|\d+ active plans from ele)`), styles: []func(string) style{always(bold)}},
+	{expression: regexp.MustCompile(`(?m)^(?:Handoff from ele|\d+ handoffs from ele|Active plan from ele:|\d+ active plans from ele|Reminders from ele)`), styles: []func(string) style{always(bold)}},
+	{expression: regexp.MustCompile(`(?m)^- (?:(↻) )?due (\d{4}-\d{2}-\d{2}), reminder \d{8}-[0-9a-f]{6}(?:, (every \d+ days))?:`), styles: []func(string) style{always(magenta), always(yellow), always(magenta)}},
 	{expression: regexp.MustCompile(`(?m)^(Plan) \S+: \d+ open`), styles: []func(string) style{always(bold)}},
 	{expression: regexp.MustCompile(`(?m)(?:^|\. )(Previous:|Blocked:|Next, line \d+:|Next:|Context \d+k\.)`), styles: []func(string) style{always(bold)}},
 	{expression: regexp.MustCompile(`(?m)^[ \t]+(blocked:)`), styles: []func(string) style{always(red)}},

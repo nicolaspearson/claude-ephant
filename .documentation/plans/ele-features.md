@@ -41,6 +41,8 @@ Give ele a configuration a user can switch and tune from one place, reminders th
 - A nudge is saved with `ele remember --kind reminder --every N [--due D] [--done-file P]`, `--due` defaulting to today with `--every`, decided 2026-10-22 by the user
 - The hook-stats nudge is one `--global` nudge per owner in the owner map, personal, hyve and bitgorilla as of 2026-10-22, each naming `~/.claude/cache/hook-stats.last`, handed to the user as commands with the hook's removal from both profiles' settings, decided 2026-10-22 by the user
 - `ele reminder`'s usage names `ele remember --kind reminder` for saving one, decided 2026-10-22 by the user: the user looked for it under `ele reminder`
+- A nudge's ↻ marker is text `reminderSection` writes into both the model's and the user's copy, decided 2026-10-23 by the user: one string, and the marker survives colour off
+- A nudge's ↻ and interval are magenta, a colour no other rule uses, decided 2026-10-23 by the user: cyan is commands and code, yellow the due date
 
 ## Actions
 
@@ -86,9 +88,11 @@ Give ele a configuration a user can switch and tune from one place, reminders th
   - asserted in the colour-option commit: option `colour` (boolean, default on) in `Options`; with it false for the session's owner the start block's systemMessage and the Stop hook's hint are plain, and `NO_COLOR` leaves both plain with it on (`TestRunSessionStartColoursOnlyTheUsersCopyUnlessColourIsOff`, `TestRunStopCheckColoursTheHint`, `TestMessageUncolouredOnlyDropsControlCharacters`); eight mutations went red at the checkpoint; `task check FORCE=1` and `task audit` green. Not run: `ele config set colour false` through the CLI (refused inside a session; the tests write config.json directly), nor a real session
   - as of 2026-10-23: only the `NO_COLOR` environment variable turns it off, read in `highlight.Message` (moved from the inbox, raised 2026-10-23 by the user, as not every client renders colour)
   - as of 2026-10-23, premise check: `NO_COLOR` read in `highlight.Message`; its only callers are `writeHookOutput` in `cmd/ele/sessionstart.go` (start block) and `stopCheck` in `cmd/ele/stopcheck.go` (Stop hook), so those two are every command that highlights; options are read per owner through `config.Value`, as `reminders` is in `writeSessionStart`; design.md's highlighting line named only `NO_COLOR`. `ele plan check` listed no warnings
-- [ ] reminder-styling: The reminders section of the user's message gets a bold header like the plan and handoff ones, a ↻ marker and coloured interval on a nudge, and its due date in yellow
+- [x] reminder-styling: The reminders section of the user's message gets a bold header like the plan and handoff ones, a ↻ marker and coloured interval on a nudge, and its due date in yellow
   - done when each of those is asserted in a highlight test seen red, and the nudge demo shows them
+  - asserted in the reminder-styling commit: in the start block's systemMessage the `Reminders from ele` header is bold, a reminder's due date yellow, and a nudge's ↻ and `every N days` magenta, with ↻ written into both copies by `reminderSection` (`TestMessage`'s nudge and plain-reminder cases; `TestRunSessionStartShowsANudgeItsIntervalAfterItsDoneFileChanged`, `TestRunSessionStartShowsRemindersFromTheirDueDateUntilClosed`), eight mutations red at the checkpoint; the nudge demo, run with the clone build, rendered them in the user's terminal; `task check FORCE=1` and `task audit` green. Not seen in a real Claude Code start block
   - as of 2026-10-23: `highlight.Message` has no rule for the section's header, due date or interval; its ids are dimmed and its bodies get the backtick, command and path rules (moved from the inbox, raised 2026-10-23 by the user after the nudge demo)
+  - as of 2026-10-23, premise check, before the build: `reminderSection` in `cmd/ele` writes `Reminders from ele, due:` then `- due <date>, reminder <id><interval>: <body>`, `interval` giving `, every N days`; the same string goes to the model's stdout and the user's systemMessage, which `writeSessionStart` passes through `highlight.Message`. In `rules` in `internal/highlight` the header rule names handoff and plan headers only; no rule matches `due <date>` or the interval, and the only dated rule is a commit's `(sha, date)`. design.md's highlighting line says dates are dimmed, so a yellow due date is a change to it. `highlight.Message` only wraps spans and never adds text, so the ↻ marker is text `reminderSection` writes. `ele reminder list` lines (`listReminders`) differ in form and are reminder-list-colour's. The nudge demo is a scratch script outside the repo: it saves an overdue `--every 7` nudge in a throwaway `ELE_HOME` and prints the /clear systemMessage. `ele plan check` listed no warnings
 - [ ] reminder-list-colour: `ele reminder list` highlights as the start block does, so `! ele reminder list` shows nudges in colour, in place of an ele:nudges skill
   - done when `! ele reminder list` shows nudges in colour while the model's own `ele reminder list` Bash call gets no escapes, tested and seen red
   - as of 2026-10-23: `!` rendered the colours in a command's output after it went through a pipe; whether a direct `!` command's stdout is a terminal is unchecked (moved from the inbox, raised 2026-10-23 by the user)
@@ -115,6 +119,6 @@ Give ele a configuration a user can switch and tune from one place, reminders th
 
 ## Inbox
 
-- 2026-10-23, from the colour-option checkpoint's bugs reviewer: stop-check now loads config.json on every Stop, not only when it asks for notes, so a config.json that does not parse writes its parse error to stderr on every turn. Whether Claude Code shows a Stop hook's stderr on exit 0 is unchecked. Keep it, or load only when it is needed?
-
 ## Out of scope
+
+- Loading config.json in stop-check only when it asks for notes: a config.json that does not parse is worth hearing about every turn, and loading it less often hides the error (ruled 2026-10-23, from the colour-option checkpoint's bugs reviewer)

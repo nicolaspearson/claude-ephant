@@ -161,7 +161,11 @@ func reminderSection(due []notes.Note) string {
 	var section strings.Builder
 	section.WriteString("Reminders from ele, due:\n")
 	for _, reminder := range due {
-		fmt.Fprintf(&section, "- due %s, reminder %s%s: %s\n", reminder.Due, reminder.ID, interval(reminder), redact.Redact(strings.Join(strings.Fields(reminder.Body), " ")))
+		marker := ""
+		if reminder.Every > 0 {
+			marker = "↻ "
+		}
+		fmt.Fprintf(&section, "- %sdue %s, reminder %s%s: %s\n", marker, reminder.Due, reminder.ID, interval(reminder), redact.Redact(strings.Join(strings.Fields(reminder.Body), " ")))
 	}
 	return section.String()
 }
