@@ -24,20 +24,20 @@ Leave out what the next session can already see: the code, commits, plan ticks a
 - **Deferred work**: an inbox item of the active plan whose `## Why` it serves, `- <date>, from <source>: <words>`, naming the plan in the question when several could take it, and never a note id or session. Serving none, a `question` note starting `Plan candidate:`
 - **Notes**: what `/ele:remember`'s Propose section looks for
 - **Due reminders**: `ele reminder list`, not the start block, which a compaction may have dropped. Propose closing only one whose subject this session finished; say when it is a nudge, which closing re-arms
-- **Handoff**: only when every piece of work is finished and the next task needs something the next session cannot see, or the user named the next task as an argument. Worded by `/ele:handoff`'s Write section. Unfinished work never gets one unless the user asks for one. An argument names the task, not approval: the handoff still goes through step 3
+- **Handoff**: propose one unless the start block alone sends the next session to the right place, meaning the session's next step is an active plan's next item or there is none, and nothing else is left: no change other than a plan file uncommitted in a repository the session touched, no printed command to run, no failed approach or unverified guess, and no next task the user named as an argument. Worded by `/ele:handoff`'s Write section, naming a progress line, inbox item or note proposed here rather than restating it. An argument names the task, not approval: the handoff still goes through step 3
 
 Nothing left: say so in one line and skip to step 4. Done when every proposal is drafted with its exact words.
 
 ## 3. Ask
 
-Run `ele config get auto_note_writes`. When it prints `true`, write the notes and the handoff without asking.
+Run `ele config get auto_note_writes`. When it prints `true`, write the notes and the handoff without asking, the handoff once the asked proposals are answered.
 
 Ask the rest with AskUserQuestion, loading it through ToolSearch if it is deferred: one call, one question per proposal, most costly to lose first, a second call in the same turn past the tool's four. Each `question` holds the proposal's exact words and any ids it supersedes; `header` its kind (`inbox`, `progress`, a note kind, `reminder`, `handoff`); options `Write` and `Skip`, or `Close` and `Keep` for a reminder. An `Other` that rewords one is written as reworded; for any other `Other`, ask again before writing or skipping that one.
 
 Write each approved one yourself, never printing the command for the user:
 
 - Inbox item: append it under the plan's `## Inbox`. Progress line: add it under its item
-- Note: `ele remember` as `/ele:remember` writes one. Handoff: `ele remember --kind handoff`, with `--project` as `/ele:handoff` says
+- Note: `ele remember` as `/ele:remember` writes one. Handoff: `ele remember --kind handoff`, with `--project` as `/ele:handoff` says. Write it last, restating any skipped item it names
 - Reminder: `ele reminder close <id>`
 
 Done when every proposal is written, skipped or closed as answered.
