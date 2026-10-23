@@ -40,8 +40,9 @@ v1 is for users other than the author. The code still indexed a one-off claude-m
   - as of 2026-10-23: other plans lean on these specs. `skill-review` (spec `checkpoint-and-ticket-audit.md`) cites its Errors line, its cost section, the rule that a case only some runs meet sits beside SKILL.md, and the Propose wording in `stop-check.md`. `mining-reports/delete-mining-runs` dropped the specs' pointers to the mining run folders, and that plan's closing action folded into `checkpoint-and-ticket-audit.md`'s Stop-hook blocks section, both reworded in this item's change
   - as of 2026-10-23, before this item's change: the specs also named the author's other repositories and paths: claude-config, `hook-firings.py`, agent-skills, `~/.agents/skills` and `~/ele-backup-2026-10-17/`
   - asserted in the specs-current commit: `grep -rniE 'claude-mem|headroom|\brtk\b' .documentation/specs/` finds nothing; the only dates left in the three specs are `as of` lines on Claude Code behaviour; a fresh comparison of HEAD against the tree, checked against the code, found 8 behaviours lost and the checkpoint's bugs reviewer 1 more (imported judgments carry no digest), all restored; `task check FORCE=1` and `task lint-docs` pass
-- [ ] user-guides: Write `docs/` pages: owners, notes and recall, plans, handoffs and reminders, checkpoint and ticket-audit, data and privacy (storage, backup, redaction, no background model), and a command reference
+- [x] user-guides: Write `docs/` pages: owners, notes and recall, plans, handoffs and reminders, checkpoint and ticket-audit, data and privacy (storage, backup, redaction, no background model), and a command reference
   - done when each page meets the docs done-when decision
+  - asserted in the user-guides commit: the seven docs/ pages exist; task lint-docs, extended in the same commit to scan docs/ for file:line citations and fail on a relative link whose file is missing (shown red on a planted broken link), passes; a one-off check found every #anchor matches a heading, every --flag in ele's help, and every synopsis in commands.md verbatim in ele --help; three reviewers' claims checked against the code; task check FORCE=1 passes
 - [ ] readme-for-users: Rewrite `README.md` for users: what ele is, install, quick start, the skills at a glance, options, update, and links to `docs/` and `CONTRIBUTING.md`
   - blocked: user-guides
   - done when the README meets the docs done-when decision and holds no contributor material
@@ -55,6 +56,7 @@ v1 is for users other than the author. The code still indexed a one-off claude-m
 ## Inbox
 
 - 2026-10-23, from specs-current: `internal/checkpoint/gate.go`'s HookLog doc comment names claude-config ("the format claude-config's hooks write"); say what the format is instead, as checkpoint-and-ticket-audit.md now does
+- 2026-10-23, from user-guides: add a Markdown linter and formatter (rumdl, installed like shellcheck) to task lint and task format, with heading-anchor checks over docs/; lint-docs checks only that each relative link's file exists. Reformat the existing .md files in their own commit
 
 ## Out of scope
 

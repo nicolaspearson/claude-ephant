@@ -253,14 +253,28 @@ tasks:
       - shellcheck install.sh
 
   lint-docs:
-    desc: "Reject source line-number citations in .documentation."
+    desc: "Reject source line-number citations in .documentation and docs, and relative links in docs that resolve to nothing."
     silent: true
     cmds:
       # A file:line citation is wrong on the next edit and reads as authoritative
       # while it is wrong. Cite a package and an identifier instead.
       - |
-        if grep -rnE '\.(go|html):[0-9]+' .documentation/; then
+        if grep -rnE '\.(go|html):[0-9]+' .documentation/ docs/; then
           echo "Linting failed: cite a package and an identifier, never a source line number.";
+          exit 1;
+        fi
+      - |
+        broken=0
+        for page in docs/*.md; do
+          for target in $(grep -oE '\]\([^)]+\)' "$page" | sed -E 's/^\]\(//; s/\)$//; s/#.*//' | grep -vE '^(https?:|mailto:|$)'); do
+            if [ ! -e "$(dirname "$page")/$target" ]; then
+              echo "$page: $target";
+              broken=1;
+            fi
+          done
+        done
+        if [ "$broken" -ne 0 ]; then
+          echo "Linting failed: each relative link above resolves to nothing.";
           exit 1;
         fi
 
