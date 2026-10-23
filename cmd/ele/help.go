@@ -18,7 +18,7 @@ Notes
   handoff list     pending handoffs; --all adds closed and superseded
   handoff close    mark handoffs picked up or dropped
   handoff reopen   make closed handoffs pending again
-  reminder list    open reminders; --all adds closed and superseded
+  reminder list    open reminders; --all adds closed and superseded, --colour highlights them
   reminder close   mark reminders done or dropped; a nudge comes back after its interval
   reminder reopen  make closed reminders open again
   forget           move mistaken notes out of the index; --restore brings them back

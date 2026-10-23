@@ -62,7 +62,7 @@ const usage = `usage:
   ele reindex
   ele remember --kind decision|fact|handoff|question|reminder [--done-file <path>] [--due <YYYY-MM-DD>] [--every <days>] [--global] [--owner <name>] [--project <name>] [--session <id>] [--supersedes <id>...] <words>
   ele reminder close [--owner <name>] [--project <name>] <id>...
-  ele reminder list [--all] [--owner <name>] [--project <name>]
+  ele reminder list [--all] [--colour] [--owner <name>] [--project <name>]
   ele reminder reopen [--owner <name>] [--project <name>] <id>...
   ele session-start [--no-sync]
   ele show [--around <text> | --at <time>] [--context <n>] <session>

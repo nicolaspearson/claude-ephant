@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nicolaspearson/claude-ephant/internal/highlight"
 	"github.com/nicolaspearson/claude-ephant/internal/notes"
 	"github.com/nicolaspearson/claude-ephant/internal/redact"
 )
@@ -36,6 +37,7 @@ func interval(note notes.Note) string {
 func listReminders(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
 	flags := newFlagSet("reminder list", stderr)
 	listAll := flags.Bool("all", false, "add closed and superseded reminders")
+	colour := flags.Bool("colour", false, "highlight the list; the colour option off or NO_COLOR wins")
 	owner := flags.String("owner", "", "list this owner's reminders instead of the resolved one's")
 	projectName := flags.String("project", "", "list this project's reminders instead of the working directory's")
 	if err := flags.Parse(args); err != nil || flags.NArg() > 0 {
@@ -65,21 +67,27 @@ func listReminders(ctx context.Context, args []string, stdout io.Writer, stderr 
 			continue
 		}
 		nudges = nudges || note.Every > 0
-		lines = append(lines, fmt.Sprintf("- %s  due %s, reminder %s (%s%s): %s\n", state, note.Due, note.ID, note.Scope, interval(note), strings.Join(strings.Fields(redact.Redact(note.Body)), " ")))
+		lines = append(lines, fmt.Sprintf("- %s  %sdue %s, reminder %s (%s%s): %s\n", state, nudgeMarker(note), note.Due, note.ID, note.Scope, interval(note), strings.Join(strings.Fields(redact.Redact(note.Body)), " ")))
 	}
 	where := present(scope.owner, scope.project)
+	var listing strings.Builder
 	switch {
 	case len(lines) > 0:
 		trailer := "ele reminder close <id>... or ele reminder reopen <id>... to change one.\n"
 		if nudges {
 			trailer = "ele reminder close <id>... or ele reminder reopen <id>... to change one; closing one with an interval re-arms it, ele forget <id> drops it.\n"
 		}
-		fmt.Fprintf(stdout, "Reminders for %s, soonest due first:\n%s%s", where, strings.Join(lines, ""), trailer)
+		fmt.Fprintf(&listing, "Reminders for %s, soonest due first:\n%s%s", where, strings.Join(lines, ""), trailer)
 	case *listAll:
-		fmt.Fprintf(stdout, "ele has no reminders for %s.\n", where)
+		fmt.Fprintf(&listing, "ele has no reminders for %s.\n", where)
 	default:
-		fmt.Fprintf(stdout, "ele has no open reminders for %s; --all adds closed and superseded ones.\n", where)
+		fmt.Fprintf(&listing, "ele has no open reminders for %s; --all adds closed and superseded ones.\n", where)
 	}
+	if !*colour {
+		fmt.Fprint(stdout, highlight.Message(listing.String(), false))
+		return 0
+	}
+	fmt.Fprint(stdout, highlight.Message(listing.String(), colourOn(loadConfig(scope.dataDirectory, stderr), scope.owner)))
 	return 0
 }
 
@@ -93,6 +101,13 @@ func nextDue(note notes.Note, now time.Time) string {
 		return min(note.Due, now.Format(time.DateOnly))
 	}
 	return max(note.Due, info.ModTime().In(now.Location()).AddDate(0, 0, note.Every).Format(time.DateOnly))
+}
+
+func nudgeMarker(note notes.Note) string {
+	if note.Every == 0 {
+		return ""
+	}
+	return "↻ "
 }
 
 func openReminders(all []notes.Note, project string) []notes.Note {

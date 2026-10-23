@@ -63,7 +63,8 @@ var rules = []rule{
 	{expression: regexp.MustCompile("`[^`\n]+`"), styles: []func(string) style{always(cyan)}},
 	{expression: regexp.MustCompile(`(\d+ open), (\d+ blocked), (\d+ done), (\d+ in the inbox)`), styles: []func(string) style{count(yellow), count(red), count(green), count(cyan)}},
 	{expression: regexp.MustCompile(`\b(\d+ warnings?); ele plan check`), styles: []func(string) style{always(yellow)}},
-	{expression: regexp.MustCompile(`(?m)^(?:Handoff from ele|\d+ handoffs from ele|Active plan from ele:|\d+ active plans from ele|Reminders from ele)`), styles: []func(string) style{always(bold)}},
+	{expression: regexp.MustCompile(`(?m)^(?:Handoff from ele|\d+ handoffs from ele|Active plan from ele:|\d+ active plans from ele|Reminders from ele|Reminders for [^,\n]+)`), styles: []func(string) style{always(bold)}},
+	{expression: regexp.MustCompile(`(?m)^- (?:(due)|(closed \S+|superseded by \d{8}-[0-9a-f]{6})|open)  (?:(↻) )?due (\d{4}-\d{2}-\d{2}), reminder \d{8}-[0-9a-f]{6} \([a-z]+(?:, (every \d+ days))?\):`), styles: []func(string) style{always(yellow), always(dim), always(magenta), always(yellow), always(magenta)}},
 	{expression: regexp.MustCompile(`(?m)^- (?:(↻) )?due (\d{4}-\d{2}-\d{2}), reminder \d{8}-[0-9a-f]{6}(?:, (every \d+ days))?:`), styles: []func(string) style{always(magenta), always(yellow), always(magenta)}},
 	{expression: regexp.MustCompile(`(?m)^(Plan) \S+: \d+ open`), styles: []func(string) style{always(bold)}},
 	{expression: regexp.MustCompile(`(?m)(?:^|\. )(Previous:|Blocked:|Next, line \d+:|Next:|Context \d+k\.)`), styles: []func(string) style{always(bold)}},
@@ -71,7 +72,7 @@ var rules = []rule{
 	{expression: regexp.MustCompile(`note \d{8}-[0-9a-f]{6} of [^,\n]+(?:, session [0-9a-f]+)?`), styles: []func(string) style{always(dim)}},
 	{expression: regexp.MustCompile(`\b\d{8}-[0-9a-f]{6}\b`), styles: []func(string) style{always(dim)}},
 	{expression: regexp.MustCompile(`\((?:[0-9a-f]{7,40}, \d{4}-\d{2}-\d{2}|uncommitted)\)`), styles: []func(string) style{always(dim)}},
-	{expression: regexp.MustCompile(`\bele (?:plan (?:check|done|list|show|start)|handoff (?:close|list|reopen)|show|recall|remember|context)(?: [\w./<>-]*[./<>-][\w./<>-]*[\w>])*`), styles: []func(string) style{always(cyan)}},
+	{expression: regexp.MustCompile(`\bele (?:plan (?:check|done|list|show|start)|handoff (?:close|list|reopen)|reminder (?:close|list|reopen)|forget|show|recall|remember|context)(?: [\w./<>-]*[./<>-][\w./<>-]*[\w>])*`), styles: []func(string) style{always(cyan)}},
 	{expression: regexp.MustCompile(`(?m)(?:^|[\s(])([\w.-]*(?:/[\w.-]+)+\.md)\b`), styles: []func(string) style{always(cyan)}},
 	{accept: commandEnds, expression: regexp.MustCompile(`(?m)(?:^|[\s(])(/[a-z][a-z-]*(?::[a-z][a-z-]*)?)`), styles: []func(string) style{always(cyan)}},
 }

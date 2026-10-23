@@ -39,7 +39,7 @@ func TestRunReminderCloseReArmsANudge(t *testing.T) {
 	output, code = runCommand(t, "reminder", "list")
 	require.Equal(t, 0, code, output)
 	require.Equal(t, "Reminders for corp · gateway, soonest due first:\n"+
-		"- due  due "+today+", reminder "+nudge.ID+" (project, every 7 days): Run /hook-stats.\n"+
+		"- due  ↻ due "+today+", reminder "+nudge.ID+" (project, every 7 days): Run /hook-stats.\n"+
 		"ele reminder close <id>... or ele reminder reopen <id>... to change one; closing one with an interval re-arms it, ele forget <id> drops it.\n", output)
 
 	output, code = runCommand(t, "reminder", "close", nudge.ID)
@@ -51,13 +51,53 @@ func TestRunReminderCloseReArmsANudge(t *testing.T) {
 	require.NotContains(t, string(content), "closed:", "a nudge stays open")
 	output, code = runCommand(t, "reminder", "list")
 	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "- open  due "+week+", reminder "+nudge.ID+" (project, every 7 days)")
+	require.Contains(t, output, "- open  ↻ due "+week+", reminder "+nudge.ID+" (project, every 7 days)")
 
 	output, code = runCommand(t, "forget", nudge.ID)
 	require.Equal(t, 0, code, output)
 	output, code = runCommand(t, "reminder", "list", "--all")
 	require.Equal(t, 0, code, output)
 	require.NotContains(t, output, nudge.ID, "forget drops a nudge for good")
+}
+
+func TestRunReminderListColoursOnlyWithColour(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	t.Setenv("NO_COLOR", "")
+	output, code := runCommand(t, "remember", "--kind", "reminder", "--every", "7", "--session", "", "Run /hook-stats.")
+	require.Equal(t, 0, code, output)
+	nudge := readRemembered(t, output)
+
+	output, code = runCommand(t, "reminder", "list")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "- due  ↻ due "+nudge.Due+", reminder "+nudge.ID+" (project, every 7 days)")
+	require.NotContains(t, output, "\033", "the model's call passes no flag")
+
+	output, code = runCommand(t, "reminder", "list", "--colour")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "- \033[33mdue\033[39m  \033[35m↻\033[39m due \033[33m"+nudge.Due+"\033[39m, reminder \033[2m"+nudge.ID+"\033[22m (project, \033[35mevery 7 days\033[39m)")
+
+	t.Setenv("NO_COLOR", "1")
+	output, code = runCommand(t, "reminder", "list", "--colour")
+	require.Equal(t, 0, code, output)
+	require.NotContains(t, output, "\033", "NO_COLOR wins over --colour")
+
+	t.Setenv("NO_COLOR", "")
+	writeFile(t, filepath.Join(home, "data", "config.json"), `{"owners": {"corp": {"colour": false}}}`)
+	output, code = runCommand(t, "reminder", "list", "--colour")
+	require.Equal(t, 0, code, output)
+	require.NotContains(t, output, "\033", "the colour option off wins over --colour")
+}
+
+func TestRunReminderListDropsControlCharacters(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	_, err := notes.Write(filepath.Join(home, "data", "notes"), notes.Note{Body: "Renew \033[31mthe\a certificate.", Date: "2026-10-22", Due: "2026-10-22", ID: "20261022-aaaaaa", Kind: notes.KindReminder, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Time: "2026-10-22T09:00:00Z"})
+	require.NoError(t, err)
+
+	output, code := runCommand(t, "reminder", "list")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "reminder 20261022-aaaaaa (project): Renew [31mthe certificate.\n")
 }
 
 func TestRunReminderListsClosesAndReopens(t *testing.T) {

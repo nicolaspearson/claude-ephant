@@ -26,6 +26,7 @@ type noteChange struct {
 
 type projectScope struct {
 	all           []notes.Note
+	dataDirectory string
 	noteDirectory string
 	owner         string
 	project       string
@@ -131,7 +132,7 @@ func projectNotes(ctx context.Context, owner string, projectName string) (projec
 	if err != nil {
 		return projectScope{}, 1, err
 	}
-	return projectScope{all: all, noteDirectory: noteDirectory, owner: resolved, project: project}, 0, nil
+	return projectScope{all: all, dataDirectory: dataDirectory, noteDirectory: noteDirectory, owner: resolved, project: project}, 0, nil
 }
 
 func listHandoffs(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {

@@ -161,11 +161,7 @@ func reminderSection(due []notes.Note) string {
 	var section strings.Builder
 	section.WriteString("Reminders from ele, due:\n")
 	for _, reminder := range due {
-		marker := ""
-		if reminder.Every > 0 {
-			marker = "↻ "
-		}
-		fmt.Fprintf(&section, "- %sdue %s, reminder %s%s: %s\n", marker, reminder.Due, reminder.ID, interval(reminder), redact.Redact(strings.Join(strings.Fields(reminder.Body), " ")))
+		fmt.Fprintf(&section, "- %sdue %s, reminder %s%s: %s\n", nudgeMarker(reminder), reminder.Due, reminder.ID, interval(reminder), redact.Redact(strings.Join(strings.Fields(reminder.Body), " ")))
 	}
 	return section.String()
 }
@@ -358,9 +354,7 @@ func writeSessionStart(ctx context.Context, stdout io.Writer, dataDirectory stri
 		if changed := offDefaults(settings, owner); len(changed) > 0 {
 			fmt.Fprintf(stdout, "Config from ele, off its defaults: %s.\n", strings.Join(changed, ", "))
 		}
-		if value, valueErr := settings.Value("colour", owner); valueErr == nil {
-			coloured = value.Value == true
-		}
+		coloured = colourOn(settings, owner)
 		if value, valueErr := settings.Value("reminders", owner); valueErr == nil {
 			remindersOn = value.Value == true
 		}

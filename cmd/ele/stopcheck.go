@@ -408,11 +408,7 @@ func stopCheck(_ context.Context, args []string, stdin io.Reader, stdout io.Writ
 	if output == (stopOutput{}) {
 		return 0
 	}
-	coloured := true
-	if value, valueErr := settings.Value("colour", owner); valueErr == nil {
-		coloured = value.Value == true
-	}
-	output.SystemMessage = highlight.Message(output.SystemMessage, coloured)
+	output.SystemMessage = highlight.Message(output.SystemMessage, colourOn(settings, owner))
 	encoder := json.NewEncoder(stdout)
 	encoder.SetEscapeHTML(false)
 	if err = encoder.Encode(output); err != nil {

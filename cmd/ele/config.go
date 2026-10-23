@@ -35,6 +35,11 @@ var configCommands = map[string]struct {
 	"unset": {arguments: 1, run: configUnset, writes: true},
 }
 
+func colourOn(settings config.Config, owner string) bool {
+	value, err := settings.Value("colour", owner)
+	return err != nil || value.Value == true
+}
+
 func configCommand(_ context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
 	if len(args) == 0 {
 		return misuse("config", args, stdout, stderr)
