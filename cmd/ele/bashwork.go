@@ -41,13 +41,7 @@ type shellScan struct {
 
 // Defaults to work: a command it cannot read whole may write.
 func commandIsWork(command string) bool {
-	scan, ok := scanShell(command)
-	if !ok || len(scan.commands) == 0 {
-		return true
-	}
-	return slices.ContainsFunc(scan.targets, func(target string) bool { return !safeTarget(target) }) ||
-		slices.ContainsFunc(scan.nested, commandIsWork) ||
-		slices.ContainsFunc(scan.commands, simpleCommandIsWork)
+	return scanIsWork(command, simpleCommandIsWork)
 }
 
 func eleIsWork(args []string) bool {
@@ -130,6 +124,16 @@ func safeTarget(target string) bool {
 		return false
 	}
 	return strings.HasPrefix(target, "/tmp/") || strings.HasPrefix(target, "/private/tmp/")
+}
+
+func scanIsWork(command string, isWork func(words []string) bool) bool {
+	scan, ok := scanShell(command)
+	if !ok || len(scan.commands) == 0 {
+		return true
+	}
+	return slices.ContainsFunc(scan.targets, func(target string) bool { return !safeTarget(target) }) ||
+		slices.ContainsFunc(scan.nested, commandIsWork) ||
+		slices.ContainsFunc(scan.commands, isWork)
 }
 
 // Simple commands split at ; & | ( ) and newlines, with redirect targets and substitution bodies apart. False for a
@@ -359,6 +363,12 @@ func (scan shellScan) expand(target string) string {
 		return target
 	}
 	return value + target[len(match[0]):]
+}
+
+func workBesideNotes(command string) bool {
+	return scanIsWork(command, func(words []string) bool {
+		return !slices.Equal(words[:min(2, len(words))], []string{"ele", "remember"}) && simpleCommandIsWork(words)
+	})
 }
 
 func writesNote(command string) bool {
