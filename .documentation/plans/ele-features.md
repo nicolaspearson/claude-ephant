@@ -125,6 +125,7 @@ Give ele a configuration a user can switch and tune from one place, reminders th
 ## Inbox
 
 - 2026-10-23, from the user: session flags. `ele flag good|bad "<why>"` (and `/ele:flag`), stamped with session and time, `--session <id>` to flag afterwards; kept out of the start block, listed by `ele flag list`; an `ele mine` analysis `flagged` digests each around its flag and proposes plan candidates (bad) or patterns and eval fixtures (good)
+- 2026-10-23, from the v1-docs/user-guides checkpoint's bugs reviewer: ele backup leaves out plans/ (backupParts in cmd/ele/backup.go), so a restored backup loses closed plans' item names and every cross-plan blocked: edge into a closed plan reads as missing; add plans/ to the backup
 
 ## Out of scope
 
