@@ -50,6 +50,9 @@ func besideNotes(command string) (other bool, work bool) {
 		other = true
 		return simpleCommandIsWork(words)
 	})
+	if scan, ok := scanShell(command); ok && !other {
+		other = slices.ContainsFunc(scan.nested, func(body string) bool { return !heredocCat(body) })
+	}
 	return other, work
 }
 
@@ -180,6 +183,24 @@ func nestedBody(runes []rune, start int) (string, int, bool) {
 				return "", 0, false
 			}
 			end += closing + 1
+		case '"':
+			closing := end + 1
+			for ; closing < len(runes) && runes[closing] != '"'; closing++ {
+				switch {
+				case runes[closing] == '\\':
+					closing++
+				case runes[closing] == '`' || runes[closing] == '$' && closing+1 < len(runes) && runes[closing+1] == '(':
+					_, inner, ok := nestedBody(runes, closing)
+					if !ok {
+						return "", 0, false
+					}
+					closing = inner
+				}
+			}
+			if closing >= len(runes) {
+				return "", 0, false
+			}
+			end = closing
 		case '(':
 			depth++
 		case ')':
