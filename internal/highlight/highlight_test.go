@@ -47,12 +47,24 @@ func TestMessage(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			require.Equal(t, markers.Replace(test.highlighted), Message(test.text))
+			require.Equal(t, markers.Replace(test.highlighted), Message(test.text, true))
 		})
 	}
 }
 
-func TestMessageWithNoColorOnlyDropsControlCharacters(t *testing.T) {
-	t.Setenv("NO_COLOR", "1")
-	require.Equal(t, "Plan a/b.md: 1 open, 0 blocked, 0 done, 0 in the inbox. [31mred", Message("Plan a/b.md: 1 open, 0 blocked, 0 done, 0 in the inbox. \033[31mred"))
+func TestMessageUncolouredOnlyDropsControlCharacters(t *testing.T) {
+	tests := []struct {
+		coloured bool
+		name     string
+		noColor  string
+	}{
+		{coloured: false, name: "colour off"},
+		{coloured: true, name: "NO_COLOR over colour on", noColor: "1"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("NO_COLOR", test.noColor)
+			require.Equal(t, "Plan a/b.md: 1 open, 0 blocked, 0 done, 0 in the inbox. [31mred", Message("Plan a/b.md: 1 open, 0 blocked, 0 done, 0 in the inbox. \033[31mred", test.coloured))
+		})
+	}
 }

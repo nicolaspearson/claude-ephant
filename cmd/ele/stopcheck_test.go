@@ -257,11 +257,37 @@ func TestRunStopCheckReasonFollowsAutoNoteWrites(t *testing.T) {
 }
 
 func TestRunStopCheckColoursTheHint(t *testing.T) {
-	run := newStopCheckRun(t)
-	t.Setenv("NO_COLOR", "")
-	run.respond(150000, stopCheckText)
-	_, output := run.stop(run.gateway, false)
-	require.Equal(t, "\033[1mContext 150k.\033[22m Write a handoff (\033[36m/ele:handoff\033[39m), then \033[36m/clear\033[39m", output.SystemMessage)
+	coloured := "\033[1mContext 150k.\033[22m Write a handoff (\033[36m/ele:handoff\033[39m), then \033[36m/clear\033[39m"
+	plain := "Context 150k. Write a handoff (/ele:handoff), then /clear"
+	tests := []struct {
+		config  string
+		name    string
+		noColor string
+		want    string
+	}{
+		{config: `{"colour": tru`, name: "broken file reads as on", want: coloured},
+		{config: `{"colour": false}`, name: "colour off", want: plain},
+		{config: `{"owners": {"personal": {"colour": false}}}`, name: "colour off for another owner", want: coloured},
+		{config: `{"colour": false, "owners": {"corp": {"colour": true}}}`, name: "colour on for this owner", want: coloured},
+		{name: "default on", want: coloured},
+		{name: "NO_COLOR", noColor: "1", want: plain},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			run := newStopCheckRun(t)
+			t.Setenv("NO_COLOR", test.noColor)
+			if test.config != "" {
+				writeFile(t, filepath.Join(run.home, "data", "config.json"), test.config)
+			}
+			run.respond(150000, stopCheckText)
+			var stdout, stderr bytes.Buffer
+			input := fmt.Sprintf(`{"cwd":%q,"session_id":%q,"transcript_path":%q}`, run.gateway, run.session, run.transcriptPath)
+			require.Equal(t, 0, stopCheck(context.Background(), nil, strings.NewReader(input), &stdout, &stderr), stderr.String())
+			var output stopOutput
+			require.NoError(t, json.Unmarshal(stdout.Bytes(), &output), stdout.String())
+			require.Equal(t, test.want, output.SystemMessage)
+		})
+	}
 }
 
 func TestRunStopCheckCountsAQuestionForNotesOnly(t *testing.T) {

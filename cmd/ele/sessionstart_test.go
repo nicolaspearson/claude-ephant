@@ -282,7 +282,7 @@ func TestRunHandoffReopenChecksEveryIdFirst(t *testing.T) {
 	require.Equal(t, 2, code, output)
 }
 
-func TestRunSessionStartColoursOnlyTheUsersCopy(t *testing.T) {
+func TestRunSessionStartColoursOnlyTheUsersCopyUnlessColourIsOff(t *testing.T) {
 	home := recallFixture(t)
 	t.Setenv("NO_COLOR", "")
 	gateway := filepath.Join(home, "w", "corp", "gateway")
@@ -296,6 +296,20 @@ func TestRunSessionStartColoursOnlyTheUsersCopy(t *testing.T) {
 	shown, message := hookOutput(t, raw.String())
 	require.Equal(t, "\033[1mActive plan from ele:\033[22m\n\033[1mPlan\033[22m build.md: \033[33m1 open\033[39m, \033[2m0 blocked\033[22m, \033[32m1 done\033[39m, \033[2m0 in the inbox\033[22m.\n\033[33m1 warning\033[39m; \033[36mele plan check build.md\033[39m lists it.\n\033[1mNext, line 8:\033[22m\n- [ ] Start [31mblock", message, "a plan cannot send its own escape sequences")
 	require.Contains(t, shown, "Plan build.md: 1 open, 0 blocked, 1 done, 0 in the inbox.\n1 warning; ele plan check build.md lists it.\nNext, line 8:\n- [ ] Start \033[31mblock\n", "the session's copy is plain")
+
+	plain := "Active plan from ele:\nPlan build.md: 1 open, 0 blocked, 1 done, 0 in the inbox.\n1 warning; ele plan check build.md lists it.\nNext, line 8:\n- [ ] Start [31mblock"
+	writeFile(t, filepath.Join(home, "data", "config.json"), `{"owners": {"corp": {"colour": false}}}`)
+	raw.Reset()
+	require.Equal(t, 0, sessionStart(context.Background(), []string{"--no-sync"}, strings.NewReader(`{"session_id":"s","source":"startup"}`), &raw, &raw), raw.String())
+	_, message = hookOutput(t, raw.String())
+	require.Equal(t, plain, message, "colour off for this owner")
+
+	require.NoError(t, os.Remove(filepath.Join(home, "data", "config.json")))
+	t.Setenv("NO_COLOR", "1")
+	raw.Reset()
+	require.Equal(t, 0, sessionStart(context.Background(), []string{"--no-sync"}, strings.NewReader(`{"session_id":"s","source":"startup"}`), &raw, &raw), raw.String())
+	_, message = hookOutput(t, raw.String())
+	require.Equal(t, plain, message, "NO_COLOR with colour on")
 }
 
 func hookOutput(t *testing.T, raw string) (additionalContext string, systemMessage string) {

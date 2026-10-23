@@ -58,6 +58,12 @@ var Options = []Option{
 	},
 	{
 		Default:     true,
+		Description: "Colours the messages ele shows the user, the start block's and the Stop hook's; NO_COLOR turns it off whatever this says.",
+		Kind:        KindBoolean,
+		Name:        "colour",
+	},
+	{
+		Default:     true,
 		Description: "Shows each open reminder in the start block from its due date until closed.",
 		Kind:        KindBoolean,
 		Name:        "reminders",

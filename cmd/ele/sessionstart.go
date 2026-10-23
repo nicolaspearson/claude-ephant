@@ -249,7 +249,7 @@ func writeHookOutput(stdout io.Writer, block string, shown string) error {
 	}
 	output.HookSpecificOutput.AdditionalContext = block
 	output.HookSpecificOutput.HookEventName = "SessionStart"
-	output.SystemMessage = highlight.Message(strings.TrimSuffix(shown, "\n"))
+	output.SystemMessage = shown
 	encoder := json.NewEncoder(stdout)
 	encoder.SetEscapeHTML(false)
 	return encoder.Encode(output)
@@ -347,12 +347,15 @@ func writeSessionStart(ctx context.Context, stdout io.Writer, dataDirectory stri
 	}
 	project, owner := index.NewProjects(ownerMap).Resolve(directory)
 	settings, err := config.Load(configPath(dataDirectory))
-	remindersOn := true
+	coloured, remindersOn := true, true
 	if err != nil {
 		fmt.Fprintf(stdout, "ele: %v; every option reads as its default.\n", err)
 	} else {
 		if changed := offDefaults(settings, owner); len(changed) > 0 {
 			fmt.Fprintf(stdout, "Config from ele, off its defaults: %s.\n", strings.Join(changed, ", "))
+		}
+		if value, valueErr := settings.Value("colour", owner); valueErr == nil {
+			coloured = value.Value == true
 		}
 		if value, valueErr := settings.Value("reminders", owner); valueErr == nil {
 			remindersOn = value.Value == true
@@ -398,7 +401,7 @@ func writeSessionStart(ctx context.Context, stdout io.Writer, dataDirectory stri
 		fmt.Fprintf(stdout, "ele could not count past sessions: %v\n", err)
 	}
 	writeNotes(stdout, owner, project, all, invalid, sessions, blockBudget-written.units)
-	return strings.Join(shown, "\n"), nil
+	return highlight.Message(strings.TrimSuffix(strings.Join(shown, "\n"), "\n"), coloured), nil
 }
 
 type unitCounter struct {

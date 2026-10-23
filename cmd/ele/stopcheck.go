@@ -388,10 +388,11 @@ func stopCheck(_ context.Context, args []string, stdin io.Reader, stdout io.Writ
 	if output.SystemMessage != "" && state.MidTask {
 		output.SystemMessage, _ = sizeHint(tokens, *hintAt, noBand, true, lonePlanFocus(dataDirectory, hook.Directory, owner, project))
 	}
+	settings := loadConfig(dataDirectory, stderr)
 	var block bool
 	if block, state = rememberBlock(state, hook.StopHookActive); block {
 		output.Decision, output.Reason = "block", rememberReason
-		if value, valueErr := loadConfig(dataDirectory, stderr).Value("auto_note_writes", owner); valueErr == nil && value.Value == true {
+		if value, valueErr := settings.Value("auto_note_writes", owner); valueErr == nil && value.Value == true {
 			output.Reason = rememberWriteReason
 		}
 	}
@@ -402,7 +403,11 @@ func stopCheck(_ context.Context, args []string, stdin io.Reader, stdout io.Writ
 	if output == (stopOutput{}) {
 		return 0
 	}
-	output.SystemMessage = highlight.Message(output.SystemMessage)
+	coloured := true
+	if value, valueErr := settings.Value("colour", owner); valueErr == nil {
+		coloured = value.Value == true
+	}
+	output.SystemMessage = highlight.Message(output.SystemMessage, coloured)
 	encoder := json.NewEncoder(stdout)
 	encoder.SetEscapeHTML(false)
 	if err = encoder.Encode(output); err != nil {

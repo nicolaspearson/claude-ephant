@@ -74,15 +74,15 @@ var rules = []rule{
 	{accept: commandEnds, expression: regexp.MustCompile(`(?m)(?:^|[\s(])(/[a-z][a-z-]*(?::[a-z][a-z-]*)?)`), styles: []func(string) style{always(cyan)}},
 }
 
-// Message drops control characters, so a plan or note cannot send escape sequences; NO_COLOR leaves it uncoloured.
-func Message(text string) string {
+// Message drops control characters, so a plan or note cannot send escape sequences; NO_COLOR leaves it uncoloured whatever coloured says.
+func Message(text string, coloured bool) string {
 	text = strings.Map(func(character rune) rune {
 		if character != '\n' && character != '\t' && unicode.IsControl(character) {
 			return -1
 		}
 		return character
 	}, text)
-	if os.Getenv("NO_COLOR") != "" {
+	if !coloured || os.Getenv("NO_COLOR") != "" {
 		return text
 	}
 	var spans []span

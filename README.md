@@ -101,6 +101,9 @@ them in a terminal. Open sessions read a change at their next hook.
   one can be undone with `ele forget <id>`
 - **`checkpoint_gate`**: on by default. Off, a turn that changed files and
   claims done is not blocked for `ele:checkpoint`
+- **`colour`**: on by default. Off, the messages ele shows you at session
+  start and from the Stop hook are plain text, for a client that does not
+  render ANSI colour. `NO_COLOR` turns colour off whatever this says
 - **`reminders`**: on by default. A reminder saved with
   `ele remember --kind reminder --due <YYYY-MM-DD>`, or by asking
   `/ele:remember` to remind you, shows at every session start from that date

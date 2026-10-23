@@ -81,15 +81,16 @@ Give ele a configuration a user can switch and tune from one place, reminders th
   - as of 2026-10-23: of 220 ele start blocks in `~/.claude*/projects` transcripts, 35 were persisted as a preview; the largest arriving whole was 9,748 bytes (9,745 characters) and a persisted one was 10,454 bytes, so the limit lies between, bytes and characters too close to tell apart
   - as of 2026-10-23: the user's /clear start block that day, 10.8KB, arrived as a 2KB preview holding the plans and reminders and cut inside the notes
   - as of 2026-10-23: built, uncommitted: `blockBudget` (9,500 UTF-16 units) caps the block `writeSessionStart` writes; past it decisions and facts go, then questions oldest first, counted as `N older questions not shown, ele context lists them`; the closing line is measured, not estimated. Claude Code's hooks docs give the limit as 10,000 characters per field, UTF-16 units assumed. three new tests, each seen red under its mutation; `task check FORCE=1` and `task audit` green; clone build installed, this repo's compact block 8,967 units, 6 questions cut
-- [ ] colour-option: A `colour` option every user can switch through `ele config set`, on by default, turning off the highlighting of the start block and of every command that highlights
+- [x] colour-option: A `colour` option every user can switch through `ele config set`, on by default, turning off the highlighting of the start block and of every command that highlights
   - done when `ele config set colour false` leaves the start block and the Stop hook's message uncoloured, and `NO_COLOR` still turns colour off, each tested and seen red
+  - asserted in the colour-option commit: option `colour` (boolean, default on) in `Options`; with it false for the session's owner the start block's systemMessage and the Stop hook's hint are plain, and `NO_COLOR` leaves both plain with it on (`TestRunSessionStartColoursOnlyTheUsersCopyUnlessColourIsOff`, `TestRunStopCheckColoursTheHint`, `TestMessageUncolouredOnlyDropsControlCharacters`); eight mutations went red at the checkpoint; `task check FORCE=1` and `task audit` green. Not run: `ele config set colour false` through the CLI (refused inside a session; the tests write config.json directly), nor a real session
   - as of 2026-10-23: only the `NO_COLOR` environment variable turns it off, read in `highlight.Message` (moved from the inbox, raised 2026-10-23 by the user, as not every client renders colour)
+  - as of 2026-10-23, premise check: `NO_COLOR` read in `highlight.Message`; its only callers are `writeHookOutput` in `cmd/ele/sessionstart.go` (start block) and `stopCheck` in `cmd/ele/stopcheck.go` (Stop hook), so those two are every command that highlights; options are read per owner through `config.Value`, as `reminders` is in `writeSessionStart`; design.md's highlighting line named only `NO_COLOR`. `ele plan check` listed no warnings
 - [ ] reminder-styling: The reminders section of the user's message gets a bold header like the plan and handoff ones, a ↻ marker and coloured interval on a nudge, and its due date in yellow
   - done when each of those is asserted in a highlight test seen red, and the nudge demo shows them
   - as of 2026-10-23: `highlight.Message` has no rule for the section's header, due date or interval; its ids are dimmed and its bodies get the backtick, command and path rules (moved from the inbox, raised 2026-10-23 by the user after the nudge demo)
 - [ ] reminder-list-colour: `ele reminder list` highlights as the start block does, so `! ele reminder list` shows nudges in colour, in place of an ele:nudges skill
   - done when `! ele reminder list` shows nudges in colour while the model's own `ele reminder list` Bash call gets no escapes, tested and seen red
-  - blocked: colour-option; the list obeys that switch
   - as of 2026-10-23: `!` rendered the colours in a command's output after it went through a pipe; whether a direct `!` command's stdout is a terminal is unchecked (moved from the inbox, raised 2026-10-23 by the user)
 - [ ] config-options: List with the user, in rounds, the options ele could take beyond those planned, and build each approved one as an `Options` entry
   - done when every candidate is ruled in or out by the user, and each approved option reads through `ele config get` and changes what it switches, tested and seen red
@@ -103,11 +104,14 @@ Give ele a configuration a user can switch and tune from one place, reminders th
   - blocked: owner-spanning-scope; where a recipe spanning owners lives hangs on that scope
 - [ ] recipe-audit: Audit the user's skills for commands, flags and versions that no longer exist, as plan-audit does for plans
   - done when the audit, run over a skill that names a removed command or a stale version, reports each one, tested and seen red
+- [ ] sub-day-intervals: `--every` takes `5m`, `2h` or `7d` and `--due` a time as well as a date, so a nudge can be tested without a week's wait; a reminder still shows only at a session start, /clear or compaction after it falls due
+  - done when a nudge saved with `--every 5m` and closed does not show at a session start within 5 minutes and does after, and a reminder due at a time shows only from that time, each tested and seen red
+  - as of 2026-10-23: `--every` takes whole days and `--due` a date (moved from the inbox, raised 2026-10-23 by the user, as a week's wait was too long to test a nudge)
+- [ ] advance-skips-close: stop-check's `advance` skips `ele reminder close` and `ele handoff close` as it skips `ele config get`, so closing one at session start does not make the Stop hook ask for notes
+  - done when a turn whose only Bash calls are `ele reminder close` or `ele handoff close` ends without a notes ask, tested in `TestAdvance` and seen red
+  - as of 2026-10-23: moved from the inbox (raised 2026-10-23 by the skill-review plan audit, from an open question)
 - [ ] Fold what this plan built, and its out-of-scope lines as `Not doing:`, into the spec, run `ele plan done .documentation/plans/ele-features.md`, and delete this plan
 
 ## Inbox
-
-- 2026-10-23, from the user, as a week's wait was too long to test a nudge: sub-day intervals, `--every` taking `5m`, `2h` or `7d` and `--due` taking a time as well as a date; a reminder still shows only at a session start, /clear or compaction after it falls due. As of 2026-10-23 `--every` takes whole days and `--due` a date
-- 2026-10-23, moved from an open question by the skill-review plan audit: stop-check's `advance` counts `ele reminder close` and `ele handoff close` as work, so closing one at session start makes the Stop hook ask for notes; skip them as it skips `ele config get`?
 
 ## Out of scope
