@@ -3,9 +3,11 @@
 ## Handoffs
 
 A long session pays for its whole context on every turn, so the natural stopping
-point is the time to start fresh. A handoff is a note of up to three lines,
-holding the next task and where the work stands, that the next session in the
-project opens with.
+point is the time to start fresh. A handoff is a note of up to three lines that
+the next session in the project opens with. Its first line points at the next
+task: a plan item, as `Next: <plan path> <item name>`, or an issue or merge
+request, as `Next: <url>`; otherwise `Next:` and the task in words. The rest says where the
+work stands.
 
 1. Ask for one with `/ele:handoff`, or say yes when `/ele:wrap` proposes one
 2. Run `/clear`

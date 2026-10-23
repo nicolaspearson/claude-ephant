@@ -12,7 +12,7 @@ In every directory an owner covers, the SessionStart block shows the project's d
 - A decision with its reason, an open question, or a dated fact. What the code does stays in the code, where it cannot go stale
 - Or a reminder: what to come back to and when. It shows from its due date at every start until `ele reminder close <id>`; one that recurs, such as "every week", is a nudge, which closing re-arms
 - Or a handoff: what `/ele:handoff` says it holds, proposed like any other note
-- At most three lines; one is better. The reason inline, not a pointer to a file, ticket or plan
+- At most three lines; one is better. The reason inline, not a pointer to a file, ticket or plan; a handoff's first line is the exception, per `/ele:handoff`
 - No secrets. A note is a plain file and is printed into sessions
 
 ## Write
