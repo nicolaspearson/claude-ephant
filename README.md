@@ -4,7 +4,14 @@ Cross-session memory for Claude Code. The `ele` binary archives the transcripts
 of every profile under `~/.claude` and `~/.claude-*` and indexes them, so a later
 session can search what earlier ones discussed. Decisions, open questions and
 dated facts are saved as notes, and each session starts with the ones for its
-project. The `ele` plugin adds the skills and hooks that use it:
+project.
+
+No model runs in the background: the only model calls are made by skills, inside
+the session already running. See [Data and privacy](docs/data-and-privacy.md).
+
+## Skills at a glance
+
+The `ele` plugin adds the skills and hooks that use the binary:
 
 - `/ele:handoff`, `/ele:plan`, `/ele:recall` and `/ele:remember` for memory and
   plans
@@ -19,16 +26,12 @@ project. The `ele` plugin adds the skills and hooks that use it:
 - `/ele:checkpoint-stats`, which reports what checkpoints found, and `/ele:mine`,
   which judges past checkpoint runs and review cycles
 
-No model runs in the background: the only model calls are made by skills, inside
-the session already running.
-
 ## Prerequisites
 
 - `gh` or `glab`, for `/ele:ticket-audit`; `/ele:ticket-claims` needs `gh`.
   Log in with `gh auth login` or `glab auth login` first
 - `git`
-- Go, at the version in `go.mod`, only to install with `go install` or to work
-  from a clone
+- Go, at the version in `go.mod`, only to install with `go install`
 - `jq`, for `/ele:ticket-audit` against GitLab
 - `curl`, `tar` and `sha256sum` or `shasum`, for the install script
 
@@ -65,14 +68,45 @@ the session already running.
    /plugin install ele@claude-ephant
    ```
 
-3. Name an owner and the directories whose sessions are theirs. A session in no
-   owner's directory gets no notes at start:
+## Quick start
+
+1. Name an owner and the directories whose sessions are theirs, in a terminal.
+   A session in no owner's directory starts with a line saying so instead of
+   notes; see [Owners](docs/owners.md):
 
    ```sh
-   ele owner add <name>
-   ele owner add-path <dir> <name>
+   ele owner add personal
+   ele owner add-path ~/code personal
    ele status
    ```
+
+2. Work in a session under that directory. When a decision is made, say
+   "remember that…", or approve a note ele proposes after a stretch of work; see
+   [Notes](docs/notes-and-recall.md#notes)
+3. A later session in that project starts with the note. To find something no
+   note kept, ask "did we already…" or run `/ele:recall <words>`; see
+   [Recall](docs/notes-and-recall.md#recall)
+4. Before `/clear`, run `/ele:handoff`; after it, type `continue` and the new
+   session picks up where the last stopped; see
+   [Handoffs](docs/handoffs-and-reminders.md#handoffs)
+
+[Plans](docs/plans.md) and [Checkpoint and ticket-audit](docs/checkpoint-and-ticket-audit.md)
+cover the rest, and the [command reference](docs/commands.md) lists every
+command.
+
+## Options
+
+`ele config list` shows each option, its value here and where that value comes
+from; `ele config set <key> <value>` sets one, typed in a terminal. See
+[Options](docs/data-and-privacy.md#options) for `--owner` overrides and what
+each does.
+
+- **`auto_note_writes`**, off: writes the notes ele proposes without asking
+- **`checkpoint_gate`**, on: stops a turn that changed files and claims done
+  without a checkpoint, once per turn, to ask for `/ele:checkpoint`
+- **`colour`**, on: highlights the messages ele shows you; `NO_COLOR` turns it
+  off
+- **`reminders`**, on: shows due reminders at session start
 
 ## Update
 
@@ -86,69 +120,8 @@ the install script again, or `go install …/cmd/ele@latest`. Then:
 ```
 
 `ele version` prints a released binary's tag, to check against the
-latest release. From a clone, `task upgrade` does all of this; see Contributing.
-
-## Options
-
-`ele config list` shows each option, its value here and where that value comes
-from. `ele config set <key> <value>` sets one for every project, and
-`--owner <name>` overrides it for one owner's projects; `ele config unset`
-clears either. `set` and `unset` refuse inside a Claude Code session, so type
-them in a terminal. Open sessions read a change at their next hook.
-
-- **`auto_note_writes`**: off by default. On, notes ele proposes are written
-  without the Write/Skip question, and each is reported with its id so a wrong
-  one can be undone with `ele forget <id>`
-- **`checkpoint_gate`**: on by default. Off, a turn that changed files and
-  claims done is not blocked for `ele:checkpoint`
-- **`colour`**: on by default. Off, the messages ele shows you at session
-  start and from the Stop hook, and `ele reminder list --colour`, are plain
-  text, for a client that does not render ANSI colour. `NO_COLOR` turns
-  colour off whatever this says
-- **`reminders`**: on by default. A reminder saved with
-  `ele remember --kind reminder --due <YYYY-MM-DD>`, or by asking
-  `/ele:remember` to remind you, shows at every session start from that date
-  until `ele reminder close <id>`. With `--every <days>` it is a nudge:
-  closing it brings it back that many days later, and `--done-file <path>`
-  counts each change to that file as done. Off, none shows
-- `ELE_HOME` moves the data directory; `ele status` shows where it is
+latest release.
 
 ## Contributing
 
-Working from a clone needs [Task](https://taskfile.dev). `task install` builds
-`ele` from the clone into `~/.local/bin` (`ELE_INSTALL_DIR` overrides), the
-directory the install script and `task upgrade` use, so a clone build replaces
-the release for every session's hooks until `task upgrade` puts the release
-back; `ele version` prints a tag for a release and a pseudo-version for a clone
-build. `task dev` runs `task install`, then starts Claude Code with
-`--plugin-dir ./plugin`, which as of 2026-10-22 loads the clone's plugin in
-place of the installed `ele@claude-ephant` for that session only; flags after
-`--` go to `claude`. `task install:local` runs `task install`, then updates
-the installed plugin to the last commit pushed to `main`. To test a release
-install route, `task release:brew`, `task release:go` and
-`task release:script` each install the latest release that way, then fail
-unless that copy is the `ele` on `PATH` and prints the release's tag, listing
-every copy on `PATH`.
-`task check` runs every gate but `audit`; its lint needs `shellcheck` and
-`rumdl`. CI runs `task check` and `task audit` on every pull request, and the
-Release workflow runs them on every push to `main`.
-There, release-please keeps a release PR open with the next version and its
-changelog, worked out from the conventional commit messages; merging it tags
-the release, the binaries are attached to it, and the Tap workflow updates the
-formula in `nicolaspearson/homebrew-tap`, then installs the release with
-`install.sh` on macOS and Linux and with `brew` on macOS. Run Tap by hand with
-a tag, v0.3.0 or later, to re-render the formula for that release. It pushes
-with the `HOMEBREW_TAP_TOKEN` secret, a fine-grained token with write access to
-that repository's contents alone. It expires 2027-10-21: renew it with the same
-scope and run `gh secret set HOMEBREW_TAP_TOKEN` again.
-
-`task upgrade` does the whole update from a clone, with Go, `gh` and `claude`:
-it runs `task release:script`, then updates the marketplace and the plugin;
-sessions already open load it after `/reload-plugins`.
-
-`task eval` runs the installed plugin's eval cases with `claude plugin eval`,
-and `task eval -- ./plugin` the clone's cases, in `plugin/evals/`.
-Each run is a real session on your account and costs model calls, so no gate
-runs it.
-
-The specs are in [`.documentation/specs/`](.documentation/specs/).
+See [CONTRIBUTING.md](CONTRIBUTING.md).

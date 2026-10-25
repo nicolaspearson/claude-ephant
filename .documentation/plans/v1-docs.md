@@ -25,6 +25,7 @@ v1 is for users other than the author. The code still indexed a one-off claude-m
 - Specs drop "decided <date>" stamps and every dated figure about ele's own data, but keep a dated `as of` on a fact about Claude Code's behaviour that a decision rests on, since that date tells a reader to re-check it. Decided 2026-10-23
 - `specs-current` cuts the mining material too: the run-folder pointers, the Rollups figures and the Stop-hook blocks section. `mining-reports`' items are reworded so that plan's fold adds design, not figures. Decided 2026-10-23
 - Open questions in a spec become `question` notes, and build briefs' Done means, move history and author-only references (claude-config, `hook-firings.py`, `~/.agents`, `~/ele-backup`) are cut, keeping the behaviour behind them. Decided 2026-10-23
+- The README's Contributing section moves to `CONTRIBUTING.md` verbatim in `readme-for-users`' change, for `contributing` to rewrite: it holds material `CONTRIBUTING.md` lacks, and cut from the README first it would be lost before that item is built. Decided 2026-10-25
 - A docs item is done when the page exists, `task lint` (whose rumdl run fails a relative link to a missing file or heading) and `task lint-docs` pass, and each command or flag it names is checked against `ele <command> --help`
 
 ## Actions
@@ -46,19 +47,23 @@ v1 is for users other than the author. The code still indexed a one-off claude-m
 - [x] markdown-lint: Add rumdl, installed like shellcheck, to `task lint` and `task format`, with heading-anchor checks; reformat the existing `.md` files in their own commit
   - done when `task lint` fails a link to a missing heading or file, and `task format` on the reformatted tree changes nothing
   - asserted in the markdown-lint commit: on a copy of `docs/`, a planted `#handoffsx` failed MD051 and a planted `missing.md` failed MD057, so lint-docs' own relative-link loop was dropped; `.rumdl.toml` turns MD013 off and leaves out `CHANGELOG.md` and `plugin/evals/`; CI installs rumdl 0.3.0 with pipx, and its first run, on the reformat commit's push, found no issues in 38 files
-- [ ] readme-for-users: Rewrite `README.md` for users: what ele is, install, quick start, the skills at a glance, options, update, and links to `docs/` and `CONTRIBUTING.md`
-  - blocked: user-guides
+- [x] readme-for-users: Rewrite `README.md` for users: what ele is, install, quick start, the skills at a glance, options, update, and links to `docs/` and `CONTRIBUTING.md`
   - done when the README meets the docs done-when decision and holds no contributor material
+  - as of 2026-10-25, premise check: contributor material sits in Contributing (`README.md:116-154`), Prerequisites' "or to work from a clone" (`README.md:30-31`) and Update's `task upgrade` line (`README.md:89`). Contributing holds `task install:local`, `task eval` and its cost, the `gh secret set HOMEBREW_TAP_TOKEN` renewal, the clone build's pseudo-version and the specs pointer, none of them in `CONTRIBUTING.md`
+  - as of 2026-10-25: the README's skills list matches `plugin/skills/` (9) plus `plugin/commands/` (`checkpoint-stats`, `ticket-claims`); its four options match the table at `docs/data-and-privacy.md:84`
+  - as of 2026-10-25: Options become one line per option linking to `docs/data-and-privacy.md#options`; a Quick start after Install moves owner setup out of Install and walks remember, recall and handoff, each linking to its page
+  - asserted in the readme-for-users commit: README.md holds what ele is, Skills at a glance, Prerequisites, Install, Quick start (owner, remember, recall, handoff, each linking its docs/ page), Options as one line each linking docs/data-and-privacy.md#options, Update, and a CONTRIBUTING.md pointer; a grep for task, clone, release: and eval finds nothing; the old Contributing section is byte-identical at CONTRIBUTING.md's Working from a clone; every command named matches ele <command> --help; task lint, task lint-docs, task check FORCE=1 and task audit pass
 - [ ] contributing: Write `CONTRIBUTING.md`: clone setup with Task, `task install`, `task dev`, the gates, evals, repository layout, specs and plans, conventional commits, the release and tap workflows and the tap token's renewal
   - done when it meets the docs done-when decision and each `task` target it names is listed by `task --list`
 - [ ] claude-md: Write `CLAUDE.md` for agents working in the repository: layout, the gates to run, where specs and plans live, and a pointer to `CONTRIBUTING.md`
   - blocked: contributing
   - done when it meets the docs done-when decision and a fresh session in the repository loads it
+- [ ] hooklog-comment: `internal/checkpoint/gate.go`'s HookLog doc comment names claude-config ("the format claude-config's hooks write"); say what the format is instead, as `checkpoint-and-ticket-audit.md` now does
+  - done when `grep -rn 'claude-config'` outside `.documentation/` finds nothing and `task check` passes
+  - 2026-10-23, from specs-current; moved from the inbox 2026-10-25
 - [ ] Propose each out-of-scope line as a `decision` through `/ele:remember`, run `ele plan done .documentation/plans/v1-docs.md`, and delete this plan
 
 ## Inbox
-
-- 2026-10-23, from specs-current: `internal/checkpoint/gate.go`'s HookLog doc comment names claude-config ("the format claude-config's hooks write"); say what the format is instead, as checkpoint-and-ticket-audit.md now does
 
 ## Out of scope
 

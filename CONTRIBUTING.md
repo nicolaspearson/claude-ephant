@@ -1,5 +1,45 @@
 # Contributing
 
+## Working from a clone
+
+Working from a clone needs [Task](https://taskfile.dev). `task install` builds
+`ele` from the clone into `~/.local/bin` (`ELE_INSTALL_DIR` overrides), the
+directory the install script and `task upgrade` use, so a clone build replaces
+the release for every session's hooks until `task upgrade` puts the release
+back; `ele version` prints a tag for a release and a pseudo-version for a clone
+build. `task dev` runs `task install`, then starts Claude Code with
+`--plugin-dir ./plugin`, which as of 2026-10-22 loads the clone's plugin in
+place of the installed `ele@claude-ephant` for that session only; flags after
+`--` go to `claude`. `task install:local` runs `task install`, then updates
+the installed plugin to the last commit pushed to `main`. To test a release
+install route, `task release:brew`, `task release:go` and
+`task release:script` each install the latest release that way, then fail
+unless that copy is the `ele` on `PATH` and prints the release's tag, listing
+every copy on `PATH`.
+`task check` runs every gate but `audit`; its lint needs `shellcheck` and
+`rumdl`. CI runs `task check` and `task audit` on every pull request, and the
+Release workflow runs them on every push to `main`.
+There, release-please keeps a release PR open with the next version and its
+changelog, worked out from the conventional commit messages; merging it tags
+the release, the binaries are attached to it, and the Tap workflow updates the
+formula in `nicolaspearson/homebrew-tap`, then installs the release with
+`install.sh` on macOS and Linux and with `brew` on macOS. Run Tap by hand with
+a tag, v0.3.0 or later, to re-render the formula for that release. It pushes
+with the `HOMEBREW_TAP_TOKEN` secret, a fine-grained token with write access to
+that repository's contents alone. It expires 2027-10-21: renew it with the same
+scope and run `gh secret set HOMEBREW_TAP_TOKEN` again.
+
+`task upgrade` does the whole update from a clone, with Go, `gh` and `claude`:
+it runs `task release:script`, then updates the marketplace and the plugin;
+sessions already open load it after `/reload-plugins`.
+
+`task eval` runs the installed plugin's eval cases with `claude plugin eval`,
+and `task eval -- ./plugin` the clone's cases, in `plugin/evals/`.
+Each run is a real session on your account and costs model calls, so no gate
+runs it.
+
+The specs are in [`.documentation/specs/`](.documentation/specs/).
+
 ## Build and install
 
 - `task dev` installs the clone's `ele` and starts `claude --plugin-dir ./plugin`; as of 2026-10-22 that session loads the clone's plugin as `ele@inline` in place of the installed `ele@claude-ephant`, its SessionStart, Stop and UserPromptSubmit hooks each running once; SessionEnd not observed
