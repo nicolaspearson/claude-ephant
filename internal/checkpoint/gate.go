@@ -69,7 +69,7 @@ func Gate(ctx context.Context, input GateInput, stateFile string) string {
 		"\n\nInvoke the `ele:checkpoint` skill.\n\nIf the work is not done — mid-task, waiting on the user, or an investigation — say it is not a checkpoint, what remains, and stop.\n\nIf the user said this work needs no checkpoint, exempt its paths for this session: `ele checkpoint optout " + shellQuote(input.Root) + " \"<glob>\" ...`"
 }
 
-// HookLog appends to the machine-wide hook log in the format claude-config's hooks write.
+// HookLog appends to the machine-wide hook log; its tab-separated fields and their order are shared with the user's other hooks.
 func HookLog(decision string, rule string, target string, now time.Time) {
 	stamp := now.UTC().Format("2006-01-02T15:04:05Z")
 	file := os.Getenv("HOOK_LOG")
