@@ -106,6 +106,11 @@ propose one:
   plan's `## Out of scope`
 - **Leave**: not sharp enough to be an action yet
 
+A line moved into a plan cites no ele data, which resolves only in its author's
+data directory: delete a note id or session that records where it came from,
+describe what was observed in place of one cited as evidence, and move a note it
+depends on into the plan, superseding the note.
+
 Done when every inbox item has a proposal and each approved one is applied.
 
 ## Plan candidates

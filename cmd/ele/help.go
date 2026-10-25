@@ -28,7 +28,7 @@ Plans
   plan show       a plan's counts, previous item, blocked items and next item
   plan list       active plans; --all adds done and superseded
   plan done       close a plan once its last item is done
-  plan check      a plan's warnings: blockers, dates, inbox, missing done-when, name clashes, ready to close
+  plan check      a plan's warnings: blockers, dates, inbox, missing done-when, name clashes, ele data cited, ready to close
 
 History
   recall          search past sessions and notes
@@ -93,7 +93,7 @@ var purposes = map[string]string{
 	"owner add-project":    "Map a project to a listed owner, ahead of any path rule, printing the projects that change owner.",
 	"owner remove-path":    "Drop a path rule, printing the projects that change owner.",
 	"owner remove-project": "Drop a project entry, printing the projects that change owner.",
-	"plan check":           "A plan's warnings, each with its line: a blocker done or missing, an after: date passed, an as of line past 14 days, an inbox item past 7 days or undated, an open action with no done when line, a name another plan holds, readiness to close; with no path, every active plan. Exits 0 on warnings.",
+	"plan check":           "A plan's warnings, each with its line: a blocker done or missing, an after: date passed, an as of line past 14 days, an inbox item past 7 days or undated, an open action with no done when line, a name another plan holds, a line citing a note id, a session UUID or an ele show of an id, readiness to close; with no path, every active plan. Exits 0 on warnings.",
 	"plan done":            "Close active plans once their last item is done.",
 	"plan list":            "Active plans for the project, newest first.",
 	"plan show":            "A plan's counts, previous item, blocked items and next item; with no path, the project's active plan.",

@@ -22,9 +22,11 @@ const (
 var (
 	ErrInvalid = errors.New("invalid plan")
 
-	asOf      = regexp.MustCompile(`(?i)\bas of (\d{4}-\d{2}-\d{2})`)
-	checkbox  = regexp.MustCompile(`^- \[([ xX])\] (.*)$`)
-	edgeName  = regexp.MustCompile(`^(?:([a-z0-9]+(?:-[a-z0-9]+)*)/)?([a-z0-9]+(?:-[a-z0-9]+)*)$`)
+	asOf     = regexp.MustCompile(`(?i)\bas of (\d{4}-\d{2}-\d{2})`)
+	checkbox = regexp.MustCompile(`^- \[([ xX])\] (.*)$`)
+	edgeName = regexp.MustCompile(`^(?:([a-z0-9]+(?:-[a-z0-9]+)*)/)?([a-z0-9]+(?:-[a-z0-9]+)*)$`)
+	// Eight hex digits for a session prefix, so prose such as "ele show added" passes.
+	eleData   = regexp.MustCompile(`\b\d{8}-[0-9a-f]{6}\b|\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b|\bele show(?: --(?:around|at|context) (?:"[^"]*"|'[^']*'|\S+))* (?:--note )?[0-9a-f]{8,}\b`)
 	heading   = regexp.MustCompile(`^(#{1,6})\s+(.*?)\s*#*\s*$`)
 	inboxDate = regexp.MustCompile(`^- (\d{4}-\d{2}-\d{2})\b`)
 	itemName  = regexp.MustCompile(`^([a-z0-9]+(?:-[a-z0-9]+)*): `)
@@ -77,11 +79,12 @@ type Item struct {
 type Lookup func(edge Edge) Blocker
 
 type Plan struct {
-	Actions []Item
-	Claims  []Dated
-	Created string
-	Inbox   []Dated
-	Spec    string
+	Actions   []Item
+	Citations []int
+	Claims    []Dated
+	Created   string
+	Inbox     []Dated
+	Spec      string
 }
 
 type Warning struct {
@@ -141,6 +144,9 @@ func Parse(content []byte) (Plan, error) {
 	for scanner.Scan() {
 		number++
 		line := scanner.Text()
+		if eleData.MatchString(line) {
+			plan.Citations = append(plan.Citations, number)
+		}
 		inside := fence != ""
 		fence = stepFence(fence, line)
 		fenceLine := inside || fence != ""
@@ -271,6 +277,9 @@ func (p Plan) Check(now time.Time) []Warning {
 		if !action.Done && at != last && !action.DoneWhen {
 			warnings = append(warnings, Warning{Line: action.Line, Text: label + ": no done when line"})
 		}
+	}
+	for _, line := range p.Citations {
+		warnings = append(warnings, Warning{Line: line, Text: "cites ele data, which resolves only in its author's data directory; delete provenance, describe what was observed, and move a dependency into the plan, superseding its note"})
 	}
 	for _, claim := range p.Claims {
 		if age := now.Sub(claim.Date); age > claimAge {

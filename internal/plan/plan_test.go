@@ -100,6 +100,38 @@ func TestCheckWarnsOnStaleClaimsAndInboxItemsAndMissingDoneWhens(t *testing.T) {
 	}, parsed.Resolve(now, nil).Check(now))
 }
 
+func TestCheckWarnsOnEleData(t *testing.T) {
+	tests := []struct {
+		line string
+		name string
+		warn bool
+	}{
+		{line: "  - asserted in 0cc19d4 and 2c1db93a: kept", name: "commit sha"},
+		{line: "  - from the 2026-10-22 audit", name: "date"},
+		{line: "  - ele show added in 0cc19d4", name: "ele show in prose"},
+		{line: "  - ele show --note 20261020-ead7f7 holds it", name: "ele show of a note", warn: true},
+		{line: "  - ele show --note 20261020 holds it", name: "ele show of a note prefix", warn: true},
+		{line: "  - ele show 24469c4a --at <time> opened it", name: "ele show of a session", warn: true},
+		{line: "  - ele show --at \"2026-10-22 10:00\" --context 5 24469c4a opened it", name: "ele show of a session after flags", warn: true},
+		{line: "  - first captured from question note 20261020-ead7f7", name: "note id", warn: true},
+		{line: "  - run ele show --note <id>", name: "note placeholder"},
+		{line: "  - run ele show <session> --at <time>", name: "session placeholder"},
+		{line: "  - observed in session a5491a94-1c2d-4e5f-8a9b-0c1d2e3f4a5b", name: "session uuid", warn: true},
+	}
+	now := time.Date(2026, 10, 21, 12, 0, 0, 0, time.Local)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			parsed, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n- [x] a: A\n" + test.line + "\n- [ ] b: B\n  done when it is\n- [ ] Close\n"))
+			require.NoError(t, err)
+			var want []Warning
+			if test.warn {
+				want = []Warning{{Line: 6, Text: "cites ele data, which resolves only in its author's data directory; delete provenance, describe what was observed, and move a dependency into the plan, superseding its note"}}
+			}
+			require.Equal(t, want, parsed.Resolve(now, nil).Check(now))
+		})
+	}
+}
+
 func TestCheckSaysWhenAPlanIsReadyToClose(t *testing.T) {
 	tests := []struct {
 		content string

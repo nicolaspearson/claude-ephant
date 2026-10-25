@@ -320,6 +320,10 @@ Anything short of that: propose a dated progress line under the item instead,
 `as of <date>: <what is done>` and `next: <what is left>`. Code that exists but
 whose behaviour nobody has observed gets a progress line, not a tick.
 
+Neither line cites ele data: a note id, a session id or prefix, or an `ele show`
+of one resolves only in its author's data directory. Say what was observed, not
+where; a session's evidence is described, never pointed at.
+
 Write it on approval, then run `ele plan check` and any CI check reading
 `.documentation/` over the plan file; a warning or failure on the written line is
 a finding. The plan file joins the change list, and the

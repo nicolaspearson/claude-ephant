@@ -261,7 +261,7 @@ tasks:
       - rumdl check .
 
   lint-docs:
-    desc: "Reject source line-number citations in .documentation and docs."
+    desc: "Reject source line-number citations and note ids in .documentation and docs."
     silent: true
     cmds:
       # A file:line citation is wrong on the next edit and reads as authoritative
@@ -269,6 +269,12 @@ tasks:
       - |
         if grep -rnE '\.(go|html):[0-9]+' .documentation/ docs/; then
           echo "Linting failed: cite a package and an identifier, never a source line number.";
+          exit 1;
+        fi
+      # A note id resolves only in its author's data directory.
+      - |
+        if grep -rnE '\b[0-9]{8}-[0-9a-f]{6}\b' .documentation/ docs/; then
+          echo "Linting failed: a note id resolves only in its author's data directory; describe what was observed instead.";
           exit 1;
         fi
 

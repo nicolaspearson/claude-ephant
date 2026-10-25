@@ -58,8 +58,9 @@ as new as the plugin.
   `check`, then rewrites with `gofmt -s` and `go fix`
 - `lint` runs `gofmt`, `go vet`, `shadow`, `staticcheck`, `shellcheck` on
   `install.sh` and `rumdl`, which also fails a relative link to a missing file
-  or heading. `lint-docs` fails a `.go` or `.html` line-number citation under
-  `docs/` or `.documentation/`: cite a package and an identifier instead
+  or heading. `lint-docs` fails a `.go` or `.html` line-number citation, or a
+  note id, under `docs/` or `.documentation/`: cite a package and an
+  identifier, and describe what was observed in place of a note id
 - CI runs `task check FORCE=1` and `task audit` on every pull request, every
   push to `main` and weekly
 

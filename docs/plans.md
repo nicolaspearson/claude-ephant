@@ -68,6 +68,10 @@ created: 2026-10-23
 - **Progress** goes in the item's body as dated lines, `as of <date>: …` or
   `next: …`, so a session stopping mid-item needs no handoff. A tick carries
   one line saying what was checked, and at which commit
+- **No ele data**: a note or session id resolves only in its author's data
+  directory, so a plan line describes what was observed, and a note the plan
+  depends on moves into it; `ele plan check` warns on a note id, a session
+  UUID or an `ele show` of an id
 - **`## Inbox`** takes work found mid-session, each line dated with where it came
   from. **`## Out of scope`** keeps what was ruled out, and why
 - **The last action** closes the plan: with a spec, fold what the plan built into
@@ -92,7 +96,7 @@ approval.
 ```sh
 ele plan show               # the active plan: counts, previous item, blocked items, next item
 ele plan list               # every active plan of the project
-ele plan check              # warnings: stale dates, done blockers, old inbox items, missing done-when
+ele plan check              # warnings: stale dates, done blockers, old inbox items, missing done-when, ele data cited
 ```
 
 ## Auditing plans
