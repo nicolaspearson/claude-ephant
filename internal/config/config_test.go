@@ -37,6 +37,27 @@ func TestLoadRefusesAKnownOptionOfTheWrongKind(t *testing.T) {
 	require.ErrorContains(t, err, "owners.work.checkpoint_gate: want a boolean")
 }
 
+func TestLoadRefusesAPathOptionHoldingANonStringOrARelativePath(t *testing.T) {
+	tests := []struct {
+		content string
+		name    string
+		want    string
+	}{
+		{content: `{"review_voice": 3}`, name: "non-string", want: "review_voice: want a path, got 3"},
+		{content: `{"review_voice": null}`, name: "null", want: `review_voice: want an absolute or ~/ path, got ""`},
+		{content: `{"owners": {"work": {"review_voice": "voice.md"}}}`, name: "relative", want: `owners.work.review_voice: want an absolute or ~/ path, got "voice.md"`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.json")
+			require.NoError(t, os.WriteFile(path, []byte(test.content), 0o600))
+
+			_, err := Load(path)
+			require.ErrorContains(t, err, test.want)
+		})
+	}
+}
+
 func TestSaveKeepsUnknownKeysAndDropsEmptyOwners(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
 	require.NoError(t, os.WriteFile(path, []byte(`{"later_option": 3, "owners": {"work": {"checkpoint_gate": false}}}`), 0o600))
@@ -60,6 +81,45 @@ func TestSetRefusesAnUnknownOptionOrAValueOfTheWrongKind(t *testing.T) {
 	require.ErrorContains(t, config.Set("checkpoint_gat", "", "false"), `no option "checkpoint_gat"; options: auto_note_writes, checkpoint_gate`)
 	require.ErrorContains(t, config.Set("checkpoint_gate", "", "off"), `checkpoint_gate takes true or false, not "off"`)
 	require.Empty(t, config.Global)
+}
+
+func TestSetRefusesAPathNamingNoReadableFile(t *testing.T) {
+	directory := t.TempDir()
+
+	tests := []struct {
+		name string
+		path string
+		want string
+	}{
+		{name: "directory", path: directory, want: "review_voice: " + directory + " is not a regular file"},
+		{name: "empty", path: "", want: `review_voice takes an absolute or ~/ path, not ""; ele config unset review_voice returns it to its default`},
+		{name: "missing", path: filepath.Join(directory, "voice.md"), want: "review_voice: stat " + filepath.Join(directory, "voice.md") + ": no such file or directory"},
+		{name: "relative", path: "voice.md", want: `review_voice takes an absolute or ~/ path, not "voice.md"; ele config unset review_voice returns it to its default`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			config := Defaults()
+			require.EqualError(t, config.Set("review_voice", "", test.path), test.want)
+			require.Empty(t, config.Global)
+		})
+	}
+}
+
+func TestSetStoresAPathAsTypedAndValueExpandsIt(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	require.NoError(t, os.WriteFile(filepath.Join(home, "voice.md"), []byte("# Voice\n"), 0o600))
+	config := Defaults()
+
+	require.NoError(t, config.Set("review_voice", "work", "~/voice.md"))
+	require.JSONEq(t, `"~/voice.md"`, string(config.Owners["work"]["review_voice"]))
+	value, err := config.Value("review_voice", "work")
+	require.NoError(t, err)
+	require.Equal(t, Value{Name: "review_voice", Owner: "work", Source: SourceOwner, Value: filepath.Join(home, "voice.md")}, value)
+
+	value, err = config.Value("review_voice", "")
+	require.NoError(t, err)
+	require.Equal(t, Value{Name: "review_voice", Source: SourceDefault, Value: ""}, value)
 }
 
 func TestValuePrefersTheOwnerThenGlobalThenDefault(t *testing.T) {

@@ -87,7 +87,7 @@ func configList(scope configScope, _ []string, stdout io.Writer, stderr io.Write
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(table, "%s\t%v\t(%s)\n", option.Name, value.Value, describeSource(settings, value))
+		fmt.Fprintf(table, "%s\t%s\t(%s)\n", option.Name, displayValue(value.Value), describeSource(settings, value))
 		fmt.Fprintf(table, "  %s\n", option.Description)
 	}
 	if err := table.Flush(); err != nil {
@@ -155,7 +155,15 @@ func describeSource(settings config.Config, value config.Value) string {
 	if err != nil {
 		return "owner " + value.Owner
 	}
-	return fmt.Sprintf("owner %s; %s %v", value.Owner, global.Source, global.Value)
+	return fmt.Sprintf("owner %s; %s %s", value.Owner, global.Source, displayValue(global.Value))
+}
+
+// Quoted so an empty value does not read as missing.
+func displayValue(value any) string {
+	if value == "" {
+		return `""`
+	}
+	return fmt.Sprint(value)
 }
 
 // A file that does not parse reads as defaults, so a broken edit leaves the checkpoint gate on.

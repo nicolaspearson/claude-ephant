@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"maps"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -14,6 +15,7 @@ import (
 
 const (
 	KindBoolean = "boolean"
+	KindPath    = "path"
 
 	SourceDefault = "default"
 	SourceGlobal  = "global"
@@ -67,6 +69,12 @@ var Options = []Option{
 		Description: "Shows each open reminder in the start block from its due date until closed.",
 		Kind:        KindBoolean,
 		Name:        "reminders",
+	},
+	{
+		Default:     "",
+		Description: "An absolute or ~/ path to the voice file ele:review drafts comments from, in place of the shipped one; empty for the shipped one.",
+		Kind:        KindPath,
+		Name:        "review_voice",
 	},
 }
 
@@ -244,8 +252,28 @@ func decode(option Option, raw json.RawMessage) (any, error) {
 			return nil, fmt.Errorf("want a boolean, got %s", raw)
 		}
 		return value, nil
+	case KindPath:
+		var value string
+		if err := json.Unmarshal(raw, &value); err != nil {
+			return nil, fmt.Errorf("want a path, got %s", raw)
+		}
+		return expandPath(value)
 	}
 	return nil, fmt.Errorf("option %s has unknown kind %q", option.Name, option.Kind)
+}
+
+func expandPath(path string) (string, error) {
+	if rest, ok := strings.CutPrefix(path, "~/"); ok {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(home, rest), nil
+	}
+	if !filepath.IsAbs(path) {
+		return "", fmt.Errorf("want an absolute or ~/ path, got %q", path)
+	}
+	return path, nil
 }
 
 func parse(option Option, text string) (any, error) {
@@ -256,8 +284,34 @@ func parse(option Option, text string) (any, error) {
 			return nil, fmt.Errorf("%s takes true or false, not %q", option.Name, text)
 		}
 		return value, nil
+	case KindPath:
+		path, err := expandPath(text)
+		if err != nil {
+			return nil, fmt.Errorf("%s takes an absolute or ~/ path, not %q; ele config unset %s returns it to its default", option.Name, text, option.Name)
+		}
+		if err = readableFile(path); err != nil {
+			return nil, fmt.Errorf("%s: %w", option.Name, err)
+		}
+		// Stored as typed, so a config.json holding ~/ stays valid on a machine with another home.
+		return text, nil
 	}
 	return nil, fmt.Errorf("option %s has unknown kind %q", option.Name, option.Kind)
+}
+
+// Stat before Open: opening a FIFO blocks until a writer appears.
+func readableFile(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("%s is not a regular file", path)
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	return file.Close()
 }
 
 func unknownOption(name string) error {

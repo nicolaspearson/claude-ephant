@@ -100,6 +100,7 @@ block a session starts with names any option set away from its default.
 | `checkpoint_gate`  | `true`  | Off, a turn that changed files and claims done is not blocked for `/ele:checkpoint`                                          |
 | `colour`           | `true`  | Off, the messages ele shows you are plain text, for a client that does not render ANSI colour. `NO_COLOR` turns it off too |
 | `reminders`        | `true`  | Off, no reminder shows at session start                                                                                     |
+| `review_voice`     | empty   | An absolute or `~/` path to your own voice file, which `/ele:review` drafts comments from in place of the shipped one; set per owner with `--owner`. `set` refuses a path naming no readable file, and `unset` returns to the shipped one |
 
 A `config.json` that does not parse reads as all defaults, so the checkpoint gate
 stays on; `ele status` says so.

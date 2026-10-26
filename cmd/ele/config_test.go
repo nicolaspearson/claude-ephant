@@ -72,6 +72,39 @@ func TestConfigOwnerOverrideAppliesInThatOwnersProjects(t *testing.T) {
 	require.Equal(t, "true\n", output)
 }
 
+func TestConfigReviewVoiceRoundTripsGloballyAndPerOwner(t *testing.T) {
+	home := recallFixture(t)
+	t.Setenv("CLAUDECODE", "")
+	writeFile(t, filepath.Join(home, "voice.md"), "# Voice\n")
+	writeFile(t, filepath.Join(home, "work-voice.md"), "# Voice\n")
+
+	output, code := runCommand(t, "config", "list", "--owner", "corp")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "review_voice  \"\"  (default)\n")
+
+	output, code = runCommand(t, "config", "set", "--owner", "corp", "review_voice", filepath.Join(home, "work-voice.md"))
+	require.Equal(t, 0, code, output)
+	output, code = runCommand(t, "config", "list", "--owner", "corp")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "(owner corp; default \"\")\n")
+
+	output, code = runCommand(t, "config", "set", "review_voice", "~/voice.md")
+	require.Equal(t, 0, code, output)
+	require.Equal(t, "Set review_voice to "+filepath.Join(home, "voice.md")+" globally.\n", output)
+
+	output, code = runCommand(t, "config", "get", "--owner", "corp", "review_voice")
+	require.Equal(t, 0, code, output)
+	require.Equal(t, filepath.Join(home, "work-voice.md")+"\n", output)
+	output, code = runCommand(t, "config", "get", "--owner", "personal", "review_voice")
+	require.Equal(t, 0, code, output)
+	require.Equal(t, filepath.Join(home, "voice.md")+"\n", output)
+
+	output, code = runCommand(t, "config", "list", "--owner", "corp")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "review_voice  "+filepath.Join(home, "work-voice.md")+"  (owner corp; global "+filepath.Join(home, "voice.md")+")\n")
+	require.Contains(t, output, "voice file ele:review drafts comments from")
+}
+
 func TestConfigSetRefusesABrokenFile(t *testing.T) {
 	home := recallFixture(t)
 	t.Setenv("CLAUDECODE", "")
