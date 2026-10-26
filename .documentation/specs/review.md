@@ -232,10 +232,18 @@ that holds the user's forge credentials:
   - the Conventional Comments label, then the claim in one line
   - first person singular, "I"
   - propose, never instruct: "I'd guard the nil here", not "Guard the nil"
-  - the assumption inside the question, so yes is enough: "Is `retries` ever
-    zero here, assuming the config default applies?"
-  - what the other answer would change
+  - the assumption inside the question, so yes is enough, and what the other
+    answer would change: "Is `retries` ever zero here, assuming the config
+    default applies? If it can be, the loop never runs." Where the fix can go
+    ahead on the assumption, a statement naming it and how to change it: "I'd
+    cap this at three retries; say if the limit should differ"
   - evidence: the input and the wrong output, never "might break"
+  - what a claim was checked against: "I traced `handler.Create` through
+    `store.Save`"
+  - no narration of the review itself: not "on re-reading", not "I missed this
+    earlier"
+  - what the review could not check, stated plainly, then why, without apology:
+    "I read this and didn't run it"
   - short declarative sentences, code in backticks, em-dashes sparingly
 - Option `review_voice`, an absolute or `~`-prefixed path, default empty,
   meaning the shipped file. Set per owner, so one user's work and personal

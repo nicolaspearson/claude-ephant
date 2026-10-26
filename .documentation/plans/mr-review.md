@@ -46,7 +46,7 @@ themselves.
 - Review runs log through `ele checkpoint log` with their own scopes, filter counts and a per-finding outcome, touching no run state, decided 2026-10-26 by the user
 - The skill is user-invoked only, decided 2026-10-26 by the user: it posts under the user's name
 - No `claude -p` shell-out, decided 2026-10-26 by the user: subagents give the same separation
-- `bugs.md` gains the rule that a test is never weakened to make it pass in this plan, decided 2026-10-26 by the user: review and checkpoint both read the file
+- This plan adds the rule that a test is never weakened to make it pass: once bugs-test-weakening lands, `bugs.md` reports one and checkpoint's Verify and Gate sections forbid it, decided 2026-10-26 by the user: review and checkpoint both read `bugs.md`, and the session making the gate green is the likeliest to loosen a test
 
 ## Actions
 
@@ -62,8 +62,8 @@ themselves.
 - [ ] review-eval: An eval on a local-branch fixture with one planted defect: the table names it, and nothing reaches a forge without an Add and the final publish
   - blocked: review-skill
   - done when the eval goes red with the planted defect removed and green with it in place; run only when the user asks, since `task eval` costs model calls
-- [ ] bugs-test-weakening: Add to `reviewers/bugs.md` that a test changed to pass, rather than to match changed behaviour, is a finding: a weakened assertion, a widened tolerance, a skipped case
-  - done when the rule is in bugs.md and a checkpoint run in a real session over a change that loosens an assertion to make it pass reports it under the Bugs reviewer
+- [ ] bugs-test-weakening: Add to `reviewers/bugs.md` that a test changed to pass, rather than to match changed behaviour, is a finding: a weakened assertion, a widened tolerance, a skipped case; and to checkpoint's `SKILL.md` Verify and Gate sections that a red test is fixed in the code, and a test changes only for a behaviour change this change intends, which the report names
+  - done when, in real sessions, a checkpoint over a change that loosens an assertion to make it pass reports it under the Bugs reviewer, and a checkpoint whose gate goes red on a test the change did not set out to change fixes the code and leaves the test unchanged; and the checkpoint-and-ticket-audit spec's Checkpoint section states both rules
 - [ ] Fold what this plan built into `.documentation/specs/review.md`, run `ele plan done .documentation/plans/mr-review.md`, and delete this plan
 
 ## Inbox
