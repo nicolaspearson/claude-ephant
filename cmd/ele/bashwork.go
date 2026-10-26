@@ -463,6 +463,14 @@ func (scan shellScan) expand(target string) string {
 	return value + target[len(match[0]):]
 }
 
+func logsCheckpoint(command string) bool {
+	return startsCommand(command, "ele checkpoint log ")
+}
+
+func startsCommand(command string, prefix string) bool {
+	return strings.HasPrefix(cdPrefix.ReplaceAllString(strings.TrimSpace(command), ""), prefix)
+}
+
 func writesNote(command string) bool {
-	return strings.HasPrefix(cdPrefix.ReplaceAllString(strings.TrimSpace(command), ""), "ele remember ")
+	return startsCommand(command, "ele remember ")
 }
