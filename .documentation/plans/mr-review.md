@@ -87,6 +87,7 @@ themselves.
 
 - 2026-10-26, from the first real review of a GitLab MR: the user found the drafted comments not in their tone. Write a personal voice file outside the repository, from the user's existing voice reference in another project and comments they have posted, and set it per owner with `ele config set --owner <owner> review_voice <path>`; the shipped file stays general
 - 2026-10-26, from a by-hand local review run: the user asked for "fix it now" or "fix all" on a finding. Not in the walk-through, since an edit moves later findings' lines and the review reads a frozen copy; instead a step after it, on a local run or an MR whose head is the checked-out branch, applying the findings the user picked and then running `ele:checkpoint`
+- 2026-10-26, from asking whether GitLab range anchors have been seen: the review log carries no anchor per finding, and no GitLab review has sent `line_range`. Log each published finding's anchor (line, range or none) and the forge's answer, and have /ele:checkpoint-stats count them, so the range anchor is settled by the runs that use it
 
 ## Out of scope
 
