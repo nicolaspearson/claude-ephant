@@ -23,6 +23,8 @@ A writing-for-agents review of `plugin/skills/` on 2026-10-23 found meanings kep
 - One shared `plugin/reference/errors.md` holds the retry rule and the general rows (zsh `===`, `Exit code 1`, unmatched glob, chained `cd`, git guard, slow command piped to tail/head, oversized Read, stale Edit): the rows are shell and guard errors every skill hits, and four copies had drifted. This overturns the spec's line keeping a table in each SKILL.md and reviewer file
 - Checkpoint keeps its own rows (`not covered` from `check`, agent type not found, `command not found` in a §2 check) in a short local table: no other skill hits them
 - No `Seen` column: the counts change nothing the agent does; the spec keeps the `ele events --during <skill> --kind tool-error` command that produces them
+- The three `Blocked:` guard rows stay general rows, classed as a guard hook where one is installed: a row fires only on its exact error text, so a user without those hooks never meets it
+- `errors.md` says to stop and report an uncleared error where the caller's instructions put errors; each pointer names the place, the reviewer files' "under Questions", and checkpoint keeps its line that a red gate check or mutated test is a result beside its pointer: one rule, each caller's report going where it already goes
 - Reviewers find the errors file through a brief field, `Errors: <absolute path>, read when a call fails`: they read only what the brief names
 - Inbox triage lives only in plan-audit's Inbox triage section; plan pickup points to it, gaining its Finding and other-plan's-inbox options
 - `blocked:` and `after:` syntax lives only in `plan/SKILL.md`; plan-audit's Frontier keeps how those lines become edges
@@ -32,10 +34,16 @@ A writing-for-agents review of `plugin/skills/` on 2026-10-23 found meanings kep
 
 ## Actions
 
-- [ ] shared-errors: Write `plugin/reference/errors.md` with the retry rule and the general rows; cut checkpoint's table to its own rows plus a pointer; replace ticket-audit's and both reviewer files' Errors sections with a pointer; add the Errors field to checkpoint §3's brief; reword the spec's Errors line
+- [x] shared-errors: Write `plugin/reference/errors.md` with the retry rule and the general rows; cut checkpoint's table to its own rows plus a pointer; replace ticket-audit's and both reviewer files' Errors sections with a pointer; add the Errors field to checkpoint §3's brief; reword the spec's Errors line
   - done when the wording-only checks pass, and one real checkpoint run's brief carries the Errors path
   - as of 2026-10-23: §8's launch paragraph in `checkpoint/SKILL.md` passes the re-reviewer the brief's Settled and Report only fields, and Observed when the spec reviewer ran or §7 wrote, but no Errors field; the Errors field joins them
   - as of 2026-10-23: the done-when's real run reads the installed plugin, so it needs a release or a local plugin install first
+  - as of 2026-10-25: premise check held: checkpoint's table has the eight general rows plus its three; ticket-audit's table and both reviewer files' lists have five each, missing the rows the Context line names; `reviewers/spec.md` and plan-audit have no Errors section; nothing under `docs/` names one
+  - as of 2026-10-25: the installed plugin cache holds every top-level directory under `plugin/` (agents, commands, evals, hooks, skills), so `plugin/reference/` ships; no SKILL.md yet links outside its own skill directory
+  - as of 2026-10-25: the three `Blocked:` rows come from guard hooks in the author's own `~/.claude/hooks/` (`guard-bash-habits.sh`, `guard-writes.sh`), not from ele's hooks
+  - as of 2026-10-25: the failure path differs: the skills stop and report, the reviewer files put an uncleared error under Questions; checkpoint's line that a red gate check or mutated test is a result, not an error, is checkpoint's own
+  - as of 2026-10-25: built, uncommitted: `plugin/reference/errors.md`, the four pointers, the brief's Errors field in §3 and §8, both spec Errors lines, CONTRIBUTING's layout row; a fixed-string grep finds each moved passage only in `errors.md`, both pointer paths resolve, `ele plan check` clean, `task check FORCE=1` and `task audit` exit 0
+  - asserted in the shared-errors commit: a checkpoint run with the skill loaded from the clone sent its bugs, conventions-prose and spec reviewers a brief whose Errors field named `plugin/reference/errors.md`; a fixed-string grep finds each moved row only in `errors.md`; the checkpoint and ticket-audit pointers and both reviewer files' pointer resolve to it; `ele plan check`, `task check FORCE=1` and `task audit` exit 0. Not run through the installed plugin: that waits for a release
 - [ ] plan-format-once: Point plan pickup step 5 at plan-audit's Inbox triage; cut plan-audit's Frontier to the edge mapping with a pointer to `plan/SKILL.md` for the syntax; split the item bullet in `plan/SKILL.md`'s format into sub-bullets, one per concept, same words
   - done when the wording-only checks pass, Inbox triage's Finding option no longer says `under §7`, and the format's item bullet has one sub-bullet per concept
   - as of 2026-10-23: Inbox triage's Finding option says "report it under §7", an audit method; reword it so it also reads right from plan pickup, such as "report it as contradicting that decision"

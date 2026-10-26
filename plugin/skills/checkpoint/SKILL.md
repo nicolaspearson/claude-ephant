@@ -170,6 +170,8 @@ One brief, shared by every reviewer, every path absolute:
 - **Report only**: reviewers edit nothing and run no gate, test suite or build.
   The parent runs the gate; its log is at `<path>`, finished once it ends in
   `gate exit`.
+- **Errors**: `<absolute path of the plugin root's reference/errors.md>`, read
+  when a call fails.
 - **Attack surfaces**: what the author is least sure of. State combinations that
   were never enumerated, paths never exercised, what a user sees when the new
   error fires, a trap the codebase documents. Specific beats thorough — "every
@@ -355,11 +357,11 @@ the change list plus every file a fix created, less any path a fix returned to
 HEAD and any untracked file it deleted — the freeze refuses a path with nothing
 to diff. Launch one fresh `ele:checkpoint-reviewer`, Bugs included on purpose,
 or `general-purpose` where that type is not listed, with both frozen diffs, the
-files the fixes touched, the findings they fixed, the brief's Settled and Report
-only fields and, when the spec reviewer ran or §7 wrote, the item quoted whole
-from the plan file, with what the change sets out to deliver and the brief's
-Observed field. It reads the reviewer files that apply, scoped to what the fixes
-changed:
+files the fixes touched, the findings they fixed, the brief's Settled, Report
+only and Errors fields and, when the spec reviewer ran or §7 wrote, the item
+quoted whole from the plan file, with what the change sets out to deliver and
+the brief's Observed field. It reads the reviewer files that apply, scoped to
+what the fixes changed:
 
 - **Bugs**, if any code changed: what did the fixes break or fail to close?
 - **Conventions**, if anything was renamed, moved or reordered, or a fix closed
@@ -489,29 +491,16 @@ per entry on the running list.
 
 ## Errors
 
-When a call fails, quote its error verbatim, find its row below, apply that
-row's one fix and run once more — never the same call unchanged. An error in no
-row, or a second failure: stop and report, quoting the error. A red gate check
-or mutated test is a result, not an error here: §5, §6 and Stopping early
-handle it.
+When a call fails, follow `reference/errors.md` in the plugin root, the
+directory holding `skills/`, with the rows below added; stop and report in the
+running conversation. A red gate check or mutated test is a result, not an
+error here: §5, §6 and Stopping early handle it.
 
-Seen counts are tool errors inside checkpoint runs, as of 2026-10-21
-(`ele events --during checkpoint --kind tool-error`), classed by each error's
-first and last 300 characters.
-
-| Error contains | Class | One fix | Seen |
-| --- | --- | --- | --- |
-| `not covered: <root> has changed…` from `check`, exit 1 | Expected answer, not a failure | Go on with §1's status; never rerun | 45 |
-| `not found` after a word starting with `=`, such as `=== not found` | zsh took the word, often an `echo ====` separator, for a command and dropped the rest of the line: nothing after it ran | Quote it, `echo '===='`, or use `echo ----`; rerun what came after it | 266, 261 in reviewers |
-| `Exit code 1` with no error text at the end | Usually a `grep` that matched nothing, or a command with stderr sent to `/dev/null`; the output cannot tell which. Output ending in `Traceback`, an `…Error:` line, `no such file`, `FAIL`, `panic`, `fatal:` or `command not found` is a real failure (about 60), not this row | Read the output; if what is missing matters, rerun that part alone with stderr kept | 121, 61 in reviewers |
-| `no matches found: <glob>` | zsh expanded an unquoted glob that matched nothing; that command did not run | Quote the glob | 66, 49 in reviewers |
-| `Blocked: cd chained with an edit` | Guard hook | Absolute paths, no `cd` | 65, mostly reviewers |
-| `Blocked: git writes are the user's to run` | Guard hook: only listed git reads pass, with or without `-C`, and one unlisted git command blocks the whole call; `branch -a`, `branch -r`, `branch --contains`, `tag --contains`, `tag --sort` and `reflog` are not listed | Run the listed reads apart from the rest; for the unlisted, `git for-each-ref --contains <sha> refs/heads refs/remotes refs/tags`, `git for-each-ref refs/heads refs/remotes`, or `git log -g`; a real write goes to the user | 46 |
-| `Blocked: slow command piped to tail/head` | Guard hook | Capture to a scratchpad file, then grep it | 12 |
-| `File content (N tokens) exceeds maximum allowed tokens` | A frozen diff too big for one Read | Read it in parts with offset and limit, or grep it | 18, reviewers |
-| `Agent type '…checkpoint-reviewer' not found` | Plugin agent not loaded | Launch `general-purpose` with the same prompt | 6 |
-| `command not found: <tool>` in a §2 check | The check cannot run here | Report it unverified; no retry | 1 |
-| Edit or Write: `File has been modified since read`, `String to replace not found` or `File has not been read yet` | Stale or missing read | Read the file again, then one Edit | 30 |
+| Error contains | Class | One fix |
+| --- | --- | --- |
+| `not covered: <root> has changed…` from `check`, exit 1 | Expected answer, not a failure | Go on with §1's status; never rerun |
+| `Agent type '…checkpoint-reviewer' not found` | Plugin agent not loaded | Launch `general-purpose` with the same prompt |
+| `command not found: <tool>` in a §2 check | The check cannot run here | Report it unverified; no retry |
 
 ## Stopping early
 

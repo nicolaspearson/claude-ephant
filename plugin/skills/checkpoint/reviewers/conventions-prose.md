@@ -137,23 +137,8 @@ an ordering that looks wrong but is not.
 
 ## Errors
 
-When a call fails, quote its error verbatim, apply its one fix below and run
-once more — never the same call unchanged. An error not below, or a second
-failure, goes under Questions, quoted.
-
-- `not found` after a word starting with `=`, such as `=== not found`: zsh took
-  the word, often an `echo ====` separator, for a command and dropped the rest
-  of the line, so nothing after it ran. Quote it, `echo '===='`, or use
-  `echo ----`; rerun what came after it.
-- `Exit code 1` with no error text at the end: usually a `grep` that matched
-  nothing, or a command with stderr sent to `/dev/null`. Read the output; if
-  what is missing matters, rerun that part alone with stderr kept. Output ending
-  in `Traceback`, an `…Error:` line, `no such file`, `FAIL`, `panic`, `fatal:`
-  or `command not found` is a real failure, not this case.
-- `File content (N tokens) exceeds maximum allowed tokens`: read the frozen diff
-  in parts with offset and limit, or grep it.
-- `Blocked: cd chained with an edit`: absolute paths, no `cd`.
-- `no matches found: <glob>`: zsh expanded an unquoted glob; quote it.
+When a call fails, follow the file the brief's Errors field names; report an
+error it does not clear under Questions.
 
 ## Output
 

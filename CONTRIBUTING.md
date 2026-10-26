@@ -76,16 +76,16 @@ calls, so no gate runs it.
 
 ## Repository layout
 
-| Path                 | Holds                                                                                |
-| -------------------- | ------------------------------------------------------------------------------------ |
-| `cmd/ele/`           | the `ele` command and its subcommands                                                |
-| `internal/`          | the packages behind it                                                               |
-| `plugin/`            | the `ele` plugin: `skills/`, `commands/`, `agents/`, `hooks/hooks.json` and `evals/` |
-| `.claude-plugin/`    | the marketplace that serves `plugin/`                                                |
-| `docs/`              | user guides, linked from the README                                                  |
-| `.documentation/`    | `specs/` and `plans/`                                                                |
-| `.github/workflows/` | `ci.yml`, `release.yml` and `tap.yml`                                                |
-| `install.sh`         | the install script                                                                   |
+| Path                 | Holds                                                                                                                             |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `cmd/ele/`           | the `ele` command and its subcommands                                                                                             |
+| `internal/`          | the packages behind it                                                                                                            |
+| `plugin/`            | the `ele` plugin: `skills/`, `commands/`, `agents/`, `hooks/hooks.json`, `evals/`, and `reference/` for files several skills read |
+| `.claude-plugin/`    | the marketplace that serves `plugin/`                                                                                             |
+| `docs/`              | user guides, linked from the README                                                                                               |
+| `.documentation/`    | `specs/` and `plans/`                                                                                                             |
+| `.github/workflows/` | `ci.yml`, `release.yml` and `tap.yml`                                                                                             |
+| `install.sh`         | the install script                                                                                                                |
 
 ## Specs and plans
 
