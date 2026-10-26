@@ -160,7 +160,9 @@ In order, before the user sees anything:
 - Then each finding in severity order, one question each, the drafted body
   shown verbatim in it, up to four questions per AskUserQuestion call:
   - **Add**: the body is held for the review at its line
-  - **Raw Markdown**: one shape every time, follow-up drafts included: File,
+  - **Raw Markdown**: printed as soon as the call that answered it returns,
+    before anything else is printed or asked, so none is left unprinted behind
+    a later step. One shape every time, follow-up drafts included: File,
     Line (start and end for a range), Kind and Link lines as a list, then the
     body exactly as Add would hold it in a fenced `markdown` block longer than
     any backtick run inside it, so a `suggestion` block pastes whole.
@@ -182,13 +184,14 @@ In order, before the user sees anything:
   and noise is the user's to find, so the filter hides nothing it could show
 - Then, on an MR run, the merge state: failing jobs at the head, discussions
   blocking the merge, and whether the head moved since the review, with each
-  finding whose file changed. A local run has none
+  finding whose file changed, printed before the publish question it bears on.
+  A local run has none
 - Last, when anything was added: one question to publish the review, listing
   what it holds. Nothing reaches the forge before that answer
 - Then whether anything else is wanted. A finding asked for now goes through
-  the same verify, draft, walk-through and publish; an Add made after the
-  review was published gets its own publish question, sending only what it
-  adds, a second review on GitHub
+  the same verify, draft, question and publish, with no table, second list or
+  merge state again; an Add made after the review was published gets its own
+  publish question, sending only what it adds, a second review on GitHub
 - The parent drafts each body after verifying it, from the voice file; the
   reviewers never see the voice
 - A body opens with a [Conventional Comments](https://conventionalcomments.org/)

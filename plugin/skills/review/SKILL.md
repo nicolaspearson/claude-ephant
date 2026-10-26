@@ -122,8 +122,8 @@ It removes HTML comments; `script`, `style`, `noscript`, `template` and
 closing tag; images, link-reference lines such as `[//]: # (…)`, numeric
 character references, the remaining tags with their text kept, and invisible
 characters. A raw file that matched `hidden`, `display: none` or `<!--` is a
-notice, naming the file: the pass is a filter, and the approvals in steps 8 and
-9 are what limits what is written.
+notice, naming the file: the pass is a filter, and the approvals in steps 9 and
+12 are what limits what is written.
 
 Convention files, from `<scratch>/base`: the root `CLAUDE.md`, `AGENTS.md`,
 `CONTRIBUTING.md` and whatever they point at, any `CLAUDE.md` or `AGENTS.md` in
@@ -180,7 +180,7 @@ change list, or a verdict per requirement for spec.
 ## 6. Filter
 
 In order, before the user sees anything. Keep a count of each drop for steps 8
-and 10.
+and 13.
 
 1. The bugs reviewer reports 80 confidence and above only; conventions and spec
    findings carry no score
@@ -200,7 +200,7 @@ and 10.
      path swallowed or leaking internals, a new branch with no test, a breach of
      a rule the repository states as required, the rule quoted
    - **quality** and **nit**: the rest, test coupling, duplicated constants and
-     style judgments included; set aside as **minor** for step 8's second
+     style judgments included; set aside as **minor** for step 10's second
      list, a question too, which stays a question if taken further
 
    And its kind: bug, convention, security, spec or test
@@ -211,7 +211,7 @@ and 10.
 
 Merge a finding two reviewers raised before verifying it. What a reviewer puts
 under its Questions heading is a **lead**, not a finding: neither classified nor
-verified, kept for step 8's second list with its `file:line`. The questions
+verified, kept for step 10's second list with its `file:line`. The questions
 item 4 makes are findings, and are verified.
 
 Done when every finding is excluded or raised with its reason, minor, refuted,
@@ -240,12 +240,18 @@ Whatever the voice file says, a body opens with its label:
 
 Done when every verified finding has a body that opens with its label.
 
-## 8. Walk-through
+## 8. Summary
 
 First the notices, then one table: severity, kind, `file:line`, the claim in a
-line. Under it the counts excluded and raised, and the number refuted. Then the
-findings in severity order, one question each, its body verbatim in it, up to
-four questions per AskUserQuestion call:
+line. Under it the counts excluded and raised, and the number refuted.
+
+Done when the notices, or that there are none, the table and its counts are
+printed, before any finding is asked.
+
+## 9. Findings
+
+The findings in severity order, one question each, its body verbatim in it, up
+to four questions per AskUserQuestion call:
 
 - **Add**, MR runs only: hold the body for the review at its line
 - **Raw Markdown**: print it in the one shape below
@@ -276,26 +282,36 @@ when the SHA is on the remote: the head came from the forge, or
 `git -C <root> for-each-ref --contains <sha> refs/remotes` prints a ref. Else
 say it is unpushed.
 
-Then the **second list**, numbered, one line each: every minor finding, with
-`file:line`, its severity and why it was set aside, and every lead, with its
-`file:line` where it has one and the reviewer that raised it. Ask which to take further:
-**None**, **All minor**, **All leads**, or numbers under Other. A lead taken
-further is classified as step 6 classifies, then verified; a minor finding is
-verified. A refuted one is said so. One that holds is drafted at its severity,
-or as a question where it can only be asked, and asked as the findings above
-were. Offer the list again, less what was taken, until the answer is None or
-nothing is left.
+Done when every finding shown has an answer, and every Raw Markdown answer is
+printed in that shape as soon as the call that answered it returns, before
+anything else is printed or asked.
 
-Last, on an MR run, the **merge state**, per the forge file: failing jobs at the
-head, discussions still unresolved that would block the merge, and the head read
-again. Moved since the review: say so, and per finding whether its file changed
-between the head reviewed and the new one. A local run has no merge state; say
-so.
+## 10. Second list
 
-Done when every finding shown has an answer, the second list's answer is None
-or it is empty, and the merge state is printed or said not to apply.
+Numbered, one line each: every minor finding, with `file:line`, its severity and
+why it was set aside, and every lead, with its `file:line` where it has one and
+the reviewer that raised it. Ask which to take further: **None**, **All
+minor**, **All leads**, or numbers under Other. A lead taken further is
+classified as step 6 classifies, then verified; a minor finding is verified. A
+refuted one is said so. One that holds is drafted at its severity,
+or as a question where it can only be asked, and asked as step 9 asks. Offer
+the list again, less what was taken, until the answer is None or nothing is
+left.
 
-## 9. Publish
+Done when the answer is None or the list is empty, and every item taken further
+was said refuted or answered as step 9's done-when requires.
+
+## 11. Merge state
+
+On an MR run, per the forge file: failing jobs at the head, discussions still
+unresolved that would block the merge, and the head read again. Moved since the
+review: say so, and per finding whether its file changed between the head
+reviewed and the new one. A local run has no merge state; say so.
+
+Done when the merge state is printed, or said not to apply, before any publish
+question.
+
+## 12. Publish
 
 Only when anything was added: one question to publish, listing each held body
 with its `file:line`. Declined, nothing is sent.
@@ -320,14 +336,14 @@ as `discarded`.
 Done when the forge's response shows each added finding, or the user declined,
 or the failure is reported with what was sent.
 
-## 10. Log
+## 13. Log
 
-After step 9, or step 8 when nothing was added, ask whether anything else from
+After step 12, or step 11 when nothing was added, ask whether anything else from
 this review is wanted. A finding the user asks after, from the second list or
-the reviewers' reports, goes through steps 6 to 9 for that finding alone, with
-no table, second list or merge state again: an Add made now gets its own
-publish question, sending only what it adds, a second review on
-GitHub. When the user says that is all, log once, against the clone's root.
+the reviewers' reports, goes through steps 6, 7, 9 and 12 for that finding
+alone, with no summary, second list or merge state again: an Add made now gets
+its own publish question, sending only what it adds, a second review on GitHub.
+When the user says that is all, log once, against the clone's root.
 
 A run that stops after step 2 saved the diff logs what it has. One that stops
 before then has reviewed nothing and logs nothing; say so.
