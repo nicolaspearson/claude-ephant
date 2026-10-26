@@ -19,6 +19,7 @@ works from any directory; see [Owners](owners.md).
 | `/ele:plan-audit`       | Audit active plans against the code and each other                                               |
 | `/ele:recall`           | Search earlier sessions; see [Recall](notes-and-recall.md#recall)                                 |
 | `/ele:remember`         | Save a decision, question, fact or reminder                                                       |
+| `/ele:review`           | Review an MR, PR, branch or commit and publish only its major findings; see [Review](review.md)   |
 | `/ele:ticket-audit`     | Audit a tracker's ticket map against the code                                                     |
 | `/ele:ticket-claims`    | Flag open GitHub tickets mistyped as a task or granting themselves execution                      |
 | `/ele:wrap`             | At a session's end, ask what to keep, which reminders to close and whether to hand off            |

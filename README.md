@@ -90,8 +90,8 @@ The `ele` plugin adds the skills and hooks that use the binary:
    session picks up where the last stopped; see
    [Handoffs](docs/handoffs-and-reminders.md#handoffs)
 
-[Plans](docs/plans.md) and [Checkpoint and ticket-audit](docs/checkpoint-and-ticket-audit.md)
-cover the rest, and the [command reference](docs/commands.md) lists every
+[Plans](docs/plans.md), [Checkpoint and ticket-audit](docs/checkpoint-and-ticket-audit.md)
+and [Review](docs/review.md) cover the rest, and the [command reference](docs/commands.md) lists every
 command.
 
 ## Options

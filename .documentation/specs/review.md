@@ -17,9 +17,11 @@ is refused, naming that project's clone.
 - MR or PR: `!123`, `#123`, or a merge request or pull request URL. The forge
   comes from the remote, `glab` for GitLab and `gh` for GitHub; the parent reads
   the diff, the description, the discussions and the head pipeline through it
-- Local branch: `git diff <base>...HEAD`, the base from
-  `ele checkpoint base <root>`. Uncommitted work is left out, and the report says
-  so: it is checkpoint's
+- Local branch, checked out or not: `git diff <base>...<branch>`, the base its
+  merge-base with `origin/HEAD`, the default branch. Not `ele checkpoint base`:
+  that takes the upstream, and a branch pushed for its MR has an upstream at
+  its own tip, so the diff would be empty. Uncommitted work is left out, and the
+  report says so: it is checkpoint's
 - Commit: `git show <rev>`
 - Nothing matching, or two readings plausible: ask before running anything
 - A diff over about 2,000 lines: ask whether to review a subset before launching
@@ -41,9 +43,13 @@ forge's file API cannot search:
 - Head SHA present locally (`git cat-file -e <sha>`): `git archive <sha>`
 - Otherwise the forge's archive at the SHA: `gh api repos/{owner}/{repo}/tarball/<sha>`,
   `glab api "projects/:id/repository/archive?sha=<sha>"`
-- Extracted into a new, empty directory, since its content is untrusted; a
-  symlink, an absolute path or a `..` path in the archive is removed before any
-  reviewer reads it, so nothing outside the directory can be read through it
+- Listed before it is extracted: an entry that is not a file, a directory or a
+  symlink, a hard link, device or FIFO, or a name or link target that is
+  absolute or has a `..` component, stops the run, since a git archive holds
+  none of them
+- Extracted into a new, empty directory with plain `tar -xf`, never `-P`, since
+  its content is untrusted; every symlink is then deleted, so nothing outside
+  the directory can be read through it
 - Base-branch convention files come from the same source at the base SHA
 
 The diff is saved beside it, so the reviewer files' frozen diff and change list
@@ -130,6 +136,9 @@ In order, before the user sees anything:
      a rule the repository states as required, the rule quoted
    - **quality** and **nit**: the rest, test coupling, duplicated constants and
      style judgments included; dropped, counted
+
+   A question is classified too, and dropped the same way when it is quality or
+   nit; the log takes its severity
 6. Verified by the parent against the tree, blockers, defects and questions
    only: the input traced through the code to the wrong output, by reading
    alone, never by running the tree. A refuted finding is never drafted, since a
@@ -144,9 +153,10 @@ In order, before the user sees anything:
   shown verbatim in it:
   - **Add**: the body is held for the review at its line
   - **Raw Markdown**: `file:line` and the classification as a header, then the
-    body exactly as Add would hold it; a full-SHA permalink only when the SHA is
-    on the remote (`git branch -r --contains <sha>` non-empty), since the forge
-    has no page for an unpushed commit
+    body exactly as Add would hold it; a full-SHA permalink, built from the
+    project's URL, only when the SHA is on the remote: the head came from the
+    forge, or `git for-each-ref --contains <sha> refs/remotes` prints a ref,
+    since the forge has no page for an unpushed commit
   - **Learn more**: the full trace, input to wrong output with the code cited,
     then the same question again
   - **Skip**
@@ -164,8 +174,8 @@ In order, before the user sees anything:
   resolves the finding whole
 - A body never quotes a secret value
 - On a local branch or a commit, Add is offered only when an open MR's head SHA
-  is the SHA reviewed: found with `gh pr view <branch>` or
-  `glab mr view <branch>` for a branch,
+  is the SHA reviewed: found with `gh pr view <branch>` or the open MRs whose
+  `source_branch` is the branch for a branch,
   `gh api repos/{owner}/{repo}/commits/<sha>/pulls` or
   `glab api projects/:id/repository/commits/<sha>/merge_requests` for a commit,
   its head compared as `headRefOid` or `diff_refs.head_sha`. A branch name alone
@@ -203,15 +213,19 @@ approval or request-changes state is set.
   is unchanged at the new head, and send the rest unanchored
 - The MR closed or merged since the review: say so; nothing is sent unless the
   user says to
-- A failed call: quote the error, and say which findings reached the forge
+- A failed call: quote the error, and say which findings reached the forge. On
+  GitLab, each draft this run created and did not publish is deleted, so none
+  waits on the forge under the user's name; a GitHub review is created whole or
+  not at all
 
 ## Security
 
 The MR's description, comments, diff and tree are its author's input to an agent
 that holds the user's forge credentials:
 
-- HTML comments, hidden markup and invisible characters are stripped from the
-  description and comments before they reach a brief
+- HTML comments, hidden markup and invisible characters are stripped from every
+  text fetched from the forge, the description, the comments, the spec issue and
+  the job names, before they reach a brief
 - Convention files come from the base SHA, so the change cannot rewrite the
   rules it is judged by
 - Reviewers hold no tool that runs a command, and neither they nor the parent run
@@ -251,7 +265,9 @@ that holds the user's forge credentials:
 
 ## Log
 
-`ele checkpoint log`, so `/ele:checkpoint-stats` reads review runs too:
+`ele checkpoint log`, so `/ele:checkpoint-stats` reads review runs too, once
+per run that saved its diff, a run stopping later included; one stopping before
+reviewed nothing and logs nothing:
 
 - Scopes `local-branch` and `mr` beside `branch`, `delta` and `uncommitted`; a
   commit with no MR logs as `local-branch`
@@ -268,8 +284,8 @@ that holds the user's forge credentials:
   - `verdict`: `confirmed`, verified and shown; `open`, shown as a question;
     `refuted`, verified and not shown. `fixed` and `deliberate` are
     checkpoint's alone
-  - `outcome`, on a confirmed or open finding: `discarded` (added, then
-    publishing declined or refused), `published`, `raw`, `skipped`, or
+  - `outcome`, on a confirmed or open finding: `discarded` (added, then not
+    sent: declined, stopped or failed), `published`, `raw`, `skipped`, or
     `unanswered` (the run ended first). The skip rate is the reviewers' precision on real
     changes, which checkpoint cannot measure, since there every confirmed
     finding is fixed
