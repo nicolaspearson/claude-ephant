@@ -2,7 +2,7 @@
 
 `/ele:review` reviews someone else's merge request or pull request, or your own
 branch before you open one, with the same reviewers `/ele:checkpoint` uses. It
-shows only the major findings, and you choose for each whether it goes into the
+shows the major findings first, and you choose for each whether it goes into the
 review, comes out as Markdown to post yourself, or is skipped. It changes
 nothing in your clone and commits nothing; uncommitted work is checkpoint's.
 
@@ -25,18 +25,25 @@ name.
    and a spec reviewer when there is a spec. They can read and search the copy
    and nothing else: none can run a command, so none runs the change's code
 3. **Filters** what they find: anything not on the change's lines, already
-   raised in a discussion, reported by a failing job, or minor is dropped and
-   counted. What is left is classified as a blocker, a defect or a question, and
-   each is traced through the code before you see it
+   raised in a discussion or reported by a failing job is dropped and counted.
+   What is left is classified as a blocker, a defect, a question or minor, and
+   each blocker, defect and question is traced through the code before you see
+   it
 4. **Walks through** the findings: a table first, then one question each, the
    comment shown word for word. **Add** holds it for the review, **Raw
-   Markdown** prints it with its file and line, and a permalink when the commit
-   is on the remote, **Learn more**
-   shows the trace, and **Skip** drops it. Typing your own answer redrafts it
+   Markdown** prints its file, line and kind, a permalink when the commit is on
+   the remote, and the comment in a block ready to paste, **Learn more** shows
+   the trace, and **Skip** drops it. Typing your own answer redrafts it. Then a
+   second list: the minor findings and what the reviewers raised as questions,
+   one line each, for you to pick any worth taking further: each is checked
+   against the code before it is drafted. Last, for a merge request, the merge
+   state: failing jobs, discussions blocking the merge, and whether the head
+   moved since the review
 5. **Publishes** once, at the end, after one last question listing what the
    review holds. On GitHub it is one review; on GitLab, draft notes published
    together, or one by one when you hold drafts of your own there, which stay
-   drafts. It sets no approval: do that on the forge
+   drafts. It sets no approval: do that on the forge. Ask for more afterwards
+   and anything you add then is published separately
 
 On your own branch, or a commit, Add is offered only when an open MR's head is
 the exact commit reviewed; otherwise you get Raw Markdown and Skip.
@@ -53,6 +60,7 @@ sound different; see [Options](data-and-privacy.md#options).
 
 ## What reviews found
 
-Each run is logged with the checkpoints, and `/ele:checkpoint-stats` reports
+Each run is logged with the checkpoints once you say you want nothing more
+from it, so follow-ups count too, and `/ele:checkpoint-stats` reports
 reviews in their own section: how often you skipped each reviewer's findings,
 and how many the filter dropped.

@@ -45,6 +45,16 @@ remote. A JSON body goes in a file under `<scratch>`, passed with
 - A permalink: `gh repo view --json url --jq .url`, then
   `/blob/<full sha>/<path>#L<line>`, or `#L<start>-L<end>` for a range
 
+## Merge state
+
+- The head: `headRefOid` from the PR call again; moved, the files that changed,
+  `gh api --paginate "repos/{owner}/{repo}/compare/<reviewed>...<new>" --jq '.files[].filename'`
+- Failing checks: `gh pr checks <n> --json name,state,bucket` again, each
+  `bucket` `fail`
+- Blocking discussions: review threads read again with `isResolved` false,
+  which block the merge only where the branch's protection requires
+  conversation resolution; name them either way
+
 ## Publish
 
 1. A pending review the user already holds blocks a second one:

@@ -8,14 +8,16 @@ follows the label.
 ## Label, then the claim in one line
 
 Open with a [Conventional Comments](https://conventionalcomments.org/) label,
-an `issue` label carrying the finding's kind as a decoration, then say what is
-wrong in one line:
+every label but `question` carrying the finding's kind as a decoration, then
+say what is wrong in one line:
 
 | Shown as | Label |
 | --- | --- |
 | blocker | `issue (blocking, <kind>):` |
 | defect | `issue (non-blocking, <kind>):` |
 | question | `question:` |
+| quality | `suggestion (non-blocking, <kind>):` |
+| nit | `nitpick (non-blocking, <kind>):` |
 
 The kind is one of `bug`, `convention`, `security`, `spec` or `test`.
 

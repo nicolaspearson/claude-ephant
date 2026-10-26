@@ -1,7 +1,8 @@
 # Review
 
 `/ele:review` reviews someone else's change, or the user's own branch before an
-MR exists, and reports only its major findings. The user then works through them
+MR exists, and reports its major findings first, then the minor ones the user
+picks. The user works through them
 one at a time, choosing for each whether it goes into the review, comes out as
 Markdown, or is skipped, and publishes the review at the end. It reports only: no
 edit to the clone, no gate, no record of reviewed bytes, no commit; its run is
@@ -102,7 +103,10 @@ author:
   and the spec: new branches, error paths, what the spec says must hold
 - **Convention files**: the repository's, from the base SHA. A convention file
   the change edits is reviewed as part of the diff. The user's own `CLAUDE.md`
-  is left out: their personal rules do not bind another author's change
+  is left out: their personal rules do not bind another author's change. Claude
+  Code loads it into every subagent all the same, and `conventions-prose.md`
+  says a personal rule binds, so the `ele:review-reader` prompt says only the
+  brief's files bind
 - **Report only**, as in checkpoint, and no probe or reproduction: the tree is
   the author's code. No gate log, since no gate runs; the pipeline is in
   Observed
@@ -135,10 +139,14 @@ In order, before the user sees anything:
      path swallowed or leaking internals, a new branch with no test, a breach of
      a rule the repository states as required, the rule quoted
    - **quality** and **nit**: the rest, test coupling, duplicated constants and
-     style judgments included; dropped, counted
+     style judgments included; set aside as minor, for the walk-through's
+     second list
 
-   A question is classified too, and dropped the same way when it is quality or
-   nit; the log takes its severity
+   A question is classified too, and set aside the same way when it is quality
+   or nit, staying a question if taken further; the log takes its severity.
+   What a reviewer reports under its Questions heading is a lead, not a
+   finding: neither classified nor verified, kept for the same list. The
+   questions step 4 makes are findings and are verified
 6. Verified by the parent against the tree, blockers, defects and questions
    only: the input traced through the code to the wrong output, by reading
    alone, never by running the tree. A refuted finding is never drafted, since a
@@ -147,29 +155,47 @@ In order, before the user sees anything:
 ## Walk-through
 
 - First, one table: severity, kind (bug, convention, security, spec, test),
-  `file:line`, the claim in a line, then the log's `dropped` counts and the
+  `file:line`, the claim in a line, then the excluded and raised counts and the
   number of findings refuted
-- Then each finding in severity order, one AskUserQuestion each, the drafted body
-  shown verbatim in it:
+- Then each finding in severity order, one question each, the drafted body
+  shown verbatim in it, up to four questions per AskUserQuestion call:
   - **Add**: the body is held for the review at its line
-  - **Raw Markdown**: `file:line` and the classification as a header, then the
-    body exactly as Add would hold it; a full-SHA permalink, built from the
-    project's URL, only when the SHA is on the remote: the head came from the
-    forge, or `git for-each-ref --contains <sha> refs/remotes` prints a ref,
-    since the forge has no page for an unpushed commit
+  - **Raw Markdown**: one shape every time, follow-up drafts included: File,
+    Line (start and end for a range), Kind and Link lines as a list, then the
+    body exactly as Add would hold it in a fenced `markdown` block longer than
+    any backtick run inside it, so a `suggestion` block pastes whole.
+    The Link, a full-SHA permalink built from the project's URL, only when the
+    SHA is on the remote: the head came from the forge, or
+    `git for-each-ref --contains <sha> refs/remotes` prints a ref, since the
+    forge has no page for an unpushed commit
   - **Learn more**: the full trace, input to wrong output with the code cited,
-    then the same question again
+    then the same question again in the next call
   - **Skip**
   - Free text under Other redrafts the body as told, then asks again
   - A finding answered twice keeps its last answer
+- Then a second list, numbered, one line each: the minor findings with why each
+  was set aside, and the leads with the reviewer that raised them. The user
+  picks which to take further; a lead is classified first, then each picked
+  one is verified, drafted at its severity or as a question, and asked like
+  the others. The list is offered again, less what was taken, until the user
+  says none. The line between a defect worth posting
+  and noise is the user's to find, so the filter hides nothing it could show
+- Then, on an MR run, the merge state: failing jobs at the head, discussions
+  blocking the merge, and whether the head moved since the review, with each
+  finding whose file changed. A local run has none
 - Last, when anything was added: one question to publish the review, listing
   what it holds. Nothing reaches the forge before that answer
+- Then whether anything else is wanted. A finding asked for now goes through
+  the same verify, draft, walk-through and publish; an Add made after the
+  review was published gets its own publish question, sending only what it
+  adds, a second review on GitHub
 - The parent drafts each body after verifying it, from the voice file; the
   reviewers never see the voice
 - A body opens with a [Conventional Comments](https://conventionalcomments.org/)
   label, the kind as a decoration: `issue (blocking, security):` for a blocker,
   `issue (non-blocking, test):` for a defect, `question:` for one shown as a
-  question
+  question, `suggestion (non-blocking, …):` and `nitpick (non-blocking, …):`
+  for quality and nit findings taken from the second list
 - A suggested fix goes in a forge `suggestion` block only where applying it
   resolves the finding whole
 - A body never quotes a secret value
@@ -266,8 +292,10 @@ that holds the user's forge credentials:
 ## Log
 
 `ele checkpoint log`, so `/ele:checkpoint-stats` reads review runs too, once
-per run that saved its diff, a run stopping later included; one stopping before
-reviewed nothing and logs nothing:
+per run that saved its diff. The line is written when the user says nothing
+more is wanted from the review, not after the walk-through, so findings taken
+up in follow-ups are logged too. A run that stops after saving its diff logs what it has; one
+stopping before reviewed nothing and logs nothing:
 
 - Scopes `local-branch` and `mr` beside `branch`, `delta` and `uncommitted`; a
   commit with no MR logs as `local-branch`
@@ -277,9 +305,12 @@ reviewed nothing and logs nothing:
   `target`, the MR reference or the branch, and `reviewed`, the head SHA the
   reviewers read, since the record's `head` is the clone's. `mutations` and
   `rereview` are absent: neither runs
-- `dropped`: counts of findings the filter removed, `excluded`, `minor` and
-  `raised`. They are never verified, so they are counts, not findings
-- Each finding the filter kept, as checkpoint logs one: `source` the reviewer,
+- `dropped`: counts of findings the filter removed, `excluded` and `raised`,
+  and `minor`, the minor findings the user never took further. They are never
+  verified, so they are counts, not findings. A lead never taken further is
+  neither, and is not logged
+- Each finding the filter kept or the user took from the second list, as
+  checkpoint logs one: `source` the reviewer,
   `category` kebab-case, `stage` `review`, `origin` `change`, its severity, and:
   - `verdict`: `confirmed`, verified and shown; `open`, shown as a question;
     `refuted`, verified and not shown. `fixed` and `deliberate` are

@@ -32,6 +32,19 @@ through the shell.
 - A permalink: the project's `web_url`, from `glab api "projects/:id"`, then
   `/-/blob/<full sha>/<path>#L<line>`, or `#L<start>-<end>` for a range
 
+## Merge state
+
+- The head: `diff_refs.head_sha` from the MR call again; moved, the files that
+  changed, `git -C <root> diff --name-only <reviewed>..<new>` once the new head
+  is fetched, else `glab api "projects/:id/repository/compare?from=<reviewed>&to=<new>"`'s
+  `diffs[].new_path`
+- Failing jobs: the head pipeline's jobs, read again for the head now, each
+  `status` `failed` and not `allow_failure`
+- Unresolved discussions: from the discussions read again, each with a note
+  whose `resolvable` is true and `resolved` false. They block the merge where
+  the project's `only_allow_merge_if_all_discussions_are_resolved`, from
+  `glab api "projects/:id"`, is true; name them either way
+
 ## Publish
 
 1. The user's drafts already on the MR:
