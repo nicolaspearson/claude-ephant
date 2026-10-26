@@ -31,6 +31,7 @@ const (
 	noBand              = -1
 	rememberReason      = "Follow /ele:remember's Propose section now: one Write/Skip question per note, at most four per AskUserQuestion call and as many calls as it takes, then write each approved note yourself with ele remember. Never print the command for the user to run. If nothing is worth keeping, say so in one line."
 	rememberWriteReason = "Follow /ele:remember's Propose section now: auto_note_writes is on, so write each note yourself with ele remember without asking, then report each id with the note's words. Never print the command for the user to run. If nothing is worth keeping, say so in one line."
+	reviewReader        = "ele:review-reader"
 	stopStateMaxAge     = 7 * 24 * time.Hour
 	tailWindow          = 1 << 20
 )
@@ -48,6 +49,7 @@ type stopState struct {
 	Band              int              `json:"band"`
 	CheckpointStarted string           `json:"checkpointStarted,omitempty"`
 	InCheckpoint      bool             `json:"inCheckpoint"`
+	InReview          bool             `json:"inReview"`
 	MidTask           bool             `json:"midTask"`
 	Offset            int64            `json:"offset"`
 	Pending           bool             `json:"pending"`
@@ -64,7 +66,8 @@ type stopOutput struct {
 
 // A checkpoint's own gate runs and fixes are not new work; the next prompt ends it. A checkpoint starts a stretch but
 // keeps unproposed work, so a stop after it still asks for notes. A proposal's own calls, after a remember block or
-// proposal until the next prompt, are not work: counted, a proposal that writes nothing would ask again.
+// proposal until the next prompt, are not work: counted, a proposal that writes nothing would ask again. A review's calls
+// are not work either, from its readers' launch across prompts until its log line: it ends turns to print.
 func advance(state stopState, entries []transcript.Entry, events []dto.TranscriptEvent) stopState {
 	for _, entry := range entries {
 		switch {
@@ -73,11 +76,13 @@ func advance(state stopState, entries []transcript.Entry, events []dto.Transcrip
 		case entry.Kind != transcript.KindTool:
 		case strings.HasPrefix(entry.Text, "Bash: ") && writesNote(entry.Command):
 			state.Pending = false
-			if !state.InCheckpoint && !state.Proposing {
+			if !state.InCheckpoint && !state.InReview && !state.Proposing {
 				other, work := besideNotes(entry.Command)
 				state.MidTask, state.Pending = state.MidTask || other || work, work
 			}
-		case state.InCheckpoint || state.Proposing:
+		case state.InReview && strings.HasPrefix(entry.Text, "Bash: ") && logsCheckpoint(entry.Command):
+			state.InReview = false
+		case state.InCheckpoint || state.InReview || state.Proposing:
 		case strings.HasPrefix(entry.Text, "AskUserQuestion: "):
 			state.Pending = true
 		// Mid-task, not work: /clear mid-investigation loses what the reads found.
@@ -88,12 +93,13 @@ func advance(state stopState, entries []transcript.Entry, events []dto.Transcrip
 		}
 	}
 	for _, event := range events {
-		if event.Kind != transcript.EventSkill && event.Kind != transcript.EventCommand {
-			continue
-		}
 		switch {
+		// Not at the review's command: a run refused at its target never logs, so its stretch would never end.
+		case event.Kind == transcript.EventAgent && event.Name == reviewReader:
+			state.InReview = true
+		case event.Kind != transcript.EventSkill && event.Kind != transcript.EventCommand:
 		case slices.Contains(checkpointNames, event.Name):
-			state.CheckpointStarted, state.InCheckpoint, state.MidTask, state.StretchBlocked = event.Timestamp, true, false, false
+			state.CheckpointStarted, state.InCheckpoint, state.InReview, state.MidTask, state.StretchBlocked = event.Timestamp, true, false, false, false
 		case slices.Contains(proposalNames, event.Name):
 			state.Pending, state.Proposing = false, true
 		}
@@ -194,9 +200,9 @@ func readStopState(path string) (stopState, error) {
 	return state, nil
 }
 
-// Not mid-checkpoint: its turn can end while reviewers run.
+// Not mid-checkpoint or mid-review: either's turn can end while reviewers run.
 func rememberBlock(state stopState, stopHookActive bool) (bool, stopState) {
-	if !state.Pending || state.InCheckpoint || state.StretchBlocked || stopHookActive {
+	if !state.Pending || state.InCheckpoint || state.InReview || state.StretchBlocked || stopHookActive {
 		return false, state
 	}
 	state.Pending, state.Proposing, state.StretchBlocked = false, true, true

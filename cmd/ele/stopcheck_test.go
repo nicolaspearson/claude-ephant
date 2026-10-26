@@ -98,11 +98,13 @@ func TestAdvance(t *testing.T) {
 		want    stopState
 	}{
 		{entries: tool("Bash: go test ./..."), name: "a Bash call that is not a read is work", want: stopState{MidTask: true, Pending: true}},
+		{events: run(transcript.EventSkill, "ele:checkpoint"), from: stopState{InReview: true}, name: "a checkpoint ends a review", want: stopState{InCheckpoint: true}},
 		{events: run(transcript.EventSkill, "ele:checkpoint"), from: stopState{MidTask: true, StretchBlocked: true}, name: "a checkpoint skill call starts a stretch", want: stopState{InCheckpoint: true}},
 		{entries: tool("Bash: cd /w && ele remember --kind fact \"x\"; rm -rf y"), from: stopState{InCheckpoint: true, Pending: true}, name: "a checkpoint's own note and write are not work", want: stopState{InCheckpoint: true}},
 		{entries: tool("Bash: go test ./..."), from: stopState{InCheckpoint: true}, name: "a checkpoint's own runs are not work", want: stopState{InCheckpoint: true}},
 		{entries: tool("Bash: sed -i 's/ele remember //' plugin/a.md"), name: "a command naming ele remember is work", want: stopState{MidTask: true, Pending: true}},
 		{events: run(transcript.EventSkill, "ele:handoff"), from: stopState{MidTask: true, Pending: true}, name: "a handoff proposes, still mid-task", want: stopState{MidTask: true, Proposing: true}},
+		{entries: []transcript.Entry{{Kind: transcript.KindPrompt, Text: "next"}}, from: stopState{InReview: true}, name: "a prompt does not end a review", want: stopState{InReview: true}},
 		{entries: []transcript.Entry{{Kind: transcript.KindPrompt, Text: "go on"}}, from: stopState{Proposing: true}, name: "a prompt ends a proposal", want: stopState{}},
 		{entries: []transcript.Entry{{Kind: transcript.KindPrompt, Text: "go on"}}, from: stopState{InCheckpoint: true, StretchBlocked: true}, name: "a prompt ends the checkpoint, not the stretch", want: stopState{StretchBlocked: true}},
 		{entries: tool("Bash: cd /w && ele remember --kind fact \"x\"; rm -rf y"), from: stopState{Pending: true, Proposing: true}, name: "a proposal's own note and write are not work", want: stopState{Proposing: true}},
@@ -113,11 +115,18 @@ func TestAdvance(t *testing.T) {
 		{entries: tool(`AskUserQuestion: {"questions":[]}`), from: stopState{InCheckpoint: true}, name: "a question mid-checkpoint is not work", want: stopState{InCheckpoint: true}},
 		{entries: tool("Read: main.go"), name: "a read is not work", want: stopState{}},
 		{entries: tool("Bash: git log --oneline -3 | head -1"), name: "a read-only command is mid-task, not work for notes", want: stopState{MidTask: true}},
+		{entries: tool("Bash: cd /w && ele checkpoint log /w <<'EOF'\n{}\nEOF"), from: stopState{InReview: true}, name: "a review's log line after cd ends it", want: stopState{}},
+		{entries: tool("Bash: ele checkpoint log /w <<'EOF'\n{}\nEOF"), from: stopState{InReview: true}, name: "a review's log line ends it", want: stopState{}},
+		{entries: tool(`AskUserQuestion: {"questions":[]}`, "Bash: git diff main", "Bash: ele remember --kind fact \"x\""), from: stopState{InReview: true}, name: "a review's own questions, runs and notes are not work", want: stopState{InReview: true}},
+		{events: run(transcript.EventAgent, "ele:review-reader"), from: stopState{MidTask: true, Pending: true}, name: "a review's reader launch starts one, keeping pending work", want: stopState{InReview: true, MidTask: true, Pending: true}},
 		{entries: tool("Agent: review"), name: "a subagent call is not work", want: stopState{}},
 		{events: run(transcript.EventCommand, "checkpoint"), from: stopState{MidTask: true, Pending: true, StretchBlocked: true}, name: "a typed checkpoint starts a stretch, keeping pending work", want: stopState{InCheckpoint: true, Pending: true}},
 		{events: run(transcript.EventCommand, "ele:remember"), from: stopState{Pending: true}, name: "a typed remember proposes", want: stopState{Proposing: true}},
+		{events: run(transcript.EventCommand, "ele:review"), from: stopState{Pending: true}, name: "a typed review starts nothing before its readers", want: stopState{Pending: true}},
 		{events: run(transcript.EventSkill, "ele:wrap"), from: stopState{MidTask: true, Pending: true}, name: "a wrap proposes, still mid-task", want: stopState{MidTask: true, Proposing: true}},
+		{entries: tool("Bash: ele checkpoint log /w <<'EOF'\n{}\nEOF", "Edit: main.go"), from: stopState{InReview: true}, name: "an edit after a review's log is work", want: stopState{MidTask: true, Pending: true}},
 		{entries: tool("Edit: main.go"), name: "an edit is work", want: stopState{MidTask: true, Pending: true}},
+		{entries: tool("Bash: ele checkpoint log /w <<'EOF'\n{}\nEOF"), name: "an ele checkpoint log outside a review is work", want: stopState{MidTask: true, Pending: true}},
 		{entries: tool("Bash: cd /w && ele remember --kind fact \"x\""), from: stopState{Pending: true}, name: "an ele remember after cd && proposes", want: stopState{}},
 		{entries: tool("Bash: cd /w; ele remember --kind fact \"x\""), from: stopState{Pending: true}, name: "an ele remember after cd ; proposes", want: stopState{}},
 		{entries: tool("Bash: ele remember fact \"x\""), from: stopState{MidTask: true, Pending: true}, name: "an ele remember command proposes", want: stopState{MidTask: true}},
@@ -170,6 +179,7 @@ func TestRememberBlock(t *testing.T) {
 		{from: stopState{Pending: true}, name: "work pending, Stop hook already continuing", stopHookActive: true, want: stopState{Pending: true}},
 		{from: stopState{Pending: true, StretchBlocked: true}, name: "work pending, blocked this stretch", want: stopState{Pending: true, StretchBlocked: true}},
 		{from: stopState{InCheckpoint: true, Pending: true}, name: "work pending, mid-checkpoint", want: stopState{InCheckpoint: true, Pending: true}},
+		{from: stopState{InReview: true, Pending: true}, name: "work pending, mid-review", want: stopState{InReview: true, Pending: true}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
