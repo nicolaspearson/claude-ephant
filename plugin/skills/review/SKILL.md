@@ -324,12 +324,15 @@ One question holding the list, numbered, one line each: every minor finding,
 with `file:line`, its severity and why it was set aside, and every lead, with
 its `file:line` where it has one and the reviewer that raised it. Options:
 **None**, **All minor**, **All leads**, or numbers under Other. Nothing on the
-list: skip to step 11. A lead taken further is classified as step 6 classifies,
-then verified; a minor finding is verified. One that holds is drafted at its
-severity, or as a question where it can only be asked. The next call opens with
-a question holding step 8's table for the items that hold and each refuted one
-with why, options **Next** and **Stop here**, to step 11, then asks each that
-holds as step 9 asks, Add included on an MR run, within step 9's four per call.
+list: skip to step 11. When the call showing step 9's last answers asks no
+finding again and holds fewer than four questions, this question goes last in
+it, saving the user a click. A lead taken further is classified as step 6
+classifies, then verified; a minor finding is verified. One that holds is
+drafted at its severity, or as a question where it can only be asked. The next
+call opens with a question holding step 8's table for the items that hold and
+each refuted one with why, options **Next** and **Stop here**, to step 11, then
+asks each that holds as step 9 asks, Add included on an MR run, within step 9's
+four per call.
 Then ask again with the list less what was taken, until the answer is None or
 nothing is left.
 

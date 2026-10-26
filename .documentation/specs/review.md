@@ -203,6 +203,9 @@ to.
   that also says which were refuted and why, so a finding that only the second
   list turned up is seen in a table too; then each is asked like the others.
   The list is offered again, less what was taken, until the user says none.
+  The list's first offering goes last in the call showing the findings' last
+  answers when that call asks no finding again and has room, within the four
+  per call, so the user moves on without a click between them.
   The line between a defect worth posting and noise is the user's to find, so
   the filter hides nothing it could show
 - Then, on an MR run, the merge state, opening the text of the next question,
