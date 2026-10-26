@@ -26,11 +26,11 @@ mkdir -p <scratchpad>/mine && find <scratchpad>/mine -maxdepth 1 -name '<analysi
 ele mine --digests <scratchpad>/mine/<analysis> <analysis> > <scratchpad>/mine/<analysis>.jsonl 2> <scratchpad>/mine/<analysis>.err; echo $?
 ```
 
-To re-judge named units, list only those: write each as `{"session":…,"timestamp":…}` on its own line of `<scratchpad>/mine/<analysis>.units.jsonl` and add `--units <that file>` to the list command; the rest runs unchanged. A unit judged before is stored again only when its prompt or its digest has changed. When `ele` refuses the units file, correct it from the user's list, never by guessing a unit.
+To re-judge named units, list only those: write each as `{"session":…,"timestamp":…}` on its own line of `<scratchpad>/mine/<analysis>.units.jsonl` and add `--units <that file>` to the list command; the rest runs unchanged. A unit judged before is stored again only when its prompt or its digest has changed. When `ele` refuses the units file, correct it from the user's list, never by guessing a unit, and list again.
 
-Read `<analysis>.err`. On a non-zero exit it holds the error. Otherwise it may warn that the sync failed or the index is incomplete, so the list may be short, and may count the unjudged units at or before the watermark, which this skill leaves alone. Each goes in the report. Each line of `<analysis>.jsonl` is one unit, its `digest` the file to classify. Nothing listed, say so and stop for that analysis.
+Read `<analysis>.err`. On a non-zero exit it holds the error: report it and stop that analysis, unless it is a units refusal the user's list still corrects. Otherwise it may warn that the sync failed or the index is incomplete, so the list may be short, and may count the unjudged units at or before the watermark, which this skill leaves alone. Each goes in the report. Each line of `<analysis>.jsonl` is one unit, its `digest` the file to classify. Nothing listed, say so and stop for that analysis.
 
-Done when each analysis's list and `.err` have been read, and an analysis that listed nothing has stopped, a refused units file corrected first.
+Done when each analysis's list and `.err` have been read, a refused units file is corrected and listed again while the user's list still corrects it, and an analysis that listed nothing, or exited non-zero on any other error, has stopped with its reason reported.
 
 ## 2. Classify
 
@@ -57,12 +57,12 @@ ele mine --judgments <scratchpad>/mine/<analysis>.judged.jsonl --prompt <prompt>
 
 When no batch wrote an output file, store nothing and report every unit as unjudged.
 
-`ele` hashes the digest file each batch read. It refuses the whole file when a line names no unit of the analysis, a unit with no digest file, or one unit twice, and stores nothing. Correct that line's `session` or `timestamp` from line 1 of its digest — never the prompt — and store again. A unit a batch left out is not a failure: the watermark stops before it, and the next mine lists it again.
+`ele` hashes the digest file each batch read. It refuses the whole file when a line names no unit of the analysis, a unit with no digest file, or one unit twice, and stores nothing. Correct that line's `session` or `timestamp` from line 1 of its digest — never the prompt — and store again. A line no digest corrects stops that analysis: report the error and every unit as unjudged. A unit a batch left out is not a failure: the watermark stops before it, and the next mine lists it again.
 
-Done when, per analysis, `ele mine --judgments` has printed `Stored <n> of <m> judgments`, or no batch wrote output and every unit is reported unjudged.
+Done when, per analysis, `ele mine --judgments` has printed `Stored <n> of <m> judgments`, or it stored nothing and reports every unit unjudged: no batch wrote output, or a refusal no digest corrects, its error reported.
 
 ## 4. Report
 
-Per analysis: units listed, judgments stored, the watermark `ele` printed, units left unjudged with the batch that missed them, the count behind the watermark, and the runs each subagent called hard to classify.
+Per analysis: units listed, judgments stored, the watermark `ele` printed, units left unjudged with the batch that missed them or the refusal that stopped the store, the count behind the watermark, and the runs each subagent called hard to classify.
 
 Done when each analysis gives every field above, or says it has none.
