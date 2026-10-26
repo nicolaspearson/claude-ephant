@@ -24,6 +24,12 @@ skill makes.
 Keep a list of **notices** as the run goes, each a line step 8 prints above its
 table: uncommitted work left out, no spec found, hidden markup stripped.
 
+Steps 8 to 12 print by **pausing**: the text is the turn's closing reply and the
+turn ends there; the user's next message resumes the step. As of 2026-10-26,
+text meant to print before a further call in the same turn does not reliably
+reach the user, so nothing in those steps is printed and then followed by a
+call.
+
 ## 1. Target
 
 Run from a clone of the change's project. From the argument:
@@ -242,11 +248,12 @@ Done when every verified finding has a body that opens with its label.
 
 ## 8. Summary
 
-First the notices, then one table: severity, kind, `file:line`, the claim in a
-line. Under it the counts excluded and raised, and the number refuted.
+Pause with the notices, then one table: severity, kind, `file:line`, the claim
+in a line. Under it the counts excluded and raised, and the number refuted. The
+user's reply starts step 9.
 
 Done when the notices, or that there are none, the table and its counts are
-printed, before any finding is asked.
+printed in a pause, before any finding is asked.
 
 ## 9. Findings
 
@@ -255,12 +262,16 @@ to four questions per AskUserQuestion call:
 
 - **Add**, MR runs only: hold the body for the review at its line
 - **Raw Markdown**: print it in the one shape below
-- **Learn more**: the full trace, input to wrong output with the code cited,
-  then the same question again in the next call
+- **Learn more**: print the full trace, input to wrong output with the code
+  cited, then ask the same question again in the next call
 - **Skip**
 - Free text under Other: redraft the body as told, then ask again
 
 A finding answered twice keeps its last answer.
+
+When a call returns with any Raw Markdown or Learn more answer, pause with every
+one of them, in the order asked. The next call, on the user's reply, asks each
+Learn more question again first. With none, go straight on to the next call.
 
 Raw Markdown, every time, a follow-up draft included:
 
@@ -282,34 +293,36 @@ when the SHA is on the remote: the head came from the forge, or
 `git -C <root> for-each-ref --contains <sha> refs/remotes` prints a ref. Else
 say it is unpushed.
 
-Done when every finding shown has an answer, and every Raw Markdown answer is
-printed in that shape as soon as the call that answered it returns, before
-anything else is printed or asked.
+Done when every finding shown has an answer, and every Raw Markdown answer, in
+that shape, and every Learn more trace is printed in the pause after the call
+that answered it.
 
 ## 10. Second list
 
-Numbered, one line each: every minor finding, with `file:line`, its severity and
-why it was set aside, and every lead, with its `file:line` where it has one and
-the reviewer that raised it. Ask which to take further: **None**, **All
-minor**, **All leads**, or numbers under Other. A lead taken further is
-classified as step 6 classifies, then verified; a minor finding is verified. A
-refuted one is said so. One that holds is drafted at its severity,
-or as a question where it can only be asked, and asked as step 9 asks. Offer
-the list again, less what was taken, until the answer is None or nothing is
-left.
+Pause with the list, numbered, one line each: every minor finding, with
+`file:line`, its severity and why it was set aside, and every lead, with its
+`file:line` where it has one and the reviewer that raised it. Under it, ask which
+to take further: none, all minor, all leads, or numbers; the user's reply is
+the answer. A lead taken further is classified as step 6 classifies, then
+verified; a minor finding is verified. One that holds is drafted at its
+severity, or as a question where it can only be asked, and asked as step 9
+asks. Pause again with each refuted one said so and the list less what was
+taken, until the answer is none or nothing is left.
 
-Done when the answer is None or the list is empty, and every item taken further
-was said refuted or answered as step 9's done-when requires.
+Done when the answer is none or the list is empty, and every item taken further
+was said refuted in a pause or answered as step 9's done-when requires.
 
 ## 11. Merge state
 
 On an MR run, per the forge file: failing jobs at the head, discussions still
 unresolved that would block the merge, and the head read again. Moved since the
 review: say so, and per finding whether its file changed between the head
-reviewed and the new one. A local run has no merge state; say so.
+reviewed and the new one. Pause with it; on the user's reply comes the publish
+question, or, with nothing held, step 13's. A local run has no merge state: say
+so in the reply that ends the run.
 
-Done when the merge state is printed, or said not to apply, before any publish
-question.
+Done when, on an MR run, the merge state is printed in a pause before the next
+question, or, on a local run, its absence in the run's closing reply.
 
 ## 12. Publish
 
@@ -318,23 +331,26 @@ with its `file:line`. Declined, nothing is sent.
 
 On yes, read the MR's state and head again first:
 
-- Closed or merged since the review: say so; nothing is sent unless the user
-  says to
-- Head moved: say so, anchor only lines whose content is unchanged at the new
-  head, and send the rest unanchored
+- Closed or merged since the review: pause to say so; nothing is sent unless
+  the user's reply says to
+- Head moved: anchor only lines whose content is unchanged at the new head, and
+  send the rest unanchored
 - A line outside the diff, which neither forge anchors, goes unanchored, named
   `file:line` with its permalink
 
 Then publish per the forge file, every anchor computed against the head read
-now. No approval or request-changes state is set. A failed call: quote the
-error, say which findings reached the forge, and leave nothing half-sent behind,
-per the forge file.
+now. No approval or request-changes state is set. A failed call leaves nothing
+half-sent behind, per the forge file.
+
+Pause with the outcome: each finding sent, at its line or unanchored, and that
+the head moved where it did; a failed call's error quoted, with which findings
+reached the forge; or, declined, that nothing was sent.
 
 An added finding that did not reach the forge, declined, stopped or failed, logs
 as `discarded`.
 
 Done when the forge's response shows each added finding, or the user declined,
-or the failure is reported with what was sent.
+or the call failed, and that outcome is printed in a pause.
 
 ## 13. Log
 
@@ -343,7 +359,8 @@ this review is wanted. A finding the user asks after, from the second list or
 the reviewers' reports, goes through steps 6, 7, 9 and 12 for that finding
 alone, with no summary, second list or merge state again: an Add made now gets
 its own publish question, sending only what it adds, a second review on GitHub.
-When the user says that is all, log once, against the clone's root.
+When the user says that is all, log once, against the clone's root, then close
+with a reply: on a local run, that there is no merge state.
 
 A run that stops after step 2 saved the diff logs what it has. One that stops
 before then has reviewed nothing and logs nothing; say so.
