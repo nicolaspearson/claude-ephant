@@ -264,8 +264,10 @@ approval or request-changes state is set.
   a comment to a pending review, so nothing is pending on the forge between
   answers. A pending review the user already holds blocks a second one. It is
   read at the start and shown as a notice in the summary, so the user knows
-  before walking through, and read again at publish, where the run says so and
-  stops, leaving theirs untouched
+  before walking through; read again before the publish question, which, while
+  one is held, offers Check again, for after the user submits or deletes it,
+  and Don't publish, instead of a Publish that could only stop; and read again
+  at publish, where the run says so and stops, leaving theirs untouched
 - A line outside the diff, which neither forge anchors, goes unanchored: on
   GitHub in the review's `body`, on GitLab as a draft note with no `position`.
   Named `file:line`, with its permalink
