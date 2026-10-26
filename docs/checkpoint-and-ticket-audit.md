@@ -19,7 +19,10 @@ Ask for one, or let Claude run it before saying the work is done. A run:
    spec reviewer checks the change against what it asked for
 3. **Verifies** each finding against the code before fixing it, and breaks the
    code each new or changed test covers to watch the test fail
-4. **Runs the project's checks**, the ones its CI runs, again after the fixes
+4. **Runs the project's checks**, the ones its CI runs, again after the fixes. A
+   red test is fixed in the code, never changed to pass; what a test asserts
+   changes only for a behaviour change the work sets out to make, and the report
+   names it
 5. **Re-reviews** the fixes, and proposes a plan tick or progress line
 6. **Reports** each reviewer's findings, fixed, refuted or left, and prints the
    commit commands for you to run. It never commits

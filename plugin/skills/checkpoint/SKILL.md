@@ -273,11 +273,17 @@ Then:
   the checkpoint does not count. Confirm the mutation landed before reading a
   non-failure — an anchor that did not match leaves the code untouched, and the
   passing test then looks exactly like one that cannot fail.
+- **A red test is fixed in the code.** Never rewrite an expected value to what
+  the code returns, weaken an assertion, widen a tolerance, or skip or delete a
+  case to make it pass. What a test asserts changes only for a behaviour change
+  this change sets out to make, which §10 names; a rename or signature change
+  edits a test without changing what it asserts.
 - **Every scripted edit landed.** Grep for the new string, not the old one.
 
 §5 is done when every finding on the running list has a verdict, every confirmed
 one is fixed or routed as above, every new or changed test has gone red in this
-run, and every scripted edit's new string is found.
+run, every test whose assertions changed follows a behaviour change this change
+sets out to make, and every scripted edit's new string is found.
 
 ## 6. Gate
 
@@ -286,8 +292,10 @@ done, unless nothing changed since it started. Say so if skipped.
 
 A red check is pre-existing only once it fails the same way at HEAD: read
 `HEAD-EXPORT.md` beside this file for the export and for when such a check
-counts as green. Any check that neither passes nor counts as green, and is not
-being fixed in this run: see Stopping early.
+counts as green. A test this change turns red is fixed in the code, as §5 says;
+its assertions change only if this change sets out to change what it covers.
+Any check that neither passes nor counts as green, and is not being fixed in
+this run: see Stopping early.
 
 §6 is done when the latest gate log ends in `gate exit` and every §2 check is
 passing, counted green per `HEAD-EXPORT.md`, unverified, or handed to Stopping
@@ -381,6 +389,7 @@ and Prose ones when the skill call has scrolled out of its view.
 - Convention violations, naming the rule and the file it came from.
 - Any file marked denser than its peers whose comments were not swept.
 - Tests mutated, and whether each failed.
+- Tests whose assertions changed, each with the behaviour change it follows.
 - **Re-review:** what it found, or that the fingerprint had not moved.
 - **Plan:** §7's plan state, and any line it wrote, as it stands after §8's
   re-review.

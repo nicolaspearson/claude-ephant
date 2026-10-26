@@ -52,6 +52,10 @@ Then the misses that recur:
   fixture depending on key order, an assertion on a log line.
 - **Vacuous tests.** A test proving a value was copied across stays
   green when its consumer ignores it.
+- **Tests changed to pass.** An expected value rewritten to what the code now
+  returns, an assertion weakened, a tolerance widened, a case skipped or deleted,
+  where the change does not set out to change the behaviour the test covers. The
+  test was right; the code is the defect.
 - **Uncovered cases.** Per new branch, state and breakpoint: name the test
   exercising it, or report it uncovered.
 - **Wire fields nothing reads.** A field a transport maps and a domain type
