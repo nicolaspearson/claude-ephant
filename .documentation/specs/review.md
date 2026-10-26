@@ -154,51 +154,73 @@ In order, before the user sees anything:
 
 ## Walk-through
 
-The walk-through prints by pausing: the text is the turn's closing reply, and
-the user's next message resumes it. As of 2026-10-26, text meant to print
-between two calls in the same turn does not reliably reach the user, while a
-turn's closing reply does. Each pause costs the user a reply, so a call whose
-answers need nothing printed goes straight on to the next.
+Everything the walk-through shows goes inside an AskUserQuestion call, in a
+question's text or an option's `preview`, each question's options naming the
+next step; only the run's last reply, after its log, is plain text. As of
+2026-10-26, text meant to print between two calls in the same turn does not
+reliably reach the user, while a call's text does and stays in the scrollback
+once answered. Ending the turn to print is kept only for Print it, since each
+such stop costs a typed reply; a question costs a click and says what it leads
+to.
 
-- First, one table, in a pause: severity, kind (bug, convention, security,
-  spec, test), `file:line`, the claim in a line, then the excluded and raised
-  counts and the number of findings refuted
+- First, one question holding the notices and one table: severity, kind (bug,
+  convention, security, spec, test), `file:line`, the claim in a line, then the
+  excluded and raised counts and the number of findings refuted. With no
+  finding left, it says so in the table's place. Options: walk through the
+  findings, or go on when there are none, or stop here, which goes to the merge
+  state so anything held can still be published
 - Then each finding in severity order, one question each, the drafted body
-  shown verbatim in it, up to four questions per AskUserQuestion call:
+  shown verbatim in it, up to four questions per AskUserQuestion call, the
+  answers to show first, then findings asked again after Learn more, then new
+  ones, what does not fit going to the next call. Every answer a call returns
+  is acted on before anything else, so a Stop here beside an Add or a Raw
+  Markdown answer loses neither. Stop here goes to the merge state once those
+  answers are shown, so anything held can still be published, and the findings
+  not yet answered log as `unanswered`:
   - **Add**: the body is held for the review at its line
-  - **Raw Markdown**: printed in the pause after the call that answered it.
-    One shape every time, follow-up drafts included: File,
-    Line (start and end for a range), Kind and Link lines as a list, then the
-    body exactly as Add would hold it in a fenced `markdown` block longer than
-    any backtick run inside it, so a `suggestion` block pastes whole.
-    The Link, a full-SHA permalink built from the project's URL, only when the
+  - **Raw Markdown**: shown in a question of its own, as the `preview` of its
+    options, **Next** and **Print it**, the latter ending the turn with it as
+    the closing reply for a copy the preview box mangles, its last line saying
+    that any reply moves on and to what. One shape every time, follow-up drafts
+    included: File, Line (start and end for a range), Kind and Link lines as a
+    list, then the body exactly as Add would hold it in a fenced `markdown`
+    block longer than any backtick run inside it, so a `suggestion` block
+    pastes whole. The Link, a full-SHA permalink built from the project's URL, only when the
     SHA is on the remote: the head came from the forge, or
     `git for-each-ref --contains <sha> refs/remotes` prints a ref, since the
     forge has no page for an unpushed commit
   - **Learn more**: the full trace, input to wrong output with the code cited,
-    printed in the same pause, then the same question again in the next call
+    shown as its own question's text, options to go on or stop here, then the
+    same question again
   - **Skip**
   - Free text under Other redrafts the body as told, then asks again
   - A finding answered twice keeps its last answer
-- Then a second list, in a pause, numbered, one line each: the minor findings
-  with why each was set aside, and the leads with the reviewer that raised
-  them. The user's reply picks which to take further; a lead is classified
-  first, then each picked one is verified, drafted at its severity or as a
-  question, and asked like the others. The list is offered again, less what
-  was taken, until the user says none. The line between a defect worth posting
-  and noise is the user's to find, so the filter hides nothing it could show
-- Then, on an MR run, the merge state, in a pause before the next question,
+- Then a second list, in one question, numbered, one line each: the minor
+  findings with why each was set aside, and the leads with the reviewer that
+  raised them. The user picks which to take further; a lead is classified
+  first, then each picked one is verified and drafted at its severity or as a
+  question. Those that hold are shown in the first table's shape, in a question
+  that also says which were refuted and why, so a finding that only the second
+  list turned up is seen in a table too; then each is asked like the others.
+  The list is offered again, less what was taken, until the user says none.
+  The line between a defect worth posting and noise is the user's to find, so
+  the filter hides nothing it could show
+- Then, on an MR run, the merge state, opening the text of the next question,
   whether to publish or whether anything else is wanted: failing jobs at the
   head, discussions blocking the merge, and whether the head moved since the
-  review, with each finding whose file changed. A local run has none, said in
-  its closing reply
+  review, with each finding whose file changed. A local run has none, said
+  there instead
 - Last, when anything was added: one question to publish the review, listing
-  what it holds. Nothing reaches the forge before that answer. What was sent,
-  or the failure, or that nothing was, is printed in a pause
-- Then whether anything else is wanted. A finding asked for now goes through
-  the same verify, draft, question and publish, with no table, second list or
-  merge state again; an Add made after the review was published gets its own
-  publish question, sending only what it adds, a second review on GitHub
+  what it holds, options to publish or not. Nothing reaches the forge before
+  that answer. What was sent, or the failure, or that nothing was, opens the
+  next question's text
+- Then a question whether anything else is wanted; asking for something else
+  brings a question listing, numbered, what is left. A finding asked for now
+  goes through the same verify, draft, question and publish, with no table,
+  second list or merge state again; an Add made after the review was published
+  gets its own publish question, sending only what it adds, a second review on
+  GitHub. Held bodies a declined or stopped publish did not send are listed
+  too, to give as Raw Markdown
 - The parent drafts each body after verifying it, from the voice file; the
   reviewers never see the voice
 - A body opens with a [Conventional Comments](https://conventionalcomments.org/)
@@ -240,17 +262,19 @@ approval or request-changes state is set.
   `comments[]` with `path`, `line` and `side` (`LEFT` on a removed line, `RIGHT`
   otherwise), a range with `start_line` and `start_side`. The REST API cannot add
   a comment to a pending review, so nothing is pending on the forge between
-  answers. A pending review the user already holds blocks a second one: say so
-  and stop, leaving theirs untouched
+  answers. A pending review the user already holds blocks a second one. It is
+  read at the start and shown as a notice in the summary, so the user knows
+  before walking through, and read again at publish, where the run says so and
+  stops, leaving theirs untouched
 - A line outside the diff, which neither forge anchors, goes unanchored: on
   GitHub in the review's `body`, on GitLab as a draft note with no `position`.
   Named `file:line`, with its permalink
 - The head SHA moved since the review: say so, anchor only lines whose content
   is unchanged at the new head, and send the rest unanchored
-- The MR closed or merged since the review: say so in a pause; nothing is sent
-  unless the user's reply says to
+- The MR closed or merged since the review: say so in a question; nothing is
+  sent unless the user picks sending anyway
 - A failed call: quote the error, and say which findings reached the forge, in
-  a pause. On
+  the next question's text. On
   GitLab, each draft this run created and did not publish is deleted, so none
   waits on the forge under the user's name; a GitHub review is created whole or
   not at all

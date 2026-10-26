@@ -32,6 +32,9 @@ remote. A JSON body goes in a file under `<scratch>`, passed with
   conversation, `gh api --paginate "repos/{owner}/{repo}/issues/<n>/comments"`
 - The head checks: `gh pr checks <n> --json name,state,bucket`. It exits
   non-zero when a check failed or is pending; read its output all the same
+- A pending review the user holds: the same call as Publish's first step, which
+  runs again at publish; read here so the summary can say publishing will stop
+  on it
 - The issues it closes: `closingIssuesReferences`; each whole with
   `gh issue view <number> -R <owner>/<name> --json title,body,comments`, the
   owner and name from that reference's `repository`, which a cross-repository

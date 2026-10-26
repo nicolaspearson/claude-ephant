@@ -30,20 +30,23 @@ name.
    each blocker, defect and question is traced through the code before you see
    it
 4. **Walks through** the findings: a table first, then one question each, the
-   comment shown word for word. Whenever it prints something for you, it stops
-   there; reply, "next" will do, to go on. **Add** holds it for the review,
-   **Raw Markdown** prints its file, line and kind, a permalink when the commit
-   is on the remote, and the comment in a block ready to paste, **Learn more**
-   shows the trace, and **Skip** drops it. Typing your own answer redrafts it.
-   Then a second list: the minor findings and what the reviewers raised as questions,
-   one line each, for you to pick any worth taking further: each is checked
-   against the code before it is drafted. Last, for a merge request, the merge
-   state: failing jobs, discussions blocking the merge, and whether the head
-   moved since the review
+   comment shown word for word. Everything it shows you is in its questions, so
+   you click through rather than type. **Add** holds it for the review,
+   **Raw Markdown** shows its file, line and kind, a permalink when the commit
+   is on the remote, and the comment in a box ready to copy, or prints it as
+   plain text if you pick **Print it**, after which any reply goes on. **Learn
+   more** shows the trace, and **Skip** drops it. Typing your own answer
+   redrafts it. Then a second list: the minor findings and what the reviewers
+   raised as questions, one line each, for you to pick any worth taking
+   further: each is checked against the code before it is drafted, and those
+   that hold are shown in a table and asked like the others. Last, for a merge
+   request, the merge state: failing jobs, discussions blocking the merge, and
+   whether the head moved since the review
 5. **Publishes** once, at the end, after one last question listing what the
-   review holds. On GitHub it is one review; on GitLab, draft notes published
-   together, or one by one when you hold drafts of your own there, which stay
-   drafts. It sets no approval: do that on the forge. Ask for more afterwards
+   review holds. On GitHub it is one review, and a pending review you already
+   hold there blocks it: the summary says so up front; on GitLab, draft notes
+   published together, or one by one when you hold drafts of your own there,
+   which stay drafts. It sets no approval: do that on the forge. Ask for more afterwards
    and anything you add then is published separately
 
 On your own branch, or a commit, Add is offered only when an open MR's head is

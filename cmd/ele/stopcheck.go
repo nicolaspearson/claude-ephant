@@ -67,7 +67,7 @@ type stopOutput struct {
 // A checkpoint's own gate runs and fixes are not new work; the next prompt ends it. A checkpoint starts a stretch but
 // keeps unproposed work, so a stop after it still asks for notes. A proposal's own calls, after a remember block or
 // proposal until the next prompt, are not work: counted, a proposal that writes nothing would ask again. A review's calls
-// are not work either, from its readers' launch across prompts until its log line: it ends turns to print.
+// are not work either, from its readers' launch across prompts until its log line: its turns end while readers run and at a Print it.
 func advance(state stopState, entries []transcript.Entry, events []dto.TranscriptEvent) stopState {
 	for _, entry := range entries {
 		switch {

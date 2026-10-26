@@ -21,14 +21,17 @@ is known, read
 `GITLAB.md` or `GITHUB.md` beside this file, which hold every forge call this
 skill makes.
 
-Keep a list of **notices** as the run goes, each a line step 8 prints above its
-table: uncommitted work left out, no spec found, hidden markup stripped.
+Keep a list of **notices** as the run goes, each a line step 8 shows above its
+table: uncommitted work left out, no spec found, hidden markup stripped, a
+pending review the user holds on GitHub.
 
-Steps 8 to 12 print by **pausing**: the text is the turn's closing reply and the
-turn ends there; the user's next message resumes the step. As of 2026-10-26,
-text meant to print before a further call in the same turn does not reliably
-reach the user, so nothing in those steps is printed and then followed by a
-call.
+From step 8 on, everything shown to the user goes **inside an AskUserQuestion
+call**, in a question's text or an option's `preview`, never as text between
+calls. As of 2026-10-26, text meant to print before a further call in the same
+turn does not reliably reach the user, while a call's text does and stays in the
+scrollback once answered. Each such question's options name the next step, so
+the user clicks on rather than types. Only step 9's Print it and the run's last
+reply, after step 13's log, are plain text.
 
 ## 1. Target
 
@@ -85,7 +88,8 @@ saved, and the change list is written out.
 ## 3. Context
 
 Per the forge file, for an MR: the description, the discussions, and the head
-pipeline's status and each job's name and result.
+pipeline's status and each job's name and result. On GitHub, also a pending
+review the user holds: one is a notice, since step 12 stops on it.
 
 The spec:
 
@@ -248,12 +252,14 @@ Done when every verified finding has a body that opens with its label.
 
 ## 8. Summary
 
-Pause with the notices, then one table: severity, kind, `file:line`, the claim
-in a line. Under it the counts excluded and raised, and the number refuted. The
-user's reply starts step 9.
+One question holding the notices, then one table: severity, kind, `file:line`,
+the claim in a line. Under it the counts excluded and raised, and the number
+refuted. No finding left: say so in place of the table. Options: **Walk through
+findings**, or, with nothing to ask, **Go on**, to step 10; and **Stop here**,
+to step 11.
 
-Done when the notices, or that there are none, the table and its counts are
-printed in a pause, before any finding is asked.
+Done when the notices, or that there are none, the table or that no finding is
+left, and its counts are in that question, asked before any finding.
 
 ## 9. Findings
 
@@ -261,17 +267,31 @@ The findings in severity order, one question each, its body verbatim in it, up
 to four questions per AskUserQuestion call:
 
 - **Add**, MR runs only: hold the body for the review at its line
-- **Raw Markdown**: print it in the one shape below
-- **Learn more**: print the full trace, input to wrong output with the code
-  cited, then ask the same question again in the next call
+- **Raw Markdown**: show it in the one shape below
+- **Learn more**: show the full trace, input to wrong output with the code
+  cited, then ask the same question again
 - **Skip**
 - Free text under Other: redraft the body as told, then ask again
 
 A finding answered twice keeps its last answer.
 
-When a call returns with any Raw Markdown or Learn more answer, pause with every
-one of them, in the order asked. The next call, on the user's reply, asks each
-Learn more question again first. With none, go straight on to the next call.
+A Raw Markdown or Learn more answer is shown in a question of its own, naming
+its finding:
+
+- Raw Markdown: the shape below as the `preview` of both options, **Next** and
+  **Print it**. Print it ends the turn with the shape as the closing reply, for
+  a copy the preview box mangles, every Print it of that call in one reply, its
+  last line saying that any reply, "go" for one, moves on to what comes next,
+  named
+- Learn more: the trace in the question's text, options **Next** and **Stop
+  here**. Its finding is then asked again
+
+Every call holds at most four questions, in this order: answers to show, in the
+order answered, then Learn more findings asked again, then findings not yet
+asked; what does not fit goes in the next call, in the same order. Every answer
+in a returning call is acted on before anything else: Add held, Skip dropped,
+an answer to show queued. **Stop here** goes to step 11 once the queued answers
+are shown, the findings not yet answered left `unanswered`.
 
 Raw Markdown, every time, a follow-up draft included:
 
@@ -286,53 +306,58 @@ Raw Markdown, every time, a follow-up draft included:
 ````
 `````
 
-The outer five-backtick fence is this file's, not printed. The body's fence is
+The outer five-backtick fence is this file's, not shown. The body's fence is
 longer than any backtick run inside it, four backticks for a
 body holding a `suggestion` block, so the block pastes whole. The Link line only
 when the SHA is on the remote: the head came from the forge, or
 `git -C <root> for-each-ref --contains <sha> refs/remotes` prints a ref. Else
 say it is unpushed.
 
-Done when every finding shown has an answer, and every Raw Markdown answer, in
-that shape, and every Learn more trace is printed in the pause after the call
-that answered it.
+Done when every finding has an answer or is left `unanswered` by Stop here, and
+every Raw Markdown answer, in that shape, and every Learn more trace is shown
+before any finding not yet asked.
 
 ## 10. Second list
 
-Pause with the list, numbered, one line each: every minor finding, with
-`file:line`, its severity and why it was set aside, and every lead, with its
-`file:line` where it has one and the reviewer that raised it. Under it, ask which
-to take further: none, all minor, all leads, or numbers; the user's reply is
-the answer. A lead taken further is classified as step 6 classifies, then
-verified; a minor finding is verified. One that holds is drafted at its
-severity, or as a question where it can only be asked, and asked as step 9
-asks. Pause again with each refuted one said so and the list less what was
-taken, until the answer is none or nothing is left.
+One question holding the list, numbered, one line each: every minor finding,
+with `file:line`, its severity and why it was set aside, and every lead, with
+its `file:line` where it has one and the reviewer that raised it. Options:
+**None**, **All minor**, **All leads**, or numbers under Other. Nothing on the
+list: skip to step 11. A lead taken further is classified as step 6 classifies,
+then verified; a minor finding is verified. One that holds is drafted at its
+severity, or as a question where it can only be asked. The next call opens with
+a question holding step 8's table for the items that hold and each refuted one
+with why, options **Next** and **Stop here**, to step 11, then asks each that
+holds as step 9 asks, Add included on an MR run, within step 9's four per call.
+Then ask again with the list less what was taken, until the answer is None or
+nothing is left.
 
-Done when the answer is none or the list is empty, and every item taken further
-was said refuted in a pause or answered as step 9's done-when requires.
+Done when the answer is None or the list is empty, every item taken further was
+shown refuted or in a table, and each shown is answered as step 9's done-when
+requires.
 
 ## 11. Merge state
 
 On an MR run, per the forge file: failing jobs at the head, discussions still
 unresolved that would block the merge, and the head read again. Moved since the
 review: say so, and per finding whether its file changed between the head
-reviewed and the new one. Pause with it; on the user's reply comes the publish
+reviewed and the new one. It opens the text of the next question: the publish
 question, or, with nothing held, step 13's. A local run has no merge state: say
-so in the reply that ends the run.
+so there instead.
 
-Done when, on an MR run, the merge state is printed in a pause before the next
-question, or, on a local run, its absence in the run's closing reply.
+Done when the merge state, or on a local run its absence, opens the next
+question's text.
 
 ## 12. Publish
 
 Only when anything was added: one question to publish, listing each held body
-with its `file:line`. Declined, nothing is sent.
+with its `file:line`, options **Publish** and **Don't publish**. Declined,
+nothing is sent.
 
 On yes, read the MR's state and head again first:
 
-- Closed or merged since the review: pause to say so; nothing is sent unless
-  the user's reply says to
+- Closed or merged since the review: say so in a question, options **Send
+  anyway** and **Don't send**
 - Head moved: anchor only lines whose content is unchanged at the new head, and
   send the rest unanchored
 - A line outside the diff, which neither forge anchors, goes unanchored, named
@@ -342,25 +367,32 @@ Then publish per the forge file, every anchor computed against the head read
 now. No approval or request-changes state is set. A failed call leaves nothing
 half-sent behind, per the forge file.
 
-Pause with the outcome: each finding sent, at its line or unanchored, and that
-the head moved where it did; a failed call's error quoted, with which findings
-reached the forge; or, declined, that nothing was sent.
+The outcome opens step 13's question: each finding sent, at its line or
+unanchored, and that the head moved where it did; a failed call's error quoted,
+with which findings reached the forge; or, declined or stopped on a pending
+review, that nothing was sent.
 
 An added finding that did not reach the forge, declined, stopped or failed, logs
 as `discarded`.
 
 Done when the forge's response shows each added finding, or the user declined,
-or the call failed, and that outcome is printed in a pause.
+or the call failed, and that outcome opens step 13's question.
 
 ## 13. Log
 
-After step 12, or step 11 when nothing was added, ask whether anything else from
-this review is wanted. A finding the user asks after, from the second list or
-the reviewers' reports, goes through steps 6, 7, 9 and 12 for that finding
-alone, with no summary, second list or merge state again: an Add made now gets
-its own publish question, sending only what it adds, a second review on GitHub.
-When the user says that is all, log once, against the clone's root, then close
-with a reply: on a local run, that there is no merge state.
+After step 12, or step 11 when nothing was added, ask one question whether
+anything else from this review is wanted, its text opened by step 11's or step
+12's, options **That's all** and **Something else**. Something else is
+followed by one question listing, numbered, what is left: second-list items not
+taken, findings not yet answered, and held bodies not sent, which can be given
+as Raw Markdown; options **All listed**, or **That's all** when nothing is
+listed, and **Back**, which asks again whether anything else is wanted, numbers
+or anything else named under Other. A finding the user asks after goes through steps 6,
+7, 9 and 12 for that finding alone, with no summary, second list or merge state
+again: an Add made now gets its own publish question, sending only what it adds,
+a second review on GitHub. When the user says that is all, log once, against
+the clone's root, then close with a short reply: what was published, what was
+given as Raw Markdown, and what was skipped.
 
 A run that stops after step 2 saved the diff logs what it has. One that stops
 before then has reviewed nothing and logs nothing; say so.
