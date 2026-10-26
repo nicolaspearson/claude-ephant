@@ -208,7 +208,7 @@ func TestRunStopCheckAsksForNotesOncePerStretch(t *testing.T) {
 	require.Empty(t, raw, "suppressed while a Stop hook is already continuing the turn")
 	raw, output := run.stop(run.gateway, false)
 	require.Equal(t, block, output, "the suppressed block waits for the next stop")
-	require.Equal(t, `{"decision":"block","reason":"Follow /ele:remember's Propose section now: one AskUserQuestion call, one Write/Skip question per note, then write each approved note yourself with ele remember. Never print the command for the user to run. If nothing is worth keeping, say so in one line."}`+"\n", raw)
+	require.Equal(t, `{"decision":"block","reason":"Follow /ele:remember's Propose section now: one Write/Skip question per note, at most four per AskUserQuestion call and as many calls as it takes, then write each approved note yourself with ele remember. Never print the command for the user to run. If nothing is worth keeping, say so in one line."}`+"\n", raw)
 	raw, _ = run.stop(run.gateway, false)
 	require.Empty(t, raw, "no new work since the block")
 

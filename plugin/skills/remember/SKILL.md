@@ -47,7 +47,7 @@ When a skill or ele's Stop hook asks for notes, propose the note it names, or el
 - A question the user left open
 - A dated fact about the environment that the code does not hold
 
-Nothing worth keeping, say so in one line. Otherwise run `ele config get auto_note_writes`. When it prints `true`, write each note yourself without asking, then report each id with the note's words, so a wrong one can be undone with `ele forget <id>`. Otherwise ask with AskUserQuestion, loading it through ToolSearch if it is deferred, and write each approved note yourself; never print the commands for the user to run. Ask in the same turn, one call, one question per note, at most four, the tool's limit:
+Nothing worth keeping, say so in one line. Otherwise run `ele config get auto_note_writes`. When it prints `true`, write each note yourself without asking, then report each id with the note's words, so a wrong one can be undone with `ele forget <id>`. Otherwise ask with AskUserQuestion, loading it through ToolSearch if it is deferred, and write each approved note yourself; never print the commands for the user to run. Ask in the same turn, one question per note: at most four per call, the tool's limit, and as many calls as it takes, so no note is dropped. Each question holds:
 
 - `question`: the note's exact words, and the ids it supersedes, if any
 - `header`: its kind

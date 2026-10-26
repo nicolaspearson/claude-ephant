@@ -29,7 +29,7 @@ import (
 const (
 	hintBand            = 100000
 	noBand              = -1
-	rememberReason      = "Follow /ele:remember's Propose section now: one AskUserQuestion call, one Write/Skip question per note, then write each approved note yourself with ele remember. Never print the command for the user to run. If nothing is worth keeping, say so in one line."
+	rememberReason      = "Follow /ele:remember's Propose section now: one Write/Skip question per note, at most four per AskUserQuestion call and as many calls as it takes, then write each approved note yourself with ele remember. Never print the command for the user to run. If nothing is worth keeping, say so in one line."
 	rememberWriteReason = "Follow /ele:remember's Propose section now: auto_note_writes is on, so write each note yourself with ele remember without asking, then report each id with the note's words. Never print the command for the user to run. If nothing is worth keeping, say so in one line."
 	stopStateMaxAge     = 7 * 24 * time.Hour
 	tailWindow          = 1 << 20

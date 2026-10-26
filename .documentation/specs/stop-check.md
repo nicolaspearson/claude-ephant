@@ -39,7 +39,7 @@ The two are decided independently; both can go out on one stop.
 - Notes block: work done since the last block or proposal, with no block yet in this stretch, no checkpoint running and `stop_hook_active` false → block with the remember reason. A stretch runs from one checkpoint to the next: nearly every turn runs work, so without it nearly every turn would block. A checkpoint starts a stretch but keeps unproposed work, so the first stop after it ends, at the next prompt, still asks unless notes were proposed since; a session that never checkpoints is asked once. Not while it runs: its turn can end with reviewers still out
 - Neither → exit 0
 
-The remember reason: "Follow /ele:remember's Propose section now: one AskUserQuestion call, one Write/Skip question per note, then write each approved note yourself with ele remember. Never print the command for the user to run. If nothing is worth keeping, say so in one line." With `auto_note_writes` on, the reason says the notes are written without the question.
+The remember reason: "Follow /ele:remember's Propose section now: one Write/Skip question per note, at most four per AskUserQuestion call and as many calls as it takes, then write each approved note yourself with ele remember. Never print the command for the user to run. If nothing is worth keeping, say so in one line." With `auto_note_writes` on, the reason says the notes are written without the question.
 
 ## State
 

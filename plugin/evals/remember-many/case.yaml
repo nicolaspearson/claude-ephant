@@ -1,0 +1,11 @@
+schema_version: "1.1"
+name: remember-many
+description: With five notes to propose, past the tool's four, ele:remember asks Write or Skip for all five and writes nothing unanswered
+runs: 1
+execution:
+  max_turns: 10
+  allowed_tools: [AskUserQuestion, Bash, Skill]
+  prompt: |
+    We just made five decisions. Pin pydantic below 2.14, because 2.14 reorders validators and breaks our request models. Keep Postgres at 15 until the read replicas move, because logical replication between 15 and 16 drops sequences. Retry webhook deliveries 5 times, not 3, because the billing provider's outages last about 20 minutes. Store invoice amounts as integer cents, because float rounding lost a cent on split payments. Run migrations in a separate deploy step, because a failed migration rolled back the app container with it. Propose notes for these per /ele:remember.
+context:
+  scaffold_script: scaffold.sh
