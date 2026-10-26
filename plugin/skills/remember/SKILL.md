@@ -35,6 +35,8 @@ Quote the words so the shell keeps them as written. Report the id `ele` prints: 
 
 To reword a note, save the new wording with `--supersedes <id>`. When the user says a note was saved by mistake, `ele forget <id>` moves it out (`--owner <name>` for another owner's note), and `ele forget --restore <id>` undoes it. `ele` refuses while another note supersedes it: forget that note first, or leave both.
 
+Done when each note written has the id `ele` printed reported, each reminder with its due date, and each refused one the id of the live note `ele` named, or `ele`'s reason where it names none.
+
 ## Before writing
 
 Read the note back as a stranger would, a month from now. If it needs the conversation to make sense, rewrite it.
@@ -54,3 +56,5 @@ Nothing worth keeping, say so in one line. Otherwise run `ele config get auto_no
 - Options: `Write` (save the note), `Skip` (drop it)
 
 Write each note answered `Write`. An `Other` answer that rewords the note is written as reworded; any other `Other` answer is settled with the user before that note is written or skipped. Then report each id, and how many notes were proposed and written.
+
+Done when the one line says nothing is worth keeping, or every proposed note is written, skipped or reported refused per Write, and the report gives each written note's id, with its words when written unasked, and how many were proposed and written when asked.

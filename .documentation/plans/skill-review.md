@@ -58,8 +58,9 @@ A writing-for-agents review of `plugin/skills/` on 2026-10-23 found meanings kep
 - [x] mine-done-whens: Add a done-when to `mine/SKILL.md` §1 (each analysis's list and `.err` read), §2 (every batch launched), §3 (`ele mine --judgments` prints what it stored, or no batch wrote output and every unit is reported unjudged) and §4 (every report field given per analysis)
   - done when each of `mine/SKILL.md`'s four numbered sections ends with a `Done when` line, and the wording-only checks pass
   - asserted in the mine-done-whens commit: each of `mine/SKILL.md`'s four numbered sections ends with a `Done when` line; §3's quotes the `Stored <n> of <m> judgments` line `ele mine --judgments` prints; `ele plan check`, `task check FORCE=1` and `task audit` exit 0
-- [ ] step-exits: Each step of `handoff/SKILL.md` and `remember/SKILL.md` ends with a done-when, as checkpoint's and ticket-audit's do; `recall`'s sections are alternatives picked per query, not a sequence that ends
+- [x] step-exits: Each step of `handoff/SKILL.md` and `remember/SKILL.md` ends with a done-when, as checkpoint's and ticket-audit's do; `recall`'s sections are alternatives picked per query, not a sequence that ends
   - done when handoff's Write and remember's Write and Propose each end with a `Done when` line, and the wording-only checks pass
+  - asserted in the step-exits commit: handoff's Write and remember's Write and Propose each end with a `Done when` line; nothing moved and no pointer was added, so the grep and pointer checks have nothing to find; `ele plan check`, `task check FORCE=1` and `task audit` exit 0
 - [ ] Fold what this plan built, and its out-of-scope lines as `Not doing:`, into the spec, run `ele plan done .documentation/plans/skill-review.md`, and delete this plan
 
 ## Inbox

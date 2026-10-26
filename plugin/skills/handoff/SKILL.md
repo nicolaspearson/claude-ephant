@@ -21,3 +21,5 @@ ele remember --kind handoff "<words>"
 `--project <name>` when the work belongs to a project other than the working directory's. A decision that outlives the task goes in its own note per `/ele:remember`.
 
 Report the id, then end with: `/clear, then continue`.
+
+Done when the reply reports the handoff's id, or a refusal as `/ele:remember`'s Write does, and ends with `/clear, then continue`.
