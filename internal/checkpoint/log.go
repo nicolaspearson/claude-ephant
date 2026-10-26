@@ -19,9 +19,12 @@ import (
 )
 
 var (
+	fullSHA = regexp.MustCompile(`^[0-9a-f]{40}$`)
 	kebab   = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 	seconds = regexp.MustCompile(`^[0-9]+$`)
 )
+
+var reviewScopes = []string{"local-branch", "mr"}
 
 func Append(ctx context.Context, root string, record map[string]any, logPath string, now time.Time) error {
 	line := maps.Clone(record)
@@ -30,7 +33,9 @@ func Append(ctx context.Context, root string, record map[string]any, logPath str
 	line["head"] = strings.TrimSpace(head)
 	line["repository"] = root
 	run, runErr := RunFile(ctx, root, Session())
-	if startedSeconds, ok := startedAt(run); runErr == nil && ok {
+	// A review logged mid-checkpoint leaves that run's clock running.
+	timed := runErr == nil && !IsReview(record)
+	if startedSeconds, ok := startedAt(run); timed && ok {
 		line["duration"] = now.Unix() - startedSeconds
 	}
 	var encoded bytes.Buffer
@@ -53,13 +58,18 @@ func Append(ctx context.Context, root string, record map[string]any, logPath str
 	if err = file.Close(); err != nil {
 		return err
 	}
-	if runErr != nil {
+	if !timed {
 		return nil
 	}
 	if err = os.Remove(run + ".started"); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	return nil
+}
+
+func IsReview(record map[string]any) bool {
+	scope, _ := record["scope"].(string)
+	return isReviewScope(scope)
 }
 
 func LogPath() (string, error) {
@@ -103,19 +113,46 @@ func Problems(input io.Reader) (map[string]any, []string, error) {
 	if _, supplied := record["duration"]; supplied {
 		problems = append(problems, "duration is derived from the first freeze; leave it out")
 	}
-	problems = append(problems, notOneOf("mode", valueAt(record, "mode"), "full", "small")...)
-	problems = append(problems, notOneOf("rereview", valueAt(record, "rereview"), "ran", "skipped")...)
-	problems = append(problems, notOneOf("scope", valueAt(record, "scope"), "branch", "delta", "uncommitted")...)
-	for _, path := range [][]string{{"change", "files"}, {"change", "lines"}, {"mutations", "failed"}, {"mutations", "inconclusive"}, {"mutations", "run"}, {"notes", "approved"}, {"notes", "proposed"}} {
+	review := IsReview(record)
+	if review {
+		problems = append(problems, notOneOf("mode", valueAt(record, "mode"), "full")...)
+	} else {
+		problems = append(problems, notOneOf("mode", valueAt(record, "mode"), "full", "small")...)
+	}
+	problems = append(problems, notOneOf("scope", valueAt(record, "scope"), "branch", "delta", "local-branch", "mr", "uncommitted")...)
+	counts := [][]string{{"change", "files"}, {"change", "lines"}, {"notes", "approved"}, {"notes", "proposed"}}
+	if review {
+		counts = append(counts, []string{"dropped", "excluded"}, []string{"dropped", "minor"}, []string{"dropped", "raised"})
+		for _, name := range []string{"mutations", "rereview"} {
+			if _, present := record[name]; present {
+				problems = append(problems, name+" is absent on a review, since none runs; leave it out")
+			}
+		}
+		if target, _ := record["target"].(string); target == "" {
+			problems = append(problems, "a review has no target")
+		}
+		if reviewed, _ := record["reviewed"].(string); !fullSHA.MatchString(reviewed) {
+			problems = append(problems, fmt.Sprintf("reviewed %s is not a full commit SHA", toJSON(record["reviewed"])))
+		}
+	} else {
+		counts = append(counts, []string{"mutations", "failed"}, []string{"mutations", "inconclusive"}, []string{"mutations", "run"})
+		problems = append(problems, notOneOf("rereview", valueAt(record, "rereview"), "ran", "skipped")...)
+		for _, name := range []string{"dropped", "reviewed", "target"} {
+			if _, present := record[name]; present {
+				problems = append(problems, name+" belongs to a review scope; leave it out")
+			}
+		}
+		failed, failedOK := number(valueAt(record, "mutations", "failed"))
+		inconclusive, inconclusiveOK := number(valueAt(record, "mutations", "inconclusive"))
+		run, runOK := number(valueAt(record, "mutations", "run"))
+		if failedOK && inconclusiveOK && runOK && failed+inconclusive > run {
+			problems = append(problems, "mutations.failed plus mutations.inconclusive exceeds mutations.run")
+		}
+	}
+	for _, path := range counts {
 		if !wholeNumber(valueAt(record, path...)) {
 			problems = append(problems, strings.Join(path, ".")+" is not a whole number")
 		}
-	}
-	failed, failedOK := number(valueAt(record, "mutations", "failed"))
-	inconclusive, inconclusiveOK := number(valueAt(record, "mutations", "inconclusive"))
-	run, runOK := number(valueAt(record, "mutations", "run"))
-	if failedOK && inconclusiveOK && runOK && failed+inconclusive > run {
-		problems = append(problems, "mutations.failed plus mutations.inconclusive exceeds mutations.run")
 	}
 	findings, ok := record["findings"].([]any)
 	if !ok {
@@ -127,12 +164,12 @@ func Problems(input io.Reader) (map[string]any, []string, error) {
 			problems = append(problems, fmt.Sprintf("findings[%d] is not an object", index))
 			continue
 		}
-		problems = append(problems, findingProblems(index, finding)...)
+		problems = append(problems, findingProblems(index, finding, review)...)
 	}
 	return record, problems, nil
 }
 
-func findingProblems(index int, finding map[string]any) []string {
+func findingProblems(index int, finding map[string]any, review bool) []string {
 	name := fmt.Sprintf("findings[%d]", index)
 	var problems []string
 	source, _ := finding["source"].(string)
@@ -153,10 +190,26 @@ func findingProblems(index int, finding map[string]any) []string {
 			problems = append(problems, name+".also_raised_by names a source twice")
 		}
 	}
-	problems = append(problems, notOneOf(name+".origin", finding["origin"], "change", "earlier", "fix")...)
 	problems = append(problems, notOneOf(name+".severity", finding["severity"], "blocker", "defect", "nit", "quality")...)
-	problems = append(problems, notOneOf(name+".stage", finding["stage"], "gate", "mutation", "rereview", "review", "user")...)
-	problems = append(problems, notOneOf(name+".verdict", finding["verdict"], "deliberate", "fixed", "open", "refuted")...)
+	if review {
+		problems = append(problems, notOneOf(name+".origin", finding["origin"], "change")...)
+		problems = append(problems, notOneOf(name+".stage", finding["stage"], "review")...)
+		problems = append(problems, notOneOf(name+".verdict", finding["verdict"], "confirmed", "open", "refuted")...)
+		outcome, present := finding["outcome"]
+		switch verdict, _ := finding["verdict"].(string); {
+		case verdict == "refuted" && present:
+			problems = append(problems, name+".outcome is absent on a refuted finding, which is never shown; leave it out")
+		case verdict == "confirmed" || verdict == "open":
+			problems = append(problems, notOneOf(name+".outcome", outcome, "discarded", "published", "raw", "skipped", "unanswered")...)
+		}
+	} else {
+		problems = append(problems, notOneOf(name+".origin", finding["origin"], "change", "earlier", "fix")...)
+		problems = append(problems, notOneOf(name+".stage", finding["stage"], "gate", "mutation", "rereview", "review", "user")...)
+		problems = append(problems, notOneOf(name+".verdict", finding["verdict"], "deliberate", "fixed", "open", "refuted")...)
+		if _, present := finding["outcome"]; present {
+			problems = append(problems, name+".outcome belongs to a review scope; leave it out")
+		}
+	}
 	if category, ok := finding["category"].(string); !ok || !kebab.MatchString(category) {
 		problems = append(problems, fmt.Sprintf("%s.category %s is not kebab-case", name, toJSON(finding["category"])))
 	}
@@ -167,6 +220,10 @@ func findingProblems(index int, finding map[string]any) []string {
 		problems = append(problems, name+" has no summary")
 	}
 	return problems
+}
+
+func isReviewScope(scope string) bool {
+	return slices.Contains(reviewScopes, scope)
 }
 
 func notOneOf(name string, value any, allowed ...string) []string {

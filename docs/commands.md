@@ -12,7 +12,7 @@ works from any directory; see [Owners](owners.md).
 | Command                 | What it does                                                                                     |
 | ----------------------- | ------------------------------------------------------------------------------------------------ |
 | `/ele:checkpoint`       | Review a change in subagents before it is reported done; see [Checkpoint](checkpoint-and-ticket-audit.md#checkpoint) |
-| `/ele:checkpoint-stats` | What checkpoints found and which stage found it, over the last 30 days or the number given      |
+| `/ele:checkpoint-stats` | What checkpoints found and which stage found it, then reviews apart, over the last 30 days or the number given |
 | `/ele:handoff`          | Write the handoff the next session opens with; see [Handoffs](handoffs-and-reminders.md#handoffs) |
 | `/ele:mine`             | Judge past checkpoint runs and review cycles, for tuning the checkpoint skill                    |
 | `/ele:plan`             | Pick up the active plan, or `new <name>` or `convert <spec>`; see [Plans](plans.md)              |

@@ -21,6 +21,7 @@ type Finding struct {
 	AlsoRaisedBy []string
 	Category     string
 	Origin       string
+	Outcome      string
 	Severity     string
 	Shared       bool
 	Source       string
@@ -38,6 +39,7 @@ type Run struct {
 	ChangeLines   float64
 	ChangeUnknown bool
 	Date          string
+	Dropped       map[string]float64
 	Duration      int64
 	Findings      []Finding
 	Mode          string
@@ -252,6 +254,49 @@ func Report(w io.Writer, runs []Run) {
 	fmt.Fprintf(w, "Duration, first freeze to log line: median %.1fm over %d of %d checkpoints (%s); longest %.1fm\n", Median(durations)/60, len(durations), len(runs), strings.Join(medians, ", "), slices.Max(durations)/60)
 }
 
+func ReportReviews(w io.Writer, runs []Run) {
+	scopes := map[string]int{}
+	dropped := map[string]float64{}
+	var sized []float64
+	for _, run := range runs {
+		scopes[run.Scope]++
+		sized = append(sized, run.ChangeLines)
+		for key, count := range run.Dropped {
+			dropped[key] += count
+		}
+	}
+	fmt.Fprintf(w, "Reviews: mr %d, local-branch %d. Median change %.6g lines added plus removed.\n", scopes["mr"], scopes["local-branch"], Median(sized))
+	fmt.Fprintf(w, "Dropped before verification: %s excluded, %s minor, %s already raised\n\n", whole(dropped["excluded"]), whole(dropped["minor"]), whole(dropped["raised"]))
+
+	fmt.Fprintln(w, "Review findings by source; skip rate is skipped of those answered (published, raw, discarded, skipped)")
+	fmt.Fprintf(w, "%-14s %9s %5s %8s %9s %4s %9s %7s %10s %9s\n", "source", "confirmed", "open", "refuted", "published", "raw", "discarded", "skipped", "unanswered", "skip rate")
+	bySource := map[string]map[string]int{}
+	total := map[string]int{}
+	for _, run := range runs {
+		for _, finding := range run.Findings {
+			if bySource[finding.Source] == nil {
+				bySource[finding.Source] = map[string]int{}
+			}
+			for _, counts := range []map[string]int{bySource[finding.Source], total} {
+				counts[finding.Verdict]++
+				counts[finding.Outcome]++
+			}
+		}
+	}
+	row := func(source string, counts map[string]int) {
+		answered := counts["published"] + counts["raw"] + counts["discarded"] + counts["skipped"]
+		fmt.Fprintf(w, "%-14s %9d %5d %8d %9d %4d %9d %7d %10d %9s\n", source, counts["confirmed"], counts["open"], counts["refuted"], counts["published"], counts["raw"], counts["discarded"], counts["skipped"], counts["unanswered"], percent(float64(counts["skipped"]), float64(answered)))
+	}
+	for _, source := range slices.Sorted(maps.Keys(bySource)) {
+		row(source, bySource[source])
+	}
+	if len(bySource) == 0 {
+		fmt.Fprintln(w, "  nothing")
+		return
+	}
+	row("total", total)
+}
+
 func WriteMostCommon[K comparable](w io.Writer, keys []K, format func(K) string) {
 	var counts []counted[K]
 	at := map[K]int{}
@@ -276,17 +321,36 @@ func WriteStats(w io.Writer, logPath string, since time.Time) error {
 	if err != nil {
 		return err
 	}
+	var checkpoints, reviews []Run
+	for _, run := range logged.Runs {
+		if isReviewScope(run.Scope) {
+			reviews = append(reviews, run)
+		} else {
+			checkpoints = append(checkpoints, run)
+		}
+	}
 	starts := "The log has no readable line."
 	if logged.First != "" {
 		starts = "The log starts " + logged.First + "."
 	}
-	fmt.Fprintf(w, "Since %s: %d checkpoint%s logged. %s\n\n", since.UTC().Format("2006-01-02"), len(logged.Runs), plural(len(logged.Runs)), starts)
+	runs := fmt.Sprintf("%d checkpoint%s", len(checkpoints), plural(len(checkpoints)))
+	if len(reviews) > 0 {
+		runs += fmt.Sprintf(" and %d review%s", len(reviews), plural(len(reviews)))
+	}
+	fmt.Fprintf(w, "Since %s: %s logged. %s\n\n", since.UTC().Format("2006-01-02"), runs, starts)
 	if logged.Unreadable > 0 {
 		fmt.Fprintf(w, "%d log line%s unreadable or missing a field the report reads; skipped.\n\n", logged.Unreadable, plural(logged.Unreadable))
 	}
-	if len(logged.Runs) > 0 {
-		Report(w, logged.Runs)
-	} else {
+	if len(checkpoints) > 0 {
+		Report(w, checkpoints)
+	}
+	if len(reviews) > 0 {
+		if len(checkpoints) > 0 {
+			fmt.Fprintln(w)
+		}
+		ReportReviews(w, reviews)
+	}
+	if len(logged.Runs) == 0 {
 		fmt.Fprintf(w, "Nothing logged in the window. The log is %s.\n", logPath)
 	}
 	return nil
@@ -332,6 +396,7 @@ func parseFinding(value any) (Finding, bool) {
 			return Finding{}, false
 		}
 	}
+	finding.Outcome, _ = object["outcome"].(string)
 	finding.Severity = "unrated"
 	if severity, present := object["severity"]; present {
 		finding.Severity, _ = severity.(string)
@@ -367,15 +432,25 @@ func parseRun(line string) (Run, time.Time, bool) {
 		return Run{}, time.Time{}, false
 	}
 	mode, modeOK := object["mode"].(string)
-	rereview, rereviewOK := object["rereview"].(string)
 	lines, linesOK := number(valueAt(object, "change", "lines"))
-	mutations, mutationsOK := parseCounts(object["mutations"], "run")
 	notes, notesOK := parseCounts(object["notes"], "proposed")
 	entries, findingsOK := object["findings"].([]any)
-	if !modeOK || !rereviewOK || !linesOK || !mutationsOK || !notesOK || !findingsOK {
+	if !modeOK || !linesOK || !notesOK || !findingsOK {
 		return Run{}, time.Time{}, false
 	}
-	run.ChangeLines, run.Mode, run.Mutations, run.Notes, run.Rereview = lines, mode, mutations, notes, rereview
+	run.ChangeLines, run.Mode, run.Notes = lines, mode, notes
+	if IsReview(object) {
+		if run.Dropped, ok = parseCounts(object["dropped"], "excluded"); !ok {
+			return Run{}, time.Time{}, false
+		}
+	} else {
+		var mutationsOK, rereviewOK bool
+		run.Mutations, mutationsOK = parseCounts(object["mutations"], "run")
+		run.Rereview, rereviewOK = object["rereview"].(string)
+		if !mutationsOK || !rereviewOK {
+			return Run{}, time.Time{}, false
+		}
+	}
 	for _, entry := range entries {
 		finding, ok := parseFinding(entry)
 		if !ok {

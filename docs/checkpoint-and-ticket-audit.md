@@ -48,7 +48,9 @@ whatever `CLAUDE_CONFIG_DIR` says, as are the ticket-audit ledger and the copies
 of reviewed files.
 `/ele:checkpoint-stats [days]` reports from it: which reviewer found what, how
 much was refuted, what the re-review and the checks caught, and how long runs
-took. Use it to tune the skill, not to judge the code.
+took. Use it to tune the skill, not to judge the code. Reviews of a merge
+request or branch are logged there too and reported in a section of their own,
+with how often you skipped what the reviewers found.
 
 ## Ticket-audit
 

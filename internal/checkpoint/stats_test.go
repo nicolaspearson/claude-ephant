@@ -81,6 +81,46 @@ func TestWriteStatsNamesTheLogWhenTheWindowIsEmpty(t *testing.T) {
 	require.Equal(t, "Since 2026-09-20: 0 checkpoints logged. The log has no readable line.\n\nNothing logged in the window. The log is "+logPath+".\n", output)
 }
 
+func TestWriteStatsReportsReviewsApartWithTheSkipRateAndDroppedCounts(t *testing.T) {
+	first := []string{
+		statsReviewFinding("bugs", "confirmed", "published"),
+		statsReviewFinding("bugs", "confirmed", "skipped"),
+		statsReviewFinding("bugs", "open", "raw"),
+		strings.Replace(statsReviewFinding("spec", "refuted", ""), `"outcome":"",`, ``, 1),
+	}
+	second := []string{
+		statsReviewFinding("bugs", "confirmed", "discarded"),
+		statsReviewFinding("bugs", "confirmed", "unanswered"),
+		statsReviewFinding("conventions", "confirmed", "skipped"),
+	}
+	logPath := writeStatsLog(t,
+		statsRecord(``, "["+statsFinding(``, "bugs", ``, "fixed")+"]", "full"),
+		statsReview("mr", `{"excluded":3,"minor":5,"raised":1}`, "["+strings.Join(first, ",")+"]"),
+		statsReview("local-branch", `{"excluded":2,"minor":1,"raised":0}`, "["+strings.Join(second, ",")+"]"),
+	)
+
+	output := writeStats(t, logPath, 30)
+
+	row := func(source string, counts ...any) string {
+		return fmt.Sprintf("%-14s %9d %5d %8d %9d %4d %9d %7d %10d %9s", append([]any{source}, counts...)...)
+	}
+	for _, line := range []string{
+		"Since 2026-09-20: 1 checkpoint and 2 reviews logged. The log starts 2026-10-20.",
+		"Scope: uncommitted 1, delta 0, branch 0.",
+		"Reviews: mr 1, local-branch 1. Median change 10 lines added plus removed.",
+		"Dropped before verification: 5 excluded, 6 minor, 1 already raised",
+		row("bugs", 4, 1, 0, 1, 1, 1, 1, 1, "25%"),
+		row("conventions", 1, 0, 0, 0, 0, 0, 1, 0, "100%"),
+		row("spec", 0, 0, 1, 0, 0, 0, 0, 0, "-"),
+		row("total", 5, 1, 1, 1, 1, 1, 2, 1, "40%"),
+	} {
+		require.Contains(t, strings.Split(output, "\n"), line, output)
+	}
+	_, checkpoints, _ := strings.Cut(output, "Who found what")
+	checkpoints, _, _ = strings.Cut(checkpoints, "Reviews:")
+	require.NotContains(t, checkpoints, "spec", "review findings stay out of the checkpoint tables")
+}
+
 func TestWriteStatsSaysWhenNoRunIsTimed(t *testing.T) {
 	output := writeStats(t, writeStatsLog(t, statsRecord(``, "[]", "full")), 30)
 
@@ -97,11 +137,12 @@ func TestWriteStatsSkipsUnreadableLinesAndRunsBeforeTheWindow(t *testing.T) {
 		strings.Replace(statsRecord(``, "[]", "full"), statsNow.Format(time.RFC3339), "2026-10-20", 1),
 		statsRecord(``, `[{"category":"x"}]`, "full"),
 		statsRecord(``, "[]", "full"),
+		strings.Replace(statsReview("mr", `{"excluded":1}`, "[]"), `"dropped":{"excluded":1},`, ``, 1),
 	)
 
 	output := writeStats(t, logPath, 30)
 
-	require.True(t, strings.HasPrefix(output, "Since 2026-09-20: 1 checkpoint logged. The log starts 2026-09-01.\n\n5 log lines unreadable or missing a field the report reads; skipped.\n\nMode: full 1, small 0."), output)
+	require.True(t, strings.HasPrefix(output, "Since 2026-09-20: 1 checkpoint logged. The log starts 2026-09-01.\n\n6 log lines unreadable or missing a field the report reads; skipped.\n\nMode: full 1, small 0."), output)
 }
 
 func statsFinding(extra string, source string, severity string, verdict string) string {
@@ -110,6 +151,14 @@ func statsFinding(extra string, source string, severity string, verdict string) 
 
 func statsRecord(extra string, findings string, mode string) string {
 	return fmt.Sprintf(`{"change":{"files":1,"lines":10},"date":"%s",%s"findings":%s,"mode":"%s","mutations":{"failed":0,"inconclusive":0,"run":0},"notes":{"approved":0,"proposed":0},"rereview":"ran"}`, statsNow.Format(time.RFC3339), extra, findings, mode)
+}
+
+func statsReview(scope string, dropped string, findings string) string {
+	return fmt.Sprintf(`{"change":{"files":1,"lines":10},"date":"%s","dropped":%s,"findings":%s,"mode":"full","notes":{"approved":0,"proposed":0},"reviewed":"0123456789abcdef0123456789abcdef01234567","scope":"%s","target":"!1"}`, statsNow.Format(time.RFC3339), dropped, findings, scope)
+}
+
+func statsReviewFinding(source string, verdict string, outcome string) string {
+	return fmt.Sprintf(`{"category":"x","origin":"change","outcome":"%s","severity":"defect","source":"%s","stage":"review","summary":"s","verdict":"%s"}`, outcome, source, verdict)
 }
 
 func writeStats(t *testing.T, logPath string, days int) string {

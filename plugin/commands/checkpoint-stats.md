@@ -43,6 +43,12 @@ Report what each section says about the skill, not the code:
   previous freeze, or any freeze with no session id, restarts the clock there. Full mode's median beside small's is the
   cost to weigh against what the extra reviewers find. Runs logged before
   duration existed, or with no freeze behind them, carry none; say how many.
+- **Reviews.** `/ele:review` runs, apart from the checkpoints above. The skip rate is the share of
+  answered findings the user skipped: the reviewers' precision on other
+  people's changes, which checkpoint cannot measure because it acts on what it
+  confirms rather than offering it. A source with a high skip rate reports what users do not
+  want said; name it. High dropped counts say the filter, not the user, is
+  doing the work; `already raised` counts findings a discussion had made first.
 
 A finding the user raised after a report is logged with the next checkpoint, so
 it carries that run's mode. Say how many checkpoints the window holds. Under ten, call every pattern a

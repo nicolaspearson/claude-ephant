@@ -14,7 +14,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const valid = `{"change":{"files":3,"lines":40},"findings":[{"category":"stale-comment","origin":"fix","severity":"quality","source":"prose","stage":"rereview","summary":"Comment names the old flag.","verdict":"fixed"}],"mode":"full","mutations":{"failed":4,"inconclusive":1,"run":5},"notes":{"approved":0,"proposed":1},"rereview":"ran","scope":"delta"}`
+const (
+	valid       = `{"change":{"files":3,"lines":40},"findings":[{"category":"stale-comment","origin":"fix","severity":"quality","source":"prose","stage":"rereview","summary":"Comment names the old flag.","verdict":"fixed"}],"mode":"full","mutations":{"failed":4,"inconclusive":1,"run":5},"notes":{"approved":0,"proposed":1},"rereview":"ran","scope":"delta"}`
+	validReview = `{"change":{"files":2,"lines":30},"dropped":{"excluded":3,"minor":5,"raised":1},"findings":[{"category":"nil-dereference","origin":"change","outcome":"published","severity":"defect","source":"bugs","stage":"review","summary":"Load dereferences a nil config.","verdict":"confirmed"}],"mode":"full","notes":{"approved":0,"proposed":0},"reviewed":"0123456789abcdef0123456789abcdef01234567","scope":"mr","target":"!12"}`
+)
 
 func TestAppendAddsDateHeadRepositoryAndKeepsTheRecord(t *testing.T) {
 	root, logPath := repository(t)
@@ -97,11 +100,37 @@ func TestAppendTimesTheRunFromTheFirstFreezeAndEndsIt(t *testing.T) {
 	require.FileExists(t, other+".started")
 }
 
+func TestAppendLeavesAnOpenRunsClockWhenLoggingAReview(t *testing.T) {
+	root, logPath := repository(t)
+	t.Setenv(sessionVariable, "this-session")
+	run, err := RunFile(context.Background(), root, "this-session")
+	require.NoError(t, err)
+	now := time.Now()
+	started := strconv.FormatInt(now.Unix()-90, 10) + "\n"
+	require.NoError(t, os.WriteFile(run+".started", []byte(started), 0o600))
+	record, problems, err := Problems(strings.NewReader(validReview))
+	require.NoError(t, err)
+	require.Empty(t, problems)
+
+	require.NoError(t, Append(context.Background(), root, record, logPath, now))
+
+	require.NotContains(t, logLines(t, logPath)[0], "duration")
+	content, err := os.ReadFile(run + ".started")
+	require.NoError(t, err)
+	require.Equal(t, started, string(content))
+}
+
 func TestProblemsAcceptsAValidRecord(t *testing.T) {
 	for name, record := range map[string]string{
 		"a finding raised by two reviewers": with(t, func(record map[string]any) { finding(record)["also_raised_by"] = []any{"bugs"} }),
 		"empty findings":                    with(t, func(record map[string]any) { record["findings"] = []any{} }),
-		"valid":                             valid,
+		"review":                            validReview,
+		"review on a local branch":          withReview(t, func(record map[string]any) { record["scope"] = "local-branch"; record["target"] = "feature/x" }),
+		"review with a refuted finding": withReview(t, func(record map[string]any) {
+			finding(record)["verdict"] = "refuted"
+			delete(finding(record), "outcome")
+		}),
+		"valid": valid,
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, problems, err := Problems(strings.NewReader(record))
@@ -125,6 +154,12 @@ func TestProblemsRefusesARecordTheStatsWouldMisread(t *testing.T) {
 		{"category not kebab-case", with(t, func(record map[string]any) { finding(record)["category"] = "Stale Comment" }), `findings[0].category "Stale Comment" is not kebab-case`},
 		{"category with a trailing newline", with(t, func(record map[string]any) { finding(record)["category"] = "stale-comment\n" }), `findings[0].category "stale-comment\n" is not kebab-case`},
 		{"change missing", with(t, func(record map[string]any) { delete(record, "change") }), "change.files is not a whole number"},
+		{"checkpoint with a confirmed verdict", with(t, func(record map[string]any) { finding(record)["verdict"] = "confirmed" }), `findings[0].verdict "confirmed" is not one of deliberate, fixed, open, refuted`},
+		{"checkpoint with an outcome", with(t, func(record map[string]any) { finding(record)["outcome"] = "published" }), "findings[0].outcome belongs to a review scope; leave it out"},
+		{"checkpoint with dropped", with(t, func(record map[string]any) { record["dropped"] = map[string]any{"excluded": 1} }), "dropped belongs to a review scope; leave it out"},
+		{"checkpoint with reviewed", with(t, func(record map[string]any) { record["reviewed"] = "0123456789abcdef0123456789abcdef01234567" }), "reviewed belongs to a review scope; leave it out"},
+		{"checkpoint with target", with(t, func(record map[string]any) { record["target"] = "!12" }), "target belongs to a review scope; leave it out"},
+		{"checkpoint without mutations", with(t, func(record map[string]any) { delete(record, "mutations") }), "mutations.run is not a whole number"},
 		{"duration supplied", with(t, func(record map[string]any) { record["duration"] = 60 }), "duration is derived from the first freeze; leave it out"},
 		{"empty stdin", "", "no record on stdin"},
 		{"finding not an object", with(t, func(record map[string]any) { record["findings"] = []any{"x"} }), "findings[0] is not an object"},
@@ -139,12 +174,30 @@ func TestProblemsRefusesARecordTheStatsWouldMisread(t *testing.T) {
 		{"not an object", "[]", "the record is not an object"},
 		{"notes missing", with(t, func(record map[string]any) { delete(record, "notes") }), "notes.approved is not a whole number"},
 		{"rereview missing", with(t, func(record map[string]any) { delete(record, "rereview") }), "rereview null is not one of ran, skipped"},
-		{"scope missing", with(t, func(record map[string]any) { delete(record, "scope") }), "scope null is not one of branch, delta, uncommitted"},
+		{"review missing dropped", withReview(t, func(record map[string]any) { delete(record, "dropped") }), "dropped.excluded is not a whole number"},
+		{"review in small mode", withReview(t, func(record map[string]any) { record["mode"] = "small" }), `mode "small" is not one of full`},
+		{"review missing outcome on a confirmed finding", withReview(t, func(record map[string]any) { delete(finding(record), "outcome") }), "findings[0].outcome null is not one of discarded, published, raw, skipped, unanswered"},
+		{"review missing outcome on an open finding", withReview(t, func(record map[string]any) {
+			finding(record)["verdict"] = "open"
+			delete(finding(record), "outcome")
+		}), "findings[0].outcome null is not one of discarded, published, raw, skipped, unanswered"},
+		{"review missing target", withReview(t, func(record map[string]any) { delete(record, "target") }), "a review has no target"},
+		{"review with a fix origin", withReview(t, func(record map[string]any) { finding(record)["origin"] = "fix" }), `findings[0].origin "fix" is not one of change`},
+		{"review with a fixed verdict", withReview(t, func(record map[string]any) { finding(record)["verdict"] = "fixed" }), `findings[0].verdict "fixed" is not one of confirmed, open, refuted`},
+		{"review with a rereview stage", withReview(t, func(record map[string]any) { finding(record)["stage"] = "rereview" }), `findings[0].stage "rereview" is not one of review`},
+		{"review with a short reviewed SHA", withReview(t, func(record map[string]any) { record["reviewed"] = "0123456" }), `reviewed "0123456" is not a full commit SHA`},
+		{"review with an outcome on a refuted finding", withReview(t, func(record map[string]any) { finding(record)["verdict"] = "refuted" }), "findings[0].outcome is absent on a refuted finding, which is never shown; leave it out"},
+		{"review with an unknown outcome", withReview(t, func(record map[string]any) { finding(record)["outcome"] = "posted" }), `findings[0].outcome "posted" is not one of discarded, published, raw, skipped, unanswered`},
+		{"review with mutations", withReview(t, func(record map[string]any) {
+			record["mutations"] = map[string]any{"failed": 0, "inconclusive": 0, "run": 0}
+		}), "mutations is absent on a review, since none runs; leave it out"},
+		{"review with rereview", withReview(t, func(record map[string]any) { record["rereview"] = "ran" }), "rereview is absent on a review, since none runs; leave it out"},
+		{"scope missing", with(t, func(record map[string]any) { delete(record, "scope") }), "scope null is not one of branch, delta, local-branch, mr, uncommitted"},
 		{"severity missing", with(t, func(record map[string]any) { delete(finding(record), "severity") }), "findings[0].severity null is not one of blocker, defect, nit, quality"},
 		{"two records", valid + " " + valid, "2 records on stdin; send one per checkpoint"},
 		{"unknown mode", with(t, func(record map[string]any) { record["mode"] = "medium" }), `mode "medium" is not one of full, small`},
 		{"unknown origin", with(t, func(record map[string]any) { finding(record)["origin"] = "unknown" }), `findings[0].origin "unknown" is not one of change, earlier, fix`},
-		{"unknown scope", with(t, func(record map[string]any) { record["scope"] = "staged" }), `scope "staged" is not one of branch, delta, uncommitted`},
+		{"unknown scope", with(t, func(record map[string]any) { record["scope"] = "staged" }), `scope "staged" is not one of branch, delta, local-branch, mr, uncommitted`},
 		{"unknown severity", with(t, func(record map[string]any) { finding(record)["severity"] = "major" }), `findings[0].severity "major" is not one of blocker, defect, nit, quality`},
 		{"unknown stage", with(t, func(record map[string]any) { finding(record)["stage"] = "lint" }), `findings[0].stage "lint" is not one of gate, mutation, rereview, review, user`},
 		{"unknown verdict", with(t, func(record map[string]any) { finding(record)["verdict"] = "wontfix" }), `findings[0].verdict "wontfix" is not one of deliberate, fixed, open, refuted`},
@@ -189,6 +242,16 @@ func TestRootKeepsATrailingSpaceInThePath(t *testing.T) {
 	require.True(t, strings.HasSuffix(root, "repository "), root)
 }
 
+func edited(t *testing.T, base string, change func(record map[string]any)) string {
+	t.Helper()
+	var record map[string]any
+	require.NoError(t, json.Unmarshal([]byte(base), &record))
+	change(record)
+	encoded, err := json.Marshal(record)
+	require.NoError(t, err)
+	return string(encoded)
+}
+
 func finding(record map[string]any) map[string]any {
 	return record["findings"].([]any)[0].(map[string]any)
 }
@@ -228,10 +291,10 @@ func runGit(t *testing.T, root string, args ...string) {
 
 func with(t *testing.T, change func(record map[string]any)) string {
 	t.Helper()
-	var record map[string]any
-	require.NoError(t, json.Unmarshal([]byte(valid), &record))
-	change(record)
-	encoded, err := json.Marshal(record)
-	require.NoError(t, err)
-	return string(encoded)
+	return edited(t, valid, change)
+}
+
+func withReview(t *testing.T, change func(record map[string]any)) string {
+	t.Helper()
+	return edited(t, validReview, change)
 }
