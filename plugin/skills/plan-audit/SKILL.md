@@ -58,10 +58,10 @@ Done when every plan in scope is listed with its path and its check warnings, or
   Two plans of one file name, drafts in two repositories, are refused: audit
   each repository's plans in a run of its own
 - Frontier: per plan, the open actions `ele plan show <path>` does not list as
-  blocked. A `blocked:` line naming items is an edge, `<name>` in its plan or
-  `<plan>/<name>` in another; a line with prose before its `;` is no edge and
-  holds the item until removed by hand. An `after:` line holds an item until
-  its date
+  blocked. Each item a `blocked:` line names is an edge to it. A prose
+  `blocked:` line, and an `after:` line until its date, hold the item off the
+  frontier with no edge. `plan/SKILL.md`'s format, in the skills directory
+  holding this skill's base directory, has both lines' syntax
 - §2: the subagent brief also carries this file's absolute path, which a
   subagent reads after `<ticket-audit>`
 - §3 runs over the frontier of every plan in scope
@@ -97,13 +97,15 @@ For each inbox item of every plan in scope, with its age from its leading date,
 propose one:
 
 - **Delete**: an action already covers it, or it is done
-- **Finding**: it contradicts a decision; report it under §7
+- **Finding**: it contradicts a decision; report it as contradicting that
+  decision
 - **Move to an action** in its plan, named, with a done-when
 - **Move to another plan's inbox**: it serves that plan's why
 - **Plan candidate**: it serves no active plan's why; a `question` note starting
-  `Plan candidate:`, then delete the line
+  `Plan candidate:` through the `ele:remember` skill's Propose section, then
+  delete the line
 - **Out of scope**: `- <gist>: <why> (ruled <date>, from <source>)` under the
-  plan's `## Out of scope`
+  plan's `## Out of scope`, adding it as the plan's last section if it has none
 - **Leave**: not sharp enough to be an action yet
 
 A line moved into a plan cites no ele data, which resolves only in its author's
