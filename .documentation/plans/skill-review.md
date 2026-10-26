@@ -55,13 +55,16 @@ A writing-for-agents review of `plugin/skills/` on 2026-10-23 found meanings kep
 - [x] remember-batches: Propose asks four Write/Skip questions per AskUserQuestion call and another call for more; the same wording in `rememberReason`, its test and `stop-check.md`; a `remember-many` eval proposing five decisions
   - done when the `rememberReason` test has been seen red on the old wording, and `remember-many` passes through `task eval`, graded on a reply that proposes all five notes and writes none
   - asserted in the remember-batches commit: TestRunStopCheckAsksForNotesOncePerStretch failed at its literal reason on the old constant, then passed; `remember-many` scored 1.00 through `task eval -- ./plugin` on a first wording, and through `--case remember-many` on the final one, judges 2 of 3; and its `asks` grader failed 3/3 on a four-decision prompt; it also passes on HEAD's skill, since AskUserQuestion does not load in evals, so the batching itself was observed in no eval
-- [ ] mine-done-whens: Add a done-when to `mine/SKILL.md` §1 (each analysis's list and `.err` read), §2 (every batch launched), §3 (`ele mine --judgments` prints what it stored, or no batch wrote output and every unit is reported unjudged) and §4 (every report field given per analysis)
+- [x] mine-done-whens: Add a done-when to `mine/SKILL.md` §1 (each analysis's list and `.err` read), §2 (every batch launched), §3 (`ele mine --judgments` prints what it stored, or no batch wrote output and every unit is reported unjudged) and §4 (every report field given per analysis)
   - done when each of `mine/SKILL.md`'s four numbered sections ends with a `Done when` line, and the wording-only checks pass
+  - asserted in the mine-done-whens commit: each of `mine/SKILL.md`'s four numbered sections ends with a `Done when` line; §3's quotes the `Stored <n> of <m> judgments` line `ele mine --judgments` prints; `ele plan check`, `task check FORCE=1` and `task audit` exit 0
 - [ ] step-exits: Each step of `handoff/SKILL.md` and `remember/SKILL.md` ends with a done-when, as checkpoint's and ticket-audit's do; `recall`'s sections are alternatives picked per query, not a sequence that ends
   - done when handoff's Write and remember's Write and Propose each end with a `Done when` line, and the wording-only checks pass
 - [ ] Fold what this plan built, and its out-of-scope lines as `Not doing:`, into the spec, run `ele plan done .documentation/plans/skill-review.md`, and delete this plan
 
 ## Inbox
+
+- 2026-10-26, from the mine-done-whens checkpoint: `mine/SKILL.md` §1 never says to report a non-zero list exit's error (its "each goes in the report" covers only a zero exit's warnings), and §3 has no stop for a judgments refusal its correction cannot clear, nor §1 for a units file the user's list cannot correct
 
 ## Out of scope
 

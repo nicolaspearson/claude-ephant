@@ -30,6 +30,8 @@ To re-judge named units, list only those: write each as `{"session":…,"timesta
 
 Read `<analysis>.err`. On a non-zero exit it holds the error. Otherwise it may warn that the sync failed or the index is incomplete, so the list may be short, and may count the unjudged units at or before the watermark, which this skill leaves alone. Each goes in the report. Each line of `<analysis>.jsonl` is one unit, its `digest` the file to classify. Nothing listed, say so and stop for that analysis.
 
+Done when each analysis's list and `.err` have been read, and an analysis that listed nothing has stopped, a refused units file corrected first.
+
 ## 2. Classify
 
 Split each analysis's units into batches of up to five. Launch one `general-purpose` subagent per batch, all in one message so they run in parallel, in the background. Each prompt is:
@@ -41,6 +43,8 @@ Digests:
 ...
 Output file: <scratchpad>/mine/<analysis>-<batch>.out.jsonl
 ```
+
+Done when every batch of every analysis has been launched.
 
 ## 3. Store
 
@@ -55,6 +59,10 @@ When no batch wrote an output file, store nothing and report every unit as unjud
 
 `ele` hashes the digest file each batch read. It refuses the whole file when a line names no unit of the analysis, a unit with no digest file, or one unit twice, and stores nothing. Correct that line's `session` or `timestamp` from line 1 of its digest — never the prompt — and store again. A unit a batch left out is not a failure: the watermark stops before it, and the next mine lists it again.
 
+Done when, per analysis, `ele mine --judgments` has printed `Stored <n> of <m> judgments`, or no batch wrote output and every unit is reported unjudged.
+
 ## 4. Report
 
 Per analysis: units listed, judgments stored, the watermark `ele` printed, units left unjudged with the batch that missed them, the count behind the watermark, and the runs each subagent called hard to classify.
+
+Done when each analysis gives every field above, or says it has none.
