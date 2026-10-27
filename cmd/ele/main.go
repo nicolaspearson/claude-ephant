@@ -67,6 +67,7 @@ const usage = `usage:
   ele stats
   ele status
   ele stop-check [--hint-at <tokens>]
+  ele stop-check --replay --since <time> [--until <time>]
   ele sync [--background]
   ele ticket claims [--quiet] [<number>...]
   ele ticket corpus --compare <number> --expect <file> [--note] [--cli glab|gh]

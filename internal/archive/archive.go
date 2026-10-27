@@ -12,11 +12,14 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"syscall"
 )
 
 const tailWindow = 4096
+
+var generationSuffix = regexp.MustCompile(`(\.g\d+)?\.jsonl\.gz$`)
 
 type FileState struct {
 	ArchiveSize int64  `json:"archiveSize"`
@@ -83,6 +86,12 @@ func Path(directory string, key string, generation int) string {
 		base = fmt.Sprintf("%s.g%d.jsonl", strings.TrimSuffix(base, ".jsonl"), generation)
 	}
 	return base + ".gz"
+}
+
+// SubagentDirectory is where a transcript's subagent files are, by the transcript's own name, not its lines' session:
+// a resumed transcript's lines can carry another session id.
+func SubagentDirectory(path string) string {
+	return filepath.Join(generationSuffix.ReplaceAllString(path, ""), "subagents")
 }
 
 // Sync expects the caller to hold the lock.

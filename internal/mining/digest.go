@@ -35,7 +35,6 @@ var (
 	checkpointSkill   = regexp.MustCompile(`^(ele:)?checkpoint$`)
 	coveredLine       = regexp.MustCompile(`(?m)^(not )?covered: `)
 	cycleStyle        = style{bash: reviewGate, editTools: []string{"Edit", "MultiEdit", "Write"}, humanLimit: 1000, longAbove: 1200, textLimit: 1200}
-	generation        = regexp.MustCompile(`(\.g\d+)?\.jsonl\.gz$`)
 	handback          = regexp.MustCompile(`<tool-use-id>([^<]+)</tool-use-id>|<task-id>([^<]+)</task-id>|<agent-message from="([^"]+)"`)
 	harnessPrefixes   = []string{"<task-notification", "<agent-message", "Stop hook feedback", "<local-command", "Caveat:", "[Request interrupted", "Another Claude session", "<system-reminder"}
 	recordCommand     = regexp.MustCompile(`(?m)(^|[;&|{(]\s*)\S*(checkpoint-reviewed\.sh"?\s+record\b|checkpoint-log\.sh\b|ele checkpoint (log|record)\b)`)
@@ -610,10 +609,8 @@ func seconds(run *subagentRun) string {
 	return fmt.Sprintf("%.0fs", *run.seconds)
 }
 
-// subagentPath reads the transcript's own name, not its lines' session: a resumed transcript's lines can carry another session id.
 func subagentPath(transcriptPath string, agent string) string {
-	directory, name := filepath.Split(transcriptPath)
-	return filepath.Join(directory, generation.ReplaceAllString(name, ""), "subagents", "agent-"+agent+".jsonl.gz")
+	return filepath.Join(archive.SubagentDirectory(transcriptPath), "agent-"+agent+".jsonl.gz")
 }
 
 // turnEnd is the last assistant text from position on before the user next speaks.

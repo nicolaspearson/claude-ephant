@@ -46,6 +46,19 @@ The remember reason: "Follow /ele:remember's Propose section now: one Write/Skip
 
 Per session, in the data directory: the transcript offset read so far, and each subagent transcript's, with the flags derived from them and the timestamps of the last checkpoint start and notes proposal, whether this stretch has blocked, and the highest band hinted, so each stop reads only new lines and each output fires at most once per stretch or band and never loops. A block suppressed by `stop_hook_active` stays pending. Context below the threshold resets the band, so a session that compacts and regrows is hinted again. Old state is cleaned up on sync.
 
+## Replay
+
+`ele stop-check --replay --since <time> [--until <time>]` runs the hook as built, its `advance`, `subagentEdit` and `rememberBlock`, over archived sessions, so a change to it is judged against real stops rather than reasoned about. It prints one JSON object per stop in the window, `--until` excluded: the session, owner and project, whether the notes ask fired there (`asked`), whether the hook as built would ask (`asks`), with the work kinds that set it pending (`trigger`: `edit`, `bash`, `question`, `subagent-edit`) or why it would not (`whyNot`), and how the stop was found (`stop`).
+
+- Transcripts: each owned main transcript with an indexed line in the window, replayed whole, so a stretch or checkpoint begun before the window carries in, ordered by earliest indexed line. An unowned one is left out: the hook exits before judging it
+- Stops, `recorded`: each `stop_hook_summary` line of the main thread. As of 2026-10-27 Claude Code writes one per Stop, after the hook's block feedback. `asked` is a Stop hook block naming `ele:remember` since the previous one
+- Stops, `placed`, for a transcript with no `stop_hook_summary` line, such as one older than them: a group of Stop hook blocks under 2 s apart with nothing between, before a prompt that follows output, and at the last line after output. A Stop that blocked nothing and preceded no prompt leaves no trace, so placed stops are approximate
+- `stop_hook_active`: a Stop hook blocked since the last prompt. A block's feedback line parses as a prompt and the hook's state reads it as one, but it does not end that, a block group or output
+- Subagent edits: the archived subagent transcripts' Edit / Write / NotebookEdit calls, each line counted once across generations, applied at the first stop at or after their stamp, since the hook reads subagent files after the transcript. At a transcript's first judged stop the hook has no saved state and records the files' sizes unread, so edits up to it, unstamped ones included, do not count
+- Resumed transcripts copy earlier lines, stops included, with their ids. The hook's state is per session, so a resumed one reads the copied lines in one pass at its first stop and judges nothing at the copied stops: the replay runs the copied lines through the state but judges a stop only once, in the transcript indexed first, which the index's own copy rule makes the original
+- `whyNot`, first that holds: `hook-active`, `checkpoint`, `review` running; nothing pending after a proposal since the last stop, `proposal`, else `nothing-pending`; the stretch's ask spent, `stretch`
+- Each stop is judged on what the session did. After a stop where the replay and the real hook differ, the session went on as it did, so a later stop can differ only because an earlier one did, such as an ask moved earlier spending the stretch
+
 ## Beside the checkpoint gate
 
 - The checkpoint `Stop` hook, `ele checkpoint gate`, also blocks. Neither yields: both may block on one stop, and a remember block suppressed by `stop_hook_active` after a checkpoint block waits, like any pending work, for the first stop after the checkpoint ends

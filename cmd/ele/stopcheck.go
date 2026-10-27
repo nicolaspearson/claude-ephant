@@ -108,6 +108,25 @@ func advance(state stopState, entries []transcript.Entry, events []dto.Transcrip
 	return state
 }
 
+// An edit stamped before the last proposal was cleared by it. Else, while a checkpoint runs, one stamped after it started
+// is a reviewer's. An unstamped one is work: a doubtful edit costs an ask, not lost work.
+func subagentEdit(state stopState, timestamp string) stopState {
+	stamped := timestamp != ""
+	switch {
+	case stamped && timestamp < state.NotesProposed:
+		state.MidTask = state.MidTask || !state.InCheckpoint
+	case !state.InCheckpoint:
+		state.MidTask, state.Pending = true, true
+	case !stamped || timestamp <= state.CheckpointStarted:
+		state.Pending = true
+	}
+	return state
+}
+
+func subagentWorks(entry transcript.Entry) bool {
+	return entry.Kind == transcript.KindTool && slices.ContainsFunc(subagentWorkTools, func(tool string) bool { return strings.HasPrefix(entry.Text, tool+": ") })
+}
+
 // Only whole lines are consumed: a live transcript's last line can be half written.
 func consumeLines(file *os.File, offset int64, consume func(line []byte)) (int64, error) {
 	if _, err := file.Seek(offset, io.SeekStart); err != nil {
@@ -236,9 +255,7 @@ func removeStaleStopState(dataDirectory string, now time.Time) error {
 	return nil
 }
 
-// Read after the transcript: an edit stamped before the last proposal was cleared by it. Else, while a checkpoint runs,
-// one stamped after it started is a reviewer's. An unstamped one is work: a doubtful edit costs an ask, not lost work.
-// With no saved state, existing files are skipped unread: a long session's scan cost.
+// Read after the transcript. With no saved state, existing files are skipped unread: a long session's scan cost.
 func scanSubagents(directory string, state stopState) (stopState, error) {
 	unread := state.Subagents == nil
 	if unread {
@@ -285,17 +302,8 @@ func scanSubagents(directory string, state stopState) (stopState, error) {
 				return
 			}
 			for _, entry := range entries {
-				if entry.Kind != transcript.KindTool || !slices.ContainsFunc(subagentWorkTools, func(tool string) bool { return strings.HasPrefix(entry.Text, tool+": ") }) {
-					continue
-				}
-				stamped := entry.Timestamp != ""
-				switch {
-				case stamped && entry.Timestamp < state.NotesProposed:
-					state.MidTask = state.MidTask || !state.InCheckpoint
-				case !state.InCheckpoint:
-					state.MidTask, state.Pending = true, true
-				case !stamped || entry.Timestamp <= state.CheckpointStarted:
-					state.Pending = true
+				if subagentWorks(entry) {
+					state = subagentEdit(state, entry.Timestamp)
 				}
 			}
 		})
@@ -350,11 +358,27 @@ func sizeHint(tokens int, threshold int, hinted int, midTask bool, focus string)
 	return size + " At a pause: /compact " + focus, band
 }
 
-func stopCheck(_ context.Context, args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) int {
+func stopCheck(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) int {
 	flags := newFlagSet("stop-check", stderr)
 	hintAt := flags.Int("hint-at", 150000, "context tokens from which to suggest /compact or a handoff")
-	if err := flags.Parse(args); err != nil || flags.NArg() > 0 || *hintAt <= 0 {
+	replay := flags.Bool("replay", false, "replay the hook as built over each Stop of the archived main transcripts with a line in the window, one JSON line per stop")
+	since := flags.String("since", "", "with --replay, the window's start: YYYY-MM-DD or an RFC 3339 time")
+	until := flags.String("until", "", "with --replay, the window's end, exclusive: YYYY-MM-DD or an RFC 3339 time; default now")
+	if err := flags.Parse(args); err != nil || flags.NArg() > 0 || *hintAt <= 0 || *replay != (*since != "") || (*until != "" && !*replay) {
 		return rejectCall(flags, err, stdout, stderr)
+	}
+	if *replay {
+		from, err := replayTime(*since, time.Time{})
+		if err != nil {
+			fmt.Fprintf(stderr, "ele: --since: %v\n", err)
+			return 2
+		}
+		to, err := replayTime(*until, time.Now())
+		if err != nil {
+			fmt.Fprintf(stderr, "ele: --until: %v\n", err)
+			return 2
+		}
+		return stopReplay(ctx, from, to, stdout, stderr)
 	}
 	var hook struct {
 		Directory      string `json:"cwd"`

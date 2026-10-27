@@ -121,6 +121,19 @@ ele usage [--owner <name>] [--project <name>] [--since <YYYY-MM-DD|Nd>] [--no-sy
 Sessions, prompts, tool calls, bytes injected by hooks and the skill list, reply
 length and API tokens, main thread and subagents apart.
 
+```text
+ele stop-check --replay --since <time> [--until <time>]
+```
+
+Each Stop of the archived sessions in the window, one JSON object per line:
+whether the notes ask fired (`asked`), whether the hook as built would ask
+(`asks`), and the work that set it pending (`trigger`) or why not (`whyNot`:
+`hook-active`, `checkpoint`, `review`, `proposal`, `nothing-pending` or
+`stretch`). `stop` is `recorded` where Claude Code wrote the stop down and
+`placed`, approximately, where an older transcript leaves it to be inferred. The
+window is `[--since, --until)`, each a date or RFC 3339 time as
+`2026-10-20T04:42:00Z`; `--until` defaults to now. Syncs first.
+
 ## Index
 
 ```text
@@ -172,7 +185,7 @@ each.
 | Command                                         | Called by                                          |
 | ----------------------------------------------- | -------------------------------------------------- |
 | `ele session-start`                             | SessionStart hook: the block a session opens with  |
-| `ele stop-check`                                | Stop hook: the notes ask and the context size hint |
+| `ele stop-check`                                | Stop hook: the notes ask and the context size hint; `--replay` replays it, under [History](#history) |
 | `ele checkpoint gate`, `ele checkpoint snapshot` | Stop and UserPromptSubmit hooks: the checkpoint gate |
 | `ele checkpoint base`, `check`, `close`, `density`, `freeze`, `hash`, `log`, `optout`, `record` | `/ele:checkpoint` |
 | `ele checkpoint stats [<days>]`                 | `/ele:checkpoint-stats`                            |
