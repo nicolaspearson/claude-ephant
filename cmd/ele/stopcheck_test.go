@@ -136,6 +136,7 @@ func TestAdvance(t *testing.T) {
 		{entries: tool("Bash: ele remember --kind fact \"$(cat <<'EOF'\nIt's done.\nEOF\n)\""), from: stopState{Pending: true}, name: "an ele remember with a heredoc body proposes", want: stopState{}},
 		{entries: tool("Bash: ele remember --kind fact \"$(git log -1 --format=%s)\""), from: stopState{Pending: true}, name: "an ele remember with a read in its body proposes and is mid-task", want: stopState{MidTask: true}},
 		{entries: tool("Bash: ele config get auto_note_writes"), from: stopState{Proposing: true}, name: "an option read is not work", want: stopState{Proposing: true}},
+		{entries: tool("Edit: main.go", "Bash: ele remember --help"), name: "a help lookup after an edit still asks", want: stopState{MidTask: true, Pending: true}},
 		{events: run(transcript.EventSkill, "ele:recall"), from: stopState{Pending: true}, name: "another skill changes nothing", want: stopState{Pending: true}},
 		{entries: tool("Bash: ele handoff close 20261023-ab12cd"), name: "closing a handoff is not work for notes", want: stopState{MidTask: true}},
 		{entries: tool("Bash: ele reminder close 20261023-ab12cd"), name: "closing a reminder is not work for notes", want: stopState{MidTask: true}},

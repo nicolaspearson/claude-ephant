@@ -66,6 +66,9 @@ func eleIsWork(args []string) bool {
 	if len(args) == 0 {
 		return true
 	}
+	if at := slices.IndexFunc(args, func(arg string) bool { return strings.HasPrefix(arg, "-") }); at >= 0 && args[at] == "--help" {
+		return false
+	}
 	subcommands, ok := eleNotWork[args[0]]
 	if !ok {
 		return true
@@ -469,5 +472,5 @@ func logsCheckpoint(command string) bool {
 }
 
 func writesNote(command string) bool {
-	return transcript.StartsCommand(command, "ele remember ")
+	return transcript.StartsCommand(command, "ele remember ") && !transcript.StartsCommand(command, "ele remember --help")
 }
