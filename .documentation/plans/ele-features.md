@@ -129,6 +129,9 @@ Give ele a configuration a user can switch and tune from one place, reminders th
 
 ## Inbox
 
+- 2026-10-27, from the user: a config option keeping a lone pending handoff pending when a session opens with it, so it is listed to pick or drop as several are, instead of closed on show
+- 2026-10-27, from the user: a slash command listing pending and closed handoffs inside Claude Code, as `ele handoff list --all` does from the shell; `/ele:handoffs` sits one letter from the `/ele:handoff` skill, so the name is open
+
 ## Out of scope
 
 - Loading config.json in stop-check only when it asks for notes: a config.json that does not parse is worth hearing about every turn, and loading it less often hides the error (ruled 2026-10-23, from the colour-option checkpoint's bugs reviewer)
