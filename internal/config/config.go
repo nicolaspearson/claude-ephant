@@ -79,6 +79,12 @@ var Options = []Option{
 	},
 	{
 		Default:     true,
+		Description: "Has /ele:wrap offer a reusable procedure the session ran as a user skill; off, /ele:recipe still works when typed.",
+		Kind:        KindBoolean,
+		Name:        "recipes",
+	},
+	{
+		Default:     true,
 		Description: "Shows each open reminder in the start block from its due date until closed.",
 		Kind:        KindBoolean,
 		Name:        "reminders",

@@ -1,0 +1,11 @@
+schema_version: "1.1"
+name: recipe-asks
+description: With auto_note_writes on, ele:recipe still proposes a procedure the session ran as a skill, asks Write or Skip, and writes no skill unanswered
+runs: 1
+execution:
+  max_turns: 15
+  allowed_tools: [AskUserQuestion, Bash, Skill, Write]
+  prompt: |
+    I just renewed my local dev certificate, which I do every month. It worked: `mkcert -install`, then `mkcert -cert-file ~/.certs/dev.pem -key-file ~/.certs/dev-key.pem localhost 127.0.0.1 '*.test'`, then `brew services restart caddy`, and `curl -sI https://app.test` came back 200. Keep this with /ele:recipe.
+context:
+  scaffold_script: scaffold.sh

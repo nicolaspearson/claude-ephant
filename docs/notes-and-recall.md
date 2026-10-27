@@ -36,7 +36,7 @@ the ones you approve. With the `auto_note_writes` option on, it writes them
 without asking and reports each id, so a wrong one can be undone.
 
 `/ele:wrap` does the same at the end of a session, together with plan progress,
-due reminders and a handoff.
+a [recipe](recipes.md), due reminders and a handoff.
 
 From a terminal, `ele remember` saves one directly:
 

@@ -115,6 +115,7 @@ func TestAdvance(t *testing.T) {
 		{entries: tool(`AskUserQuestion: {"questions":[]}`), from: stopState{InCheckpoint: true}, name: "a question mid-checkpoint is not work", want: stopState{InCheckpoint: true}},
 		{entries: tool("Read: main.go"), name: "a read is not work", want: stopState{}},
 		{entries: tool("Bash: git log --oneline -3 | head -1"), name: "a read-only command is mid-task, not work for notes", want: stopState{MidTask: true}},
+		{events: run(transcript.EventSkill, "ele:recipe"), from: stopState{MidTask: true, Pending: true}, name: "a recipe proposes, still mid-task", want: stopState{MidTask: true, Proposing: true}},
 		{entries: tool("Bash: cd /w && ele checkpoint log /w <<'EOF'\n{}\nEOF"), from: stopState{InReview: true}, name: "a review's log line after cd ends it", want: stopState{}},
 		{entries: tool("Bash: ele checkpoint log /w <<'EOF'\n{}\nEOF"), from: stopState{InReview: true}, name: "a review's log line ends it", want: stopState{}},
 		{entries: tool(`AskUserQuestion: {"questions":[]}`, "Bash: git diff main", "Bash: ele remember --kind fact \"x\""), from: stopState{InReview: true}, name: "a review's own questions, runs and notes are not work", want: stopState{InReview: true}},

@@ -16,7 +16,10 @@ The `ele` plugin adds the skills and hooks that use the binary:
 - `/ele:handoff`, `/ele:plan`, `/ele:recall` and `/ele:remember` for memory and
   plans
 - `/ele:wrap`, which at a session's end asks what to keep as notes, plan inbox
-  items or progress lines, which due reminders to close, and whether to hand off
+  items, progress lines or a recipe, which due reminders to close, and whether to
+  hand off
+- `/ele:recipe`, which keeps a procedure you will run again as a skill of your
+  own
 - `/ele:checkpoint`, a review of the change in subagents before work is reported
   done, with a Stop hook that blocks a done claim made without one
 - `/ele:plan-audit`, for stale premises, contradictions, stuck waits and inbox
@@ -90,7 +93,7 @@ The `ele` plugin adds the skills and hooks that use the binary:
    session picks up where the last stopped; see
    [Handoffs](docs/handoffs-and-reminders.md#handoffs)
 
-[Plans](docs/plans.md), [Checkpoint and ticket-audit](docs/checkpoint-and-ticket-audit.md)
+[Plans](docs/plans.md), [Recipes](docs/recipes.md), [Checkpoint and ticket-audit](docs/checkpoint-and-ticket-audit.md)
 and [Review](docs/review.md) cover the rest, and the [command reference](docs/commands.md) lists every
 command.
 
@@ -109,6 +112,7 @@ each does.
 - **`compact_hint_at`**, 150000: context tokens from which ele suggests
   `/compact` or a handoff; 0 turns it off
 - **`notes_ask`**, on: asks for notes once per stretch of work
+- **`recipes`**, on: `/ele:wrap` offers a procedure the session ran as a skill
 - **`reminders`**, on: shows due reminders at session start
 
 ## Update

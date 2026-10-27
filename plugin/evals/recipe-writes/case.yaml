@@ -1,0 +1,24 @@
+schema_version: "1.1"
+name: recipe-writes
+description: Handed a recipe's exact words and asked to save it, ele:recipe writes it as a user skill and reports the path
+runs: 1
+execution:
+  max_turns: 15
+  allowed_tools: [AskUserQuestion, Bash, Skill, Write]
+  prompt: |
+    Save this as a recipe with /ele:recipe, named renew-dev-cert, exactly as written; I approve it:
+
+    ---
+    name: renew-dev-cert
+    description: Renew the local mkcert dev certificate and restart caddy. Use when the dev certificate expires or monthly.
+    ---
+
+    # Renew dev certificate
+
+    1. `mkcert -install`
+    2. `mkcert -cert-file ~/.certs/dev.pem -key-file ~/.certs/dev-key.pem localhost 127.0.0.1 '*.test'`
+    3. `brew services restart caddy`
+
+    Done when `curl -sI https://app.test` returns 200.
+context:
+  scaffold_script: scaffold.sh

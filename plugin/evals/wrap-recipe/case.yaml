@@ -1,0 +1,11 @@
+schema_version: "1.1"
+name: wrap-recipe
+description: With recipes at its default, ele:wrap reads the option, proposes the procedure the session ran as a recipe, and writes no skill unanswered
+runs: 1
+execution:
+  max_turns: 15
+  allowed_tools: [AskUserQuestion, Bash, Skill, Write]
+  prompt: |
+    I renewed my local dev certificate this session, which I do every month. It worked: `mkcert -install`, then `mkcert -cert-file ~/.certs/dev.pem -key-file ~/.certs/dev-key.pem localhost 127.0.0.1 '*.test'`, then `brew services restart caddy`, and `curl -sI https://app.test` came back 200. Nothing else is open. Wrap up the session with /ele:wrap.
+context:
+  scaffold_script: scaffold.sh
