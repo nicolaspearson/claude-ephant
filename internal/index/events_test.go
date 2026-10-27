@@ -161,13 +161,29 @@ func TestEventsFollowAHookBlockToItsReply(t *testing.T) {
 	prompt := func(minute string, text string) string {
 		return line(minute, `"type":"user","origin":{"kind":"human"},"message":{"content":"`+text+`"}`)
 	}
+	stop := func(minute string, milliseconds string) string {
+		at := func(uuid string, fraction string, reason string) string {
+			return `{"sessionId":"s1","timestamp":"2026-10-15T10:` + minute + `:00.` + fraction + `Z","uuid":"` + uuid + minute + `","type":"user","isMeta":true,"message":{"content":"Stop hook feedback:\n` + reason + `"}}` + "\n"
+		}
+		return at("u", "000", `No checkpoint was reported.\n\nChanged: a.go`) + at("n", milliseconds, "Propose notes now.")
+	}
 	write(t, filepath.Join(projects, "-w", "s1.jsonl"), said("00", false, "All done.")+
 		block("01")+said("02", false, "This isn't a checkpoint; the handler is unwired.")+prompt("03", "go on")+
 		block("04")+line("05", `"type":"assistant","message":{"content":[{"type":"tool_use","name":"Skill","input":{"skill":"ele:checkpoint"}}]}`)+said("06", false, "Not done until the review is in.")+
 		block("07")+prompt("08", "go on")+said("09", false, "Answering the prompt.")+
 		block("10")+said("11", true, "subagent prose, not a checkpoint")+said("12", false, "Checkpointing now.")+
 		prompt("13", "go on")+block("14")+prompt("15", `<command-name>/ele:checkpoint</command-name>`)+
-		line("16", `"type":"user","isMeta":true,"message":{"content":"Stop hook feedback:\nPropose notes now."}`)+said("17", false, "Nothing worth keeping, mid-task."))
+		line("16", `"type":"user","isMeta":true,"message":{"content":"Stop hook feedback:\nPropose notes now."}`)+said("17", false, "Nothing worth keeping, mid-task.")+
+		prompt("18", "go on")+block("19")+line("20", `"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"ele checkpoint freeze /w /s --start -- a.go"}}]}`)+
+		said("21", false, "Reviewing.")+prompt("22", "go on")+
+		stop("23", "002")+said("24", false, "No new notes are needed: the tick line holds the result.")+said("25", false, "This isn't a checkpoint, it waits on you.")+
+		prompt("26", "go on")+stop("27", "002")+said("28", false, "Nothing needs a note. Checkpointing now.")+said("29", false, "Reviewing.")+
+		prompt("30", "go on")+block("31")+said("32", false, "No new notes are needed.")+said("33", false, "Reviewing.")+
+		prompt("34", "go on")+block("35")+line("36", `"type":"assistant","message":{"content":[{"type":"tool_use","name":"Agent","input":{"description":"Small checkpoint review","prompt":"Review."}}]}`)+
+		prompt("37", "go on")+block("38")+line("39", `"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"$P/checkpoint-reviewed.sh freeze . /s --start -- a.go"}}]}`)+
+		prompt("40", "go on")+block("41")+line("42", `"type":"assistant","message":{"content":[{"type":"tool_use","name":"Task","input":{"description":"Checkpoint review","prompt":"Review."}}]}`)+
+		prompt("43", "go on")+stop("44", "002")+said("45", false, "No new notes are needed.")+
+		prompt("46", "go on")+stop("47", "000")+said("48", false, "No new notes are needed.")+said("49", false, "Reviewing."))
 	index := open(t, filepath.Join(root, "ele.db"))
 	update(t, index, projects, filepath.Join(root, "archive"), ownermap.OwnerMap{})
 
@@ -185,6 +201,19 @@ func TestEventsFollowAHookBlockToItsReply(t *testing.T) {
 		{"changed": changed, "checkpointed": false, "reason": reason},
 		{"changed": changed, "checkpointed": false, "disputed": false, "reason": reason, "reply": "Checkpointing now.", "replyAt": "2026-10-15T10:12:00Z"},
 		{"changed": changed, "checkpointed": true, "reason": reason},
+		{"reason": "Propose notes now."},
+		{"changed": changed, "checkpointed": true, "disputed": false, "reason": reason, "reply": "Reviewing.", "replyAt": "2026-10-15T10:21:00Z"},
+		{"changed": changed, "checkpointed": false, "disputed": true, "reason": reason, "reply": "This isn't a checkpoint, it waits on you.", "replyAt": "2026-10-15T10:25:00Z"},
+		{"reason": "Propose notes now."},
+		{"changed": changed, "checkpointed": false, "disputed": false, "reason": reason, "reply": "Nothing needs a note. Checkpointing now.", "replyAt": "2026-10-15T10:28:00Z"},
+		{"reason": "Propose notes now."},
+		{"changed": changed, "checkpointed": false, "disputed": false, "reason": reason, "reply": "No new notes are needed.", "replyAt": "2026-10-15T10:32:00Z"},
+		{"changed": changed, "checkpointed": true, "reason": reason},
+		{"changed": changed, "checkpointed": true, "reason": reason},
+		{"changed": changed, "checkpointed": true, "reason": reason},
+		{"changed": changed, "checkpointed": false, "disputed": false, "reason": reason, "reply": "No new notes are needed.", "replyAt": "2026-10-15T10:45:00Z"},
+		{"reason": "Propose notes now."},
+		{"changed": changed, "checkpointed": false, "disputed": false, "reason": reason, "reply": "Reviewing.", "replyAt": "2026-10-15T10:49:00Z"},
 		{"reason": "Propose notes now."},
 	}, follow)
 }

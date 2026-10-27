@@ -26,6 +26,12 @@ var closingCalls = map[string][]string{
 // Misses a dispute worded otherwise, and matches a reply echoing the block's own "waiting on" or "investigation".
 var disputingReply = regexp.MustCompile(`(?i)(not|n't) a checkpoint|mid-task|read-only|no files? changed|not done|isn't done|waiting on|investigation`)
 
+// Where another block shares the Stop, a one-sentence reply naming a note answers that block's notes ask.
+var (
+	notesAnswer = regexp.MustCompile(`(?i)\bnotes?\b`)
+	sentenceEnd = regexp.MustCompile(`[.!?](\s|$)`)
+)
+
 // A subagent's skill call ends no run: its events fall inside its parent's. Each strftime bound is a second loose,
 // whatever a timestamp's precision, so the index can narrow to it; julianday then decides.
 func duringCondition(during string) (string, []any) {
@@ -159,25 +165,54 @@ func (x *Index) followBlock(ctx context.Context, event *dto.Event) error {
 		bound = prompt.String
 	}
 	var checkpointed bool
-	// A typed command shares its prompt's timestamp, so it sits on the bound.
+	// A typed command shares its prompt's timestamp, so it sits on the bound. A checkpoint run by hand shows as its freeze,
+	// by either command, or, where the stored call text is cut before the freeze, its reviewer's launch.
 	err = x.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM events WHERE session = ? AND subagent = 0 AND (name = 'checkpoint' OR name LIKE '%:checkpoint') AND timestamp > ?
-		AND ((kind = ? AND timestamp < ?) OR (kind = ? AND timestamp <= ?)))`,
-		event.Session, event.Timestamp, transcript.EventSkill, bound, transcript.EventCommand, bound).Scan(&checkpointed)
+		AND ((kind = ? AND timestamp < ?) OR (kind = ? AND timestamp <= ?)))
+		OR EXISTS (SELECT 1 FROM entries WHERE session = ? AND subagent = 0 AND kind = ? AND timestamp > ? AND timestamp < ?
+			AND ((text LIKE 'Bash: %' AND (instr(text, 'ele checkpoint freeze') > 0 OR instr(text, 'checkpoint-reviewed.sh freeze') > 0)) OR text LIKE 'Agent: %checkpoint%' OR text LIKE 'Task: %checkpoint%'))`,
+		event.Session, event.Timestamp, transcript.EventSkill, bound, transcript.EventCommand, bound,
+		event.Session, transcript.KindTool, event.Timestamp, bound).Scan(&checkpointed)
 	if err != nil {
 		return fmt.Errorf("find a checkpoint after a hook block: %w", err)
 	}
 	event.Attributes["checkpointed"] = checkpointed
-	var reply, replyAt string
 	// Through reply events: a parent's file can hold subagent prose as conversation entries.
-	err = x.db.QueryRowContext(ctx, `SELECT said.text, said.timestamp FROM events reply JOIN entries said ON said.session = reply.session AND said.kind = ? AND said.timestamp = reply.timestamp AND said.uuid = reply.uuid
-		WHERE reply.session = ? AND reply.subagent = 0 AND reply.kind = ? AND reply.timestamp > ? AND reply.timestamp < ? ORDER BY reply.timestamp, reply.id, said.id LIMIT 1`,
-		transcript.KindConversation, event.Session, transcript.EventReply, event.Timestamp, bound).Scan(&reply, &replyAt)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil
-	}
+	rows, err := x.db.QueryContext(ctx, `SELECT said.text, said.timestamp FROM events reply JOIN entries said ON said.session = reply.session AND said.kind = ? AND said.timestamp = reply.timestamp AND said.uuid = reply.uuid
+		WHERE reply.session = ? AND reply.subagent = 0 AND reply.kind = ? AND reply.timestamp > ? AND reply.timestamp < ? ORDER BY reply.timestamp, reply.id, said.id LIMIT 2`,
+		transcript.KindConversation, event.Session, transcript.EventReply, event.Timestamp, bound)
 	if err != nil {
 		return fmt.Errorf("find the reply to a hook block: %w", err)
 	}
+	defer rows.Close()
+	var replies, repliedAt []string
+	for rows.Next() {
+		var reply, replyAt string
+		if err = rows.Scan(&reply, &replyAt); err != nil {
+			return fmt.Errorf("read the reply to a hook block: %w", err)
+		}
+		replies, repliedAt = append(replies, reply), append(repliedAt, replyAt)
+	}
+	if err = rows.Err(); err != nil {
+		return fmt.Errorf("read the reply to a hook block: %w", err)
+	}
+	if len(replies) == 0 {
+		return nil
+	}
+	if len(replies) == 2 && notesAnswer.MatchString(replies[0]) && len(sentenceEnd.FindAllString(replies[0], 2)) == 1 {
+		var shared bool
+		// Hooks blocking at one Stop land milliseconds apart or in the same millisecond, so the block counts itself.
+		err = x.db.QueryRowContext(ctx, `SELECT count(*) > 1 FROM events WHERE session = ? AND subagent = 0 AND kind = ?
+			AND abs(julianday(timestamp) - julianday(?)) * 86400 <= 1`,
+			event.Session, transcript.EventHookBlock, event.Timestamp).Scan(&shared)
+		if err != nil {
+			return fmt.Errorf("find a hook block at the same stop: %w", err)
+		}
+		if shared {
+			replies, repliedAt = replies[1:], repliedAt[1:]
+		}
+	}
+	reply, replyAt := replies[0], repliedAt[0]
 	opening := []rune(reply)
 	event.Attributes["disputed"] = !checkpointed && disputingReply.MatchString(string(opening[:min(len(opening), 600)]))
 	event.Attributes["reply"] = transcript.Truncate(reply)
