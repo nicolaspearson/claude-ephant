@@ -29,6 +29,55 @@ func TestRunSessionStartOutsideAnyOwner(t *testing.T) {
 	require.Equal(t, "ele shows no notes here: no owner in owner-map.json covers "+elsewhere+". /ele:recall needs --owner <name> or --all.\n", output)
 }
 
+func TestRunSessionStartShowsAnEverywhereNoteInEverySession(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "")
+	output, code := runCommand(t, "remember", "--kind", "reminder", "--everywhere", "--due", "2026-10-01", "--every", "7", "Ask the user to run /hook-stats.")
+	require.Equal(t, 0, code, output)
+	nudge := readRemembered(t, output)
+	require.Equal(t, notes.OwnerEverywhere, nudge.Owner)
+	require.Equal(t, notes.ScopeEverywhere, nudge.Scope)
+	output, code = runCommand(t, "remember", "--kind", "fact", "--everywhere", "The machine runs macOS.")
+	require.Equal(t, 0, code, output)
+	fact := readRemembered(t, output)
+
+	team := filepath.Join(home, "w", "team", "api")
+	elsewhere := filepath.Join(home, "elsewhere")
+	for _, directory := range []string{team, elsewhere} {
+		require.NoError(t, os.MkdirAll(directory, 0o700))
+	}
+	output, code = runCommand(t, "owner", "add", "team", "--no-sync")
+	require.Equal(t, 0, code, output)
+	output, code = runCommand(t, "owner", "add-path", filepath.Join(home, "w", "team"), "team", "--no-sync")
+	require.Equal(t, 0, code, output)
+
+	for _, directory := range []string{filepath.Join(home, "w", "corp", "gateway"), filepath.Join(home, "w", "personal", "notes"), team, elsewhere} {
+		t.Run(filepath.Base(directory), func(t *testing.T) {
+			t.Chdir(directory)
+			output, code := runCommand(t, "session-start", "--no-sync")
+			require.Equal(t, 0, code, output)
+			shown, _ := hookOutput(t, output)
+			require.Contains(t, shown, "Reminders from ele, due:\n- ↻ due 2026-10-01, reminder "+nudge.ID+", every 7 days: Ask the user to run /hook-stats.\n")
+			require.Contains(t, shown, " fact "+fact.ID+": The machine runs macOS.\n")
+			require.Equal(t, directory == elsewhere, strings.Contains(shown, "ele shows only everywhere notes here: no owner in owner-map.json covers "+elsewhere+"."), shown)
+		})
+	}
+
+	t.Chdir(filepath.Join(home, "w", "personal", "notes"))
+	output, code = runCommand(t, "context")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, " fact "+fact.ID+": The machine runs macOS.\n")
+	output, code = runCommand(t, "recall", "macOS")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, fact.ID)
+	output, code = runCommand(t, "remember", "--kind", "fact", "--everywhere", "--supersedes", fact.ID, "The machine runs macOS 26.")
+	require.Equal(t, 0, code, output)
+	output, code = runCommand(t, "remember", "--kind", "decision", "--supersedes", fact.ID, "Owner notes never supersede everywhere ones.")
+	require.Equal(t, 2, code, output)
+	require.Equal(t, "ele: personal has no note "+fact.ID+" to supersede\n", output)
+}
+
 func TestRunSessionStartSaysWhenTheSessionCompacted(t *testing.T) {
 	home := recallFixture(t)
 	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))

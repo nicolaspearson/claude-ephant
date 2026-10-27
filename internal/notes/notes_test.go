@@ -163,6 +163,9 @@ func TestParseRejectsInvalidNotes(t *testing.T) {
 		{content: front + "---\nx\n", message: "no id", name: "empty id", path: "notes/personal/.md"},
 		{content: "No front matter\n", message: "first line is not ---", name: "first line not a fence", path: "notes/personal/n.md"},
 		{content: front, message: "front matter never closes", name: "front matter never closes", path: "notes/personal/n.md"},
+		{content: "---\ndate: 2026-10-27\nkind: decision\nowner: personal\nscope: everywhere\n---\nx\n", message: `everywhere scope but owner "personal"`, name: "everywhere scope under an owner", path: "notes/personal/n.md"},
+		{content: "---\ndate: 2026-10-27\nkind: handoff\nowner: _all\nscope: everywhere\n---\nx\n", message: "handoff with everywhere scope", name: "everywhere handoff", path: "notes/_all/n.md"},
+		{content: "---\ndate: 2026-10-27\nkind: decision\nowner: _all\nscope: global\n---\nx\n", message: `owner _all with scope "global"`, name: "everywhere owner with another scope", path: "notes/_all/n.md"},
 		{content: "---\ndate: 2026-10-15\nkind: handoff\nowner: personal\nscope: global\n---\nx\n", message: "handoff with global scope", name: "global handoff", path: "notes/personal/n.md"},
 		{content: "---\ndate: 2026-10-17\nkind: plan\nowner: personal\nscope: global\n---\nplans.md\n", message: "plan with global scope", name: "global plan", path: "notes/personal/n.md"},
 		{content: "---\ndate: 15 Oct\nkind: decision\nowner: personal\nscope: global\n---\nx\n", message: "is not YYYY-MM-DD", name: "loose date", path: "notes/personal/n.md"},
@@ -204,6 +207,30 @@ func TestParseReadsAPlanNote(t *testing.T) {
 	note, err := Parse("notes/personal/20261017-a1b2c3.md", []byte("---\ndate: 2026-10-17\nkind: plan\nowner: personal\nproject: claude-ephant\nscope: project\n---\n.documentation/plans/plans.md\n"))
 	require.NoError(t, err)
 	require.Equal(t, ".documentation/plans/plans.md", note.Body)
+}
+
+func TestReadForAddsEverywhereNotesToTheOwners(t *testing.T) {
+	directory := t.TempDir()
+	_, err := Write(directory, valid)
+	require.NoError(t, err)
+	everywhere := Note{Body: "The machine runs macOS.", Date: "2026-10-27", ID: "20261027-eeeeee", Kind: KindFact, Owner: OwnerEverywhere, Scope: ScopeEverywhere}
+	_, err = Write(directory, everywhere)
+	require.NoError(t, err)
+	other := valid
+	other.ID, other.Owner = "20261015-dddddd", "corp"
+	_, err = Write(directory, other)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(directory, OwnerEverywhere, "broken.md"), []byte("no front matter\n"), 0o600))
+
+	read, invalid, err := ReadFor(directory, "personal")
+	require.NoError(t, err)
+	require.Equal(t, []Note{valid, everywhere}, read)
+	require.Equal(t, 1, invalid)
+
+	read, invalid, err = ReadFor(directory, "")
+	require.NoError(t, err)
+	require.Equal(t, []Note{everywhere}, read, "a session no owner covers reads only everywhere notes")
+	require.Equal(t, 1, invalid)
 }
 
 func TestReadOwnerSkipsInvalidNotesAndOtherOwners(t *testing.T) {

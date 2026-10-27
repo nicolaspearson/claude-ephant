@@ -37,6 +37,7 @@ func TestRunStatsCountsWhatTheIndexAndNotesHold(t *testing.T) {
 		{Body: "Old question.", Date: "2026-10-13", ID: "20261013-bbbbbb", Kind: notes.KindQuestion, Owner: "corp", Scope: notes.ScopeGlobal},
 		{Body: "Answer.", Date: "2026-10-14", ID: "20261014-cccccc", Kind: notes.KindFact, Owner: "corp", Scope: notes.ScopeGlobal, Supersedes: []string{"20261013-bbbbbb"}},
 		{Body: "Still open?", Date: "2026-10-14", ID: "20261014-dddddd", Kind: notes.KindQuestion, Owner: "corp", Scope: notes.ScopeGlobal},
+		{Body: "Run /hook-stats.", Date: "2026-10-14", Due: "2026-10-14", ID: "20261014-eeeeee", Kind: notes.KindReminder, Owner: notes.OwnerEverywhere, Scope: notes.ScopeEverywhere},
 	} {
 		_, err := notes.Write(noteDirectory, note)
 		require.NoError(t, err)
@@ -49,17 +50,27 @@ func TestRunStatsCountsWhatTheIndexAndNotesHold(t *testing.T) {
 	require.Equal(t, 0, code, output)
 	for _, line := range []string{
 		`Covers 2026-10-13 to 2026-10-15\.`,
-		`Entries +7\n`,
-		`  by source +notes 4, transcripts 3\n`,
-		`  by kind +note 4, prompt 2, conversation 1\n`,
-		`  by owner +corp 6, personal 1\n`,
+		`Entries +8\n`,
+		`  by source +notes 5, transcripts 3\n`,
+		`  by kind +note 5, prompt 2, conversation 1\n`,
+		`  by owner +corp 6, _all 1, personal 1\n`,
 		`Sessions +claude 2\n`,
 		`Notes, corp +answered question 1, decision 1, fact 1, invalid 1, open question 1\n`,
 		`Notes, personal +none\n`,
+		`Notes, _all +reminder 1\n`,
 		`On disk +archive [0-9.]+ [KMG]?i?B, index [0-9.]+ [KMG]?i?B, notes [0-9.]+ [KMG]?i?B\n`,
 	} {
 		require.Regexp(t, regexp.MustCompile(line), output)
 	}
+}
+
+func TestRunStatsLeavesOutAnEmptyEverywhereRow(t *testing.T) {
+	recallFixture(t)
+
+	output, code := runCommand(t, "stats")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "Notes, personal")
+	require.NotContains(t, output, "Notes, "+notes.OwnerEverywhere)
 }
 
 func TestRunStatsOnAFreshInstall(t *testing.T) {

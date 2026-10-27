@@ -359,13 +359,16 @@ func writeSessionStart(ctx context.Context, stdout io.Writer, dataDirectory stri
 			remindersOn = value.Value == true
 		}
 	}
-	if owner == "" {
-		fmt.Fprintf(stdout, "ele shows no notes here: no owner in owner-map.json covers %s. /ele:recall needs --owner <name> or --all.\n", directory)
-		return "", nil
-	}
-	all, invalid, err := notes.ReadOwner(filepath.Join(dataDirectory, "notes"), owner)
+	all, invalid, err := notes.ReadFor(filepath.Join(dataDirectory, "notes"), owner)
 	if err != nil {
 		return "", err
+	}
+	switch {
+	case owner == "" && len(all)+invalid == 0:
+		fmt.Fprintf(stdout, "ele shows no notes here: no owner in owner-map.json covers %s. /ele:recall needs --owner <name> or --all.\n", directory)
+		return "", nil
+	case owner == "":
+		fmt.Fprintf(stdout, "ele shows only everywhere notes here: no owner in owner-map.json covers %s. /ele:recall needs --owner <name> or --all.\n", directory)
 	}
 	var shown []string
 	// A resumed or compacted session keeps its context; the handoff is for a fresh one.
@@ -394,9 +397,11 @@ func writeSessionStart(ctx context.Context, stdout io.Writer, dataDirectory stri
 		fmt.Fprint(stdout, section+instruction+"\n")
 	}
 	// The count is decoration; a busy or broken index must not cost the session its notes.
-	sessions, err := sessionCount(ctx, dataDirectory, owner, project)
-	if err != nil {
-		fmt.Fprintf(stdout, "ele could not count past sessions: %v\n", err)
+	var sessions int
+	if owner != "" {
+		if sessions, err = sessionCount(ctx, dataDirectory, owner, project); err != nil {
+			fmt.Fprintf(stdout, "ele could not count past sessions: %v\n", err)
+		}
 	}
 	writeNotes(stdout, owner, project, all, invalid, sessions, blockBudget-written.units)
 	return highlight.Message(strings.TrimSuffix(strings.Join(shown, "\n"), "\n"), coloured), nil

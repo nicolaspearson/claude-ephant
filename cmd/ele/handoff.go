@@ -3,6 +3,7 @@ package main
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -21,6 +22,7 @@ type noteChange struct {
 	confirmation string
 	detail       func(note notes.Note) string
 	eligible     func(all []notes.Note, project string) []notes.Note
+	load         func(ctx context.Context, owner string, projectName string) (projectScope, int, error)
 	refusal      string
 }
 
@@ -39,12 +41,14 @@ func handoffCommand(ctx context.Context, args []string, stdout io.Writer, stderr
 			apply:        func(directory string, note notes.Note) error { return notes.MarkShown(directory, note, now) },
 			confirmation: "Closed",
 			eligible:     pendingHandoffs,
+			load:         projectNotes,
 			refusal:      "a pending handoff of %s; ele context lists them",
 		},
 		"reopen": {
 			apply:        notes.ClearShown,
 			confirmation: "Reopened",
 			eligible:     closedHandoffs,
+			load:         projectNotes,
 			refusal:      "a closed handoff of %s; ele handoff list --all lists them",
 		},
 	}
@@ -72,7 +76,7 @@ func applyChange(ctx context.Context, group string, args []string, change noteCh
 	if len(identifiers) == 0 {
 		return rejectCall(flags, nil, stdout, stderr)
 	}
-	scope, code, err := projectNotes(ctx, *owner, *projectName)
+	scope, code, err := change.load(ctx, *owner, *projectName)
 	if err != nil {
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return code
@@ -128,11 +132,30 @@ func projectNotes(ctx context.Context, owner string, projectName string) (projec
 		return projectScope{}, code, err
 	}
 	noteDirectory := filepath.Join(dataDirectory, "notes")
-	all, _, err := notes.ReadOwner(noteDirectory, resolved)
+	all, _, err := notes.ReadFor(noteDirectory, resolved)
 	if err != nil {
 		return projectScope{}, 1, err
 	}
 	return projectScope{all: all, dataDirectory: dataDirectory, noteDirectory: noteDirectory, owner: resolved, project: project}, 0, nil
+}
+
+// A directory no owner covers still shows the everywhere notes, so it may list and change them.
+func projectOrEverywhereNotes(ctx context.Context, owner string, projectName string) (projectScope, int, error) {
+	scope, code, err := projectNotes(ctx, owner, projectName)
+	var unowned unownedError
+	if !errors.As(err, &unowned) {
+		return scope, code, err
+	}
+	dataDirectory, err := datadir.Path()
+	if err != nil {
+		return projectScope{}, 1, err
+	}
+	noteDirectory := filepath.Join(dataDirectory, "notes")
+	all, _, err := notes.ReadFor(noteDirectory, "")
+	if err != nil {
+		return projectScope{}, 1, err
+	}
+	return projectScope{all: all, dataDirectory: dataDirectory, noteDirectory: noteDirectory, project: unowned.project}, 0, nil
 }
 
 func listHandoffs(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {

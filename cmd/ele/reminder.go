@@ -43,7 +43,7 @@ func listReminders(ctx context.Context, args []string, stdout io.Writer, stderr 
 	if err := flags.Parse(args); err != nil || flags.NArg() > 0 {
 		return rejectCall(flags, err, stdout, stderr)
 	}
-	scope, code, err := projectNotes(ctx, *owner, *projectName)
+	scope, code, err := projectOrEverywhereNotes(ctx, *owner, *projectName)
 	if err != nil {
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return code
@@ -139,12 +139,14 @@ func reminderCommand(ctx context.Context, args []string, stdout io.Writer, stder
 				return "; due again " + rearmed(note, now)
 			},
 			eligible: openReminders,
+			load:     projectOrEverywhereNotes,
 			refusal:  "an open reminder of %s; ele reminder list lists them",
 		},
 		"reopen": {
 			apply:        notes.ClearClosed,
 			confirmation: "Reopened",
 			eligible:     closedReminders,
+			load:         projectOrEverywhereNotes,
 			refusal:      "a closed reminder of %s; ele reminder list --all lists them",
 		},
 	}
@@ -164,7 +166,7 @@ func reminderCommand(ctx context.Context, args []string, stdout io.Writer, stder
 func remindersHere(all []notes.Note, project string) []notes.Note {
 	var matched []notes.Note
 	for _, note := range all {
-		if note.Kind == notes.KindReminder && (note.Scope == notes.ScopeGlobal || note.Project == project) {
+		if note.Kind == notes.KindReminder && (note.Scope != notes.ScopeProject || note.Project == project) {
 			matched = append(matched, note)
 		}
 	}

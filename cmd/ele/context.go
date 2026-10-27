@@ -102,7 +102,7 @@ func projectContext(ctx context.Context, args []string, stdout io.Writer, stderr
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return code
 	}
-	all, invalid, err := notes.ReadOwner(filepath.Join(dataDirectory, "notes"), resolved)
+	all, invalid, err := notes.ReadFor(filepath.Join(dataDirectory, "notes"), resolved)
 	if err != nil {
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return 1

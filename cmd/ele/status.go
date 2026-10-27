@@ -290,10 +290,13 @@ func writeStats(ctx context.Context, stdout io.Writer) error {
 	fmt.Fprintf(table, "Sessions\t%s\n", listCounts(indexStats.Sessions))
 
 	noteDirectory := filepath.Join(dataDirectory, "notes")
-	for _, owner := range ownerMap.Owners {
+	for _, owner := range append(slices.Clone(ownerMap.Owners), notes.OwnerEverywhere) {
 		all, invalid, readErr := notes.ReadOwner(noteDirectory, owner)
 		if readErr != nil {
 			return readErr
+		}
+		if owner == notes.OwnerEverywhere && len(all)+invalid == 0 {
+			continue
 		}
 		superseded := map[string]bool{}
 		for _, note := range all {

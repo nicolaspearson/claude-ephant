@@ -47,6 +47,13 @@ ele remember --kind question --global "Should staging deploys need a second appr
 
 - A note belongs to the working directory's project unless `--project <name>`
   names another; `--global` makes it apply to every project of the owner
+- `--everywhere` makes it apply to every session on the machine, whatever its
+  owner, owners added later and directories no owner covers included: a note
+  about the machine or your tooling, saved once. It is filed under
+  `notes/_all/`, takes no `--global`, `--owner` or `--project`, and is never a
+  handoff. `ele context`, `ele reminder`, `ele forget` and `ele recall` reach it
+  from any owner's directory; `ele reminder` and `ele forget` from a directory no
+  owner covers too
 - `--supersedes <id>` replaces an earlier note. A decision that supersedes a
   question answers it
 - ele refuses a note whose words a live note already says, and names that note

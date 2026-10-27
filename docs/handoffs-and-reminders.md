@@ -58,7 +58,9 @@ ele reminder close <id>     # done or dropped
 ele reminder reopen <id>    # open it again
 ```
 
-A reminder saved with `--global` shows in every project of the owner.
+A reminder saved with `--global` shows in every project of the owner; one saved
+with `--everywhere` shows in every session, whatever its owner, and closing it
+from any directory closes it for all.
 
 ### Nudges
 

@@ -12,6 +12,25 @@ import (
 	"github.com/nicolaspearson/claude-ephant/internal/notes"
 )
 
+func TestSearchByOwnerFindsEverywhereNotes(t *testing.T) {
+	index := open(t, filepath.Join(t.TempDir(), "ele.db"))
+	directory := filepath.Join(t.TempDir(), "notes")
+	for _, note := range []notes.Note{
+		{Body: "Pin pydantic below 2.14.", Date: "2026-10-27", ID: "20261027-aaaaaa", Kind: notes.KindDecision, Owner: notes.OwnerEverywhere, Scope: notes.ScopeEverywhere},
+		{Body: "Pin pydantic in the wrapper.", Date: "2026-10-27", ID: "20261027-bbbbbb", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal},
+	} {
+		_, err := notes.Write(directory, note)
+		require.NoError(t, err)
+	}
+	_, err := index.UpdateNotes(context.Background(), directory)
+	require.NoError(t, err)
+
+	results, err := index.Search(context.Background(), Query{Owner: "personal", Text: "pydantic"})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Equal(t, "20261027-aaaaaa", results[0].NoteID)
+}
+
 func TestUpdateNotesFollowsAMoveBetweenFolders(t *testing.T) {
 	index := open(t, filepath.Join(t.TempDir(), "ele.db"))
 	directory := filepath.Join(t.TempDir(), "notes")

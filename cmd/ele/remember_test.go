@@ -201,6 +201,10 @@ func TestRunRememberRefusesBadInput(t *testing.T) {
 		name    string
 	}{
 		{args: []string{"--kind", "decision", "one\ntwo\nthree\nfour"}, code: 2, message: "a note is at most 3 lines, not 4", name: "four lines"},
+		{args: []string{"--kind", "decision", "--everywhere", "--global", "x"}, code: 2, message: "--everywhere spans every owner and project; drop --global, --owner and --project", name: "everywhere and global"},
+		{args: []string{"--kind", "decision", "--everywhere", "--owner", "corp", "x"}, code: 2, message: "--everywhere spans every owner and project", name: "everywhere and owner"},
+		{args: []string{"--kind", "decision", "--everywhere", "--project", "gateway", "x"}, code: 2, message: "--everywhere spans every owner and project", name: "everywhere and project"},
+		{args: []string{"--kind", "handoff", "--everywhere", "x"}, code: 2, message: "a handoff is scoped to its project; drop --everywhere", name: "everywhere handoff"},
 		{args: []string{"--kind", "handoff", "--global", "x"}, code: 2, message: "a handoff is scoped to its project; drop --global", name: "global handoff"},
 		{args: []string{"x"}, code: 2, message: "ele remember --kind", name: "no kind"},
 		{args: []string{"--kind", "decision"}, code: 2, message: "ele remember --kind", name: "no words"},

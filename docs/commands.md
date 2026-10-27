@@ -27,14 +27,15 @@ works from any directory; see [Owners](owners.md).
 ## Notes
 
 ```text
-ele remember --kind decision|fact|handoff|question|reminder [--done-file <path>] [--due <YYYY-MM-DD>] [--every <days>] [--global] [--owner <name>] [--project <name>] [--session <id>] [--supersedes <id>...] <words>
+ele remember --kind decision|fact|handoff|question|reminder [--done-file <path>] [--due <YYYY-MM-DD>] [--every <days>] [--everywhere | --global] [--owner <name>] [--project <name>] [--session <id>] [--supersedes <id>...] <words>
 ```
 
-Save a note. `--global` applies it to every project of the owner. `--supersedes`
-replaces an earlier note; repeat it for several. `--session` records the session
-the note came from, by default the running one. For a reminder, `--due` is the
-first day it shows; `--every <days>` makes it a nudge, and `--done-file` ties the
-nudge to a file's last change.
+Save a note. `--global` applies it to every project of the owner;
+`--everywhere` to every session, whatever its owner, owners added later
+included. `--supersedes` replaces an earlier note; repeat it for several.
+`--session` records the session the note came from, by default the running one.
+For a reminder, `--due` is the first day it shows; `--every <days>` makes it a
+nudge, and `--done-file` ties the nudge to a file's last change.
 
 ```text
 ele context [--owner <name>] [--project <name>]

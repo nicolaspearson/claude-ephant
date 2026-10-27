@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/nicolaspearson/claude-ephant/internal/notes"
 )
 
 func TestRunForgetMovesANoteOutOfContextUntilRestored(t *testing.T) {
@@ -67,6 +69,14 @@ func TestRunForgetMovesNothingWhenANoteIsInBothFolders(t *testing.T) {
 	require.Equal(t, 1, code, output)
 	require.Contains(t, output, "note "+ids[1]+" is in both")
 	require.FileExists(t, filepath.Join(home, "data", "forgotten", "corp", ids[0]+".md"), "the note without a clash stays forgotten too")
+
+	output, code = runCommand(t, "remember", "--kind", "fact", "--everywhere", "--session", "", "The machine runs macOS.")
+	require.Equal(t, 0, code, output)
+	everywhere := readRemembered(t, output).ID
+	writeFile(t, filepath.Join(home, "data", "forgotten", notes.OwnerEverywhere, everywhere+".md"), "forgotten earlier by hand\n")
+	output, code = runCommand(t, "forget", everywhere)
+	require.Equal(t, 1, code, output)
+	require.Contains(t, output, "note "+everywhere+" is in both", "checked in the note's own folder, not the owner's")
 }
 
 func TestRunForgetOfACorrectionRevivesWhatItSuperseded(t *testing.T) {

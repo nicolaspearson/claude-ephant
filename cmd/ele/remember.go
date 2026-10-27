@@ -67,6 +67,7 @@ func remember(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 	doneFile := flags.String("done-file", "", "file whose last change marks the nudge done; needs --every")
 	due := flags.String("due", "", "YYYY-MM-DD a reminder first shows on; reminders only, today by default with --every")
 	every := flags.Int("every", 0, "days a nudge stays hidden after each close; reminders only")
+	everywhere := flags.Bool("everywhere", false, "applies to every session, whatever its owner, owners added later included")
 	global := flags.Bool("global", false, "applies to every project of the owner")
 	kind := flags.String("kind", "", "decision, fact, handoff, question or reminder")
 	owner := flags.String("owner", "", "file under this owner instead of the resolved one")
@@ -95,6 +96,14 @@ func remember(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 	}
 	if *kind == notes.KindHandoff && *global {
 		fmt.Fprintln(stderr, "ele: a handoff is scoped to its project; drop --global")
+		return 2
+	}
+	if *kind == notes.KindHandoff && *everywhere {
+		fmt.Fprintln(stderr, "ele: a handoff is scoped to its project; drop --everywhere")
+		return 2
+	}
+	if *everywhere && (*global || *owner != "" || *projectName != "") {
+		fmt.Fprintln(stderr, "ele: --everywhere spans every owner and project; drop --global, --owner and --project")
 		return 2
 	}
 	switch {
@@ -135,12 +144,23 @@ func remember(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return 1
 	}
-	project, resolved, code, err := resolveOwner(ctx, dataDirectory, ownerMap, *projectName, *owner)
-	if err != nil {
-		fmt.Fprintf(stderr, "ele: %v\n", err)
-		return code
+	project, scope := "", notes.ScopeEverywhere
+	if *everywhere {
+		*owner = notes.OwnerEverywhere
+	} else {
+		var resolved string
+		var code int
+		project, resolved, code, err = resolveOwner(ctx, dataDirectory, ownerMap, *projectName, *owner)
+		if err != nil {
+			fmt.Fprintf(stderr, "ele: %v\n", err)
+			return code
+		}
+		*owner = resolved
+		scope = notes.ScopeProject
+		if *global {
+			scope = notes.ScopeGlobal
+		}
 	}
-	*owner = resolved
 
 	noteDirectory := filepath.Join(dataDirectory, "notes")
 	existing, _, err := notes.ReadOwner(noteDirectory, *owner)
@@ -158,10 +178,6 @@ func remember(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 			fmt.Fprintf(stderr, "ele: %s has no note %s to supersede\n", *owner, target)
 			return 2
 		}
-	}
-	scope := notes.ScopeProject
-	if *global {
-		scope = notes.ScopeGlobal
 	}
 	if duplicate := sayingTheSame(existing, notes.Note{Body: body, Kind: *kind, Project: project, Scope: scope}); duplicate != "" {
 		fmt.Fprintf(stderr, "ele: note %s already says this; nothing written\n", duplicate)
@@ -246,9 +262,18 @@ func resolveOwner(ctx context.Context, dataDirectory string, ownerMap ownermap.O
 	case owner != "":
 		return project, owner, 0, nil
 	case resolved == "":
-		return "", "", 1, fmt.Errorf("no owner in owner-map.json covers %s (project %s); add a path rule or project entry, or pass --owner <name>", directory, project)
+		return "", "", 1, unownedError{directory: directory, project: project}
 	}
 	return project, resolved, 0, nil
+}
+
+type unownedError struct {
+	directory string
+	project   string
+}
+
+func (e unownedError) Error() string {
+	return fmt.Sprintf("no owner in owner-map.json covers %s (project %s); add a path rule or project entry, or pass --owner <name>", e.directory, e.project)
 }
 
 func sayingTheSame(existing []notes.Note, candidate notes.Note) string {

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/nicolaspearson/claude-ephant/internal/notes"
 	"github.com/nicolaspearson/claude-ephant/internal/transcript"
 )
 
@@ -76,8 +77,8 @@ func (x *Index) Search(ctx context.Context, query Query) ([]Result, error) {
 	conditions := []string{"entries_fts MATCH ?"}
 	arguments := []any{match}
 	if query.Owner != "" {
-		conditions = append(conditions, "e.owner = ?")
-		arguments = append(arguments, query.Owner)
+		conditions = append(conditions, "e.owner IN (?, ?)")
+		arguments = append(arguments, query.Owner, notes.OwnerEverywhere)
 	}
 	if query.Project != "" {
 		conditions = append(conditions, "e.project = ?")

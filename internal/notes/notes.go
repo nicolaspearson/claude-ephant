@@ -25,15 +25,19 @@ const (
 	KindQuestion = "question"
 	KindReminder = "reminder"
 
-	ScopeGlobal  = "global"
-	ScopeProject = "project"
+	// An owner name cannot start with _, so no owner's folder clashes.
+	OwnerEverywhere = "_all"
+
+	ScopeEverywhere = "everywhere"
+	ScopeGlobal     = "global"
+	ScopeProject    = "project"
 )
 
 var (
 	ErrInvalid = errors.New("invalid note")
 
 	Kinds  = []string{KindDecision, KindFact, KindHandoff, KindPlan, KindQuestion, KindReminder}
-	scopes = []string{ScopeGlobal, ScopeProject}
+	scopes = []string{ScopeEverywhere, ScopeGlobal, ScopeProject}
 
 	// A project name is one front matter value; directory names may hold spaces and accents.
 	projectShape = regexp.MustCompile(`^\P{Cc}*$`)
@@ -258,6 +262,23 @@ func Parse(path string, content []byte) (Note, error) {
 	return note, nil
 }
 
+// ReadFor reads the owner's notes and the everywhere notes; an empty owner reads only the latter.
+func ReadFor(directory string, owner string) ([]Note, int, error) {
+	var read []Note
+	invalid := 0
+	for _, folder := range []string{owner, OwnerEverywhere} {
+		if folder == "" {
+			continue
+		}
+		owned, count, err := ReadOwner(directory, folder)
+		if err != nil {
+			return nil, 0, err
+		}
+		read, invalid = append(read, owned...), invalid+count
+	}
+	return read, invalid, nil
+}
+
 // ReadOwner counts the .md files Parse rejects; any other entry is skipped uncounted.
 func ReadOwner(directory string, owner string) ([]Note, int, error) {
 	folder := filepath.Join(directory, owner)
@@ -368,10 +389,14 @@ func problem(note Note) string {
 		return fmt.Sprintf("scope %q is not one of %s", note.Scope, strings.Join(scopes, ", "))
 	case note.Scope == ScopeProject && note.Project == "":
 		return "project scope with no project"
+	case note.Scope == ScopeEverywhere && note.Owner != OwnerEverywhere:
+		return fmt.Sprintf("everywhere scope but owner %q, not %s", note.Owner, OwnerEverywhere)
+	case note.Owner == OwnerEverywhere && note.Scope != ScopeEverywhere:
+		return fmt.Sprintf("owner %s with scope %q, not %s", OwnerEverywhere, note.Scope, ScopeEverywhere)
 	case note.Kind == KindHandoff && note.Scope != ScopeProject:
-		return "handoff with global scope"
+		return fmt.Sprintf("handoff with %s scope", note.Scope)
 	case note.Kind == KindPlan && note.Scope != ScopeProject:
-		return "plan with global scope"
+		return fmt.Sprintf("plan with %s scope", note.Scope)
 	case note.Kind == KindPlan && (strings.Contains(note.Body, "\n") || !filepath.IsLocal(filepath.FromSlash(note.Body))):
 		return fmt.Sprintf("plan body %q is not one path inside the project", note.Body)
 	case note.Kind == KindReminder && note.Due == "":

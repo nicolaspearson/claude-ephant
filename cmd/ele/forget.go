@@ -1,7 +1,9 @@
 package main
 
 import (
+	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -35,6 +37,9 @@ func forget(ctx context.Context, args []string, stdout io.Writer, stderr io.Writ
 		return 1
 	}
 	_, resolved, code, err := resolveOwner(ctx, dataDirectory, ownerMap, "", *owner)
+	if errors.As(err, new(unownedError)) {
+		err = nil
+	}
 	if err != nil {
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return code
@@ -45,12 +50,12 @@ func forget(ctx context.Context, args []string, stdout io.Writer, stderr io.Writ
 	if *restore {
 		from, to, verb = forgottenDirectory, noteDirectory, "Restored"
 	}
-	candidates, _, err := notes.ReadOwner(from, resolved)
+	candidates, _, err := notes.ReadFor(from, resolved)
 	if err != nil {
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return 1
 	}
-	live, _, err := notes.ReadOwner(noteDirectory, resolved)
+	live, _, err := notes.ReadFor(noteDirectory, resolved)
 	if err != nil {
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return 1
@@ -69,7 +74,7 @@ func forget(ctx context.Context, args []string, stdout io.Writer, stderr io.Writ
 			if *restore {
 				where = "forgotten"
 			}
-			fmt.Fprintf(stderr, "ele: %s has no %s note %s; --owner <name> for another owner's\n", resolved, where, identifier)
+			fmt.Fprintf(stderr, "ele: %s has no %s note %s; --owner <name> for another owner's\n", cmp.Or(resolved, notes.OwnerEverywhere), where, identifier)
 			return 1
 		}
 		if by := superseded[identifier]; !*restore && by != "" {
@@ -83,7 +88,7 @@ func forget(ctx context.Context, args []string, stdout io.Writer, stderr io.Writ
 			}
 			restoring = append(restoring, byID[identifier])
 		}
-		if _, err = os.Lstat(filepath.Join(to, resolved, identifier+".md")); err == nil {
+		if _, err = os.Lstat(filepath.Join(to, byID[identifier].Owner, identifier+".md")); err == nil {
 			fmt.Fprintf(stderr, "ele: note %s is in both %s and %s; nothing moved\n", identifier, noteDirectory, forgottenDirectory)
 			return 1
 		}
