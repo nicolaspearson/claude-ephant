@@ -4,11 +4,12 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/nicolaspearson/claude-ephant/internal/transcript"
 )
 
 var (
 	assignment = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*=`)
-	cdPrefix   = regexp.MustCompile(`^(\s*cd\s+("[^"]*"|'[^']*'|[^\s;&|]+)\s*(;|&&)\s*)+`)
 	// Reads, or ele's own bookkeeping, which changes no repository file. Nil takes any subcommand.
 	eleNotWork = map[string][]string{
 		"checkpoint": {"check", "hash"},
@@ -464,13 +465,9 @@ func (scan shellScan) expand(target string) string {
 }
 
 func logsCheckpoint(command string) bool {
-	return startsCommand(command, "ele checkpoint log ")
-}
-
-func startsCommand(command string, prefix string) bool {
-	return strings.HasPrefix(cdPrefix.ReplaceAllString(strings.TrimSpace(command), ""), prefix)
+	return transcript.StartsCommand(command, "ele checkpoint log ")
 }
 
 func writesNote(command string) bool {
-	return startsCommand(command, "ele remember ")
+	return transcript.StartsCommand(command, "ele remember ")
 }

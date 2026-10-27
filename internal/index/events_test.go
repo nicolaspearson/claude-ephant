@@ -218,6 +218,61 @@ func TestEventsFollowAHookBlockToItsReply(t *testing.T) {
 	}, follow)
 }
 
+func TestEventsFollowANotesAskToItsWorkAndNote(t *testing.T) {
+	root := t.TempDir()
+	projects := filepath.Join(root, "projects")
+	line := func(minute string, body string) string {
+		return `{"sessionId":"s1","timestamp":"2026-10-15T10:` + minute + `:00Z","uuid":"u` + minute + `",` + body + "}\n"
+	}
+	call := func(minute string, name string, input string) string {
+		return line(minute, `"type":"assistant","message":{"content":[{"type":"tool_use","name":"`+name+`","input":`+input+`}]}`)
+	}
+	bash := func(minute string, command string) string {
+		return call(minute, "Bash", `{"command":"`+command+`"}`)
+	}
+	edit := func(minute string) string {
+		return call(minute, "Edit", `{"file_path":"/w/a.go"}`)
+	}
+	ask := func(minute string) string {
+		return line(minute, `"type":"user","isMeta":true,"message":{"content":"Stop hook feedback:\nFollow /ele:remember's Propose section now."}`)
+	}
+	prompt := func(minute string, text string) string {
+		return line(minute, `"type":"user","origin":{"kind":"human"},"message":{"content":"`+text+`"}`)
+	}
+	write(t, filepath.Join(projects, "-w", "s1.jsonl"), call("00", "Skill", `{"skill":"tdd"}`)+edit("01")+bash("02", "go test ./...")+ask("03")+
+		call("04", "AskUserQuestion", `{"questions":[]}`)+bash("05", "SID=s1 ele remember --kind fact 'a'")+call("06", "AskUserQuestion", `{"questions":[]}`)+
+		bash("07", "go test ./...")+ask("08")+prompt("09", "write it")+bash("10", "ele remember --kind fact 'b'")+
+		edit("11")+call("12", "Skill", `{"skill":"ele:checkpoint"}`)+bash("13", "go vet ./...")+ask("14")+bash("15", "ele remember --help")+
+		prompt("16", "go on")+call("17", "AskUserQuestion", `{"questions":[]}`)+ask("18")+
+		prompt("19", "<command-name>/ele:handoff</command-name>")+bash("20", "cd /w && ele remember --kind handoff 'c'")+ask("21")+
+		prompt("22", "go on")+edit("23")+ask("24")+
+		prompt("25", "go on")+call("26", "AskUserQuestion", `{"questions":[]}`)+ask("27")+bash("28", "grep 'ele remember ' a.md")+
+		prompt("29", "go on")+bash("30", "cd /w\\nele remember --kind fact 'd'")+ask("31")+
+		edit("32")+bash("33", "cd /w; ele remember --kind fact 'e'")+ask("34")+bash("35", "grep -c 'ele remember' a.md"))
+	write(t, filepath.Join(projects, "-w", "s1", "subagents", "agent-1.jsonl"), `{"sessionId":"s1","isSidechain":true,"timestamp":"2026-10-15T10:17:30Z","uuid":"a1","type":"assistant","message":{"content":[{"type":"tool_use","name":"Write","input":{"file_path":"/w/b.go"}}]}}`+"\n")
+	index := open(t, filepath.Join(root, "ele.db"))
+	update(t, index, projects, filepath.Join(root, "archive"), ownermap.OwnerMap{})
+
+	events, _, err := index.Events(context.Background(), dto.EventQuery{Kind: "hook-block"})
+	require.NoError(t, err)
+	var follow []map[string]any
+	for _, event := range events {
+		follow = append(follow, event.Attributes)
+	}
+	reason := "Follow /ele:remember's Propose section now."
+	require.Equal(t, []map[string]any{
+		{"noted": true, "notedOnReply": true, "reason": reason, "skill": "tdd", "subagentEdits": false, "work": "edits"},
+		{"noted": false, "notedOnReply": true, "reason": reason, "subagentEdits": false, "work": "bash"},
+		{"noted": false, "notedOnReply": false, "reason": reason, "skill": "ele:checkpoint", "subagentEdits": false, "work": "edits"},
+		{"noted": false, "notedOnReply": false, "reason": reason, "subagentEdits": true, "work": "question"},
+		{"noted": false, "notedOnReply": false, "reason": reason, "skill": "ele:handoff", "subagentEdits": false, "work": "none"},
+		{"noted": false, "notedOnReply": true, "reason": reason, "subagentEdits": false, "work": "edits"},
+		{"noted": true, "notedOnReply": true, "reason": reason, "subagentEdits": false, "work": "question"},
+		{"noted": true, "notedOnReply": false, "reason": reason, "subagentEdits": false, "work": "bash"},
+		{"noted": false, "notedOnReply": false, "reason": reason, "subagentEdits": false, "work": "none"},
+	}, follow)
+}
+
 func TestEventsDuringKeepsOnlyARunsEvents(t *testing.T) {
 	root := t.TempDir()
 	projects := filepath.Join(root, "projects")

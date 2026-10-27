@@ -23,6 +23,12 @@ var closingCalls = map[string][]string{
 	"ticket-audit": {"ele ticket ledger record"},
 }
 
+const (
+	notesAskCondition = `kind = '` + transcript.EventHookBlock + `' AND name = 'Stop' AND instr(attributes, 'ele:remember') > 0`
+	proposalSkill     = `(name IN ('handoff', 'remember', 'wrap') OR name LIKE '%:handoff' OR name LIKE '%:remember' OR name LIKE '%:wrap')`
+	wroteNote         = `text LIKE 'Bash: %' AND instr(text, 'ele remember ') > 0 AND instr(text, 'ele remember --help') = 0`
+)
+
 // Misses a dispute worded otherwise, and matches a reply echoing the block's own "waiting on" or "investigation".
 var disputingReply = regexp.MustCompile(`(?i)(not|n't) a checkpoint|mid-task|read-only|no files? changed|not done|isn't done|waiting on|investigation`)
 
@@ -137,6 +143,12 @@ func (x *Index) Events(ctx context.Context, query dto.EventQuery) ([]dto.Event, 
 			}
 			continue
 		}
+		if event.Kind == transcript.EventHookBlock && !event.Subagent && event.Name == "Stop" && strings.Contains(fmt.Sprint(event.Attributes["reason"]), "ele:remember") {
+			if err = x.followNotesAsk(ctx, &events[i]); err != nil {
+				return nil, 0, err
+			}
+			continue
+		}
 		// Only a Bash call's text is its whole input; another tool's is its target, the same across changed calls.
 		if event.Kind != transcript.EventToolError || event.Name != "Bash" {
 			continue
@@ -217,6 +229,116 @@ func (x *Index) followBlock(ctx context.Context, event *dto.Event) error {
 	event.Attributes["disputed"] = !checkpointed && disputingReply.MatchString(string(opening[:min(len(opening), 600)]))
 	event.Attributes["reply"] = transcript.Truncate(reply)
 	event.Attributes["replyAt"] = replyAt
+	return nil
+}
+
+// A checkpoint starts no work: the stop-check hook keeps work pending across one.
+func (x *Index) followNotesAsk(ctx context.Context, event *dto.Event) error {
+	var start string
+	err := x.db.QueryRowContext(ctx, `SELECT coalesce(max(timestamp), '') FROM events WHERE session = ? AND subagent = 0 AND timestamp < ? AND (`+notesAskCondition+`
+		OR (kind IN ('`+transcript.EventCommand+`', '`+transcript.EventSkill+`') AND `+proposalSkill+`))`,
+		event.Session, event.Timestamp).Scan(&start)
+	if err != nil {
+		return fmt.Errorf("find where a notes ask's work starts: %w", err)
+	}
+	calls, err := x.db.QueryContext(ctx, `SELECT text, timestamp FROM entries WHERE session = ? AND subagent = 0 AND kind = ? AND timestamp > ? AND timestamp < ?
+		AND text LIKE 'Bash: %' AND instr(text, 'ele remember ') > 0 ORDER BY timestamp DESC, id DESC`,
+		event.Session, transcript.KindTool, start, event.Timestamp)
+	if err != nil {
+		return fmt.Errorf("find a note written before a notes ask: %w", err)
+	}
+	defer calls.Close()
+	for calls.Next() {
+		var text, timestamp string
+		if err = calls.Scan(&text, &timestamp); err != nil {
+			return fmt.Errorf("read a note written before a notes ask: %w", err)
+		}
+		if transcript.StartsCommand(strings.TrimPrefix(text, "Bash: "), "ele remember ") {
+			start = timestamp
+			break
+		}
+	}
+	if err = calls.Err(); err != nil {
+		return fmt.Errorf("read a note written before a notes ask: %w", err)
+	}
+	if err = calls.Close(); err != nil {
+		return fmt.Errorf("read a note written before a notes ask: %w", err)
+	}
+	rows, err := x.db.QueryContext(ctx, `SELECT text FROM entries WHERE session = ? AND subagent = 0 AND kind = ? AND timestamp > ? AND timestamp < ?`,
+		event.Session, transcript.KindTool, start, event.Timestamp)
+	if err != nil {
+		return fmt.Errorf("find the work before a notes ask: %w", err)
+	}
+	defer rows.Close()
+	tools := map[string]bool{}
+	for rows.Next() {
+		var text string
+		if err = rows.Scan(&text); err != nil {
+			return fmt.Errorf("read the work before a notes ask: %w", err)
+		}
+		name, _, _ := strings.Cut(text, ":")
+		tools[name] = true
+	}
+	if err = rows.Err(); err != nil {
+		return fmt.Errorf("read the work before a notes ask: %w", err)
+	}
+	switch {
+	case tools["Edit"] || tools["NotebookEdit"] || tools["Write"]:
+		event.Attributes["work"] = "edits"
+	case tools["Bash"]:
+		event.Attributes["work"] = "bash"
+	case tools["AskUserQuestion"]:
+		event.Attributes["work"] = "question"
+	default:
+		event.Attributes["work"] = "none"
+	}
+	var skill sql.NullString
+	// Back to the previous ask, not the start: a handoff's own ele remember starts the work after it.
+	err = x.db.QueryRowContext(ctx, `SELECT name FROM events WHERE session = ? AND subagent = 0 AND kind IN (?, ?) AND timestamp < ?
+		AND timestamp > coalesce((SELECT max(timestamp) FROM events WHERE session = ? AND subagent = 0 AND timestamp < ? AND `+notesAskCondition+`), '')
+		ORDER BY timestamp DESC, id DESC LIMIT 1`,
+		event.Session, transcript.EventCommand, transcript.EventSkill, event.Timestamp, event.Session, event.Timestamp).Scan(&skill)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("find the skill before a notes ask: %w", err)
+	}
+	if skill.Valid {
+		event.Attributes["skill"] = skill.String
+	}
+	prompts, err := x.db.QueryContext(ctx, `SELECT text, timestamp FROM entries WHERE session = ? AND subagent = 0 AND kind = ? AND timestamp > ? ORDER BY timestamp, id LIMIT 2`,
+		event.Session, transcript.KindPrompt, event.Timestamp)
+	if err != nil {
+		return fmt.Errorf("find the prompts after a notes ask: %w", err)
+	}
+	defer prompts.Close()
+	var reply string
+	bounds := []string{"9999", "9999"}
+	for i := 0; prompts.Next(); i++ {
+		var text string
+		if err = prompts.Scan(&text, &bounds[i]); err != nil {
+			return fmt.Errorf("read the prompts after a notes ask: %w", err)
+		}
+		if i == 0 {
+			reply = text
+		}
+	}
+	if err = prompts.Err(); err != nil {
+		return fmt.Errorf("read the prompts after a notes ask: %w", err)
+	}
+	var subagentEdits, noted, notedOnReply bool
+	err = x.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM entries WHERE session = ? AND subagent = 1 AND kind = ? AND timestamp > ? AND timestamp < ?
+			AND (text LIKE 'Edit: %' OR text LIKE 'NotebookEdit: %' OR text LIKE 'Write: %')),
+		EXISTS (SELECT 1 FROM entries WHERE session = ? AND subagent = 0 AND kind = ? AND timestamp > ? AND timestamp < ? AND `+wroteNote+`),
+		EXISTS (SELECT 1 FROM entries WHERE session = ? AND subagent = 0 AND kind = ? AND timestamp > ? AND timestamp < ? AND `+wroteNote+`)`,
+		event.Session, transcript.KindTool, start, event.Timestamp,
+		event.Session, transcript.KindTool, event.Timestamp, bounds[0],
+		event.Session, transcript.KindTool, bounds[0], bounds[1]).Scan(&subagentEdits, &noted, &notedOnReply)
+	if err != nil {
+		return fmt.Errorf("find what followed a notes ask: %w", err)
+	}
+	event.Attributes["noted"] = noted
+	// A typed command after the ask, such as /ele:handoff, is the user's own start, not an approval.
+	event.Attributes["notedOnReply"] = notedOnReply && !strings.Contains(reply, "<command-name>")
+	event.Attributes["subagentEdits"] = subagentEdits
 	return nil
 }
 

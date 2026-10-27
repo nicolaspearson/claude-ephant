@@ -3,6 +3,7 @@ package transcript
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/nicolaspearson/claude-ephant/internal/dto"
@@ -15,6 +16,8 @@ const (
 )
 
 const inputLimit = 300
+
+var cdPrefix = regexp.MustCompile(`^(\s*cd\s+("[^"]*"|'[^']*'|[^\s;&|]+)\s*(;|&&)\s*)+`)
 
 // Marks harness text on user lines that carry no origin.
 var harnessTags = []string{"<bash-stderr>", "<bash-stdout>", "<fork-boilerplate>", "<local-command-caveat>", "<local-command-stderr>", "<local-command-stdout>", "<system-reminder>", "<task-notification>", "[Request interrupted"}
@@ -149,6 +152,10 @@ func Parse(raw []byte) ([]Entry, []dto.TranscriptEvent, error) {
 		}
 	}
 	return entries, events, nil
+}
+
+func StartsCommand(command string, prefix string) bool {
+	return strings.HasPrefix(cdPrefix.ReplaceAllString(strings.TrimSpace(command), ""), prefix)
 }
 
 func ToolLine(name string, input map[string]any) string {
