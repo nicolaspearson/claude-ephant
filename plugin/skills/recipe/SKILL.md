@@ -23,10 +23,10 @@ Done when one procedure is chosen, or the one line says none is worth keeping.
 
 ## 2. Draft
 
-A recipe goes to every profile, so each lists it. The targets are the `skills` folder of `$HOME/.claude` and of each `$HOME/.claude-*` directory holding a `projects` folder, the profiles ele archives, one per real folder, as a profile or its `skills` may be a link to another's:
+A recipe goes to every profile, so each lists it. The targets are the `skills` folder of the running profile, `${CLAUDE_CONFIG_DIR:-$HOME/.claude}`, and of each other `$HOME/.claude` or `$HOME/.claude-*` directory holding a `projects` folder, the profiles ele archives, one per real folder, as a profile or its `skills` may be a link to another's:
 
 ```sh
-find "$HOME" -maxdepth 1 \( -name .claude -o -name '.claude-*' \) | while read -r profile; do [ -d "$profile/projects" ] || continue; if [ -d "$profile/skills" ]; then (cd "$profile/skills" && pwd -P); else echo "$(cd "$profile" && pwd -P)/skills"; fi; done | sort -u
+{ (cd "${CLAUDE_CONFIG_DIR:-$HOME/.claude}" 2>/dev/null && pwd -P); find "$HOME" -maxdepth 1 \( -name .claude -o -name '.claude-*' \) | while read -r profile; do [ -d "$profile/projects" ] && (cd "$profile" && pwd -P); done; } | sort -u | while read -r profile; do if [ -d "$profile/skills" ]; then (cd "$profile/skills" && pwd -P); else echo "$profile/skills"; fi; done | sort -u
 ```
 
 Pick a short kebab-case name saying what it does, such as `release-cli` or `rotate-staging-token`. Check each target for `<name>`; one there in any target is never overwritten, so pick another name or, where it covers the same procedure, say so and stop.

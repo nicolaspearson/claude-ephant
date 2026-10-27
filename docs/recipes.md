@@ -13,10 +13,11 @@ the steps.
    `auto_note_writes` option on, unless you handed Claude the skill's exact
    words and asked for them to be saved
 
-The skill is written to `skills/<name>/SKILL.md` in every profile, `~/.claude`
-and each `~/.claude-*` holding a `projects` folder, and sessions started after it list it as `/<name>`
-whichever profile they run in. A profile added later does not get it. A skill by
-that name in any profile is never overwritten.
+The skill is written to `skills/<name>/SKILL.md` in every profile: the one the
+session runs in, and each other `~/.claude` or `~/.claude-*` holding a
+`projects` folder. Sessions started after it list it as `/<name>` whichever
+profile they run in. A profile added later does not get it. A skill by that name
+in any profile is never overwritten.
 
 `/ele:wrap` offers a recipe too, when the session ran one worth keeping. The
 `recipes` option off stops it offering; `/ele:recipe` still works when typed.
