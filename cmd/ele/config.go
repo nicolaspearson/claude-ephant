@@ -40,6 +40,15 @@ func colourOn(settings config.Config, owner string) bool {
 	return err != nil || value.Value == true
 }
 
+func compactHintAt(settings config.Config, owner string) int {
+	value, err := settings.Value("compact_hint_at", owner)
+	if threshold, ok := value.Value.(int); err == nil && ok {
+		return threshold
+	}
+	option, _ := config.Lookup("compact_hint_at")
+	return option.Default.(int)
+}
+
 func configCommand(_ context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
 	if len(args) == 0 {
 		return misuse("config", args, stdout, stderr)
@@ -174,6 +183,11 @@ func loadConfig(dataDirectory string, stderr io.Writer) config.Config {
 		return config.Defaults()
 	}
 	return settings
+}
+
+func notesAskOn(settings config.Config, owner string) bool {
+	value, err := settings.Value("notes_ask", owner)
+	return err != nil || value.Value == true
 }
 
 func offDefaults(settings config.Config, owner string) []string {

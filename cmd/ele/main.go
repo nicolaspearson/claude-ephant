@@ -66,7 +66,7 @@ const usage = `usage:
   ele show --note <id> [--context <n>]
   ele stats
   ele status
-  ele stop-check [--hint-at <tokens>]
+  ele stop-check
   ele stop-check --replay --since <time> [--until <time>]
   ele sync [--background]
   ele ticket claims [--quiet] [<number>...]

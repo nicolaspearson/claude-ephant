@@ -30,7 +30,7 @@ note, saves it and reports its id.
 ele also asks. When a turn ends after work, its Stop hook asks Claude to
 propose what is worth keeping, once per stretch of work between checkpoints.
 It never asks during a checkpoint, or a `/ele:review` once its reviewers start,
-since both end turns mid-run.
+since both end turns mid-run. The `notes_ask` option off stops it asking.
 Claude puts each proposed note to you as a Write or Skip question, and writes
 the ones you approve. With the `auto_note_writes` option on, it writes them
 without asking and reports each id, so a wrong one can be undone.

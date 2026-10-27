@@ -288,6 +288,115 @@ func TestRunStopCheckReasonFollowsAutoNoteWrites(t *testing.T) {
 	}
 }
 
+func TestRunStopCheckAsksForNotesOnlyWithNotesAsk(t *testing.T) {
+	block := stopOutput{Decision: "block", Reason: rememberReason}
+	tests := []struct {
+		config string
+		name   string
+		want   stopOutput
+	}{
+		{config: `{"notes_ask": fals`, name: "broken file reads as on", want: block},
+		{name: "default on", want: block},
+		{config: `{"notes_ask": false}`, name: "off"},
+		{config: `{"owners": {"personal": {"notes_ask": false}}}`, name: "off for another owner", want: block},
+		{config: `{"notes_ask": false, "owners": {"corp": {"notes_ask": true}}}`, name: "on for this owner", want: block},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			run := newStopCheckRun(t)
+			if test.config != "" {
+				writeFile(t, filepath.Join(run.home, "data", "config.json"), test.config)
+			}
+			run.respond(1000, stopCheckEdit)
+			var stdout, stderr bytes.Buffer
+			input := fmt.Sprintf(`{"cwd":%q,"session_id":%q,"transcript_path":%q}`, run.gateway, run.session, run.transcriptPath)
+			require.Equal(t, 0, stopCheck(context.Background(), nil, strings.NewReader(input), &stdout, &stderr), stderr.String())
+			var output stopOutput
+			if stdout.Len() > 0 {
+				require.NoError(t, json.Unmarshal(stdout.Bytes(), &output), stdout.String())
+			}
+			require.Equal(t, test.want, output)
+		})
+	}
+}
+
+func TestRunStopCheckForgetsWorkDoneWhileNotesAskIsOff(t *testing.T) {
+	run := newStopCheckRun(t)
+	configPath := filepath.Join(run.home, "data", "config.json")
+	writeFile(t, configPath, `{"notes_ask": false}`)
+	run.respond(1000, stopCheckEdit)
+	raw, _ := run.stop(run.gateway, false)
+	require.Empty(t, raw, "off")
+
+	writeFile(t, configPath, `{}`)
+	run.prompt()
+	run.respond(1000, stopCheckText)
+	raw, _ = run.stop(run.gateway, false)
+	require.Empty(t, raw, "the edit made while off is not asked about")
+
+	run.prompt()
+	run.respond(1000, stopCheckEdit)
+	_, output := run.stop(run.gateway, false)
+	require.Equal(t, stopOutput{Decision: "block", Reason: rememberReason}, output, "an edit made once on is")
+}
+
+func TestRunStopCheckHintsFromCompactHintAt(t *testing.T) {
+	tests := []struct {
+		config string
+		name   string
+		tokens int
+		want   string
+	}{
+		{config: `{"compact_hint_at": 0}`, name: "0 turns it off", tokens: 900000},
+		{config: `{"compact_hint_at": 1`, name: "broken file reads as the default", tokens: 150000, want: "Context 150k. Write a handoff (/ele:handoff), then /clear"},
+		{name: "default, at", tokens: 150000, want: "Context 150k. Write a handoff (/ele:handoff), then /clear"},
+		{name: "default, below", tokens: 149999},
+		{config: `{"owners": {"personal": {"compact_hint_at": 400000}}}`, name: "raised for another owner", tokens: 150000, want: "Context 150k. Write a handoff (/ele:handoff), then /clear"},
+		{config: `{"owners": {"corp": {"compact_hint_at": 400000}}}`, name: "raised for this owner", tokens: 150000},
+		{config: `{"compact_hint_at": 400000}`, name: "raised, at", tokens: 400000, want: "Context 400k. Write a handoff (/ele:handoff), then /clear"},
+		{config: `{"compact_hint_at": 400000}`, name: "raised, below", tokens: 399999},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			run := newStopCheckRun(t)
+			t.Setenv("NO_COLOR", "1")
+			if test.config != "" {
+				writeFile(t, filepath.Join(run.home, "data", "config.json"), test.config)
+			}
+			run.respond(test.tokens, stopCheckText)
+			var stdout, stderr bytes.Buffer
+			input := fmt.Sprintf(`{"cwd":%q,"session_id":%q,"transcript_path":%q}`, run.gateway, run.session, run.transcriptPath)
+			require.Equal(t, 0, stopCheck(context.Background(), nil, strings.NewReader(input), &stdout, &stderr), stderr.String())
+			var output stopOutput
+			if stdout.Len() > 0 {
+				require.NoError(t, json.Unmarshal(stdout.Bytes(), &output), stdout.String())
+			}
+			require.Equal(t, test.want, output.SystemMessage)
+		})
+	}
+}
+
+func TestRunStopCheckHintsAgainAfterCompactHintAtWasOff(t *testing.T) {
+	run := newStopCheckRun(t)
+	t.Setenv("NO_COLOR", "1")
+	configPath := filepath.Join(run.home, "data", "config.json")
+	run.respond(260000, stopCheckText)
+	_, output := run.stop(run.gateway, false)
+	require.Equal(t, "Context 260k. Write a handoff (/ele:handoff), then /clear", output.SystemMessage, "band 1 hinted")
+
+	writeFile(t, configPath, `{"compact_hint_at": 0}`)
+	run.prompt()
+	run.respond(40000, stopCheckText)
+	raw, _ := run.stop(run.gateway, false)
+	require.Empty(t, raw, "off, compacted")
+
+	writeFile(t, configPath, `{}`)
+	run.prompt()
+	run.respond(160000, stopCheckText)
+	_, output = run.stop(run.gateway, false)
+	require.Equal(t, "Context 160k. Write a handoff (/ele:handoff), then /clear", output.SystemMessage, "band 0 hinted again once on")
+}
+
 func TestRunStopCheckColoursTheHint(t *testing.T) {
 	coloured := "\033[1mContext 150k.\033[22m Write a handoff (\033[36m/ele:handoff\033[39m), then \033[36m/clear\033[39m"
 	plain := "Context 150k. Write a handoff (/ele:handoff), then /clear"
@@ -603,6 +712,7 @@ func TestRunStopCheckHintsOncePerBandAndNamesTheLonePlan(t *testing.T) {
 
 func TestRunStopCheckOnARecordedTranscript(t *testing.T) {
 	home := recallFixture(t)
+	writeFile(t, filepath.Join(home, "data", "config.json"), `{"compact_hint_at": 60000}`)
 	gateway := filepath.Join(home, "w", "corp", "gateway")
 	recorded, err := os.ReadFile(filepath.Join("testdata", "stop-check.jsonl"))
 	require.NoError(t, err)
@@ -619,7 +729,7 @@ func TestRunStopCheckOnARecordedTranscript(t *testing.T) {
 		os.Stdin = file
 		defer func() { os.Stdin = saved }()
 		var stdout, stderr bytes.Buffer
-		require.Equal(t, 0, run(context.Background(), []string{"stop-check", "--hint-at", "60000"}, &stdout, &stderr), stderr.String())
+		require.Equal(t, 0, run(context.Background(), []string{"stop-check"}, &stdout, &stderr), stderr.String())
 		require.Empty(t, stderr.String())
 		return stdout.String()
 	}

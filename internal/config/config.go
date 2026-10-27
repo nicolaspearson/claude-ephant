@@ -15,6 +15,7 @@ import (
 
 const (
 	KindBoolean = "boolean"
+	KindInteger = "integer"
 	KindPath    = "path"
 
 	SourceDefault = "default"
@@ -63,6 +64,18 @@ var Options = []Option{
 		Description: "Colours the messages ele shows the user, the start block's and the Stop hook's; NO_COLOR turns it off whatever this says.",
 		Kind:        KindBoolean,
 		Name:        "colour",
+	},
+	{
+		Default:     150000,
+		Description: "Context tokens from which the Stop hook suggests /compact or a handoff, again every 100k past it; 0 turns the hint off.",
+		Kind:        KindInteger,
+		Name:        "compact_hint_at",
+	},
+	{
+		Default:     true,
+		Description: "Asks for notes in the Stop hook once per stretch of work; off, /ele:remember still works.",
+		Kind:        KindBoolean,
+		Name:        "notes_ask",
 	},
 	{
 		Default:     true,
@@ -252,6 +265,13 @@ func decode(option Option, raw json.RawMessage) (any, error) {
 			return nil, fmt.Errorf("want a boolean, got %s", raw)
 		}
 		return value, nil
+	case KindInteger:
+		// null unmarshals into an int as 0, which would turn an option off unasked.
+		var value int
+		if err := json.Unmarshal(raw, &value); err != nil || value < 0 || string(raw) == "null" {
+			return nil, fmt.Errorf("want a whole number of 0 or more, got %s", raw)
+		}
+		return value, nil
 	case KindPath:
 		var value string
 		if err := json.Unmarshal(raw, &value); err != nil {
@@ -282,6 +302,12 @@ func parse(option Option, text string) (any, error) {
 		value, err := strconv.ParseBool(text)
 		if err != nil {
 			return nil, fmt.Errorf("%s takes true or false, not %q", option.Name, text)
+		}
+		return value, nil
+	case KindInteger:
+		value, err := strconv.Atoi(text)
+		if err != nil || value < 0 {
+			return nil, fmt.Errorf("%s takes a whole number of 0 or more, not %q", option.Name, text)
 		}
 		return value, nil
 	case KindPath:

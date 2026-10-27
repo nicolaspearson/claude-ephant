@@ -106,6 +106,9 @@ each does.
   without a checkpoint, once per turn, to ask for `/ele:checkpoint`
 - **`colour`**, on: highlights the messages ele shows you; `NO_COLOR` turns it
   off
+- **`compact_hint_at`**, 150000: context tokens from which ele suggests
+  `/compact` or a handoff; 0 turns it off
+- **`notes_ask`**, on: asks for notes once per stretch of work
 - **`reminders`**, on: shows due reminders at session start
 
 ## Update

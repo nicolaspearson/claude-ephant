@@ -37,6 +37,28 @@ func TestLoadRefusesAKnownOptionOfTheWrongKind(t *testing.T) {
 	require.ErrorContains(t, err, "owners.work.checkpoint_gate: want a boolean")
 }
 
+func TestLoadRefusesAnIntegerOptionHoldingANegativeOrNonWholeNumber(t *testing.T) {
+	tests := []struct {
+		content string
+		name    string
+		want    string
+	}{
+		{content: `{"compact_hint_at": 1.5}`, name: "fraction", want: "compact_hint_at: want a whole number of 0 or more, got 1.5"},
+		{content: `{"compact_hint_at": -1}`, name: "negative", want: "compact_hint_at: want a whole number of 0 or more, got -1"},
+		{content: `{"compact_hint_at": null}`, name: "null", want: "compact_hint_at: want a whole number of 0 or more, got null"},
+		{content: `{"owners": {"work": {"compact_hint_at": "400000"}}}`, name: "string", want: `owners.work.compact_hint_at: want a whole number of 0 or more, got "400000"`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.json")
+			require.NoError(t, os.WriteFile(path, []byte(test.content), 0o600))
+
+			_, err := Load(path)
+			require.ErrorContains(t, err, test.want)
+		})
+	}
+}
+
 func TestLoadRefusesAPathOptionHoldingANonStringOrARelativePath(t *testing.T) {
 	tests := []struct {
 		content string
@@ -81,6 +103,23 @@ func TestSetRefusesAnUnknownOptionOrAValueOfTheWrongKind(t *testing.T) {
 	require.ErrorContains(t, config.Set("checkpoint_gat", "", "false"), `no option "checkpoint_gat"; options: auto_note_writes, checkpoint_gate`)
 	require.ErrorContains(t, config.Set("checkpoint_gate", "", "off"), `checkpoint_gate takes true or false, not "off"`)
 	require.Empty(t, config.Global)
+}
+
+func TestSetStoresAnIntegerAndRefusesANegativeOrNonWholeOne(t *testing.T) {
+	config := Defaults()
+	require.EqualError(t, config.Set("compact_hint_at", "", "-1"), `compact_hint_at takes a whole number of 0 or more, not "-1"`)
+	require.EqualError(t, config.Set("compact_hint_at", "", "400k"), `compact_hint_at takes a whole number of 0 or more, not "400k"`)
+	require.Empty(t, config.Global)
+
+	require.NoError(t, config.Set("compact_hint_at", "work", "400000"))
+	require.JSONEq(t, `400000`, string(config.Owners["work"]["compact_hint_at"]))
+	value, err := config.Value("compact_hint_at", "work")
+	require.NoError(t, err)
+	require.Equal(t, Value{Name: "compact_hint_at", Owner: "work", Source: SourceOwner, Value: 400000}, value)
+
+	value, err = config.Value("compact_hint_at", "")
+	require.NoError(t, err)
+	require.Equal(t, Value{Name: "compact_hint_at", Source: SourceDefault, Value: 150000}, value)
 }
 
 func TestSetRefusesAPathNamingNoReadableFile(t *testing.T) {

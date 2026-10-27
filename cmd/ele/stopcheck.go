@@ -360,11 +360,10 @@ func sizeHint(tokens int, threshold int, hinted int, midTask bool, focus string)
 
 func stopCheck(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) int {
 	flags := newFlagSet("stop-check", stderr)
-	hintAt := flags.Int("hint-at", 150000, "context tokens from which to suggest /compact or a handoff")
 	replay := flags.Bool("replay", false, "replay the hook as built over each Stop of the archived main transcripts with a line in the window, one JSON line per stop")
 	since := flags.String("since", "", "with --replay, the window's start: YYYY-MM-DD or an RFC 3339 time")
 	until := flags.String("until", "", "with --replay, the window's end, exclusive: YYYY-MM-DD or an RFC 3339 time; default now")
-	if err := flags.Parse(args); err != nil || flags.NArg() > 0 || *hintAt <= 0 || *replay != (*since != "") || (*until != "" && !*replay) {
+	if err := flags.Parse(args); err != nil || flags.NArg() > 0 || *replay != (*since != "") || (*until != "" && !*replay) {
 		return rejectCall(flags, err, stdout, stderr)
 	}
 	if *replay {
@@ -423,12 +422,21 @@ func stopCheck(ctx context.Context, args []string, stdin io.Reader, stdout io.Wr
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return 1
 	}
-	var output stopOutput
-	output.SystemMessage, state.Band = sizeHint(tokens, *hintAt, state.Band, state.MidTask, "")
-	if output.SystemMessage != "" && state.MidTask {
-		output.SystemMessage, _ = sizeHint(tokens, *hintAt, noBand, true, lonePlanFocus(dataDirectory, hook.Directory, owner, project))
-	}
 	settings := loadConfig(dataDirectory, stderr)
+	var output stopOutput
+	if hintAt := compactHintAt(settings, owner); hintAt > 0 {
+		output.SystemMessage, state.Band = sizeHint(tokens, hintAt, state.Band, state.MidTask, "")
+		if output.SystemMessage != "" && state.MidTask {
+			output.SystemMessage, _ = sizeHint(tokens, hintAt, noBand, true, lonePlanFocus(dataDirectory, hook.Directory, owner, project))
+		}
+	} else {
+		// Band reset while off, so one hinted before does not hold back the hint once on.
+		state.Band = noBand
+	}
+	// Pending cleared while off, so turning it on asks only for work done after.
+	if !notesAskOn(settings, owner) {
+		state.Pending = false
+	}
 	var block bool
 	if block, state = rememberBlock(state, hook.StopHookActive); block {
 		output.Decision, output.Reason = "block", rememberReason

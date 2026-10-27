@@ -32,7 +32,8 @@ ele handoff reopen <id>     # show a closed one again at the next start
 ### When to hand off
 
 As a session's context grows past 150k tokens, ele's Stop hook suggests a
-fresh start, once per further 100k:
+fresh start, once per further 100k; the `compact_hint_at` option moves that
+threshold, and 0 turns the suggestion off:
 
 - Mid-task, `/compact`, with the active plan's next item as its focus
 - Otherwise, a handoff with `/ele:handoff`, then `/clear`

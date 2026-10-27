@@ -99,6 +99,8 @@ block a session starts with names any option set away from its default.
 | `auto_note_writes` | `false` | On, notes ele proposes are written without asking, each reported with its id                                                 |
 | `checkpoint_gate`  | `true`  | Off, a turn that changed files and claims done is not blocked for `/ele:checkpoint`                                          |
 | `colour`           | `true`  | Off, the messages ele shows you are plain text, for a client that does not render ANSI colour. `NO_COLOR` turns it off too |
+| `compact_hint_at`  | `150000` | Context tokens from which the Stop hook suggests `/compact` or a handoff, again every 100k past it; `0` turns the suggestion off |
+| `notes_ask`        | `true`  | Off, the Stop hook never asks for notes; `/ele:remember` and `/ele:wrap` still propose them |
 | `reminders`        | `true`  | Off, no reminder shows at session start                                                                                     |
 | `review_voice`     | empty   | An absolute or `~/` path to your own voice file, which `/ele:review` drafts comments from in place of the shipped one; set per owner with `--owner`. `set` refuses a path naming no readable file, and `unset` returns to the shipped one |
 
