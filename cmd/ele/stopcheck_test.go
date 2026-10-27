@@ -124,6 +124,7 @@ func TestAdvance(t *testing.T) {
 		{events: run(transcript.EventCommand, "ele:remember"), from: stopState{Pending: true}, name: "a typed remember proposes", want: stopState{Proposing: true}},
 		{events: run(transcript.EventCommand, "ele:review"), from: stopState{Pending: true}, name: "a typed review starts nothing before its readers", want: stopState{Pending: true}},
 		{events: run(transcript.EventSkill, "ele:wrap"), from: stopState{MidTask: true, Pending: true}, name: "a wrap proposes, still mid-task", want: stopState{MidTask: true, Proposing: true}},
+		{events: []dto.TranscriptEvent{{Kind: transcript.EventSkill, Name: "ele:remember", Timestamp: "2026-10-20T10:00:00.000Z"}}, from: stopState{NotesProposed: "2026-10-20T09:00:00.000Z", Pending: true}, name: "a proposal keeps its time", want: stopState{NotesProposed: "2026-10-20T10:00:00.000Z", Proposing: true}},
 		{entries: tool("Bash: ele checkpoint log /w <<'EOF'\n{}\nEOF", "Edit: main.go"), from: stopState{InReview: true}, name: "an edit after a review's log is work", want: stopState{MidTask: true, Pending: true}},
 		{entries: tool("Edit: main.go"), name: "an edit is work", want: stopState{MidTask: true, Pending: true}},
 		{entries: tool("Bash: ele checkpoint log /w <<'EOF'\n{}\nEOF"), name: "an ele checkpoint log outside a review is work", want: stopState{MidTask: true, Pending: true}},
@@ -389,6 +390,47 @@ func TestRunStopCheckKeepsASubagentsEditBeforeACheckpoint(t *testing.T) {
 	require.Equal(t, stopOutput{Decision: "block", Reason: rememberReason}, output, "a delegated edit made before the checkpoint, read only once it began, is kept")
 }
 
+func TestRunStopCheckLetsAProposalClearASubagentsEarlierEdit(t *testing.T) {
+	stamped := func(id string, timestamp string, content string) string {
+		return `{"type":"assistant","sessionId":"` + stopCheckSession + `","timestamp":"` + timestamp + `","message":{"id":"` + id + `","content":[` + content + `]}}`
+	}
+	note := `{"type":"tool_use","name":"Bash","input":{"command":"ele remember --kind fact \"Kept\""}}`
+	for _, test := range []struct {
+		checkpoint bool
+		name       string
+	}{
+		{checkpoint: true, name: "with a checkpoint between"},
+		{name: "without a checkpoint"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			run := newStopCheckRun(t)
+			subagent := filepath.Join(subagentDirectory(run.transcriptPath), "agent-a1.jsonl")
+			run.respond(1000, stopCheckText)
+			raw, _ := run.stop(run.gateway, false)
+			require.Empty(t, raw, "no subagents yet")
+
+			run.prompt()
+			run.respond(1000, `{"type":"tool_use","name":"Agent","input":{"description":"build it"}}`)
+			writeFile(t, subagent, `{"type":"assistant","isSidechain":true,"timestamp":"2026-10-20T10:00:00.000Z","message":{"id":"s1","content":[`+stopCheckEdit+`]}}`+"\n")
+			if test.checkpoint {
+				run.write(stamped("c1", "2026-10-20T10:00:05.000Z", `{"type":"tool_use","name":"Skill","input":{"skill":"ele:checkpoint"}}`))
+			}
+			run.write(stamped("n1", "2026-10-20T10:00:10.000Z", note))
+			raw, _ = run.stop(run.gateway, false)
+			require.Empty(t, raw, "the proposal clears the subagent's earlier edit")
+
+			run.prompt()
+			run.respond(1000, stopCheckText)
+			raw, _ = run.stop(run.gateway, false)
+			require.Empty(t, raw, "no ask without new work")
+
+			writeFile(t, subagent, `{"type":"assistant","isSidechain":true,"timestamp":"2026-10-20T10:00:00.000Z","message":{"id":"s1","content":[`+stopCheckEdit+`]}}`+"\n"+`{"type":"assistant","isSidechain":true,"timestamp":"2026-10-20T10:01:00.000Z","message":{"id":"s2","content":[`+stopCheckEdit+`]}}`+"\n")
+			_, output := run.stop(run.gateway, false)
+			require.Equal(t, stopOutput{Decision: "block", Reason: rememberReason}, output, "a subagent edit after the proposal is work")
+		})
+	}
+}
+
 func TestRunStopCheckDecidesEveryCombination(t *testing.T) {
 	const threshold = 150000
 	home := recallFixture(t)
@@ -638,15 +680,18 @@ func TestScanSubagentsCountsFileChangesOnly(t *testing.T) {
 
 	state, err = scanSubagents(directory, stopState{InCheckpoint: true, Subagents: map[string]int64{"agent-a1.jsonl": int64(len(reads))}})
 	require.NoError(t, err)
-	require.Equal(t, stopState{InCheckpoint: true, Subagents: map[string]int64{"agent-a1.jsonl": int64(len(reads + edit))}}, state, "a checkpoint's reviewers are read past, not counted")
+	require.Equal(t, stopState{InCheckpoint: true, Pending: true, Subagents: map[string]int64{"agent-a1.jsonl": int64(len(reads + edit))}}, state, "an unstamped edit while a checkpoint runs is work, not mid-task")
 
 	stamped := func(timestamp string) string {
 		return `{"type":"assistant","isSidechain":true,"timestamp":"` + timestamp + `","message":{"id":"s","content":[` + stopCheckEdit + `]}}` + "\n"
 	}
-	checkpoint := stopState{CheckpointStarted: "2026-10-20T10:00:00.000Z", InCheckpoint: true, Subagents: map[string]int64{"agent-a1.jsonl": 0}}
+	// Fresh each call: a scan moves its state's offsets in place.
+	checkpoint := func() stopState {
+		return stopState{CheckpointStarted: "2026-10-20T10:00:00.000Z", InCheckpoint: true, Subagents: map[string]int64{"agent-a1.jsonl": 0}}
+	}
 	after := stamped("2026-10-20T10:00:01.000Z")
 	writeFile(t, path, after)
-	state, err = scanSubagents(directory, checkpoint)
+	state, err = scanSubagents(directory, checkpoint())
 	require.NoError(t, err)
 	require.False(t, state.Pending, "an edit made after the checkpoint started is a reviewer's")
 
@@ -655,6 +700,32 @@ func TestScanSubagentsCountsFileChangesOnly(t *testing.T) {
 	state, err = scanSubagents(directory, state)
 	require.NoError(t, err)
 	require.Equal(t, stopState{CheckpointStarted: "2026-10-20T10:00:00.000Z", InCheckpoint: true, Pending: true, Subagents: map[string]int64{"agent-a1.jsonl": int64(len(after + before))}}, state, "an edit made before the checkpoint started is work, not mid-task")
+
+	exactly := stamped("2026-10-20T10:00:00.000Z")
+	writeFile(t, path, exactly)
+	state, err = scanSubagents(directory, checkpoint())
+	require.NoError(t, err)
+	require.True(t, state.Pending, "an edit stamped at the checkpoint's start is work")
+
+	proposed := func() stopState {
+		return stopState{NotesProposed: "2026-10-20T10:00:00.000Z", Proposing: true, Subagents: map[string]int64{"agent-a1.jsonl": 0}}
+	}
+	writeFile(t, path, before)
+	state, err = scanSubagents(directory, proposed())
+	require.NoError(t, err)
+	require.Equal(t, stopState{MidTask: true, NotesProposed: "2026-10-20T10:00:00.000Z", Proposing: true, Subagents: map[string]int64{"agent-a1.jsonl": int64(len(before))}}, state, "an edit made before a proposal is mid-task, not work")
+
+	checkpointProposed := stopState{CheckpointStarted: "2026-10-20T09:59:00.000Z", InCheckpoint: true, NotesProposed: "2026-10-20T10:00:00.000Z", Subagents: map[string]int64{"agent-a1.jsonl": 0}}
+	state, err = scanSubagents(directory, checkpointProposed)
+	require.NoError(t, err)
+	require.Equal(t, stopState{CheckpointStarted: "2026-10-20T09:59:00.000Z", InCheckpoint: true, NotesProposed: "2026-10-20T10:00:00.000Z", Subagents: map[string]int64{"agent-a1.jsonl": int64(len(before))}}, state, "an edit made before a proposal while a checkpoint runs is neither work nor mid-task")
+
+	for name, content := range map[string]string{"made after": after, "stamped at": exactly, "unstamped after": edit} {
+		writeFile(t, path, content)
+		state, err = scanSubagents(directory, proposed())
+		require.NoError(t, err)
+		require.True(t, state.Pending, "an edit %s a proposal, before the next prompt, is work", name)
+	}
 
 	writeFile(t, path, edit)
 	state, err = scanSubagents(directory, stopState{Subagents: map[string]int64{"agent-a1.jsonl": 5000}})

@@ -51,6 +51,7 @@ type stopState struct {
 	InCheckpoint      bool             `json:"inCheckpoint"`
 	InReview          bool             `json:"inReview"`
 	MidTask           bool             `json:"midTask"`
+	NotesProposed     string           `json:"notesProposed,omitempty"`
 	Offset            int64            `json:"offset"`
 	Pending           bool             `json:"pending"`
 	Proposing         bool             `json:"proposing"`
@@ -75,7 +76,7 @@ func advance(state stopState, entries []transcript.Entry, events []dto.Transcrip
 			state.InCheckpoint, state.Proposing = false, false
 		case entry.Kind != transcript.KindTool:
 		case strings.HasPrefix(entry.Text, "Bash: ") && writesNote(entry.Command):
-			state.Pending = false
+			state.NotesProposed, state.Pending = max(state.NotesProposed, entry.Timestamp), false
 			if !state.InCheckpoint && !state.InReview && !state.Proposing {
 				other, work := besideNotes(entry.Command)
 				state.MidTask, state.Pending = state.MidTask || other || work, work
@@ -101,7 +102,7 @@ func advance(state stopState, entries []transcript.Entry, events []dto.Transcrip
 		case slices.Contains(checkpointNames, event.Name):
 			state.CheckpointStarted, state.InCheckpoint, state.InReview, state.MidTask, state.StretchBlocked = event.Timestamp, true, false, false, false
 		case slices.Contains(proposalNames, event.Name):
-			state.Pending, state.Proposing = false, true
+			state.NotesProposed, state.Pending, state.Proposing = max(state.NotesProposed, event.Timestamp), false, true
 		}
 	}
 	return state
@@ -235,8 +236,9 @@ func removeStaleStopState(dataDirectory string, now time.Time) error {
 	return nil
 }
 
-// While a checkpoint runs, only an edit stamped before it started counts: reviewers' edits are not work. With no saved
-// state, existing files are skipped unread: a long session's scan cost.
+// Read after the transcript: an edit stamped before the last proposal was cleared by it. Else, while a checkpoint runs,
+// one stamped after it started is a reviewer's. An unstamped one is work: a doubtful edit costs an ask, not lost work.
+// With no saved state, existing files are skipped unread: a long session's scan cost.
 func scanSubagents(directory string, state stopState) (stopState, error) {
 	unread := state.Subagents == nil
 	if unread {
@@ -286,10 +288,13 @@ func scanSubagents(directory string, state stopState) (stopState, error) {
 				if entry.Kind != transcript.KindTool || !slices.ContainsFunc(subagentWorkTools, func(tool string) bool { return strings.HasPrefix(entry.Text, tool+": ") }) {
 					continue
 				}
+				stamped := entry.Timestamp != ""
 				switch {
+				case stamped && entry.Timestamp < state.NotesProposed:
+					state.MidTask = state.MidTask || !state.InCheckpoint
 				case !state.InCheckpoint:
 					state.MidTask, state.Pending = true, true
-				case entry.Timestamp != "" && entry.Timestamp < state.CheckpointStarted:
+				case !stamped || entry.Timestamp <= state.CheckpointStarted:
 					state.Pending = true
 				}
 			}
