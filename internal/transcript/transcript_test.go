@@ -118,3 +118,31 @@ func TestParseTruncatesLongToolInput(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "Bash: "+strings.Repeat("é", inputLimit)+"…", entries[0].Text)
 }
+
+func TestStartsCommand(t *testing.T) {
+	tests := []struct {
+		command string
+		name    string
+		starts  bool
+	}{
+		{command: "ele remember --kind fact 'a'", name: "bare", starts: true},
+		{command: "cd /w && ele remember --kind fact 'a'", name: "cd and &&", starts: true},
+		{command: "cd /w; ele remember --kind fact 'a'", name: "cd and semicolon", starts: true},
+		{command: "cdx; ele remember --kind fact 'a'", name: "cd joined to a word", starts: false},
+		{command: "cd /w\nele remember --kind fact 'a'", name: "cd on its own line", starts: false},
+		{command: "cd /w || exit 1; ele remember --kind fact 'a'", name: "cd or exit", starts: false},
+		{command: "cd; ele remember --kind fact 'a'", name: "cd without directory", starts: false},
+		{command: "cd /w; cd sub && ele remember --kind fact 'a'", name: "chained cds", starts: true},
+		{command: "cd /w && date; ele remember --kind fact 'a'", name: "command between cd and prefix", starts: false},
+		{command: `cd "/w a" && ele remember --kind fact 'a'`, name: "double-quoted directory", starts: true},
+		{command: "  ele remember --kind fact 'a'", name: "leading whitespace", starts: true},
+		{command: "date; ele remember --kind fact 'a'", name: "other command first", starts: false},
+		{command: "ele remember", name: "prefix without argument", starts: false},
+		{command: "cd '/w a' && ele remember --kind fact 'a'", name: "single-quoted directory", starts: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			require.Equal(t, test.starts, StartsCommand(test.command, "ele remember "))
+		})
+	}
+}
