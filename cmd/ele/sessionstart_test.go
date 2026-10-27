@@ -55,9 +55,9 @@ func TestRunSessionStartShowsAnEverywhereNoteInEverySession(t *testing.T) {
 	for _, directory := range []string{filepath.Join(home, "w", "corp", "gateway"), filepath.Join(home, "w", "personal", "notes"), team, elsewhere} {
 		t.Run(filepath.Base(directory), func(t *testing.T) {
 			t.Chdir(directory)
-			output, code := runCommand(t, "session-start", "--no-sync")
-			require.Equal(t, 0, code, output)
-			shown, _ := hookOutput(t, output)
+			startOutput, startCode := runCommand(t, "session-start", "--no-sync")
+			require.Equal(t, 0, startCode, startOutput)
+			shown, _ := hookOutput(t, startOutput)
 			require.Contains(t, shown, "Reminders from ele, due:\n- ↻ due 2026-10-01, reminder "+nudge.ID+", every 7 days: Ask the user to run /hook-stats.\n")
 			require.Contains(t, shown, " fact "+fact.ID+": The machine runs macOS.\n")
 			require.Equal(t, directory == elsewhere, strings.Contains(shown, "ele shows only everywhere notes here: no owner in owner-map.json covers "+elsewhere+"."), shown)
