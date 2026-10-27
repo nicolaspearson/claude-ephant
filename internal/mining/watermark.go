@@ -14,7 +14,6 @@ import (
 
 const watermarksFile = "watermarks.json"
 
-// Advance keeps the later time, so importing an older run again cannot undo a later mine's progress.
 func Advance(directory string, analysis string, timestamp time.Time) error {
 	if err := checkAnalysis(analysis); err != nil {
 		return err

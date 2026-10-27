@@ -53,7 +53,6 @@ Config
 
 Mining
   mine            list and digest units to judge, or store judgments
-  import          load a mining run
 
 Checkpoint
   checkpoint density  comment density of the diff against its file and its peers
@@ -86,7 +85,6 @@ var purposes = map[string]string{
 	"handoff close":        "Mark pending handoffs picked up or dropped, so the start block stops showing them.",
 	"handoff list":         "Pending handoffs for the project, newest first.",
 	"handoff reopen":       "Make closed handoffs pending, so the next startup or /clear shows them.",
-	"import mining":        "Cache a mining run's judgments and report each analysis's watermark.",
 	"mine":                 "List an analysis's unjudged units as JSON Lines, store judgments made from their digests, or report figures from the stored judgments.",
 	"owner add":            "List a new owner in owner-map.json.",
 	"owner add-path":       "Map a directory and everything under it to a listed owner, printing the projects that change owner.",

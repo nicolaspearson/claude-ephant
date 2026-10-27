@@ -49,46 +49,6 @@ func TestHumanBytes(t *testing.T) {
 	}
 }
 
-func TestRunImportsMiningIntoTheCacheOnce(t *testing.T) {
-	dataDirectory := filepath.Join(t.TempDir(), "data")
-	t.Setenv("ELE_HOME", dataDirectory)
-	run := t.TempDir()
-	work := filepath.Join(run, "work")
-	require.NoError(t, os.MkdirAll(filepath.Join(work, "class"), 0o700))
-	for name, content := range map[string]string{
-		"class/K00.jsonl":  `{"id":"C000"}`,
-		"class/N00.jsonl":  `{"id":"000"}`,
-		"class/R00.jsonl":  `{"id":"001"}`,
-		"class/S00.jsonl":  `{"id":"001"}` + "\n" + `{"id":"002"}`,
-		"classify-cyc.md":  "c",
-		"classify-inl.md":  "i",
-		"classify-sub.md":  "s",
-		"classify-sub3.md": "r",
-		"cycles.json":      `[{"cid":"C000","session":"s1","start":"2026-10-07T11:16:21Z"}]`,
-		"runs_index.json":  `[{"id":"000","session":"s0","ts":"2026-09-09T18:26:13Z","era":"inline"},{"id":"001","session":"s1","ts":"2026-10-07T11:15:42Z","era":"subagent"},{"id":"002","session":"s1","ts":"2026-10-07T12:00:00Z","era":"subagent"}]`,
-	} {
-		require.NoError(t, os.WriteFile(filepath.Join(work, name), []byte(content), 0o600))
-	}
-
-	output, code := runCommand(t, "import", "mining", run)
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "classify-sub.md   043a718774c5  2          2\n")
-	require.Contains(t, output, "Watermarks:\ncheckpoint-runs  2026-10-07T12:00:00Z\nreview-cycles    2026-10-07T11:16:21Z\n")
-	content, err := os.ReadFile(filepath.Join(dataDirectory, "mining", "cache", "checkpoint-runs.jsonl"))
-	require.NoError(t, err)
-	require.Equal(t, 4, strings.Count(string(content), "\n"))
-
-	output, code = runCommand(t, "import", "mining", run)
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "classify-sub.md   043a718774c5  2          0\n", "a second import adds nothing")
-}
-
-func TestRunImportWithoutASubcommandPrintsItsSynopsis(t *testing.T) {
-	var stdout, stderr bytes.Buffer
-	require.Equal(t, 2, run(context.Background(), []string{"import"}, &stdout, &stderr))
-	require.Equal(t, "ele import mining <run>\n", stderr.String())
-}
-
 func TestRunSyncArchivesAndIndexesEveryProfile(t *testing.T) {
 	home := t.TempDir()
 	dataDirectory := filepath.Join(home, "data")

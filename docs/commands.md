@@ -179,4 +179,3 @@ each.
 | `ele ticket corpus`, `ele ticket ledger`        | `/ele:ticket-audit` and `/ele:plan-audit`          |
 | `ele ticket claims`                             | `/ele:ticket-claims`                               |
 | `ele mine`                                      | `/ele:mine`; `ele mine --report` reports what it stored |
-| `ele import mining <run>`                       | Nothing: a one-off loader for runs made before `/ele:mine` |

@@ -8,13 +8,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"github.com/nicolaspearson/claude-ephant/internal/archive"
 	"github.com/nicolaspearson/claude-ephant/internal/datadir"
 	"github.com/nicolaspearson/claude-ephant/internal/index"
-	"github.com/nicolaspearson/claude-ephant/internal/mining"
 	"github.com/nicolaspearson/claude-ephant/internal/ownermap"
 	"github.com/nicolaspearson/claude-ephant/internal/profile"
 )
@@ -44,7 +42,6 @@ const usage = `usage:
   ele handoff close [--owner <name>] [--project <name>] <id>...
   ele handoff list [--all] [--owner <name>] [--project <name>]
   ele handoff reopen [--owner <name>] [--project <name>] <id>...
-  ele import mining <run>
   ele mine [--digests <dir>] [--units <file>] [--no-sync] checkpoint-runs|review-cycles
   ele mine --judgments <file> --prompt <file> --digests <dir> [--no-sync] checkpoint-runs|review-cycles
   ele mine --report [--no-sync]
@@ -94,7 +91,6 @@ var commands = map[string]func(ctx context.Context, args []string, stdout io.Wri
 	"events":   events,
 	"forget":   forget,
 	"handoff":  handoffCommand,
-	"import":   importCommand,
 	"mine":     mine,
 	"owner":    ownerCommand,
 	"plan":     planCommand,
@@ -139,55 +135,6 @@ func humanBytes(count int64) string {
 		value, suffix = value/unit, next
 	}
 	return fmt.Sprintf("%.1f %s", value, suffix)
-}
-
-func importCommand(_ context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
-	if len(args) > 0 && args[0] == "mining" {
-		return importMining(args[1:], stdout, stderr)
-	}
-	return misuse("import", args, stdout, stderr)
-}
-
-func importMining(args []string, stdout io.Writer, stderr io.Writer) int {
-	flags := newFlagSet("import mining", stderr)
-	if err := flags.Parse(args); err != nil || flags.NArg() != 1 {
-		return rejectCall(flags, err, stdout, stderr)
-	}
-	dataDirectory, err := datadir.Path()
-	if err != nil {
-		fmt.Fprintf(stderr, "ele: %v\n", err)
-		return 1
-	}
-	cache := filepath.Join(dataDirectory, "mining", "cache")
-	imported, err := mining.Import(flags.Arg(0), cache)
-	if err != nil {
-		fmt.Fprintf(stderr, "ele: %v\n", err)
-		return 1
-	}
-	fmt.Fprintf(stdout, "Cached in %s:\n", cache)
-	table := tabwriter.NewWriter(stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(table, "ANALYSIS\tPROMPT\tCLASSIFIER\tJUDGMENTS\tADDED")
-	for _, family := range imported {
-		fmt.Fprintf(table, "%s\t%s\t%s\t%d\t%d\n", family.Analysis, family.Prompt, family.Classifier[:12], family.Judgments, family.Added)
-	}
-	_ = table.Flush()
-	fmt.Fprintln(stdout, "Watermarks:")
-	table = tabwriter.NewWriter(stdout, 0, 4, 2, ' ', 0)
-	printed := map[string]bool{}
-	for _, family := range imported {
-		if printed[family.Analysis] {
-			continue
-		}
-		printed[family.Analysis] = true
-		watermark, watermarkErr := mining.Watermark(cache, family.Analysis)
-		if watermarkErr != nil {
-			fmt.Fprintf(stderr, "ele: %v\n", watermarkErr)
-			return 1
-		}
-		fmt.Fprintf(table, "%s\t%s\n", family.Analysis, watermark.Format(time.RFC3339Nano))
-	}
-	_ = table.Flush()
-	return 0
 }
 
 func reindex(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
