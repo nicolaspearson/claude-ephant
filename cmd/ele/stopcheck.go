@@ -27,8 +27,10 @@ import (
 )
 
 const (
-	hintBand            = 100000
-	noBand              = -1
+	hintBand = 100000
+	noBand   = -1
+	// Proposes a skill, not notes: work before it stays pending.
+	recipeSkill         = "ele:recipe"
 	rememberReason      = "Follow /ele:remember's Propose section now: one Write/Skip question per note, at most four per AskUserQuestion call and as many calls as it takes, then write each approved note yourself with ele remember. Never print the command for the user to run. If nothing is worth keeping, say so in one line."
 	rememberWriteReason = "Follow /ele:remember's Propose section now: auto_note_writes is on, so write each note yourself with ele remember without asking, then report each id with the note's words. Never print the command for the user to run. If nothing is worth keeping, say so in one line."
 	reviewReader        = "ele:review-reader"
@@ -38,7 +40,7 @@ const (
 
 var (
 	checkpointNames = []string{"checkpoint", "ele:checkpoint"}
-	proposalNames   = []string{"ele:handoff", "ele:recipe", "ele:remember", "ele:wrap"}
+	proposalNames   = []string{"ele:handoff", "ele:remember", "ele:wrap"}
 	// Not Bash: research and review subagents run it to read.
 	subagentWorkTools = []string{"Edit", "NotebookEdit", "Write"}
 	// Bash unless it is a read: a command can change files, and /clear mid-task loses more than /compact between tasks.
@@ -103,6 +105,8 @@ func advance(state stopState, entries []transcript.Entry, events []dto.Transcrip
 			state.CheckpointStarted, state.InCheckpoint, state.InReview, state.MidTask, state.StretchBlocked = event.Timestamp, true, false, false, false
 		case slices.Contains(proposalNames, event.Name):
 			state.NotesProposed, state.Pending, state.Proposing = max(state.NotesProposed, event.Timestamp), false, true
+		case event.Name == recipeSkill:
+			state.Proposing = true
 		}
 	}
 	return state

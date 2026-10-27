@@ -115,7 +115,7 @@ func TestAdvance(t *testing.T) {
 		{entries: tool(`AskUserQuestion: {"questions":[]}`), from: stopState{InCheckpoint: true}, name: "a question mid-checkpoint is not work", want: stopState{InCheckpoint: true}},
 		{entries: tool("Read: main.go"), name: "a read is not work", want: stopState{}},
 		{entries: tool("Bash: git log --oneline -3 | head -1"), name: "a read-only command is mid-task, not work for notes", want: stopState{MidTask: true}},
-		{events: run(transcript.EventSkill, "ele:recipe"), from: stopState{MidTask: true, Pending: true}, name: "a recipe proposes, still mid-task", want: stopState{MidTask: true, Proposing: true}},
+		{events: []dto.TranscriptEvent{{Kind: transcript.EventSkill, Name: "ele:recipe", Timestamp: "2026-10-20T10:00:00.000Z"}}, from: stopState{MidTask: true, NotesProposed: "2026-10-20T09:00:00.000Z", Pending: true}, name: "a recipe keeps earlier work pending", want: stopState{MidTask: true, NotesProposed: "2026-10-20T09:00:00.000Z", Pending: true, Proposing: true}},
 		{entries: tool("Bash: cd /w && ele checkpoint log /w <<'EOF'\n{}\nEOF"), from: stopState{InReview: true}, name: "a review's log line after cd ends it", want: stopState{}},
 		{entries: tool("Bash: ele checkpoint log /w <<'EOF'\n{}\nEOF"), from: stopState{InReview: true}, name: "a review's log line ends it", want: stopState{}},
 		{entries: tool(`AskUserQuestion: {"questions":[]}`, "Bash: git diff main", "Bash: ele remember --kind fact \"x\""), from: stopState{InReview: true}, name: "a review's own questions, runs and notes are not work", want: stopState{InReview: true}},

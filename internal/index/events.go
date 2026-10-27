@@ -25,7 +25,7 @@ var closingCalls = map[string][]string{
 
 const (
 	notesAskCondition = `kind = '` + transcript.EventHookBlock + `' AND name = 'Stop' AND instr(attributes, 'ele:remember') > 0`
-	proposalSkill     = `(name IN ('handoff', 'recipe', 'remember', 'wrap') OR name LIKE '%:handoff' OR name LIKE '%:recipe' OR name LIKE '%:remember' OR name LIKE '%:wrap')`
+	proposalSkill     = `(name IN ('handoff', 'remember', 'wrap') OR name LIKE '%:handoff' OR name LIKE '%:remember' OR name LIKE '%:wrap')`
 	wroteNote         = `text LIKE 'Bash: %' AND instr(text, 'ele remember ') > 0 AND instr(text, 'ele remember --help') = 0`
 )
 
