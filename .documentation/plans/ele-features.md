@@ -143,6 +143,7 @@ Give ele a configuration a user can switch and tune from one place, reminders th
 
 - 2026-10-27, from the user: a config option keeping a lone pending handoff pending when a session opens with it, so it is listed to pick or drop as several are, instead of closed on show
 - 2026-10-27, from the user: a slash command listing pending and closed handoffs inside Claude Code, as `ele handoff list --all` does from the shell; `/ele:handoffs` sits one letter from the `/ele:handoff` skill, so the name is open
+- 2026-10-27, from the user: an option naming a folder ele:recipe writes a recipe to, such as `~/.agents/skills` (a git repo of the user's skills), linked from each profile's `skills` folder the way the repo's other skills are; unset, recipes stay written into each profile's `skills`. The first recipe, runtime-upgrade, was written into `~/.claude/skills` and moved into that repo by hand
 
 ## Out of scope
 
