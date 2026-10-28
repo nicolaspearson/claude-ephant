@@ -18,7 +18,7 @@ works from any directory; see [Owners](owners.md).
 | `/ele:plan`             | Pick up the active plan, or `new <name>` or `convert <spec>`; see [Plans](plans.md)              |
 | `/ele:plan-audit`       | Audit active plans against the code and each other                                               |
 | `/ele:recall`           | Search earlier sessions; see [Recall](notes-and-recall.md#recall)                                 |
-| `/ele:recipe`           | Keep a procedure the session ran as a skill of your own; see [Recipes](recipes.md)                |
+| `/ele:recipe`           | Keep a procedure the session ran as a skill of your own, or `audit` your skills for stale commands; see [Recipes](recipes.md) |
 | `/ele:remember`         | Save a decision, question, fact or reminder                                                       |
 | `/ele:review`           | Review an MR, PR, branch or commit and publish the findings you pick, major ones first; see [Review](review.md) |
 | `/ele:ticket-audit`     | Audit a tracker's ticket map against the code                                                     |
