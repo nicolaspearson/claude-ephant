@@ -151,6 +151,7 @@ Give ele a configuration a user can switch and tune from one place, reminders th
 - 2026-10-27, from the user: a config option keeping a lone pending handoff pending when a session opens with it, so it is listed to pick or drop as several are, instead of closed on show
 - 2026-10-27, from the user: a slash command listing pending and closed handoffs inside Claude Code, as `ele handoff list --all` does from the shell; `/ele:handoffs` sits one letter from the `/ele:handoff` skill, so the name is open
 - 2026-10-27, from the user: an option naming a folder ele:recipe writes a recipe to, such as `~/.agents/skills` (a git repo of the user's skills), linked from each profile's `skills` folder the way the repo's other skills are; unset, recipes stay written into each profile's `skills`. The first recipe, runtime-upgrade, was written into `~/.claude/skills` and moved into that repo by hand
+- 2026-10-28, from a real /ele:recipe audit over the user's 9 skills: (1) a help that lists only some options, as `git log -h` does, should leave an unnamed flag not checked rather than a finding, since `--oneline`, `--graph` and `--stat` were absent but valid; (2) `npx <package>`, `bunx` and `pipx run` take a package as their subcommand: compiled `bunx` would fetch and run the package for its help, and the source of a `#!` npx cannot name the package's subcommands, so those should be not checked; (3) reading a large `#!` CLI's source, such as npm or corepack, needs a stated method or a not-checked fallback
 
 ## Out of scope
 
