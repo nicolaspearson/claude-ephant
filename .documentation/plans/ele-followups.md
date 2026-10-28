@@ -50,6 +50,10 @@ Close the gaps ele-features and recipe-audit left: see shipped features work in 
   - asserted in the no-run-step-shapes commit, by hand probe of the grader's pattern over a JSON-encoded Bash input in node and Python: matches a run after a separator or newline, behind `env`, `timeout N` and `VAR=value` prefixes, under `sh -c` and `bash -c`, by quoted, relative and absolute path; matches none of `cat`, `head`, `grep`, `realpath`, `ls -l` or `file` of it; the old pattern missed 8 of those runs, and dropping the newline, quote or `timeout N` alternative each misses its run; eval not run
 - [ ] unseen-pass: See the two features real-session-pass did not, in a real session
   - done when a closed `--every` nudge is hidden by /clear before its next due and shown after, and an `--everywhere` note shows in a real session's start block under an owner it was not saved from, what was seen written under this item and a failure added to the inbox
+  - as of 2026-10-28: test nudge `--every 3m` closed at 16:30:38 local, re-armed to 16:34, rounded up to the minute; the /clear window was missed, so it was forgotten and a `--every 10m` one closed at 16:34:49, re-armed to 16:45
+  - as of 2026-10-28, reported by the user: a /clear before 16:45 left the nudge out of the due block and one after showed it again with ↻; the test nudge forgotten, since closing a repeating one re-arms it
+  - after: 2026-10-30
+  - as of 2026-10-28: the `--everywhere` half waits on the hook-stats nudge, everywhere and every 7 days, next due 2026-10-30, seen in the start block of a session under hyve or bitgorilla, owners other than personal, where it was saved; running /hook-stats or closing the nudge before then moves its due past that day
 - [ ] plan-write-atomic: `WriteStored` in `internal/plan` writes a temp file and renames it, as notes do, so a backup copying `plans/` during an `ele plan done` never takes torn JSON
   - done when a test sees no partial stored-plan file while one is written, seen red against the in-place write
 - [ ] backup-order-pinned: a test pins `copyDataDirectory` in `cmd/ele` copying `notes` before `plans`, which keeps a backup consistent because `ele plan done` writes the stored names before marking the note shown
@@ -70,6 +74,7 @@ Close the gaps ele-features and recipe-audit left: see shipped features work in 
 
 ## Inbox
 
+- 2026-10-28, from no-run-step-shapes' checkpoint: recipe-audit's `no-run-step` and `no-run-script` graders count a quoted regex alternation, such as `grep -E "forge|deploy-dev" SKILL.md`, as a run, so an audit grepping that way fails though it ran nothing
 - 2026-10-28, from real-session-pass: stop-check missed the size hint on a session's first turn: at its Stop the turn ended at 54k with compact_hint_at 20000 and nothing printed, yet the same transcript cut at that Stop and fed by hand gets the hint; guess, not verified: the turn's usage lines were not on disk when the hook read the transcript
 
 ## Out of scope
