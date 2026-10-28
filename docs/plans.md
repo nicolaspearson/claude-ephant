@@ -71,7 +71,9 @@ created: 2026-10-23
 - **No ele data**: a note or session id resolves only in its author's data
   directory, so a plan line describes what was observed, and a note the plan
   depends on moves into it; `ele plan check` warns on a note id, a session
-  UUID or an `ele show` of an id
+  UUID or an `ele show` of an id that ele resolves, a saved note or a
+  session indexed or still only a transcript, so a commit or a repository's
+  own UUID passes; with the index unreadable it warns on every such line
 - **`## Inbox`** takes work found mid-session, each line dated with where it came
   from. **`## Out of scope`** keeps what was ruled out, and why
 - **The last action** closes the plan: with a spec, fold what the plan built into

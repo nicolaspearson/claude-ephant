@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -39,8 +40,8 @@ func TestPlanSummaryRedactsTheNextTitleAndOmitsANextThatIsNone(t *testing.T) {
 	writeFile(t, filepath.Join(root, "secret.md"), "---\nkind: plan\n---\n\n## Actions\n\n- [ ] Rotate token=abc123secret\n")
 	writeFile(t, filepath.Join(root, "blocked.md"), "---\nkind: plan\n---\n\n## Actions\n\n- [x] Parser\n- [ ] Commands\n  blocked: the parser first\n")
 
-	require.Equal(t, "secret.md: 1 open, 0 blocked, 0 done, 0 in the inbox. Next: Rotate token=[redacted:assignment]", planSummary(root, "secret.md", planSet{}))
-	require.Equal(t, "blocked.md: 0 open, 1 blocked, 1 done, 0 in the inbox. 1 warning; ele plan check lists it.", planSummary(root, "blocked.md", planSet{}))
+	require.Equal(t, "secret.md: 1 open, 0 blocked, 0 done, 0 in the inbox. Next: Rotate token=[redacted:assignment]", planSummary(context.Background(), root, "secret.md", planSet{}))
+	require.Equal(t, "blocked.md: 0 open, 1 blocked, 1 done, 0 in the inbox. 1 warning; ele plan check lists it.", planSummary(context.Background(), root, "blocked.md", planSet{}))
 }
 
 func TestRunPlanCheckListsEachActivePlansWarningsWithoutFailing(t *testing.T) {
@@ -81,6 +82,41 @@ func TestRunPlanCheckListsEachActivePlansWarningsWithoutFailing(t *testing.T) {
 	output, code = runCommand(t, "plan", "check")
 	require.Equal(t, 1, code)
 	require.Contains(t, output, "ele: stale.md: invalid plan: kind \"spec\" is not plan\n")
+}
+
+func TestRunPlanCheckWarnsOnlyOnEleDataEleResolves(t *testing.T) {
+	home := recallFixture(t)
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	session := "a5491a94-1c2d-4e5f-8a9b-0c1d2e3f4a5b"
+	writeFile(t, filepath.Join(home, ".claude", "projects", "-gateway", session+".jsonl"),
+		`{"type":"user","cwd":"`+gateway+`","sessionId":"`+session+`","timestamp":"2026-10-15T11:00:00Z","uuid":"u1","message":{"content":"hello"}}`+"\n")
+	output, code := runCommand(t, "sync")
+	require.Equal(t, 0, code, output)
+	unsynced := "b6c7d8e9-0a1b-4c2d-9e3f-405162738495"
+	writeFile(t, filepath.Join(home, ".claude", "projects", "-gateway", unsynced+".jsonl"), "")
+	_, err := notes.Write(filepath.Join(home, "data", "notes"), notes.Note{Body: "kept", Date: "2026-10-20", ID: "20261020-ead7f7", Kind: notes.KindDecision, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject})
+	require.NoError(t, err)
+	writeFile(t, filepath.Join(gateway, "cites.md"), "---\nkind: plan\n---\n## Actions\n- [x] a: A\n"+
+		"  - the fixture's own id, 0c1d2e3f-4a5b-4c6d-8e7f-a0b1c2d3e4f5\n"+
+		"  - seen in session "+session+"\n"+
+		"  - ele show 0cc19d4a, a commit\n"+
+		"  - ele show a5491a94 --at 11:00\n"+
+		"  - from note 20261020-ead7f7\n"+
+		"  - from note 20261020-000000\n"+
+		"  - in session "+unsynced+", not yet synced\n"+
+		"- [ ] b: B\n  done when it is\n"+
+		"- [ ] Close\n")
+	t.Chdir(gateway)
+
+	warning := "cites ele data, which resolves only in its author's data directory; delete provenance, describe what was observed, and move a dependency into the plan, superseding its note\n"
+	output, code = runCommand(t, "plan", "check", "cites.md")
+	require.Equal(t, 0, code, output)
+	require.Equal(t, "Plan cites.md: 4 warnings.\n- line 7: "+warning+"- line 9: "+warning+"- line 10: "+warning+"- line 12: "+warning, output, "only the indexed session, its prefix, the saved note and the unsynced session's transcript resolve")
+
+	writeFile(t, filepath.Join(home, "data", "ele.db"), "not a database")
+	output, code = runCommand(t, "plan", "check", "cites.md")
+	require.Equal(t, 0, code, output)
+	require.Equal(t, "Plan cites.md: 7 warnings.\n- line 6: "+warning+"- line 7: "+warning+"- line 8: "+warning+"- line 9: "+warning+"- line 10: "+warning+"- line 11: "+warning+"- line 12: "+warning, output, "an unreadable index never silences the check")
 }
 
 func TestRunPlanDonePrefersThePathFromTheWorkingDirectory(t *testing.T) {

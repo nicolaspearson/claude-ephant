@@ -26,10 +26,12 @@ var (
 	checkbox = regexp.MustCompile(`^- \[([ xX])\] (.*)$`)
 	edgeName = regexp.MustCompile(`^(?:([a-z0-9]+(?:-[a-z0-9]+)*)/)?([a-z0-9]+(?:-[a-z0-9]+)*)$`)
 	// Eight hex digits for a session prefix, so prose such as "ele show added" passes.
-	eleData   = regexp.MustCompile(`\b\d{8}-[0-9a-f]{6}\b|\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b|\bele show(?: --(?:around|at|context) (?:"[^"]*"|'[^']*'|\S+))* (?:--note )?[0-9a-f]{8,}\b`)
+	eleShow   = regexp.MustCompile(`\bele show(?: --(?:around|at|context) (?:"[^"]*"|'[^']*'|\S+))* (?:--note (\d{8}-[0-9a-f]{6}|[0-9a-f]{8,})|([0-9a-f]{8,}))\b`)
 	heading   = regexp.MustCompile(`^(#{1,6})\s+(.*?)\s*#*\s*$`)
 	inboxDate = regexp.MustCompile(`^- (\d{4}-\d{2}-\d{2})\b`)
 	itemName  = regexp.MustCompile(`^([a-z0-9]+(?:-[a-z0-9]+)*): `)
+	noteID    = regexp.MustCompile(`\b\d{8}-[0-9a-f]{6}\b`)
+	sessionID = regexp.MustCompile(`\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b`)
 )
 
 type Blocker int
@@ -42,6 +44,11 @@ const (
 	BlockerDone
 	BlockerOpen
 )
+
+type Citation struct {
+	Line       int
+	References []Reference
+}
 
 type Counts struct {
 	Blocked int
@@ -80,12 +87,25 @@ type Lookup func(edge Edge) Blocker
 
 type Plan struct {
 	Actions   []Item
-	Citations []int
+	Citations []Citation
 	Claims    []Dated
 	Created   string
 	Inbox     []Dated
 	Spec      string
 }
+
+// Reference is an id as cited; a session's may be a prefix.
+type Reference struct {
+	ID   string
+	Kind ReferenceKind
+}
+
+type ReferenceKind int
+
+const (
+	ReferenceNote ReferenceKind = iota
+	ReferenceSession
+)
 
 type Warning struct {
 	Line int
@@ -144,8 +164,8 @@ func Parse(content []byte) (Plan, error) {
 	for scanner.Scan() {
 		number++
 		line := scanner.Text()
-		if eleData.MatchString(line) {
-			plan.Citations = append(plan.Citations, number)
+		if references := cited(line); len(references) > 0 {
+			plan.Citations = append(plan.Citations, Citation{Line: number, References: references})
 		}
 		inside := fence != ""
 		fence = stepFence(fence, line)
@@ -278,8 +298,8 @@ func (p Plan) Check(now time.Time) []Warning {
 			warnings = append(warnings, Warning{Line: action.Line, Text: label + ": no done when line"})
 		}
 	}
-	for _, line := range p.Citations {
-		warnings = append(warnings, Warning{Line: line, Text: "cites ele data, which resolves only in its author's data directory; delete provenance, describe what was observed, and move a dependency into the plan, superseding its note"})
+	for _, citation := range p.Citations {
+		warnings = append(warnings, Warning{Line: citation.Line, Text: "cites ele data, which resolves only in its author's data directory; delete provenance, describe what was observed, and move a dependency into the plan, superseding its note"})
 	}
 	for _, claim := range p.Claims {
 		if age := now.Sub(claim.Date); age > claimAge {
@@ -378,6 +398,24 @@ func (p Plan) Resolve(now time.Time, lookup Lookup) Plan {
 	}
 	p.Actions = actions
 	return p
+}
+
+func cited(line string) []Reference {
+	var references []Reference
+	for _, id := range noteID.FindAllString(line, -1) {
+		references = append(references, Reference{ID: id, Kind: ReferenceNote})
+	}
+	for _, id := range sessionID.FindAllString(line, -1) {
+		references = append(references, Reference{ID: id, Kind: ReferenceSession})
+	}
+	for _, match := range eleShow.FindAllStringSubmatch(line, -1) {
+		if match[1] != "" {
+			references = append(references, Reference{ID: match[1], Kind: ReferenceNote})
+		} else {
+			references = append(references, Reference{ID: match[2], Kind: ReferenceSession})
+		}
+	}
+	return references
 }
 
 // The oldest date on the line, as the one most in need of re-measuring.

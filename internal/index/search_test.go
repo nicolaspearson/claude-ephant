@@ -96,6 +96,26 @@ func TestSessionReturnsOneSessionByPrefix(t *testing.T) {
 	require.Empty(t, results)
 }
 
+func TestSessionsFindsAPrefixThroughTheSessionIndex(t *testing.T) {
+	index := searchFixture(t)
+
+	sessions, err := index.Sessions(context.Background(), "abc", 4)
+	require.NoError(t, err)
+	require.Equal(t, []string{"abc1", "abc2"}, sessions)
+	sessions, err = index.Sessions(context.Background(), "abc2", 4)
+	require.NoError(t, err)
+	require.Equal(t, []string{"abc2"}, sessions)
+	sessions, err = index.Sessions(context.Background(), "ab_", 4)
+	require.NoError(t, err)
+	require.Empty(t, sessions, "a prefix is literal")
+
+	query, arguments := sessionsQuery("abc", 4)
+	var id, parent, unused int
+	var detail string
+	require.NoError(t, index.db.QueryRow(`EXPLAIN QUERY PLAN `+query, arguments...).Scan(&id, &parent, &unused, &detail))
+	require.Contains(t, detail, "USING COVERING INDEX entries_session_kind (session>? AND session<?)", "a LIKE prefix scans every entry")
+}
+
 func TestResetLeavesNoFTSRows(t *testing.T) {
 	index := searchFixture(t)
 

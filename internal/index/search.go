@@ -114,25 +114,8 @@ func (x *Index) Search(ctx context.Context, query Query) ([]Result, error) {
 
 // Session accepts any prefix that only one session starts with.
 func (x *Index) Session(ctx context.Context, prefix string) ([]Result, error) {
-	escaped := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(prefix)
-	var sessions []string
-	rows, err := x.db.QueryContext(ctx, `SELECT DISTINCT session FROM entries WHERE session LIKE ? ESCAPE '\' LIMIT 4`, escaped+"%")
+	sessions, err := x.Sessions(ctx, prefix, 4)
 	if err != nil {
-		return nil, fmt.Errorf("find session: %w", err)
-	}
-	for rows.Next() {
-		var session string
-		if err = rows.Scan(&session); err != nil {
-			_ = rows.Close()
-			return nil, err
-		}
-		sessions = append(sessions, session)
-	}
-	if err = rows.Err(); err != nil {
-		_ = rows.Close()
-		return nil, err
-	}
-	if err = rows.Close(); err != nil {
 		return nil, err
 	}
 	switch {
@@ -163,6 +146,28 @@ func (x *Index) SessionExactly(ctx context.Context, session string) ([]Result, e
 	return scanResults(rows)
 }
 
+func (x *Index) Sessions(ctx context.Context, prefix string, limit int) ([]string, error) {
+	query, arguments := sessionsQuery(prefix, limit)
+	rows, err := x.db.QueryContext(ctx, query, arguments...)
+	if err != nil {
+		return nil, fmt.Errorf("find session: %w", err)
+	}
+	var sessions []string
+	for rows.Next() {
+		var session string
+		if err = rows.Scan(&session); err != nil {
+			_ = rows.Close()
+			return nil, err
+		}
+		sessions = append(sessions, session)
+	}
+	if err = rows.Err(); err != nil {
+		_ = rows.Close()
+		return nil, err
+	}
+	return sessions, rows.Close()
+}
+
 // FTS5 syntax in user text (stop-check, a:b, AND, NEAR) stays plain words.
 func matchExpression(text string) string {
 	var terms []string
@@ -183,4 +188,18 @@ func scanResults(rows *sql.Rows) ([]Result, error) {
 		results = append(results, result)
 	}
 	return results, rows.Err()
+}
+
+// A range, not LIKE, so the session index serves a prefix.
+func sessionsQuery(prefix string, limit int) (string, []any) {
+	query, arguments := `SELECT DISTINCT session FROM entries WHERE session >= ?`, []any{prefix}
+	end := []byte(prefix)
+	for len(end) > 0 && end[len(end)-1] == 0xff {
+		end = end[:len(end)-1]
+	}
+	if len(end) > 0 {
+		end[len(end)-1]++
+		query, arguments = query+` AND session < ?`, append(arguments, string(end))
+	}
+	return query + ` ORDER BY session LIMIT ?`, append(arguments, limit)
 }

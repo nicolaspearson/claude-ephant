@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -9,8 +12,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nicolaspearson/claude-ephant/internal/index"
 	"github.com/nicolaspearson/claude-ephant/internal/notes"
 	"github.com/nicolaspearson/claude-ephant/internal/plan"
+	"github.com/nicolaspearson/claude-ephant/internal/profile"
 )
 
 const namesUnique = "item names are unique across active and closed plans"
@@ -20,13 +25,14 @@ var planClock = time.Now
 
 // A plan missing from the checkout or not parsing is left out: it resolves no edge and clashes with nothing.
 type planSet struct {
-	active      map[string]plan.Plan
-	activePaths []string
-	closed      []plan.Stored
+	active        map[string]plan.Plan
+	activePaths   []string
+	closed        []plan.Stored
+	dataDirectory string
 }
 
 func loadPlanSet(root string, all []notes.Note, project string, noteDirectory string) planSet {
-	set := planSet{active: map[string]plan.Plan{}}
+	set := planSet{active: map[string]plan.Plan{}, dataDirectory: filepath.Dir(noteDirectory)}
 	for _, note := range activePlans(all, project) {
 		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(note.Body)))
 		if err != nil {
@@ -57,13 +63,74 @@ func planStore(noteDirectory string) string {
 	return filepath.Join(filepath.Dir(noteDirectory), "plans")
 }
 
-func (s planSet) check(relative string, parsed plan.Plan) (plan.Plan, []plan.Warning) {
+// A session not yet synced, the running one included, has only its transcript.
+func transcribed(session string) bool {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return true
+	}
+	roots, err := profile.Discover(home)
+	if err != nil {
+		return true
+	}
+	for _, root := range roots {
+		projects, err := os.ReadDir(filepath.Join(root.Directory, "projects"))
+		if err != nil {
+			return true
+		}
+		for _, project := range projects {
+			if !project.IsDir() {
+				continue
+			}
+			if _, err = os.Stat(filepath.Join(root.Directory, "projects", project.Name(), session+".jsonl")); !errors.Is(err, fs.ErrNotExist) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (s planSet) check(ctx context.Context, relative string, parsed plan.Plan) (plan.Plan, []plan.Warning) {
 	resolved := s.resolve(parsed)
+	resolved.Citations = s.cited(ctx, parsed.Citations)
 	warnings := resolved.Check(planClock())
 	for _, clash := range s.clashes(relative, parsed) {
 		warnings = append(warnings, plan.Warning{Text: clash + "; " + namesUnique})
 	}
 	return resolved, warnings
+}
+
+// Citations ele resolves; all of them when the index cannot be read.
+func (s planSet) cited(ctx context.Context, citations []plan.Citation) []plan.Citation {
+	if len(citations) == 0 || s.dataDirectory == "" {
+		return citations
+	}
+	database := filepath.Join(s.dataDirectory, "ele.db")
+	if _, err := os.Stat(database); err != nil {
+		return citations
+	}
+	searchIndex, err := index.OpenChecked(database)
+	if err != nil {
+		return citations
+	}
+	defer searchIndex.Close()
+	owners, ownersErr := os.ReadDir(filepath.Join(s.dataDirectory, "notes"))
+	resolves := func(reference plan.Reference) bool {
+		if reference.Kind == plan.ReferenceNote {
+			if ownersErr != nil && !errors.Is(ownersErr, fs.ErrNotExist) {
+				return true
+			}
+			return slices.ContainsFunc(owners, func(owner fs.DirEntry) bool {
+				_, err := os.Stat(filepath.Join(s.dataDirectory, "notes", owner.Name(), reference.ID+".md"))
+				return err == nil || !errors.Is(err, fs.ErrNotExist)
+			})
+		}
+		sessions, err := searchIndex.Sessions(ctx, reference.ID, 1)
+		return err != nil || len(sessions) > 0 || transcribed(reference.ID)
+	}
+	return slices.DeleteFunc(slices.Clone(citations), func(citation plan.Citation) bool {
+		return !slices.ContainsFunc(citation.References, resolves)
+	})
 }
 
 // A closed plan reopened at its own path may reuse its names.

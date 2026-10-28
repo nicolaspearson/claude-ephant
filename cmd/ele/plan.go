@@ -101,7 +101,7 @@ func checkPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.W
 			code = 1
 			continue
 		}
-		_, warnings := plans.check(relative, parsed)
+		_, warnings := plans.check(ctx, relative, parsed)
 		if len(warnings) == 0 {
 			fmt.Fprintf(stdout, "Plan %s: no warnings.\n", relative)
 			continue
@@ -308,7 +308,7 @@ func planView(ctx context.Context, root string, relative string, bodyLimit int, 
 	if err != nil {
 		return "", err
 	}
-	resolved, warnings := plans.check(relative, parsed)
+	resolved, warnings := plans.check(ctx, relative, parsed)
 	var view strings.Builder
 	writePlanView(&view, relative, resolved, len(warnings), tick, ticked, bodyLimit)
 	for _, clash := range plans.clashes(relative, parsed) {
@@ -317,7 +317,7 @@ func planView(ctx context.Context, root string, relative string, bodyLimit int, 
 	return redact.Redact(view.String()), nil
 }
 
-func planSummary(root string, relative string, plans planSet) string {
+func planSummary(ctx context.Context, root string, relative string, plans planSet) string {
 	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
 	if errors.Is(err, fs.ErrNotExist) {
 		return fmt.Sprintf(activePlanMissing, relative)
@@ -329,7 +329,7 @@ func planSummary(root string, relative string, plans planSet) string {
 	if err != nil {
 		return redact.Redact(fmt.Sprintf("%s: %v", relative, err))
 	}
-	resolved, warnings := plans.check(relative, parsed)
+	resolved, warnings := plans.check(ctx, relative, parsed)
 	counts := resolved.Counts()
 	summary := fmt.Sprintf("%s: %d open, %d blocked, %d done, %d in the inbox.", relative, counts.Open, counts.Blocked, counts.Done, counts.Inbox)
 	if len(warnings) > 0 {
@@ -393,7 +393,7 @@ func showPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 		default:
 			fmt.Fprintf(stdout, "Active plans for %s, newest first; ele plan show <path> prints one:\n", where)
 			for _, note := range active {
-				fmt.Fprintf(stdout, "- %s: %s\n", note.ID, planSummary(root, note.Body, plans))
+				fmt.Fprintf(stdout, "- %s: %s\n", note.ID, planSummary(ctx, root, note.Body, plans))
 			}
 			return 0
 		}

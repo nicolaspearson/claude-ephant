@@ -136,7 +136,7 @@ func planSection(ctx context.Context, all []notes.Note, project string, noteDire
 		var out strings.Builder
 		fmt.Fprintf(&out, "%d active plans from ele, newest first:\n", len(active))
 		for _, note := range active {
-			fmt.Fprintf(&out, "- %s\n", planSummary(root, note.Body, plans))
+			fmt.Fprintf(&out, "- %s\n", planSummary(ctx, root, note.Body, plans))
 		}
 		section = out.String()
 	}

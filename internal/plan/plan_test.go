@@ -132,6 +132,18 @@ func TestCheckWarnsOnEleData(t *testing.T) {
 	}
 }
 
+func TestParseRecordsWhatEachCitationNames(t *testing.T) {
+	parsed, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n" +
+		"- [ ] a: A, from note 20261020-ead7f7 in session a5491a94-1c2d-4e5f-8a9b-0c1d2e3f4a5b\n" +
+		"  - ele show --at 10:00 24469c4a and ele show --note 20261020-ead7f7\n" +
+		"  - asserted in 0cc19d4\n"))
+	require.NoError(t, err)
+	require.Equal(t, []Citation{
+		{Line: 5, References: []Reference{{ID: "20261020-ead7f7", Kind: ReferenceNote}, {ID: "a5491a94-1c2d-4e5f-8a9b-0c1d2e3f4a5b", Kind: ReferenceSession}}},
+		{Line: 6, References: []Reference{{ID: "20261020-ead7f7", Kind: ReferenceNote}, {ID: "24469c4a", Kind: ReferenceSession}, {ID: "20261020-ead7f7", Kind: ReferenceNote}}},
+	}, parsed.Citations)
+}
+
 func TestCheckSaysWhenAPlanIsReadyToClose(t *testing.T) {
 	tests := []struct {
 		content string
