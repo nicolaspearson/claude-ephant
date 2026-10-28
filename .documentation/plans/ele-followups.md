@@ -17,7 +17,7 @@ Close the gaps ele-features and recipe-audit left: see shipped features work in 
 - As of 2026-10-28: the start block marks a lone pending handoff `shown` and lists several for the session to ask about; the handoff skill has only a Write section
 - As of 2026-10-28: a path option must name a readable file; an approved recipe is written into each profile's `skills` folder
 - As of 2026-10-28: Claude Code exposes no hook event, setting or SDK message for a heads-up before the user sends it (docs read in part); a sent one arrives as a prompt starting `✦ Heads up ·` and is indexed as a prompt
-- As of 2026-10-28: never observed in a real session: a `--every 5m` nudge, advance-skips-close, an `--everywhere` note, `notes_ask` and `compact_hint_at`, `colour` off through the CLI, and `/ele:recipe audit` over the user's skills with the man-page, package-runner and delegating-script rules; the remember evals were not rerun after the skill's `--every` lines
+- As of 2026-10-28: never observed in a real session: a closed `--every` nudge hidden by /clear until its next due, and an `--everywhere` note in a real session's start block
 
 ## Decisions
 
@@ -27,8 +27,17 @@ Close the gaps ele-features and recipe-audit left: see shipped features work in 
 
 ## Actions
 
-- [ ] real-session-pass: Try each never-observed feature in a real session, and rerun the remember evals
+- [x] real-session-pass: Try each never-observed feature in a real session, and rerun the remember evals
   - done when a `--every 5m` nudge, advance-skips-close, an `--everywhere` note, `notes_ask` and `compact_hint_at`, `colour` off through the CLI and `/ele:recipe audit` over the user's skills are each observed in a real session, what was seen written under this item and a failure added to the inbox; and the evals remember-auto-on, remember-auto-off, remember-reminder and remember-many are green, run on the user's go-ahead
+  - as of 2026-10-28: `--every 5m` nudge shown with ↻ in the /clear block; closing it at 10:44:41 re-armed it to 10:50, rounded up to the minute; hidden by /clear before 10:50 and shown after: not seen, test reminder forgotten
+  - as of 2026-10-28, premise check: advance skips `reminder close` and `handoff close` in `cmd/ele` bashwork's subcommand table; `--everywhere` is a flag of `ele remember`; `colour`, `compact_hint_at` and `notes_ask` are options in `internal/config`; the recipe skill's audit holds the package-runner, script and man-page rules; the four remember evals are under `plugin/evals`; the installed binary, 4f7a8c9, holds the config options' commit and has the same `cmd/` and `internal/` as HEAD
+  - as of 2026-10-28: advance-skips-close seen: a session whose only work was `ele reminder close` at its start ended its turn with no Stop notes ask and no hook-block event
+  - as of 2026-10-28: colour off seen: with `ele config set colour false`, run outside a session since `config set` refuses inside one, `ele reminder list --colour` printed 0 escapes against 8 with it on; unset after
+  - as of 2026-10-28: an `--everywhere` fact showed in `ele context` for owners personal, hyve and bitgorilla, and in `ele session-start` fed a hook input for a directory no owner covers; an owner added later not tried; the probe note forgotten
+  - as of 2026-10-28: the installed plugin is the 4f7a8c9 cache, whose recipe skill predates the package-runner, delegating-script and man-page rules
+  - as of 2026-10-28: `/ele:recipe audit` over 10 skills in a `task dev` session: the npx claims were marked not checked and nothing was run with the package; npm's and corepack's node shims were checked against the source they load; git subcommand flags and `env -u` held through man pages read with `col -b`, without `LC_ALL=C`; two real findings fixed in the user's skills
+  - as of 2026-10-28: with notes_ask false and compact_hint_at 20000, a new session's edit turn ended with no notes ask and with `Context 55k. At a pause: /compact`; its first turn, at 54k, got no hint, though stop-check fed that transcript cut at the same Stop prints one
+  - asserted at the eval boundary through the clone plugin at a0e9fa2: the four remember evals 1.00 each; in real sessions on binaries 4f7a8c9 and, from the recipe audit on, a0e9fa2 (same `cmd/` and `internal/`), every feature but a nudge hiding on /clear until due and an `--everywhere` note in a start block, both carried to the inbox
 - [ ] backup-plans: `ele backup` copies `plans/`, so a restore keeps closed plans' item names
   - done when a test backs up a data directory holding a closed plan's record, restores it, and a `blocked:` edge into that plan still resolves, seen red without the part; `ele backup`'s help, `docs/` and the spec name plans
 - [ ] plan-check-ids: `ele plan check` warns on a note id or session UUID only when ele resolves it, and `ele show` finds a session prefix by range
@@ -50,6 +59,9 @@ Close the gaps ele-features and recipe-audit left: see shipped features work in 
 - [ ] Fold what this plan built, and its out-of-scope lines as `Not doing:`, into the spec, run `ele plan done .documentation/plans/ele-followups.md`, and delete this plan
 
 ## Inbox
+
+- 2026-10-28, from real-session-pass: see a closed `--every` nudge hidden by /clear before its next due and shown after, and an `--everywhere` note in a real session's start block under an owner it was not saved from
+- 2026-10-28, from real-session-pass: stop-check missed the size hint on a session's first turn: at its Stop the turn ended at 54k with compact_hint_at 20000 and nothing printed, yet the same transcript cut at that Stop and fed by hand gets the hint; guess, not verified: the turn's usage lines were not on disk when the hook read the transcript
 
 ## Out of scope
 
