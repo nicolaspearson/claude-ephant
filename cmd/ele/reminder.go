@@ -22,16 +22,34 @@ func closedReminders(all []notes.Note, project string) []notes.Note {
 	})
 }
 
+// dueAfter is a date for whole days, else the minute rounded up, so a nudge never shows early.
+func dueAfter(every time.Duration, from time.Time) string {
+	if every%notes.Day == 0 {
+		return from.AddDate(0, 0, int(every/notes.Day)).Format(time.DateOnly)
+	}
+	return from.Add(every + time.Minute - 1).Truncate(time.Minute).Format(notes.DueMinute)
+}
+
 func dueReminders(all []notes.Note, project string, now time.Time) []notes.Note {
-	today := now.Format(time.DateOnly)
-	return slices.DeleteFunc(withNextDue(openReminders(all, project), now), func(note notes.Note) bool { return note.Due > today })
+	minute := now.Format(notes.DueMinute)
+	return slices.DeleteFunc(withNextDue(openReminders(all, project), now), func(note notes.Note) bool { return note.Due > minute })
 }
 
 func interval(note notes.Note) string {
 	if note.Every == 0 {
 		return ""
 	}
-	return fmt.Sprintf(", every %d days", note.Every)
+	count, unit := int(note.Every/time.Minute), "minute"
+	switch {
+	case note.Every%notes.Day == 0:
+		count, unit = int(note.Every/notes.Day), "day"
+	case note.Every%time.Hour == 0:
+		count, unit = int(note.Every/time.Hour), "hour"
+	}
+	if count != 1 {
+		unit += "s"
+	}
+	return fmt.Sprintf(", every %d %s", count, unit)
 }
 
 func listReminders(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
@@ -50,7 +68,7 @@ func listReminders(ctx context.Context, args []string, stdout io.Writer, stderr 
 	}
 	superseded := supersededBy(scope.all)
 	now := time.Now()
-	today := now.Format(time.DateOnly)
+	minute := now.Format(notes.DueMinute)
 	var lines []string
 	nudges := false
 	for _, note := range withNextDue(remindersHere(scope.all, scope.project), now) {
@@ -60,7 +78,7 @@ func listReminders(ctx context.Context, args []string, stdout io.Writer, stderr 
 			state, open = "superseded by "+superseded[note.ID], false
 		case note.Closed != "":
 			state, open = "closed "+note.Closed, false
-		case note.Due > today:
+		case note.Due > minute:
 			state = "open"
 		}
 		if !open && !*listAll {
@@ -100,7 +118,7 @@ func nextDue(note notes.Note, now time.Time) string {
 		// Unreadable done file: due at once.
 		return min(note.Due, now.Format(time.DateOnly))
 	}
-	return max(note.Due, info.ModTime().In(now.Location()).AddDate(0, 0, note.Every).Format(time.DateOnly))
+	return max(note.Due, dueAfter(note.Every, info.ModTime().In(now.Location())))
 }
 
 func nudgeMarker(note notes.Note) string {
@@ -117,17 +135,13 @@ func openReminders(all []notes.Note, project string) []notes.Note {
 	})
 }
 
-func rearmed(note notes.Note, now time.Time) string {
-	return now.AddDate(0, 0, note.Every).Format(time.DateOnly)
-}
-
 func reminderCommand(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
 	now := time.Now()
 	changes := map[string]noteChange{
 		"close": {
 			apply: func(directory string, note notes.Note) error {
 				if note.Every > 0 {
-					return notes.SetDue(directory, note, rearmed(note, now))
+					return notes.SetDue(directory, note, dueAfter(note.Every, now))
 				}
 				return notes.MarkClosed(directory, note, now)
 			},
@@ -136,7 +150,7 @@ func reminderCommand(ctx context.Context, args []string, stdout io.Writer, stder
 				if note.Every == 0 {
 					return ""
 				}
-				return "; due again " + rearmed(note, now)
+				return "; due again " + dueAfter(note.Every, now)
 			},
 			eligible: openReminders,
 			load:     projectOrEverywhereNotes,

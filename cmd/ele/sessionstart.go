@@ -392,7 +392,7 @@ func writeSessionStart(ctx context.Context, stdout io.Writer, dataDirectory stri
 		shown = append(shown, section)
 		instruction := "Tell the user each is due. Once the user says one is done or dropped, run ele reminder close <id>...; until then it shows at every startup, /clear and compaction.\n"
 		if slices.ContainsFunc(due, func(note notes.Note) bool { return note.Every > 0 }) {
-			instruction += "Closing one shown with an interval re-arms it for that many days; ele forget <id> drops it for good.\n"
+			instruction += "Closing one shown with an interval re-arms it for that interval; ele forget <id> drops it for good.\n"
 		}
 		fmt.Fprint(stdout, section+instruction+"\n")
 	}

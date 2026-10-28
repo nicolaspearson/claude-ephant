@@ -38,6 +38,7 @@ func TestMessage(t *testing.T) {
 		{name: "missing lone plan", highlighted: "[y]ele: plan a/b.md is not in this checkout[/y]; switch to its branch, or [c]ele plan done a/b.md[/c] closes it", text: "ele: plan a/b.md is not in this checkout; switch to its branch, or ele plan done a/b.md closes it"},
 		{name: "missing plan among several", highlighted: "- [y]plan b.md is not in this checkout[/y]; switch", text: "- plan b.md is not in this checkout; switch"},
 		{name: "note id alone", highlighted: "see [d]20261019-1ede12[/d] first", text: "see 20261019-1ede12 first"},
+		{name: "sub-day nudge's due time yellow and interval magenta", highlighted: "- [m]↻[/m] due [y]2026-10-22T15:05[/y], reminder [d]20261022-3abb91[/d], [m]every 5 minutes[/m]: Check.\n- [y]due[/y]  due [y]2026-10-22T09:30[/y], reminder [d]20261022-dddddd[/d] (project, [m]every 1 hour[/m]): Later.", text: "- ↻ due 2026-10-22T15:05, reminder 20261022-3abb91, every 5 minutes: Check.\n- due  due 2026-10-22T09:30, reminder 20261022-dddddd (project, every 1 hour): Later."},
 		{name: "nudge marker and interval magenta, due date yellow", highlighted: "- [m]↻[/m] due [y]2026-10-22[/y], reminder [d]20261022-3abb91[/d], [m]every 7 days[/m]: Run [c]/hook-stats[/c].", text: "- ↻ due 2026-10-22, reminder 20261022-3abb91, every 7 days: Run /hook-stats."},
 		{name: "path inside a URL stays plain", highlighted: "see http://x/y.md", text: "see http://x/y.md"},
 		{name: "path is not a slash command", highlighted: "under /private/tmp/x and http://host/a", text: "under /private/tmp/x and http://host/a"},

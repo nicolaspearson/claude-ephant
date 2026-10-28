@@ -17,6 +17,11 @@ import (
 	"time"
 )
 
+const Day = 24 * time.Hour
+
+// DueMinute is the layout of a due with a time, local like a date-only due, so the two compare as strings and a date sorts before its own times.
+const DueMinute = "2006-01-02T15:04"
+
 const (
 	KindDecision = "decision"
 	KindFact     = "fact"
@@ -39,6 +44,9 @@ var (
 	Kinds  = []string{KindDecision, KindFact, KindHandoff, KindPlan, KindQuestion, KindReminder}
 	scopes = []string{ScopeEverywhere, ScopeGlobal, ScopeProject}
 
+	// Five digits of days stay inside a time.Duration.
+	everyShape = regexp.MustCompile(`^([1-9][0-9]{0,4})([dhm]?)$`)
+
 	// A project name is one front matter value; directory names may hold spaces and accents.
 	projectShape = regexp.MustCompile(`^\P{Cc}*$`)
 
@@ -52,7 +60,7 @@ type Note struct {
 	Date       string
 	DoneFile   string
 	Due        string
-	Every      int
+	Every      time.Duration
 	ID         string
 	Kind       string
 	Owner      string
@@ -76,7 +84,7 @@ func ClearShown(directory string, note Note) error {
 func Format(note Note) []byte {
 	var every string
 	if note.Every != 0 {
-		every = strconv.Itoa(note.Every)
+		every = FormatEvery(note.Every)
 	}
 	var out bytes.Buffer
 	out.WriteString("---\n")
@@ -104,6 +112,17 @@ func Format(note Note) []byte {
 	out.WriteString(strings.TrimSpace(note.Body))
 	out.WriteString("\n")
 	return out.Bytes()
+}
+
+// FormatEvery writes whole days bare, so a build that predates sub-day intervals still reads them.
+func FormatEvery(every time.Duration) string {
+	switch {
+	case every%Day == 0:
+		return strconv.Itoa(int(every / Day))
+	case every%time.Hour == 0:
+		return strconv.Itoa(int(every/time.Hour)) + "h"
+	}
+	return strconv.Itoa(int(every/time.Minute)) + "m"
 }
 
 func MarkClosed(directory string, note Note, when time.Time) error {
@@ -234,11 +253,11 @@ func Parse(path string, content []byte) (Note, error) {
 		return invalid("front matter never closes")
 	}
 	if every != "" {
-		days, err := strconv.Atoi(every)
-		if err != nil || days < 1 {
-			return invalid("every %q is not a whole number of days above 0", every)
+		interval, err := ParseEvery(every)
+		if err != nil {
+			return invalid("%v", err)
 		}
-		note.Every = days
+		note.Every = interval
 	}
 	for identifier := range strings.SplitSeq(supersedes, ",") {
 		if identifier = strings.TrimSpace(identifier); identifier != "" {
@@ -260,6 +279,19 @@ func Parse(path string, content []byte) (Note, error) {
 		return invalid("%s", reason)
 	}
 	return note, nil
+}
+
+func ParseEvery(value string) (time.Duration, error) {
+	match := everyShape.FindStringSubmatch(value)
+	if match == nil {
+		return 0, fmt.Errorf("every %q is not minutes, hours or days above 0, such as 5m, 2h or 7d", value)
+	}
+	count, err := strconv.Atoi(match[1])
+	if err != nil {
+		return 0, err
+	}
+	unit := map[string]time.Duration{"": Day, "d": Day, "h": time.Hour, "m": time.Minute}[match[2]]
+	return time.Duration(count) * unit, nil
 }
 
 // ReadFor reads the owner's notes and the everywhere notes; an empty owner reads only the latter.
@@ -314,10 +346,17 @@ func ReadOwner(directory string, owner string) ([]Note, int, error) {
 }
 
 func SetDue(directory string, note Note, due string) error {
-	if !validDate(due) {
-		return fmt.Errorf("%w %s: due %q is not YYYY-MM-DD", ErrInvalid, note.ID, due)
+	if !ValidDue(due) {
+		return fmt.Errorf("%w %s: due %q is not YYYY-MM-DD or YYYY-MM-DDTHH:MM", ErrInvalid, note.ID, due)
 	}
 	return setKey(directory, note, "due", due)
+}
+
+// ValidDue checks the width too: Parse takes a one-digit hour, which compares wrongly as a string.
+func ValidDue(due string) bool {
+	layout := map[int]string{len(time.DateOnly): time.DateOnly, len(DueMinute): DueMinute}[len(due)]
+	_, err := time.Parse(layout, due)
+	return layout != "" && err == nil
 }
 
 func ValidProject(project string) bool {
@@ -403,16 +442,16 @@ func problem(note Note) string {
 		return "reminder with no due date"
 	case note.Kind != KindReminder && (note.Due != "" || note.Closed != "" || note.DoneFile != "" || note.Every != 0):
 		return fmt.Sprintf("%s with a closed, done-file, due or every key, which only a reminder takes", note.Kind)
-	case note.Every < 0:
-		return fmt.Sprintf("every %d is not a whole number of days above 0", note.Every)
+	case note.Every < 0 || note.Every%time.Minute != 0:
+		return fmt.Sprintf("every %s is not a whole number of minutes above 0", note.Every)
 	case note.DoneFile != "" && note.Every == 0:
 		return "done-file with no every"
 	case !projectShape.MatchString(note.DoneFile):
 		return fmt.Sprintf("done-file %q holds a control character", note.DoneFile)
 	case note.DoneFile != "" && !filepath.IsAbs(note.DoneFile):
 		return fmt.Sprintf("done-file %q is not an absolute path", note.DoneFile)
-	case note.Due != "" && !validDate(note.Due):
-		return fmt.Sprintf("due %q is not YYYY-MM-DD", note.Due)
+	case note.Due != "" && !ValidDue(note.Due):
+		return fmt.Sprintf("due %q is not YYYY-MM-DD or YYYY-MM-DDTHH:MM", note.Due)
 	case note.Closed != "" && !validTime(note.Closed):
 		return fmt.Sprintf("closed %q is not an RFC 3339 timestamp", note.Closed)
 	case !ValidProject(note.Project):
@@ -505,11 +544,6 @@ func setKey(directory string, note Note, key string, value string) error {
 		}
 		return slices.Concat(lines[:keyIndex], []string{line}, lines[keyIndex+1:])
 	})
-}
-
-func validDate(value string) bool {
-	_, err := time.Parse(time.DateOnly, value)
-	return err == nil
 }
 
 func validTime(value string) bool {

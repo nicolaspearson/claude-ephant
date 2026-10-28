@@ -65,8 +65,8 @@ func projectOwner(ctx context.Context, dataDirectory string, ownerMap ownermap.O
 func remember(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
 	flags := newFlagSet("remember", stderr)
 	doneFile := flags.String("done-file", "", "file whose last change marks the nudge done; needs --every")
-	due := flags.String("due", "", "YYYY-MM-DD a reminder first shows on; reminders only, today by default with --every")
-	every := flags.Int("every", 0, "days a nudge stays hidden after each close; reminders only")
+	due := flags.String("due", "", "YYYY-MM-DD or YYYY-MM-DDTHH:MM, local, a reminder first shows from; reminders only, today by default with --every")
+	everyValue := flags.String("every", "", "how long a nudge stays hidden after each close: 5m, 2h, 7d, or a bare number of days; whole days, 24h included, re-arm to a date; reminders only")
 	everywhere := flags.Bool("everywhere", false, "applies to every session, whatever its owner, owners added later included")
 	global := flags.Bool("global", false, "applies to every project of the owner")
 	kind := flags.String("kind", "", "decision, fact, handoff, question or reminder")
@@ -81,6 +81,7 @@ func remember(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 	}
 	everyGiven := false
 	flags.Visit(func(given *flag.Flag) { everyGiven = everyGiven || given.Name == "every" })
+	var every time.Duration
 	body := strings.TrimSpace(strings.Join(positional, " "))
 	if body == "" || *kind == "" {
 		return rejectCall(flags, nil, stdout, stderr)
@@ -110,20 +111,22 @@ func remember(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 	case *kind != notes.KindReminder && (*doneFile != "" || *due != "" || everyGiven):
 		fmt.Fprintln(stderr, "ele: only a reminder takes --done-file, --due or --every; use --kind reminder")
 		return 2
-	case everyGiven && *every < 1:
-		fmt.Fprintf(stderr, "ele: --every %d is not a whole number of days above 0\n", *every)
-		return 2
-	case *doneFile != "" && *every == 0:
-		fmt.Fprintln(stderr, "ele: --done-file needs --every <days>, how long the nudge stays hidden after the file changes")
-		return 2
-	case *kind == notes.KindReminder && *due == "" && *every == 0:
-		fmt.Fprintln(stderr, "ele: a reminder needs --due YYYY-MM-DD, the day it first shows")
-		return 2
-	case *due != "":
-		if _, err = time.Parse(time.DateOnly, *due); err != nil {
-			fmt.Fprintf(stderr, "ele: --due %q is not YYYY-MM-DD\n", *due)
+	case everyGiven:
+		if every, err = notes.ParseEvery(*everyValue); err != nil {
+			fmt.Fprintf(stderr, "ele: --%v\n", err)
 			return 2
 		}
+	}
+	switch {
+	case *doneFile != "" && every == 0:
+		fmt.Fprintln(stderr, "ele: --done-file needs --every <interval>, how long the nudge stays hidden after the file changes")
+		return 2
+	case *kind == notes.KindReminder && *due == "" && every == 0:
+		fmt.Fprintln(stderr, "ele: a reminder needs --due YYYY-MM-DD or YYYY-MM-DDTHH:MM, when it first shows")
+		return 2
+	case *due != "" && !notes.ValidDue(*due):
+		fmt.Fprintf(stderr, "ele: --due %q is not YYYY-MM-DD or YYYY-MM-DDTHH:MM\n", *due)
+		return 2
 	}
 	if !notes.ValidSession(*session) {
 		fmt.Fprintf(stderr, "ele: session %q holds characters other than letters, digits, - and _\n", *session)
@@ -184,7 +187,7 @@ func remember(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 		return 1
 	}
 	now := time.Now()
-	if *every > 0 && *due == "" {
+	if every > 0 && *due == "" {
 		*due = now.Format(time.DateOnly)
 	}
 	if *doneFile != "" {
@@ -212,7 +215,7 @@ func remember(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 		Date:       now.Format(time.DateOnly),
 		DoneFile:   *doneFile,
 		Due:        *due,
-		Every:      *every,
+		Every:      every,
 		ID:         id,
 		Kind:       *kind,
 		Owner:      *owner,

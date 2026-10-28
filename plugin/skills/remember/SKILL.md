@@ -19,12 +19,12 @@ In every directory an owner covers, the SessionStart block shows the project's d
 
 ```sh
 ele remember --kind decision|fact|handoff|question <words>
-ele remember --kind reminder --due YYYY-MM-DD <words>
-ele remember --kind reminder --every <days> [--due YYYY-MM-DD] <words>
+ele remember --kind reminder --due YYYY-MM-DD[THH:MM] <words>
+ele remember --kind reminder --every <interval> [--due YYYY-MM-DD[THH:MM]] <words>
 ```
 
-- `--due`: the local date a reminder first shows; work out a spoken date such as "next Tuesday" from `date +%F`, and give the date in the report
-- `--every <days>`: a nudge, shown again that many days after each close; with no `--due` it shows today
+- `--due`: the local date a reminder first shows, or date and time as `YYYY-MM-DDTHH:MM` when the user names a time; work out a spoken date such as "next Tuesday" from `date +%F`, and give the date in the report
+- `--every <interval>`: a nudge, shown again that long after each close: `5m`, `2h`, `7d`, or a bare number of days; with no `--due` it shows today
 - Owner and project come from the working directory unless `--project` names one; profile, session and time are recorded automatically
 - `--project <name>`: the note concerns a project other than the working directory's. Works from any directory; `ele` names the owner or refuses
 - `--global`: applies to every project of the owner, not just this one; never on a handoff

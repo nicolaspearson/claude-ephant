@@ -175,14 +175,15 @@ func TestParseRejectsInvalidNotes(t *testing.T) {
 		{content: "---\ndate: 2026-10-17\nkind: plan\nowner: personal\nproject: claude-ephant\nscope: project\n---\nplans.md\nnext.md\n", message: "is not one path inside the project", name: "plan with two lines", path: "notes/personal/n.md"},
 		{content: "---\ndate: 2026-10-15\nkind: decision\nowner: personal\nscope: project\n---\nx\n", message: "project scope with no project", name: "project scope without project", path: "notes/personal/n.md"},
 		{content: "---\nclosed: today\ndate: 2026-10-22\ndue: 2026-10-23\nkind: reminder\nowner: personal\nscope: global\n---\nx\n", message: `closed "today" is not an RFC 3339 timestamp`, name: "reminder closed not RFC 3339", path: "notes/personal/n.md"},
-		{content: "---\ndate: 2026-10-22\ndue: next week\nkind: reminder\nowner: personal\nscope: global\n---\nx\n", message: `due "next week" is not YYYY-MM-DD`, name: "reminder due not a date", path: "notes/personal/n.md"},
+		{content: "---\ndate: 2026-10-22\ndue: next week\nkind: reminder\nowner: personal\nscope: global\n---\nx\n", message: `due "next week" is not YYYY-MM-DD or YYYY-MM-DDTHH:MM`, name: "reminder due not a date", path: "notes/personal/n.md"},
+		{content: "---\ndate: 2026-10-22\ndue: 2026-10-23T9:30\nkind: reminder\nowner: personal\nscope: global\n---\nx\n", message: `due "2026-10-23T9:30" is not YYYY-MM-DD or YYYY-MM-DDTHH:MM`, name: "reminder due hour not zero-padded", path: "notes/personal/n.md"},
 		{content: "---\ndate: 2026-10-22\nkind: reminder\nowner: personal\nscope: global\n---\nx\n", message: "reminder with no due date", name: "reminder without due", path: "notes/personal/n.md"},
 		{content: front + "every: 7\n---\nx\n", message: "decision with a closed, done-file, due or every key, which only a reminder takes", name: "every on a decision", path: "notes/personal/n.md"},
 		{content: "---\ndate: 2026-10-22\ndone-file: /a\x07b\ndue: 2026-10-23\nevery: 7\nkind: reminder\nowner: personal\nscope: global\n---\nx\n", message: `done-file "/a\ab" holds a control character`, name: "reminder done-file with a control character", path: "notes/personal/n.md"},
 		{content: "---\ndate: 2026-10-22\ndone-file: /m\ndue: 2026-10-23\nkind: reminder\nowner: personal\nscope: global\n---\nx\n", message: "done-file with no every", name: "reminder done-file without every", path: "notes/personal/n.md"},
 		{content: "---\ndate: 2026-10-22\ndone-file: cache/m\ndue: 2026-10-23\nevery: 7\nkind: reminder\nowner: personal\nscope: global\n---\nx\n", message: `done-file "cache/m" is not an absolute path`, name: "reminder done-file relative", path: "notes/personal/n.md"},
-		{content: "---\ndate: 2026-10-22\ndue: 2026-10-23\nevery: 0\nkind: reminder\nowner: personal\nscope: global\n---\nx\n", message: `every "0" is not a whole number of days above 0`, name: "reminder every 0", path: "notes/personal/n.md"},
-		{content: "---\ndate: 2026-10-22\ndue: 2026-10-23\nevery: weekly\nkind: reminder\nowner: personal\nscope: global\n---\nx\n", message: `every "weekly" is not a whole number of days above 0`, name: "reminder every not a number", path: "notes/personal/n.md"},
+		{content: "---\ndate: 2026-10-22\ndue: 2026-10-23\nevery: 0\nkind: reminder\nowner: personal\nscope: global\n---\nx\n", message: `every "0" is not minutes, hours or days above 0, such as 5m, 2h or 7d`, name: "reminder every 0", path: "notes/personal/n.md"},
+		{content: "---\ndate: 2026-10-22\ndue: 2026-10-23\nevery: weekly\nkind: reminder\nowner: personal\nscope: global\n---\nx\n", message: `every "weekly" is not minutes, hours or days above 0, such as 5m, 2h or 7d`, name: "reminder every not a number", path: "notes/personal/n.md"},
 		{content: front + "project: a\x07b\n---\nx\n", message: `project "a\ab" holds a control character`, name: "project with a control character", path: "notes/personal/n.md"},
 		{content: front + "project: a\u0085b\n---\nx\n", message: `project "a\u0085b" holds a control character`, name: "project with a C1 control character", path: "notes/personal/n.md"},
 		{content: front + "session: a b\n---\nx\n", message: `session "a b" holds characters other than letters, digits, - and _`, name: "session with a space", path: "notes/personal/n.md"},
@@ -257,7 +258,7 @@ func TestReadOwnerSkipsInvalidNotesAndOtherOwners(t *testing.T) {
 
 func TestSetDueRewritesOnlyTheDueOfANudge(t *testing.T) {
 	root := t.TempDir()
-	nudge := Note{Body: "Run /hook-stats.", Date: "2026-10-22", DoneFile: "/home/u/.claude/cache/hook-stats.last", Due: "2026-10-22", Every: 7, ID: "20261022-a1b2c3", Kind: KindReminder, Owner: "personal", Scope: ScopeGlobal}
+	nudge := Note{Body: "Run /hook-stats.", Date: "2026-10-22", DoneFile: "/home/u/.claude/cache/hook-stats.last", Due: "2026-10-22", Every: 7 * 24 * time.Hour, ID: "20261022-a1b2c3", Kind: KindReminder, Owner: "personal", Scope: ScopeGlobal}
 	path, err := Write(root, nudge)
 	require.NoError(t, err)
 
@@ -271,6 +272,35 @@ func TestSetDueRewritesOnlyTheDueOfANudge(t *testing.T) {
 	require.Equal(t, nudge, rearmed)
 
 	require.ErrorIs(t, SetDue(root, nudge, "next week"), ErrInvalid)
+	require.NoError(t, SetDue(root, nudge, "2026-10-29T15:05"), "a sub-day nudge re-arms to a time")
+	require.ErrorIs(t, SetDue(root, nudge, ""), ErrInvalid)
+}
+
+func TestEveryRoundTripsEachUnit(t *testing.T) {
+	tests := []struct {
+		every   time.Duration
+		value   string
+		written string
+	}{
+		{every: 2 * 24 * time.Hour, value: "2d", written: "2"},
+		{every: 2 * time.Hour, value: "2h", written: "2h"},
+		{every: 5 * time.Minute, value: "5m", written: "5m"},
+		{every: 7 * 24 * time.Hour, value: "7", written: "7"},
+		{every: 24 * time.Hour, value: "24h", written: "1"},
+		{every: 90 * time.Minute, value: "90m", written: "90m"},
+	}
+	for _, test := range tests {
+		t.Run(test.value, func(t *testing.T) {
+			every, err := ParseEvery(test.value)
+			require.NoError(t, err)
+			require.Equal(t, test.every, every)
+			require.Equal(t, test.written, FormatEvery(every), "whole days are written bare, as builds before sub-day intervals read them")
+		})
+	}
+	for _, value := range []string{"", "0", "0m", "-1", "1h30m", "30s", "7 d", "d", "99999999999999999999"} {
+		_, err := ParseEvery(value)
+		require.Error(t, err, value)
+	}
 }
 
 func TestWriteRefusesANoteWithoutAnID(t *testing.T) {

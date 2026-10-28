@@ -40,7 +40,7 @@ func TestRunPrintsTheOverviewNamingEveryCommand(t *testing.T) {
 		for name := range commands {
 			require.Regexp(t, `(?m)^  `+name+`( \S+)? {2,}\S`, stdout, args)
 		}
-		require.Contains(t, stdout, "\n  ele remember --kind decision|fact|handoff|question|reminder [--done-file <path>] [--due <YYYY-MM-DD>] [--every <days>] [--everywhere | --global] [--owner <name>] [--project <name>] [--session <id>] [--supersedes <id>...] <words>\n", "every flag shows without a second call")
+		require.Contains(t, stdout, "\n  ele remember --kind decision|fact|handoff|question|reminder [--done-file <path>] [--due <YYYY-MM-DD[THH:MM]>] [--every <interval>] [--everywhere | --global] [--owner <name>] [--project <name>] [--session <id>] [--supersedes <id>...] <words>\n", "every flag shows without a second call")
 	}
 	for _, row := range regexp.MustCompile(`(?m)^  ([a-z-]+)(?: [a-z-]+)? {2,}\S`).FindAllStringSubmatch(overview, -1) {
 		require.Contains(t, commands, row[1], "the overview names only commands that run")

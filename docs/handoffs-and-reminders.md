@@ -50,7 +50,10 @@ ele remember --kind reminder --due 2026-11-01 "Renew the staging certificate"
 ```
 
 Or say "remind me on the first of November to renew the staging certificate",
-and `/ele:remember` works out the date.
+and `/ele:remember` works out the date. `--due 2026-11-01T15:30` shows it from
+that local time instead of from the start of the day. A reminder only shows at a
+session start, `/clear` or compaction, so one due at 15:30 appears at the first
+of those after it, not at 15:30 in a session already open.
 
 ```sh
 ele reminder list           # open reminders, due or not, soonest due first
@@ -64,8 +67,9 @@ from any directory closes it for all.
 
 ### Nudges
 
-A nudge is a reminder that comes back. `--every <days>` makes one; closing it
-hides it for that many days, then it is due again:
+A nudge is a reminder that comes back. `--every <interval>` makes one, as
+`5m`, `2h`, `7d` or a bare number of days; closing it hides it for that long,
+then it is due again:
 
 ```sh
 ele remember --kind reminder --every 7 "Review open dependency updates"
@@ -73,8 +77,11 @@ ele remember --kind reminder --every 7 "Review open dependency updates"
 
 With no `--due`, a nudge is due today. `--done-file <path>` ties it to a file
 that something else writes when the work is done, such as a weekly report: the
-nudge is next due that many days after the file last changed. A nudge never
-closes for good; `ele forget <id>` removes it.
+nudge is next due that long after the file last changed. An interval of whole
+days re-arms to a date, shown from the start of that day, and `24h` counts as
+one day; a shorter one re-arms to the minute, rounded up so it never shows
+early. A nudge never closes for
+good; `ele forget <id>` removes it.
 
 The `reminders` option, on by default, turns every reminder off when set to
 `false`. They can still be saved, listed and closed.
