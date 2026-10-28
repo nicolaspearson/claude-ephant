@@ -33,12 +33,18 @@ would have.
 exist on this machine. Name skill files to audit only those:
 `/ele:recipe audit ~/.claude/skills/release-cli/SKILL.md`.
 
-- A command not on your `PATH` is reported, and so is a subcommand or flag its
-  `--help` does not name
+- A command not on your `PATH` is reported, and so is a subcommand or flag that
+  neither its `--help`, nor a help it points to, nor its man page names:
+  `git log -h` leaves out `--oneline`, which `man git-log` names
 - A pinned version older than the installed tool's by a major or minor
   version, such as `go1.21.0` with Go 1.27 installed, is reported as stale
-- Nothing but `command -v`, help and version commands is run. A shell function
-  or alias has nothing run, a script is read rather than run, and a
+- A package runner, such as `npx`, `bunx`, `pipx run` or `uvx`, or any other
+  command that takes a package and runs it, is checked for
+  itself only: its package and what follows are listed as not checked, since
+  asking the package for its help would fetch and run it
+- Nothing but `command -v`, help and version commands and `man` is run. A shell
+  function or alias has nothing run, a script is read rather than run (with
+  the files it loads, when it defines no commands of its own), and a
   subcommand's help is asked for only when the tool's own help shows it takes
   one, since a tool that ignores an unknown flag would run the step. A compiled
   tool that ignores its flags still runs once

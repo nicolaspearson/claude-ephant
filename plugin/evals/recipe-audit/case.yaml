@@ -1,6 +1,6 @@
 schema_version: "1.1"
 name: recipe-audit
-description: ele:recipe audit reports a skill's missing command, removed flag and stale version pin, leaves a valid flag alone, and edits nothing unapproved
+description: ele:recipe audit reports a skill's missing command, removed flag and stale version pin, leaves alone a valid flag, a flag only the man page names, package runners' packages and a delegating script's subcommands, runs neither the runners nor the script, and edits nothing unapproved
 runs: 1
 execution:
   max_turns: 25
