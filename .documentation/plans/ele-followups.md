@@ -8,7 +8,7 @@ spec: .documentation/specs/design.md
 
 ## Why
 
-Close the gaps ele-features and recipe-audit left: see shipped features work in real sessions, fix two data bugs, harden the audit, then build the small features raised since.
+Close the gaps ele-features and recipe-audit left: see shipped features work in real sessions, fix data bugs, harden the audit, then build the small features raised since.
 
 ## Context
 
@@ -44,8 +44,16 @@ Close the gaps ele-features and recipe-audit left: see shipped features work in 
 - [x] plan-check-ids: `ele plan check` warns on a note id or session UUID only when ele resolves it, and `ele show` finds a session prefix by range
   - done when a plan holding a repository's own UUID gets no warning and one holding a real session id does, each seen red; with the index unreadable every match warns, as before, so a broken index never silences the check; `ele show <prefix>` resolves through `session >= ? AND session < ?`
   - asserted in the plan-check-ids commit: TestRunPlanCheckWarnsOnlyOnEleDataEleResolves syncs a UUID session, saves a note and leaves a second session's transcript unsynced, then `ele plan check` warns on the indexed session, its `ele show` prefix, the saved note and the unsynced session, and not on a UUID with neither index entry nor transcript, an `ele show` of a commit or an unsaved note id; with a garbage ele.db all seven warn; red with every citation kept, with sessions, notes or transcripts never resolving, and with nothing kept on an unreadable index; TestSessionsFindsAPrefixThroughTheSessionIndex's EXPLAIN shows `entries_session_kind (session>? AND session<?)`, red with LIKE; spec, docs/plans.md and `ele plan check --help` say so
-- [ ] no-run-step-shapes: recipe-audit's `no-run-step` grader catches the command shapes `no-run-script` does
+- [x] no-run-step-shapes: recipe-audit's `no-run-step` grader catches the command shapes `no-run-script` does
   - done when its regex matches a second line, an `env`, `timeout N` or `VAR=value` prefix, `sh -c` and a quoted path running `deploy-dev`, and not `cat`, `grep` or `realpath` of it, by hand probe
+  - as of 2026-10-28, premise check: `no-run-script.md`'s regex takes a second line, the `env`, `command`, `exec`, `timeout N` and `VAR=value` prefixes, `sh -c` and a quoted path; `no-run-step.md`'s takes only a separator or a `sh` before the path; the scaffold's `bin/deploy-dev` touches `deployed` whatever its arguments
+  - asserted in the no-run-step-shapes commit, by hand probe of the grader's pattern over a JSON-encoded Bash input in node and Python: matches a run after a separator or newline, behind `env`, `timeout N` and `VAR=value` prefixes, under `sh -c` and `bash -c`, by quoted, relative and absolute path; matches none of `cat`, `head`, `grep`, `realpath`, `ls -l` or `file` of it; the old pattern missed 8 of those runs, and dropping the newline, quote or `timeout N` alternative each misses its run; eval not run
+- [ ] unseen-pass: See the two features real-session-pass did not, in a real session
+  - done when a closed `--every` nudge is hidden by /clear before its next due and shown after, and an `--everywhere` note shows in a real session's start block under an owner it was not saved from, what was seen written under this item and a failure added to the inbox
+- [ ] plan-write-atomic: `WriteStored` in `internal/plan` writes a temp file and renames it, as notes do, so a backup copying `plans/` during an `ele plan done` never takes torn JSON
+  - done when a test sees no partial stored-plan file while one is written, seen red against the in-place write
+- [ ] backup-order-pinned: a test pins `copyDataDirectory` in `cmd/ele` copying `notes` before `plans`, which keeps a backup consistent because `ele plan done` writes the stored names before marking the note shown
+  - done when the test fails with `plans` copied before `notes`, seen red
 - [ ] man-hyphens: recipe audit's man-page lookup runs `LC_ALL=C man <page> </dev/null | col -b`, so a page renders ASCII hyphens
   - done when the skill, `docs/` and the spec say so and a run on macOS still finds `--oneline` in `git-log`; Linux not verified, said in the tick
 - [ ] handoff-picking: Option `lone_handoff_pending`, boolean, default false, shows a lone handoff as several are; `/ele:handoff list` shows pending and closed handoffs
@@ -62,10 +70,7 @@ Close the gaps ele-features and recipe-audit left: see shipped features work in 
 
 ## Inbox
 
-- 2026-10-28, from real-session-pass: see a closed `--every` nudge hidden by /clear before its next due and shown after, and an `--everywhere` note in a real session's start block under an owner it was not saved from
 - 2026-10-28, from real-session-pass: stop-check missed the size hint on a session's first turn: at its Stop the turn ended at 54k with compact_hint_at 20000 and nothing printed, yet the same transcript cut at that Stop and fed by hand gets the hint; guess, not verified: the turn's usage lines were not on disk when the hook read the transcript
-- 2026-10-28, from backup-plans' checkpoint: `WriteStored` in `internal/plan` truncates and writes in place, where notes write a temp file and rename, so a backup copying `plans/` during an `ele plan done` can take torn JSON, which `loadPlanSet` then drops and the edge reads "does not exist"; write through a temp file and rename
-- 2026-10-28, from backup-plans' checkpoint: `copyDataDirectory` in `cmd/ele` keeps a backup consistent only by copying `notes` before `plans` (`ele plan done` writes the stored names before marking the note shown), and that order holds only because `backupParts` is alphabetical; pin it with a comment or a test
 
 ## Out of scope
 
