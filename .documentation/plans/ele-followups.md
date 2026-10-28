@@ -64,6 +64,7 @@ Close the gaps ele-features and recipe-audit left: see shipped features work in 
 - 2026-10-28, from real-session-pass: see a closed `--every` nudge hidden by /clear before its next due and shown after, and an `--everywhere` note in a real session's start block under an owner it was not saved from
 - 2026-10-28, from real-session-pass: stop-check missed the size hint on a session's first turn: at its Stop the turn ended at 54k with compact_hint_at 20000 and nothing printed, yet the same transcript cut at that Stop and fed by hand gets the hint; guess, not verified: the turn's usage lines were not on disk when the hook read the transcript
 - 2026-10-28, from backup-plans' checkpoint: `WriteStored` in `internal/plan` truncates and writes in place, where notes write a temp file and rename, so a backup copying `plans/` during an `ele plan done` can take torn JSON, which `loadPlanSet` then drops and the edge reads "does not exist"; write through a temp file and rename
+- 2026-10-28, from backup-plans' checkpoint: `copyDataDirectory` in `cmd/ele` keeps a backup consistent only by copying `notes` before `plans` (`ele plan done` writes the stored names before marking the note shown), and that order holds only because `backupParts` is alphabetical; pin it with a comment or a test
 
 ## Out of scope
 
