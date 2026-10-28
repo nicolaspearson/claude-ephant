@@ -15,7 +15,7 @@ import (
 	"github.com/nicolaspearson/claude-ephant/internal/store"
 )
 
-var backupParts = []string{"archive", "config.json", "forgotten", "mining", "notes", "owner-map.json"}
+var backupParts = []string{"archive", "config.json", "forgotten", "mining", "notes", "owner-map.json", "plans"}
 
 func backup(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
 	flags := newFlagSet("backup", stderr)

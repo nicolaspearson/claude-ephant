@@ -38,8 +38,9 @@ Close the gaps ele-features and recipe-audit left: see shipped features work in 
   - as of 2026-10-28: `/ele:recipe audit` over 10 skills in a `task dev` session: the npx claims were marked not checked and nothing was run with the package; npm's and corepack's node shims were checked against the source they load; git subcommand flags and `env -u` held through man pages read with `col -b`, without `LC_ALL=C`; two real findings fixed in the user's skills
   - as of 2026-10-28: with notes_ask false and compact_hint_at 20000, a new session's edit turn ended with no notes ask and with `Context 55k. At a pause: /compact`; its first turn, at 54k, got no hint, though stop-check fed that transcript cut at the same Stop prints one
   - asserted at the eval boundary through the clone plugin at a0e9fa2: the four remember evals 1.00 each; in real sessions on binaries 4f7a8c9 and, from the recipe audit on, a0e9fa2 (same `cmd/` and `internal/`), every feature but a nudge hiding on /clear until due and an `--everywhere` note in a start block, both carried to the inbox
-- [ ] backup-plans: `ele backup` copies `plans/`, so a restore keeps closed plans' item names
+- [x] backup-plans: `ele backup` copies `plans/`, so a restore keeps closed plans' item names
   - done when a test backs up a data directory holding a closed plan's record, restores it, and a `blocked:` edge into that plan still resolves, seen red without the part; `ele backup`'s help, `docs/` and the spec name plans
+  - asserted in the backup-plans commit: TestRunBackupKeepsClosedPlansSoARestoreResolvesTheirEdges closes a plan, deletes its file, backs up, points ELE_HOME at the backup and gets the closed-plan flag on a `blocked:` edge into it; red with `plans` or `notes` left out of `backupParts`; `ele backup`'s help, docs/data-and-privacy.md and the spec's storage tree and backup paragraph name closed plans
 - [ ] plan-check-ids: `ele plan check` warns on a note id or session UUID only when ele resolves it, and `ele show` finds a session prefix by range
   - done when a plan holding a repository's own UUID gets no warning and one holding a real session id does, each seen red; with the index unreadable every match warns, as before, so a broken index never silences the check; `ele show <prefix>` resolves through `session >= ? AND session < ?`
 - [ ] no-run-step-shapes: recipe-audit's `no-run-step` grader catches the command shapes `no-run-script` does
@@ -62,6 +63,7 @@ Close the gaps ele-features and recipe-audit left: see shipped features work in 
 
 - 2026-10-28, from real-session-pass: see a closed `--every` nudge hidden by /clear before its next due and shown after, and an `--everywhere` note in a real session's start block under an owner it was not saved from
 - 2026-10-28, from real-session-pass: stop-check missed the size hint on a session's first turn: at its Stop the turn ended at 54k with compact_hint_at 20000 and nothing printed, yet the same transcript cut at that Stop and fed by hand gets the hint; guess, not verified: the turn's usage lines were not on disk when the hook read the transcript
+- 2026-10-28, from backup-plans' checkpoint: `WriteStored` in `internal/plan` truncates and writes in place, where notes write a temp file and rename, so a backup copying `plans/` during an `ele plan done` can take torn JSON, which `loadPlanSet` then drops and the edge reads "does not exist"; write through a temp file and rename
 
 ## Out of scope
 

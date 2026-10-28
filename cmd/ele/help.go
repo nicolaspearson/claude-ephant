@@ -42,7 +42,7 @@ Index
   status          data directory, sync state, owner here, plugins
   stats           index counts and disk use
   version         the release tag this binary was built from, the version Go stamped, or devel
-  backup          copy the archive, notes, forgotten notes, mining runs, config, owner map and index elsewhere
+  backup          copy the archive, notes, forgotten notes, mining runs, config, owner map, closed plans and index elsewhere
   owner           add an owner, or add or remove a path rule or project entry
 
 Config
@@ -71,7 +71,7 @@ Hooks
 ele <command> --help says what each flag does.`
 
 var purposes = map[string]string{
-	"backup":               "Copy the archive, notes, forgotten notes, mining runs, config, owner map and the index into a new or empty directory.",
+	"backup":               "Copy the archive, notes, forgotten notes, mining runs, config, owner map, closed plans' item names and the index into a new or empty directory.",
 	"checkpoint density":   "Per file in the diff since --ref, the share of added lines that are comments, beside the file's own share and the median of its nearest peers of the same suffix; flags the outliers.",
 	"checkpoint log":       "Read a checkpoint's or review's record on stdin, refuse one the stats would misread, and append it with its date, HEAD, repository and, for a checkpoint, duration since the first freeze. A review, scope mr or local-branch, leaves an open checkpoint run's clock running.",
 	"checkpoint stats":     "What the log's checkpoints found and which stage found it over the last <days> days, 30 by default; then review runs apart, with how often the user skipped their findings and what the filter dropped.",

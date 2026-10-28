@@ -76,10 +76,10 @@ notes included. Keep secrets out of notes.
 ele backup <dir>
 ```
 
-Copies the archive, notes, forgotten notes, mining data, config, owner map and a
-consistent copy of the index into `<dir>`, which must be empty or not exist. It
-refuses a directory inside the data directory or inside a git checkout. It does
-not copy `plans/`, so a restored backup has lost closed plans' item names.
+Copies the archive, notes, forgotten notes, mining data, config, owner map,
+closed plans' item names and a consistent copy of the index into `<dir>`, which
+must be empty or not exist. It refuses a directory inside the data directory or
+inside a git checkout.
 
 ## Options
 

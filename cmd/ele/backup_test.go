@@ -58,6 +58,29 @@ func TestRunBackupCopiesTheDataDirectoryAndTheIndex(t *testing.T) {
 	require.Equal(t, 3, entries)
 }
 
+func TestRunBackupKeepsClosedPlansSoARestoreResolvesTheirEdges(t *testing.T) {
+	home := recallFixture(t)
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	writeFile(t, filepath.Join(gateway, "build.md"), "---\nkind: plan\n---\n## Actions\n- [ ] commands: Commands\n")
+	writeFile(t, filepath.Join(gateway, "other.md"), "---\nkind: plan\n---\n## Actions\n- [ ] wire: Wire\n  blocked: build/commands\n")
+	t.Chdir(gateway)
+	for _, path := range []string{"build.md", "other.md"} {
+		output, code := runCommand(t, "plan", "start", path)
+		require.Equal(t, 0, code, output)
+	}
+	output, code := runCommand(t, "plan", "done", "build.md")
+	require.Equal(t, 0, code, output)
+	require.NoError(t, os.Remove(filepath.Join(gateway, "build.md")))
+	target := filepath.Join(home, "backup")
+	output, code = runCommand(t, "backup", target)
+	require.Equal(t, 0, code, output)
+
+	t.Setenv("ELE_HOME", target)
+	output, code = runCommand(t, "plan", "show", "other.md")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "  blocked: build/commands\n  flag: blocker build/commands is in a closed plan and was never done\n")
+}
+
 func TestRunBackupLeavesOutImportOnceItIsGone(t *testing.T) {
 	home := recallFixture(t)
 	target := filepath.Join(home, "backup")
