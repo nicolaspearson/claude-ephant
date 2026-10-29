@@ -31,7 +31,9 @@ A recipe goes to every profile, so each lists it. The targets are the `skills` f
 { (cd "${CLAUDE_CONFIG_DIR:-$HOME/.claude}" 2>/dev/null && pwd -P); find "$HOME" -maxdepth 1 \( -name .claude -o -name '.claude-*' \) | while read -r profile; do [ -d "$profile/projects" ] && (cd "$profile" && pwd -P); done; } | sort -u | while read -r profile; do if [ -d "$profile/skills" ]; then (cd "$profile/skills" && pwd -P); else echo "$profile/skills"; fi; done | sort -u
 ```
 
-Pick a short kebab-case name saying what it does, such as `release-cli` or `rotate-staging-token`. Check each target for `<name>`; one there in any target is never overwritten, so pick another name or, where it covers the same procedure, say so and stop.
+Run `ele config get recipe_dir`. When it prints a path, that folder holds the recipe once and each target links to it; take it by its real path, `(cd "<path>" && pwd -P)`, as the targets are listed by theirs; a path `cd` cannot enter stops the recipe, reported with the path. When it prints an empty line, or nothing on stdout, as an `ele` older than the option does, each target holds its own copy; say in the report whether the option was unset or unknown.
+
+Pick a short kebab-case name saying what it does, such as `release-cli` or `rotate-staging-token`. Never overwrite `<name>`: with the folder set, one in the folder means pick another name; one in a target leaves that target alone, named in the report. Without the folder, one in any target means pick another name. Where a name that means picking another covers the same procedure, say so and stop.
 
 Draft the whole file:
 
@@ -50,9 +52,13 @@ Done when the recipe is answered `Write` or `Skip`.
 
 ## 4. Write
 
-On `Write`, create `<target>/<name>/SKILL.md` in each target with the drafted words, yourself, never printing commands for the user. Report each path, and that a session started after it, in any profile, lists the skill as `/<name>`; a profile added later does not get it.
+On `Write`, yourself, never printing commands for the user: with the folder set, create `<folder>/<name>/SKILL.md` with the drafted words, then link each target to it with the command below, which skips the folder itself and a target already holding `<name>`, as `ln -s` onto an existing folder links inside it; without it, create `<target>/<name>/SKILL.md` in each target. Report each path written or linked, each target left alone, and that a session started after it, in any profile, lists the skill as `/<name>`; a profile added later does not get it.
 
-Done when each path written is reported, with any that failed and why, or the recipe is reported skipped.
+```sh
+for target in <target> ...; do if [ "$target" = "<folder>" ] || [ -e "$target/<name>" ] || [ -L "$target/<name>" ]; then echo "left alone: $target"; else mkdir -p "$target" && ln -s "<folder>/<name>" "$target/<name>" && echo "linked: $target/<name>"; fi; done
+```
+
+Done when each path written or linked is reported, with any that failed and why, or the recipe is reported skipped.
 
 ## Audit
 
@@ -60,7 +66,7 @@ Check the user's skills for commands, subcommands, flags and versions that no lo
 
 ### Which skills
 
-Only when the argument is `audit` alone or followed by `SKILL.md` paths; a procedure that starts with the word, such as `audit log rotation`, is a recipe for step 1. With paths, those files, each by `realpath`. With none, every `<name>/SKILL.md` one level down in the folders Draft's listing prints, once per real file, as a profile's skill folder or the file itself may link elsewhere: Draft's listing command, piped into
+Only when the argument is `audit` alone or followed by `SKILL.md` paths; a procedure that starts with the word, such as `audit log rotation`, is a recipe for step 1. With paths, those files, each by `realpath`. With none, every `<name>/SKILL.md` one level down in the folders Draft's listing prints and the folder `ele config get recipe_dir` prints when set, once per real file, as a profile's skill folder or the file itself may link elsewhere: `{ <Draft's listing command>; ele config get recipe_dir; }`, piped into
 
 ```sh
 while read -r folder; do [ -d "$folder" ] && find -L "$folder" -mindepth 2 -maxdepth 2 -name SKILL.md; done | while read -r file; do realpath "$file"; done | sort -u

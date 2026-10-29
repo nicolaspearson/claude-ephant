@@ -19,6 +19,13 @@ session runs in, and each other `~/.claude` or `~/.claude-*` holding a
 profile they run in. A profile added later does not get it. A skill by that name
 in any profile is never overwritten.
 
+To keep your skills in one folder, such as a git repository, set the
+`recipe_dir` option to it: `ele config set recipe_dir ~/.agents/skills`, typed
+in a terminal. The recipe is then written once, to `<folder>/<name>/SKILL.md`,
+and each profile's `skills/<name>` is a link to it. A profile already holding a
+skill by that name keeps it, and Claude names it. `set` refuses a path that is
+not a folder.
+
 `/ele:wrap` offers a recipe too, when the session ran one worth keeping. The
 `recipes` option off stops it offering; `/ele:recipe` still works when typed.
 
@@ -29,8 +36,9 @@ would have.
 ## Auditing your skills
 
 `/ele:recipe audit` checks your skills, recipes and any others in a profile's
-`skills` folder, for commands, subcommands, flags and versions that no longer
-exist on this machine. Name skill files to audit only those:
+`skills` folder or the `recipe_dir` folder, for commands, subcommands, flags
+and versions that no longer exist on this machine. Name skill files to audit
+only those:
 `/ele:recipe audit ~/.claude/skills/release-cli/SKILL.md`.
 
 - A command not on your `PATH` is reported, and so is a subcommand or flag that

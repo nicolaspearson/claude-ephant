@@ -144,6 +144,36 @@ func TestSetRefusesAPathNamingNoReadableFile(t *testing.T) {
 	}
 }
 
+func TestSetRefusesAFolderOptionNamingNoFolder(t *testing.T) {
+	directory := t.TempDir()
+	file := filepath.Join(directory, "voice.md")
+	require.NoError(t, os.WriteFile(file, []byte("# Voice\n"), 0o600))
+
+	tests := []struct {
+		name string
+		path string
+		want string
+	}{
+		{name: "empty", path: "", want: `recipe_dir takes an absolute or ~/ path, not ""; ele config unset recipe_dir returns it to its default`},
+		{name: "file", path: file, want: "recipe_dir: " + file + " is not a folder"},
+		{name: "missing", path: filepath.Join(directory, "skills"), want: "recipe_dir: stat " + filepath.Join(directory, "skills") + ": no such file or directory"},
+		{name: "relative", path: "skills", want: `recipe_dir takes an absolute or ~/ path, not "skills"; ele config unset recipe_dir returns it to its default`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			config := Defaults()
+			require.EqualError(t, config.Set("recipe_dir", "", test.path), test.want)
+			require.Empty(t, config.Global)
+		})
+	}
+
+	config := Defaults()
+	require.NoError(t, config.Set("recipe_dir", "", directory))
+	value, err := config.Value("recipe_dir", "")
+	require.NoError(t, err)
+	require.Equal(t, directory, value.Value)
+}
+
 func TestSetStoresAPathAsTypedAndValueExpandsIt(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)

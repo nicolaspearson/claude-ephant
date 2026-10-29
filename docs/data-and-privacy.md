@@ -102,6 +102,7 @@ block a session starts with names any option set away from its default.
 | `compact_hint_at`  | `150000` | Context tokens from which the Stop hook suggests `/compact` or a handoff, again every 100k past it; `0` turns the suggestion off |
 | `lone_handoff_pending` | `false` | On, a lone handoff stays pending until you pick or drop it, as several do, instead of showing once |
 | `notes_ask`        | `true`  | Off, the Stop hook never asks for notes; `/ele:remember` and `/ele:wrap` still propose them |
+| `recipe_dir`       | empty   | An absolute or `~/` path to a folder an approved recipe is written to once, each profile's `skills/<name>` linked to it; empty writes a copy into each profile. `set` refuses a path that is not a folder |
 | `recipes`          | `true`  | Off, `/ele:wrap` offers no recipe; a typed `/ele:recipe` still proposes one |
 | `reminders`        | `true`  | Off, no reminder shows at session start                                                                                     |
 | `review_voice`     | empty   | An absolute or `~/` path to your own voice file, which `/ele:review` drafts comments from in place of the shipped one; set per owner with `--owner`. `set` refuses a path naming no readable file, and `unset` returns to the shipped one |

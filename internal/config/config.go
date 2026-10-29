@@ -15,6 +15,7 @@ import (
 
 const (
 	KindBoolean = "boolean"
+	KindFolder  = "folder"
 	KindInteger = "integer"
 	KindPath    = "path"
 
@@ -82,6 +83,12 @@ var Options = []Option{
 		Description: "Asks for notes in the Stop hook once per stretch of work; off, /ele:remember still works.",
 		Kind:        KindBoolean,
 		Name:        "notes_ask",
+	},
+	{
+		Default:     "",
+		Description: "An absolute or ~/ path to the folder ele:recipe writes an approved recipe to once, linking each profile's skills/<name> to it; empty writes into each profile's skills folder.",
+		Kind:        KindFolder,
+		Name:        "recipe_dir",
 	},
 	{
 		Default:     true,
@@ -284,7 +291,7 @@ func decode(option Option, raw json.RawMessage) (any, error) {
 			return nil, fmt.Errorf("want a whole number of 0 or more, got %s", raw)
 		}
 		return value, nil
-	case KindPath:
+	case KindFolder, KindPath:
 		var value string
 		if err := json.Unmarshal(raw, &value); err != nil {
 			return nil, fmt.Errorf("want a path, got %s", raw)
@@ -322,18 +329,33 @@ func parse(option Option, text string) (any, error) {
 			return nil, fmt.Errorf("%s takes a whole number of 0 or more, not %q", option.Name, text)
 		}
 		return value, nil
-	case KindPath:
+	case KindFolder, KindPath:
 		path, err := expandPath(text)
 		if err != nil {
 			return nil, fmt.Errorf("%s takes an absolute or ~/ path, not %q; ele config unset %s returns it to its default", option.Name, text, option.Name)
 		}
-		if err = readableFile(path); err != nil {
+		check := readableFile
+		if option.Kind == KindFolder {
+			check = folder
+		}
+		if err = check(path); err != nil {
 			return nil, fmt.Errorf("%s: %w", option.Name, err)
 		}
 		// Stored as typed, so a config.json holding ~/ stays valid on a machine with another home.
 		return text, nil
 	}
 	return nil, fmt.Errorf("option %s has unknown kind %q", option.Name, option.Kind)
+}
+
+func folder(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("%s is not a folder", path)
+	}
+	return nil
 }
 
 // Stat before Open: opening a FIFO blocks until a writer appears.
