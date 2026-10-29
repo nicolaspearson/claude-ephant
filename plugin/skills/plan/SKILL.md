@@ -12,7 +12,10 @@ A plan is a Markdown file under `.documentation/plans/` in the repository whose 
 The format:
 
 - Front matter: `kind: plan`, `created`, and `spec` when the plan implements a spec in the same repository. Nothing derived, such as counts
-- Sections: `## Why`, `## Context` (facts, dated), `## Decisions`, `## Actions`, `## Inbox`, `## Out of scope`
+- Sections: `## Why`, `## Requirements`, `## Context` (facts, dated), `## Decisions`, `## Actions`, `## Inbox`, `## Out of scope`
+- `## Requirements`, optional, numbered, in the user's words: what the plan must deliver, the list the review loop checks the items against. Only the user changes it. A plan written before the section has none
+- A Context line not verified against the code or data says "not checked"
+- An architectural Decision carries a `rejected: <option>, because …` line for each option it turned down, so an ADR drafted at the close has its considered options
 - An item is a `- [ ]` or `- [x]` line and its indented body
   - Each action but the closing one leads with a short lowercase kebab name, `- [ ] judge-blocks: …`, written once and never changed, unique across active and closed plans. `ele plan start` refuses a name another active plan holds or a closed plan used, and an item starting `word: ` is read as named `word`
   - Each action but the closing one carries a `done when …` line in its body: what will be observable once it is done
@@ -28,19 +31,36 @@ The format:
 
 `new` and `convert` settle questions in rounds. A round asks every question whose prerequisites are settled, numbered, each with your recommended answer, worded so that yes accepts it; a question that hangs on one still open waits for a later round, since asked early it is asked again. Facts are yours to find, `ele recall` on the topic first, then the code: ask the user for decisions, and for a fact neither settles. A decision goes in `## Decisions`, with its reason, of each plan that relies on it; a fact about an item goes under that item as a dated line. The rounds end when no question is open and the user confirms the whole; only then does the step that asked them go on. A question `convert` step 1 leaves as a note is not asked
 
+## Grounding
+
+Before the first round of `new` or `convert`, read the repository's ADRs, found by the ADRs section of `reference/plan-practices.md` in the plugin root, the directory holding `skills/`. An accepted one is a settled constraint: a question it answers is not asked, and a wish it rules out is said to be so, superseding it being a question of its own. Another status is context. Before each round, look up the facts its questions rest on, `ele recall` first, then the code; a fact that goes in `## Context` unverified says "not checked".
+
 ## new <name>
 
-1. Settle in rounds whatever of the why, the items and their design questions the conversation has not already settled; each decision it already made goes in `## Decisions` with its reason. Done when the user has confirmed the whole
-2. Write `.documentation/plans/<name>.md` from `template.md` beside this file, with today's date and the plan's own path in the closing action. With no spec, drop the `spec` line and start the closing action "Propose each out-of-scope line as a `decision` through `/ele:remember`," in place of its fold. Done when `ele plan check` on the file lists no warning
-3. Show the file, then on approval run `ele plan start .documentation/plans/<name>.md`. Done when it prints the plan as started, or the user has declined
+1. Ground the rounds, then settle in rounds whatever of the why, the requirements, the items and their design questions the conversation has not already settled; each decision it already made goes in `## Decisions` with its reason. Done when the user has confirmed the whole
+2. Write `.documentation/plans/<name>.md` from `template.md` beside this file, with today's date and the plan's own path in the closing action. `## Requirements` holds what the rounds confirmed the plan must deliver, numbered, in the user's words; each architectural Decision its `rejected:` lines. With no spec, drop the `spec` line and start the closing action "Propose each out-of-scope line as a `decision` through `/ele:remember`," in place of its fold. Done when `ele plan check` on the file lists no warning
+3. Run the review loop over the file. Done when the loop's summary is shown and its questions answered
+4. Show the file, then on approval run `ele plan start .documentation/plans/<name>.md`. Done when it prints the plan as started, or the user has declined
 
 ## convert <spec>
 
 1. List the spec's open items with their sections. Leave out those already in a plan, and those gated on a measurement or an undecided question: they stay notes, a `question` proposed through `/ele:remember` where none holds one. Done when every open item is listed as to plan, already planned, or left as a note
-2. Check each item's status against the code or data it names rather than the spec's word for it, and ask in rounds about those you cannot check. Done when each item's status is checked or ruled by the user
-3. Draft plans grouped by what ships together and split by repository, each written as `new` writes one but not started, its items carrying the spec's detail. Audit the drafts with the `ele:plan-audit` skill, given every draft's path, so the drafts and the spec they name are one corpus: contradictions between items, and artefacts no item produces or consumes. Resolve what the audit finds, or carry it as a question. Done when the audit's report is in hand and each finding is resolved or a question
-4. Propose the plans, each with its items; where every open item went, left-out ones included; and the audit's open questions. Done when the user has answered
-5. After the user answers, delete every draft not approved, all of them on a rejection. Apply the user's changes to the rest, re-auditing a draft whose items changed, and in the change that lands them remove the spec's "still to build" and "not built" prose for their items only, leaving the design. Start the plans in this repository; for another, print the `ele plan start` command to run there. Done when no unapproved draft remains and every approved plan is started or its command printed
+2. Ground the rounds, then check each item's status against the code or data it names rather than the spec's word for it, and ask in rounds about those you cannot check, confirming the spec's words each draft will quote as its requirements. Done when each item's status is checked or ruled by the user, and the requirements confirmed
+3. Draft plans grouped by what ships together and split by repository, each written as `new` writes one but not started, its items carrying the spec's detail and its `## Requirements` quoting the spec items it plans, as confirmed. Run the review loop over every draft at once, so the drafts and the spec they name are one corpus: contradictions between items, and artefacts no item produces or consumes. Done when the loop's summary is in hand
+4. Propose the plans, each with its items; where every open item went, left-out ones included; and the loop's summary and open questions. Done when the user has answered
+5. After the user answers, delete every draft not approved, all of them on a rejection. Apply the user's changes to the rest. Where any draft's items changed, re-audit every remaining draft with `ele:plan-audit`'s Drafts mode, as the loop's Audit step runs it, and put its findings and questions to the user in a round before starting; and in the change that lands them remove the spec's "still to build" and "not built" prose for their items only, leaving the design. Start the plans in this repository; for another, print the `ele plan start` command to run there. Done when no unapproved draft remains, every re-audit finding is answered, and every approved plan is started or its command printed
+
+## Review loop
+
+`new` and `convert` run it over their unstarted drafts, before any is shown for approval: an author reads its own draft as confirmation. At least 2 passes and at most 3. Before pass 1, copy each draft into `BASE=$(mktemp -d)`, for the diff at the end. Each pass:
+
+1. **Audit.** Run the `ele:plan-audit` skill as `drafts <path>...`, every draft's path, marking this checkout's repository ours and current; a draft for another repository, from `convert`'s split, leaves its repository's question to the audit. It adds every active plan of the repository itself and asks nothing. Done when its report is in hand
+2. **Review.** Launch one `ele:plan-reviewer` agent a draft, all in one message. Brief each by absolute path only: `reviewers/plan.md` beside this file, the reviewer file to follow; the draft; its `spec:`; the user's `CLAUDE.md`, under `$CLAUDE_CONFIG_DIR` when set, else `~/.claude`, and the repository's; each ADR Grounding found; `reference/plan-practices.md`; and from pass 2 the settled file below. Never this session's reasoning, its account of the draft or what changed: the review leans on the reviewer's own reading. Done when every reviewer has reported
+3. **Ids.** Number each finding `A<pass>.<n>` for the audit's and `R<pass>.<n>` for the reviewers', in report order across the pass. A finding matching a settled one keeps its id and its level, unless it names evidence that pass did not have. Done when every finding has an id and a level
+4. **Verdicts.** Before any edit, give each finding a verdict with its reason: `fixed`, naming the revision; `refuted`, naming the evidence it is wrong; `deliberate`, saying why it stays; or `open`, a question for the user. A finding against a requirement, and a requirement question, is `open`: the loop never edits `## Requirements`, since editing one to clear a finding makes the check circular. Append each to `$BASE/settled.md` with its id, level, verdict and reason. Done when every finding is in the file with its verdict
+5. **Revise.** Make the `fixed` revisions, then `ele plan check` each draft. Done when the drafts carry every `fixed` revision and the check lists no warning
+
+After pass 2, stop when no blocker or major is `open` and pass 2 fixed no blocker or major, such a fix being unreviewed until pass 3; else run pass 3, the last. Then show the user every finding as a table of id, level, verdict and reason, minors listed without blocking; ask the `open` ones in a round, by the rules of Asking in rounds; and show `diff -u` of each draft from its copy in `$BASE`. An answer that changes a requirement is the user's edit; one that changes an item is made and shown in a second diff. Done when the user has seen the table and diffs, and every `open` finding is answered
 
 ## Pickup
 

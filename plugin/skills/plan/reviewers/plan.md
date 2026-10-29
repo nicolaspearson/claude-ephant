@@ -21,8 +21,9 @@ Each by the absolute path the brief gives:
 - The reference file, `plan-practices.md`: its practices marked adopted or
   already, and its severity scale.
 - Settled findings, when the brief carries them from an earlier pass, each
-  with its verdict: raise one again only with evidence that pass did not have,
-  and say what it is.
+  with its id, level and verdict: raise one again only with evidence that pass
+  did not have, citing its id and saying what the evidence is. It keeps its
+  level unless that evidence changes it.
 
 ## Hunt
 

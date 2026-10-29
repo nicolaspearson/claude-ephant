@@ -10,13 +10,18 @@ spec: <path to the spec this plan implements, from the git root; delete the line
 
 <What this plan delivers and why now, in a paragraph.>
 
+## Requirements
+
+1. <What the plan must deliver, in the user's words, as confirmed in the rounds>
+
 ## Context
 
-- As of <YYYY-MM-DD>: <an established fact the items rely on>
+- As of <YYYY-MM-DD>: <an established fact the items rely on; "not checked" where it was not verified against the code or data>
 
 ## Decisions
 
 - <A decision the items rely on, with its reason; or where it lives, said once>
+  - rejected: <an option an architectural decision turned down>, because <why>
 
 ## Actions
 

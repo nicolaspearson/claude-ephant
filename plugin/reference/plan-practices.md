@@ -88,8 +88,9 @@ IEEE 1028's anomaly classes are paywalled and not used here.
 
 ## Requirements
 
-- **Numbered requirements** (spec-kit `FR-001`). Adopted by review-loop: a
-  plan's `## Requirements` is numbered, so the coverage table can name each
+- **Numbered requirements** (spec-kit `FR-001`). Adopted in the plan skill's
+  format and `template.md`: a plan's `## Requirements` is numbered, so the
+  coverage table can name each
 - **Normative form**: SHALL or MUST with RFC 2119 strengths (OpenSpec's
   validator), `System MUST` (spec-kit), EARS's six patterns (Kiro documents
   one). Rejected: requirements stay in the user's words, and a rewrite into
@@ -98,14 +99,14 @@ IEEE 1028's anomaly classes are paywalled and not used here.
   independently testable** (to-spec, spec-kit). Rejected: requirements are in
   the user's words; order is file order and `blocked:` edges
 - **Observable requirement**: "could a tester who's never seen the code tell
-  whether it passed?" (OpenSpec). Adopted by plan-reviewer: its test for an
-  untestable requirement or done-when line
+  whether it passed?" (OpenSpec). Adopted in `plan/reviewers/plan.md`'s
+  Hunt: its test for an untestable requirement or done-when line
 - **Success criteria measurable, technology-agnostic and verifiable**
-  (spec-kit). Adopted by plan-reviewer: a done-when line not observable is a
-  finding
-- **Keep the how out of requirements** (OpenSpec). Adopted by
-  plan-reviewer: a requirement naming an implementation reported as a
-  question
+  (spec-kit). Adopted in `plan/reviewers/plan.md`'s Hunt: a done-when line
+  not observable is a finding
+- **Keep the how out of requirements** (OpenSpec). Adopted in
+  `plan/reviewers/plan.md`'s Hunt: a requirement naming an implementation
+  reported as a question
 - **Scenarios**, GIVEN/WHEN/THEN under each requirement (OpenSpec, spec-kit,
   whose `/converge` keys on them). Rejected: an item's `done when` line
   carries what is observable, and a second form beside it would drift
@@ -149,21 +150,25 @@ IEEE 1028's anomaly classes are paywalled and not used here.
 - **Requirement analysis returned as questions with suggested fixes**, the
   user picking, answering or dismissing; its categories logical
   inconsistencies, ambiguities, conflicting constraints, unstated assumptions
-  and missing edge cases (Kiro). Adopted by plan-reviewer and review-loop: an
-  ambiguous or untestable requirement, or a finding against one, goes to the
-  user as a question; an unverified Context line says "not checked"
+  and missing edge cases (Kiro). Adopted in `plan/reviewers/plan.md`'s Hunt
+  and the plan skill's Review loop: an ambiguous or untestable requirement,
+  or a finding against one, goes to the user as a question; and in its
+  Grounding: an unverified Context line says "not checked"
 
 ## Review
 
 - **A fresh reviewer that has not seen the author's reasoning** (Claude
-  Code). Adopted by plan-reviewer: its own agent, briefed by path only
+  Code). Adopted in the `ele:plan-reviewer` agent and the plan skill's Review
+  loop: its own agent, briefed by path only
 - **Review before building and again after** (OpenSpec's two moments, the
-  first before `/opsx:apply`, the second `/opsx:verify`). Adopted by
-  review-loop for the first; already, the second: `ele:checkpoint`
+  first before `/opsx:apply`, the second `/opsx:verify`). Adopted in the
+  plan skill's Review loop for the first; already, the second:
+  `ele:checkpoint`
 - **Review against the spec, report what affects correctness, skip style**;
   "a reviewer that's asked to find problems will always find *something*"
-  (Claude Code). Adopted by plan-reviewer and review-loop: findings carry a
-  severity, and each gets a verdict before any edit
+  (Claude Code). Adopted in `plan/reviewers/plan.md`'s Severity and the plan
+  skill's Review loop: findings carry a severity, and each gets a verdict
+  before any edit
 - **A finding quota**, "find at least ten issues", and "if you have zero
   findings, re-check" (BMAD adversarial lens). Rejected: it manufactures
   findings, the failure Claude Code warns of
@@ -177,37 +182,45 @@ IEEE 1028's anomaly classes are paywalled and not used here.
   design, tasks (OpenSpec). Rejected: each pass costs a fresh reviewer, so it
   reports everything it finds
 - **Read-only analysis; remediation offered, never applied** (spec-kit
-  `/analyze`). Adopted by drafts-mode: no edits, no ledger writes
+  `/analyze`). Adopted in plan-audit's Drafts mode: no edits, no ledger
+  writes
 - **Duplication, ambiguity, underspecification and inconsistency passes**
-  (spec-kit `/analyze`). Adopted by plan-reviewer, for a draft against its
-  requirements, spec and ADRs, and by drafts-mode, for items against each
-  other and other plans
+  (spec-kit `/analyze`). Adopted in `plan/reviewers/plan.md`'s Hunt, for a
+  draft against its requirements, spec and ADRs, and in plan-audit's Drafts
+  mode, for items against each other and other plans
 - **Requirement-to-task coverage table and coverage %**, with requirements
   that have no task and tasks that have no requirement (spec-kit `/analyze`;
   OpenSpec's "a task with no matching requirement" and "a task that touches
-  something outside the scope you just approved"). Adopted by plan-reviewer:
-  the coverage table, and an item no requirement asks for
-- **"The most valuable catch of all: what's missing"** (OpenSpec). Adopted by
-  plan-reviewer: requirements with no item, and missing practices
+  something outside the scope you just approved"). Adopted in
+  `plan/reviewers/plan.md`'s Hunt and Output: the coverage table, and an item
+  no requirement asks for
+- **"The most valuable catch of all: what's missing"** (OpenSpec). Adopted in
+  `plan/reviewers/plan.md`'s Hunt: requirements with no item, and missing
+  practices
 - **A conventions gate before research and again after design** (spec-kit
-  `/plan`). Adopted by plan-reviewer and review-loop: each pass's reviewer
-  reports an item breaking a CLAUDE.md rule or contradicting an accepted ADR
+  `/plan`). Adopted in the plan skill's Grounding, accepted ADRs read before
+  the rounds, and in `plan/reviewers/plan.md`'s Hunt, run on each pass of the
+  Review loop: an item breaking a CLAUDE.md rule or contradicting an accepted
+  ADR
 - **A kept violation justified with the simpler alternative rejected**
-  (spec-kit's Complexity Tracking). Adopted by review-loop: the verdict
-  deliberate, with its reason
+  (spec-kit's Complexity Tracking). Adopted in the plan skill's Review loop:
+  the verdict deliberate, with its reason
 - **A versioned constitution with an impact report per amendment**
   (spec-kit). Rejected: conventions live in CLAUDE.md files, whose history is
   git
 - **A quality loop capped at 3 iterations, what still fails reported**
-  (spec-kit `/specify`). Adopted by review-loop: 2 to 3 passes, what is open
-  after the last going to the user
-- **Stable finding ids across reruns** (spec-kit `/analyze`). Proposed for
-  review-loop: a later pass's brief carries earlier findings with their
-  verdicts, which an id would key
+  (spec-kit `/specify`). Adopted in the plan skill's Review loop: 2 to 3
+  passes, what is open after the last going to the user
+- **Stable finding ids across reruns** (spec-kit `/analyze`). Adopted in the
+  plan skill's Review loop: `A<pass>.<n>` and `R<pass>.<n>`, which a later
+  pass's settled list carries with each finding's level and verdict, a
+  re-raised finding keeping its first id, and its level unless new evidence
+  changes it, so unchanged text cannot flip the gate
 - **A findings cap**, 50 (spec-kit `/analyze`). Rejected: the pass cap bounds
   the loop, and a cap hides the findings past it
-- **Findings with location and a suggested fix** (BMAD). Adopted by
-  plan-reviewer: each finding with severity and the line it rests on
+- **Findings with location and a suggested fix** (BMAD). Adopted in
+  `plan/reviewers/plan.md`'s Output: each finding with severity and the line
+  it rests on
 - **Dimension grades and an overall grade**, strong to broken, excellent to
   poor (BMAD). Rejected: a grade beside the severity scale says the same
   twice; the loop's gate reads severities
@@ -218,13 +231,14 @@ IEEE 1028's anomaly classes are paywalled and not used here.
   checklist nor `/implement`'s gate on its unticked items is needed; a generated
   checklist per plan would repeat them
 - **Severity when unsure: prefer the lower level** (OpenSpec verify).
-  Adopted by plan-reviewer, with its scale
-- **Severity ranks impact, not the size of the fix** (BMAD). Adopted by
-  plan-reviewer: the plan's Decisions define each level by its effect
+  Adopted in [Severity](#severity) below, which `plan/reviewers/plan.md`'s
+  Severity and plan-audit's Drafts mode apply
+- **Severity ranks impact, not the size of the fix** (BMAD). Adopted in
+  [Severity](#severity): each level defined by its effect
 - **Label what does not block, so not every comment reads as mandatory**
-  (Google eng-practices; Conventional Comments' `(non-blocking)`). Adopted by
-  review-loop: minors listed without blocking. Already in `ele:review`, whose
-  voice file uses Conventional Comments labels
+  (Google eng-practices; Conventional Comments' `(non-blocking)`). Adopted in
+  the plan skill's Review loop: minors listed without blocking. Already in
+  `ele:review`, whose voice file uses Conventional Comments labels
 - **Completeness, correctness and coherence after building; a skipped check
   never scored as passing** (OpenSpec verify). Already: `ele:checkpoint`'s
   reviewers, and a check that cannot run reported unverified
@@ -380,7 +394,8 @@ How a draft finds the ADRs it is held to, and how an ADR is numbered:
 - **ADRs for design decisions too** (adr.github.io). Rejected: a design
   Decision's reason goes into the spec; ADRs hold architectural ones
 - **Considered options and the chosen one "because …"** (MADR; spec-kit's
-  `research.md` "Alternatives considered"). Adopted by review-loop: a
+  `research.md` "Alternatives considered"). Adopted in the plan skill's
+  format and `new` step 2, and in `template.md`: a
   `rejected: <option>, because …` line under an architectural Decision for
   each option turned down, not only those worth remembering
   (domain-modeling); MADR's pros and cons of each option where the
@@ -399,8 +414,9 @@ How a draft finds the ADRs it is held to, and how an ADR is numbered:
   (Nygard, MADR). Adopted by decision-fold: the next number in the
   repository's series; superseding is its own question
 - **Status values** proposed, accepted, deprecated, superseded, and MADR's
-  rejected (Nygard, MADR). Adopted by plan-reviewer: only an accepted ADR binds a
-  draft
+  rejected (Nygard, MADR). Adopted in [ADRs](#adrs) below, which
+  `plan/reviewers/plan.md`'s Read and the plan skill's Grounding apply: only
+  an accepted ADR binds a draft
 - **A minimal record: context, the decision and why, in a few sentences**
   (MADR's minimal template; domain-modeling's 1-3 sentences). Adopted by
   decision-fold where the repository's format is that short; otherwise its

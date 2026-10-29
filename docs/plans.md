@@ -10,13 +10,38 @@ A plan is not a tracker. It has no assignees, and ele writes no tickets.
 
 ## Starting one
 
-`/ele:plan new <name>` writes a plan with you. Claude asks what the conversation
-has not settled, in rounds, each question with a recommended answer, then
-writes the file and, on your approval, starts it.
+`/ele:plan new <name>` writes a plan with you. Claude first reads the
+repository's accepted ADRs, which settle what they decide, and looks up the
+facts each question rests on. It then asks what the conversation has not
+settled, in rounds, each question with a recommended answer. It writes the
+file, with what the plan must deliver as `## Requirements` in your words, then
+runs the review loop, and on your approval starts the plan.
 
 `/ele:plan convert <spec>` turns a spec's open items into plans: it checks each
-item against the code, drafts plans grouped by what ships together, audits the
-drafts and proposes them.
+item against the code, drafts plans grouped by what ships together, runs the
+review loop over the drafts and proposes them.
+
+### The review loop
+
+Before you see a draft, it goes through 2 or 3 passes. Each pass audits the
+drafts with `/ele:plan-audit drafts` and has a fresh `ele:plan-reviewer` agent
+review each one (see [Auditing plans](#auditing-plans)). Every finding gets an
+id, such as `A1.2` from the audit or `R2.1` from a reviewer, and a verdict
+before anything is edited:
+
+- `fixed`, with the revision that fixes it
+- `refuted`, with the evidence that it is wrong
+- `deliberate`, with why the plan keeps it
+- `open`, a question for you
+
+A later pass sees the earlier findings with their levels and verdicts, and
+raises one again only with new evidence. A finding against a requirement is
+always `open`: the loop never edits your requirements. The loop stops after
+pass 2 if no blocker or major is open and pass 2 fixed none of them;
+otherwise, so that fix is itself reviewed, it runs
+a third and last pass. You then see every finding with its id, level and
+verdict, minors listed without blocking, are asked the open ones, and see a
+diff of each draft from its first version.
 
 To adopt a plan you wrote yourself:
 
@@ -39,6 +64,10 @@ created: 2026-10-23
 
 ## Why
 
+## Requirements
+
+1. A sync of 1,000 transcripts finishes in under 10 seconds
+
 ## Context
 
 ## Decisions
@@ -59,6 +88,12 @@ created: 2026-10-23
 
 - **Front matter** holds `kind: plan`, `created`, and `spec` when the plan
   implements a spec in the same repository
+- **`## Requirements`**, optional, lists what the plan must deliver, numbered,
+  in your words; the review loop checks the items against it and never edits
+  it
+- **`## Context`** holds dated facts; one not checked against the code says
+  "not checked". A **Decision** that chose an architecture lists each option
+  it turned down as `rejected: <option>, because …`
 - **Items** are `- [ ]` lines with an indented body. Each but the last leads
   with a short kebab-case name, written once and never changed, and carries a
   `done when` line saying what will be observable once it is done
@@ -109,13 +144,13 @@ end, inbox items to triage, and plans ready to close. Run it before picking up a
 plan after time away, or when plans feel stuck.
 
 `/ele:plan-audit drafts <path>...` audits plans not yet started, for a review
-before `ele plan start`, adding every active plan itself; no `/ele:plan` step
-runs it yet. It reports each finding with a level, blocker, major or minor,
+before `ele plan start`, adding every active plan itself; the review loop runs
+it on each pass. It reports each finding with a level, blocker, major or minor,
 and the line it rests on, and returns its questions in the report: it asks you
 nothing, edits no plan and records nothing in the audit ledger.
 
-The `ele:plan-reviewer` agent reviews a draft plan before it starts; no
-`/ele:plan` step launches it yet. It never sees the session that wrote the
+The `ele:plan-reviewer` agent reviews a draft plan before it starts, launched
+by the review loop on each pass. It never sees the session that wrote the
 draft. It reads the draft, its spec, your and the repository's `CLAUDE.md`,
 the repository's accepted ADRs and ele's planning-practices reference, and
 reports:

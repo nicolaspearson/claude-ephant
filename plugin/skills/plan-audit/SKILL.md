@@ -14,8 +14,8 @@ script. Notes go through the `ele:remember` skill's Propose section.
 
 ## Which plans
 
-With paths, those plans; `/ele:plan convert` passes its drafts, which are not
-yet active. With none, every active plan of the repository:
+With paths, those plans; `/ele:plan new` and `convert` pass their drafts to
+Drafts mode below. With none, every active plan of the repository:
 
 ```sh
 ele plan list --project <name>
