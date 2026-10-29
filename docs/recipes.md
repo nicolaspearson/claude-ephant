@@ -17,7 +17,8 @@ The skill is written to `skills/<name>/SKILL.md` in every profile: the one the
 session runs in, and each other `~/.claude` or `~/.claude-*` holding a
 `projects` folder. Sessions started after it list it as `/<name>` whichever
 profile they run in. A profile added later does not get it. A skill by that name
-in any profile is never overwritten.
+in any profile is never overwritten. When the `recipe_dir` option below is
+unset, Claude's report says so and how to set it.
 
 To keep your skills in one folder, such as a git repository, set the
 `recipe_dir` option to it: `ele config set recipe_dir ~/.agents/skills`, typed

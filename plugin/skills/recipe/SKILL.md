@@ -31,7 +31,7 @@ A recipe goes to every profile, so each lists it. The targets are the `skills` f
 { (cd "${CLAUDE_CONFIG_DIR:-$HOME/.claude}" 2>/dev/null && pwd -P); find "$HOME" -maxdepth 1 \( -name .claude -o -name '.claude-*' \) | while read -r profile; do [ -d "$profile/projects" ] && (cd "$profile" && pwd -P); done; } | sort -u | while read -r profile; do if [ -d "$profile/skills" ]; then (cd "$profile/skills" && pwd -P); else echo "$profile/skills"; fi; done | sort -u
 ```
 
-Run `ele config get recipe_dir`. When it prints a path, that folder holds the recipe once and each target links to it; take it by its real path, `(cd "<path>" && pwd -P)`, as the targets are listed by theirs; a path `cd` cannot enter stops the recipe, reported with the path. When it prints an empty line, or nothing on stdout, as an `ele` older than the option does, each target holds its own copy; say in the report whether the option was unset or unknown.
+Run `ele config get recipe_dir`. When it prints a path, that folder holds the recipe once and each target links to it; take it by its real path, `(cd "<path>" && pwd -P)`, as the targets are listed by theirs; a path `cd` cannot enter stops the recipe, reported with the path. When it prints an empty line, or nothing on stdout, as an `ele` older than the option does, each target holds its own copy, and step 4's report says so.
 
 Pick a short kebab-case name saying what it does, such as `release-cli` or `rotate-staging-token`. Never overwrite `<name>`: with the folder set, one in the folder means pick another name; one in a target leaves that target alone, named in the report. Without the folder, one in any target means pick another name. Where a name that means picking another covers the same procedure, say so and stop.
 
@@ -52,13 +52,13 @@ Done when the recipe is answered `Write` or `Skip`.
 
 ## 4. Write
 
-On `Write`, yourself, never printing commands for the user: with the folder set, create `<folder>/<name>/SKILL.md` with the drafted words, then link each target to it with the command below, which skips the folder itself and a target already holding `<name>`, as `ln -s` onto an existing folder links inside it; without it, create `<target>/<name>/SKILL.md` in each target. Report each path written or linked, each target left alone, and that a session started after it, in any profile, lists the skill as `/<name>`; a profile added later does not get it.
+On `Write`, run the writes yourself rather than printing them for the user: with the folder set, create `<folder>/<name>/SKILL.md` with the drafted words, then link each target to it with the command below, which skips the folder itself and a target already holding `<name>`, as `ln -s` onto an existing folder links inside it; without it, create `<target>/<name>/SKILL.md` in each target. Report each path written or linked, each target left alone, and that a session started after it, in any profile, lists the skill as `/<name>`; a profile added later does not get it. Without the folder, the report's first line says `recipe_dir` was unset, or unknown to this `ele`, so each profile got its own copy. It then names `ele config set recipe_dir <folder>`, typed in a terminal, as the way to write later recipes once to that folder, and says to update `ele` first when the option was unknown. A user who keeps skills in one place otherwise misses the copy landing outside it.
 
 ```sh
 for target in <target> ...; do if [ "$target" = "<folder>" ] || [ -e "$target/<name>" ] || [ -L "$target/<name>" ]; then echo "left alone: $target"; else mkdir -p "$target" && ln -s "<folder>/<name>" "$target/<name>" && echo "linked: $target/<name>"; fi; done
 ```
 
-Done when each path written or linked is reported, with any that failed and why, or the recipe is reported skipped.
+Done when each path written or linked is reported, with any that failed and why, and, without the folder, the first line saying `recipe_dir` was unset or unknown and how to set it, or the recipe is reported skipped.
 
 ## Audit
 
