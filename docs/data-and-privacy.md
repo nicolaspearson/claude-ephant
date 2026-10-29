@@ -10,8 +10,20 @@ reviewers, and they run inside the session already open, on its account.
 
 ## Storage
 
-Everything lives in one data directory, `~/Library/Application Support/claude-ephant/`
-by default. `ELE_HOME` moves it; `ele status` prints where it is.
+Everything lives in one data directory: by default
+`~/Library/Application Support/claude-ephant/` on macOS, and on Linux
+`$XDG_DATA_HOME/claude-ephant/`, or `~/.local/share/claude-ephant/` when
+`XDG_DATA_HOME` is unset. `ELE_HOME` moves it; `ele status` prints where it is.
+
+Earlier releases kept Linux data under the macOS path too. The first
+`ele` command after upgrading moves that directory to the new one, once, when
+the new one does not exist yet, and the next session start tells you. If the
+move fails, for example because the two paths are on different filesystems,
+ele keeps using the old path and says so at each session start until you move it
+by hand or set `ELE_HOME` to it. To run an older `ele` after the move, set
+`ELE_HOME` to the new path: an older binary looks only in the old one. Set
+`XDG_DATA_HOME` the same way in your shell and in Claude Code, or leave it
+unset in both: each looks only where its own value points.
 
 ```text
 claude-ephant/
@@ -21,6 +33,7 @@ claude-ephant/
   forgotten/       notes ele forget moved out
   last-sync        when the last sync succeeded
   mining/          checkpoint mining judgments
+  move-notice      Linux only: the move's outcome, until a session shows it
   notes/           notes, one Markdown file each, by owner
   owner-map.json   owners, path rules and project entries
   plans/           item names of closed plans

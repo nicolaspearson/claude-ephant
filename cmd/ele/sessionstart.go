@@ -196,11 +196,18 @@ func sessionStart(ctx context.Context, args []string, stdin io.Reader, stdout io
 	if source == "compact" {
 		fmt.Fprintf(&block, "This session compacted at %s; what came before that is a summary, not the conversation.\n", now.UTC().Format(time.RFC3339))
 	}
+	notice := datadir.TakeNotice(dataDirectory)
+	if notice != "" {
+		fmt.Fprintln(&block, notice)
+	}
 	code := 0
 	shown, err := writeSessionStart(ctx, &block, dataDirectory, now, source)
 	if err != nil {
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		code = 1
+	}
+	if notice != "" {
+		shown = strings.TrimSuffix(highlight.Message(notice, false)+"\n"+shown, "\n")
 	}
 	if !*noSync {
 		if err = startSync(dataDirectory); err != nil {

@@ -16,7 +16,7 @@ Cross-session memory for Claude Code: ele archives every session's transcript, i
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Binary            | `ele`                                                                                                                                            |
 | Data dir override | `ELE_HOME`                                                                                                                                       |
-| Default data dir  | `~/Library/Application Support/claude-ephant/`                                                                                                   |
+| Default data dir  | macOS `~/Library/Application Support/claude-ephant/`; Linux `$XDG_DATA_HOME/claude-ephant/`, else `~/.local/share/claude-ephant/`                 |
 | Plugin            | `ele`                                                                                                                                            |
 | Skills            | `/ele:checkpoint`, `/ele:handoff`, `/ele:mine`, `/ele:plan`, `/ele:plan-audit`, `/ele:recall`, `/ele:recipe`, `/ele:remember`, `/ele:ticket-audit`, `/ele:wrap` |
 
@@ -122,10 +122,13 @@ claude-ephant/
   forgotten/                notes ele forget moved out of the index, by owner
   mining/
     cache/                  classifications, one <analysis>.jsonl each; classifiers/<hash>.md holds each prompt
+  move-notice               Linux only: the data dir move's outcome, until ele session-start shows it
   notes/                    Markdown notes
   owner-map.json            owners, path rules, project entries; by hand or ele owner
   plans/                    closed plans' item names, one <note id>.json each; ele plan done
 ```
+
+On Linux the data dir is `$XDG_DATA_HOME/claude-ephant/`, a relative `XDG_DATA_HOME` ignored as the XDG spec says, else `~/.local/share/claude-ephant/`. Releases before it used the macOS path on Linux too, so every subcommand first moves that old directory to the new one, once, when the old exists and the new does not: a rename, never a copy, since two stores would diverge. It holds a lock on the new directory's parent, so two first uses at once leave one store, and skips the move while a sync holds the old directory's archive lock, using the old path until a later command, and writes no notice. A command that resolved the old path before another moved it can recreate part of the old directory as it writes, left unused, since the new one exists. A failed rename, such as across filesystems, leaves the old path in use, and every command tries again. Either outcome is written to `move-notice` in the directory now in use, since a hook's stderr reaches no one, and the next `ele session-start` shows it to the user and the model, then removes it; the command that tried the move also prints it to stderr. `ELE_HOME` skips the move. macOS keeps its path: moving it would move every current user's data.
 
 Data never lives in the repo, not even gitignored. `ele backup <dir>` copies `archive/`, `config.json`, `forgotten/`, `mining/`, `notes/`, `owner-map.json`, `plans/` and the database via `VACUUM INTO`, so a restore keeps the names that resolve `blocked:` edges into closed plans. It holds the archive lock, and the mining lock when the cache exists, for the whole copy, leaves out lock files, and refuses a directory that is not empty or lies inside the data directory or a git checkout. It copies `notes/` before `plans/`: `ele plan done` stores a plan's names before closing its note, so a backed-up closed note has whatever names were stored. `ele plan done` writes a closed plan's names to a temporary file and renames it into place, so a backup copying `plans/` meanwhile takes the old file or the new one, never a torn one.
 

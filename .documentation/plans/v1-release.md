@@ -121,7 +121,7 @@ keep.
     `release.yml`'s build targets and `install.sh`), what semver covers from
     1.0.0 and that the plugin is not covered, and that `ele` must be at least
     as new as the plugin; `task format`, `task lint` and `task lint-docs` exit 0
-- [ ] linux-data-dir: Move Linux's data directory to XDG, as the Decisions
+- [x] linux-data-dir: Move Linux's data directory to XDG, as the Decisions
   word it
   - done when `internal/datadir` tests, each seen red, cover: Linux with and
     without `XDG_DATA_HOME`; the one-time rename with its message; no rename
@@ -131,6 +131,28 @@ keep.
     container moves a seeded old directory and `ele status` names the new one.
     `design.md`'s data dir row and `docs/data-and-privacy.md` say so, the
     latter with a line on downgrading past the move
+  - as of 2026-10-29: `datadir.Path` has 23 callers in `cmd/ele`, every
+    command reached through `run` in `main.go`; the hooks call `sync`,
+    `session-start`, `checkpoint gate`, `stop-check` and `checkpoint snapshot`;
+    the archive lock is `archive/transcripts/.lock` in the data dir, with
+    `archive.TryLock`
+  - as of 2026-10-29: design: `Path` stays free of side effects, on Linux the
+    XDG path if present, else the old one if present, else XDG; `Migrate`,
+    called in `run` before each subcommand, renames under a lock on the new
+    path's parent, skipping while a sync holds the old archive lock, and
+    writes its outcome to `move-notice`, which `session-start` shows and
+    removes, since the move can land in a hook whose stderr no one sees
+  - asserted in the linux-data-dir commit: `internal/datadir` and `cmd/ele`
+    tests, each seen red under its own mutation, cover Linux with, without and
+    with a relative `XDG_DATA_HOME`, the one-time rename and its notice, no
+    rename when the new path exists, 32 concurrent first uses leaving one
+    store, a skip while a sync holds the archive lock, an EXDEV rename keeping
+    the old path with a notice, macOS unchanged, `ELE_HOME` winning, and
+    `session-start` showing the notice once; a `debian:stable-slim` container
+    run moved a seeded old directory and `ele status` named
+    `/root/.local/share/claude-ephant`; `design.md` and
+    `docs/data-and-privacy.md` say so, with the downgrade line;
+    `task check FORCE=1` and `task audit` pass
 - [ ] cli-freeze: Read every `ele <command> --help` for names, flags and
   output that 1.0 would lock in; settle the checkpoint log's `notes` field;
   check each file ele persists carries a version a later binary migrates from

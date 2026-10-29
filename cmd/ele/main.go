@@ -155,6 +155,9 @@ func run(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer)
 		return writeOverview(stdout)
 	}
 	if command, ok := commands[args[0]]; ok {
+		if notice := datadir.Migrate(); notice != "" {
+			fmt.Fprintln(stderr, notice)
+		}
 		return command(ctx, args[1:], stdout, stderr)
 	}
 	fmt.Fprintf(stderr, "ele: unknown command %q\n%s\n", args[0], usage)

@@ -105,6 +105,25 @@ func TestRunSessionStartSaysWhenTheSessionCompacted(t *testing.T) {
 	}
 }
 
+func TestRunSessionStartShowsAMoveNoticeOnce(t *testing.T) {
+	home := recallFixture(t)
+	elsewhere := filepath.Join(home, "elsewhere")
+	require.NoError(t, os.MkdirAll(elsewhere, 0o700))
+	t.Chdir(elsewhere)
+	notice := "ele moved its data directory from /old to /new."
+	writeFile(t, filepath.Join(home, "data", "move-notice"), "ele moved its data directory from /old\x1b to /new.\n")
+
+	output, code := runCommand(t, "session-start", "--no-sync")
+	require.Equal(t, 0, code, output)
+	additional, shown := hookOutput(t, output)
+	require.True(t, strings.HasPrefix(additional, "ele moved its data directory from /old\x1b to /new.\n"), additional)
+	require.Equal(t, notice, shown)
+
+	output, code = runCommand(t, "session-start", "--no-sync")
+	require.Equal(t, 0, code, output)
+	require.NotContains(t, output, notice)
+}
+
 func TestRunSessionStartShowsAHandoffOnce(t *testing.T) {
 	home := recallFixture(t)
 	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
