@@ -1,6 +1,6 @@
 schema_version: "1.1"
 name: setup-maps
-description: With an empty data directory, ele:setup maps the directory above this repository to a new owner, its first offer, through ele owner, and ele status then names the owner here
+description: With no owners and a repository directly under the home directory, ele:setup skips the home directory and maps the repository's root to a new owner, its first offer, through ele owner, and ele status then names the owner here
 runs: 1
 execution:
   max_turns: 15

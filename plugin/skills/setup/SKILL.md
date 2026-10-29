@@ -47,6 +47,6 @@ A refusal over notes a project has under another owner names `--move` and `--mov
 
 Then run `ele status` again.
 
-Report what each command printed, and the `Here` line now naming the owner and project. Name what the mapping covers: every project under a path rule, or the one project. Say the background sync files the existing sessions under the owner, and that a session started after it shows this project's notes.
+Report what each command printed, and the `Here` line now naming the owner and project. Name what the mapping covers: every project under a path rule, or the one project. Where the directory above the root was not offered, say why: it is the home directory or `/`. Say the background sync files the existing sessions under the owner, and that a session started after it shows this project's notes. Never say the sync has finished unless `ele status` shows `Sync running` as `no`.
 
 Done when `ele status` names an owner here, or the reply shows the refusal that stopped it.
