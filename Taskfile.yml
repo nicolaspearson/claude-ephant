@@ -331,4 +331,4 @@ tasks:
         msg: "claude is not installed"
     cmds:
       # --ablation none keeps Skill graders scored.
-      - claude plugin eval {{.CLI_ARGS | default "ele@claude-ephant"}} --ablation none --allow-tools Bash --no-publish --scaffold --output-dir .task/eval --report .task/eval/report.html --trust-plugin
+      - claude plugin eval {{.CLI_ARGS | default "ele@claude-ephant"}} --ablation none --allow-tools Bash Write --no-publish --scaffold --output-dir .task/eval --report .task/eval/report.html --trust-plugin

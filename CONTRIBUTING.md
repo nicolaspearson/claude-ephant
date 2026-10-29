@@ -71,8 +71,9 @@ and `task eval -- ./plugin` the clone's. Each case is a directory under
 `plugin/evals/` with `graders/` that score the session, and either a
 `prompt.md` whose front matter sets its runs, turns and tools, or a `case.yaml`
 that sets those and the prompt and can name a `scaffold.sh` that prepares the
-sandbox first. Each run is a real session on your account and costs model
-calls, so no gate runs it.
+sandbox first. `task eval` grants Bash and Write, which a case gets only when
+its own tools list them. Each run is a real session on your account and costs
+model calls, so no gate runs it.
 
 ## Repository layout
 
