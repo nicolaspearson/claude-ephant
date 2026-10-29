@@ -13,6 +13,8 @@ the session already running. See [Data and privacy](docs/data-and-privacy.md).
 
 The `ele` plugin adds the skills and hooks that use the binary:
 
+- `/ele:setup`, which maps a directory no owner covers to an owner, after
+  installing or in a new repository
 - `/ele:handoff`, `/ele:plan`, `/ele:recall` and `/ele:remember` for memory and
   plans
 - `/ele:flag`, which marks a moment of the session as good or bad, with why,
@@ -75,16 +77,10 @@ The `ele` plugin adds the skills and hooks that use the binary:
 
 ## Quick start
 
-1. Name an owner and the directories whose sessions are theirs, in a terminal.
-   A session in no owner's directory starts with a line saying so instead of
-   notes; see [Owners](docs/owners.md):
-
-   ```sh
-   ele owner add personal
-   ele owner add-path ~/code personal
-   ele status
-   ```
-
+1. Name an owner and the directories whose sessions are theirs. A session in no
+   owner's directory starts with a line saying so instead of notes; run
+   `/ele:setup` there, which proposes the `ele owner` commands that map it and
+   runs them once you approve. See [Owners](docs/owners.md)
 2. Work in a session under that directory. When a decision is made, say
    "remember that…", or approve a note ele proposes after a stretch of work; see
    [Notes](docs/notes-and-recall.md#notes)

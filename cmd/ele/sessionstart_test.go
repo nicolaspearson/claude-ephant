@@ -26,7 +26,7 @@ func TestRunSessionStartOutsideAnyOwner(t *testing.T) {
 
 	output, code := runCommand(t, "session-start", "--no-sync")
 	require.Equal(t, 0, code, output)
-	require.Equal(t, "ele shows no notes here: no owner in owner-map.json covers "+elsewhere+". /ele:recall needs --owner <name> or --all.\n", output)
+	require.Equal(t, "ele shows no notes here: no owner in owner-map.json covers "+elsewhere+". /ele:setup maps it; /ele:recall needs --owner <name> or --all.\n", output)
 }
 
 func TestRunSessionStartShowsAnEverywhereNoteInEverySession(t *testing.T) {
@@ -60,7 +60,7 @@ func TestRunSessionStartShowsAnEverywhereNoteInEverySession(t *testing.T) {
 			shown, _ := hookOutput(t, startOutput)
 			require.Contains(t, shown, "Reminders from ele, due:\n- ↻ due 2026-10-01, reminder "+nudge.ID+", every 7 days: Ask the user to run /hook-stats.\n")
 			require.Contains(t, shown, " fact "+fact.ID+": The machine runs macOS.\n")
-			require.Equal(t, directory == elsewhere, strings.Contains(shown, "ele shows only everywhere notes here: no owner in owner-map.json covers "+elsewhere+"."), shown)
+			require.Equal(t, directory == elsewhere, strings.Contains(shown, "ele shows only everywhere notes here: no owner in owner-map.json covers "+elsewhere+". /ele:setup maps it; /ele:recall needs --owner <name> or --all.\n"), shown)
 		})
 	}
 

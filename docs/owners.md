@@ -11,7 +11,15 @@ on each session as a fact, but isolation follows the owner.
 
 ## Setting up
 
-Name an owner, then map the directories whose sessions are theirs:
+In a session, run `/ele:setup` after installing, or in a repository no owner
+covers yet; the start block's line saying no owner covers the directory names
+it. It reads `ele status`, asks which owner, a listed one or a new one, and what
+to map: the directory above the repository, so its sibling projects come too,
+the repository alone, or the project by name wherever it is checked out. Once
+you approve, it runs the `ele owner` commands and shows `ele status` naming the
+owner.
+
+By hand, name an owner, then map the directories whose sessions are theirs:
 
 ```sh
 ele owner add personal
@@ -37,7 +45,7 @@ in this order:
 
 A session matching neither has no owner. It is still archived and indexed, but
 default recall leaves it out, and its sessions start with a line saying no owner
-covers the directory instead of notes.
+covers the directory and naming `/ele:setup`, instead of notes.
 
 ## Changing the map
 

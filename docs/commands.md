@@ -22,6 +22,7 @@ works from any directory; see [Owners](owners.md).
 | `/ele:recipe`           | Keep a procedure the session ran as a skill of your own, or `audit` your skills for stale commands; see [Recipes](recipes.md) |
 | `/ele:remember`         | Save a decision, question, fact or reminder                                                       |
 | `/ele:review`           | Review an MR, PR, branch or commit and publish the findings you pick, major ones first; see [Review](review.md) |
+| `/ele:setup`            | Map a directory no owner covers to an owner, proposing the `ele owner` commands and running them once approved; see [Owners](owners.md#setting-up) |
 | `/ele:ticket-audit`     | Audit a tracker's ticket map against the code                                                     |
 | `/ele:ticket-claims`    | Flag open GitHub tickets mistyped as a task or granting themselves execution                      |
 | `/ele:wrap`             | At a session's end, ask what to keep, a recipe included, which reminders to close and whether to hand off |

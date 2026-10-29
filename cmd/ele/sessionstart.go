@@ -372,10 +372,10 @@ func writeSessionStart(ctx context.Context, stdout io.Writer, dataDirectory stri
 	}
 	switch {
 	case owner == "" && len(all)+invalid == 0:
-		fmt.Fprintf(stdout, "ele shows no notes here: no owner in owner-map.json covers %s. /ele:recall needs --owner <name> or --all.\n", directory)
+		fmt.Fprintf(stdout, "ele shows no notes here: no owner in owner-map.json covers %s. /ele:setup maps it; /ele:recall needs --owner <name> or --all.\n", directory)
 		return "", nil
 	case owner == "":
-		fmt.Fprintf(stdout, "ele shows only everywhere notes here: no owner in owner-map.json covers %s. /ele:recall needs --owner <name> or --all.\n", directory)
+		fmt.Fprintf(stdout, "ele shows only everywhere notes here: no owner in owner-map.json covers %s. /ele:setup maps it; /ele:recall needs --owner <name> or --all.\n", directory)
 	}
 	var shown []string
 	// A resumed or compacted session keeps its context; the handoff is for a fresh one.
