@@ -21,6 +21,8 @@ Notes
   reminder list    open reminders; --all adds closed and superseded, --colour highlights them
   reminder close   mark reminders done or dropped; a nudge comes back after its interval
   reminder reopen  make closed reminders open again
+  flag good|bad    stamp a session moment for later study, kept out of the start block
+  flag list        the project's flags, newest first
   forget           move mistaken notes out of the index; --restore brings them back
 
 Plans
@@ -81,6 +83,10 @@ var purposes = map[string]string{
 	"config unset":         "Remove a global value, or --owner's override, so the next level down applies. Refuses inside a Claude Code session.",
 	"context":              "The project's live notes and pending handoffs, with no budget.",
 	"events":               "Agent, command, hook, skill and other events from session transcripts.",
+	"flag":                 "Flag a session moment as good or bad, or list the project's flags.",
+	"flag bad":             "Save a flag note marking a bad moment: now in the running session, or with --session the last entry of one indexed earlier, or the entry at --at; the start block never shows it.",
+	"flag good":            "Save a flag note marking a good moment: now in the running session, or with --session the last entry of one indexed earlier, or the entry at --at; the start block never shows it.",
+	"flag list":            "The project's flags, newest first, each with the time ele show <session> --at <time> opens it at.",
 	"forget":               "Move mistaken notes out of the index into forgotten/, or bring them back with --restore.",
 	"handoff close":        "Mark pending handoffs picked up or dropped, so the start block stops showing them.",
 	"handoff list":         "Pending handoffs for the project, newest first.",

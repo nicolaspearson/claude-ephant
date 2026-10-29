@@ -51,6 +51,7 @@ func TestCommandIsWork(t *testing.T) {
 		{command: "echo hi >| out.txt", name: "a clobbering redirect", work: true},
 		{command: "echo x >&2", name: "a duplication to stderr at the end"},
 		{command: "ele checkpoint log /w", name: "an ele write", work: true},
+		{command: `ele flag bad "Ran the whole suite."`, name: "an ele flag"},
 		{command: "ele plan start --help", name: "an ele subcommand's help lookup"},
 		{command: "ele plan start p.md", name: "an ele plan write", work: true},
 		{command: "ele recall colour 2>&1 | head -40", name: "an ele read with stderr joined"},

@@ -13,6 +13,7 @@ works from any directory; see [Owners](owners.md).
 | ----------------------- | ------------------------------------------------------------------------------------------------ |
 | `/ele:checkpoint`       | Review a change in subagents before it is reported done; see [Checkpoint](checkpoint-and-ticket-audit.md#checkpoint) |
 | `/ele:checkpoint-stats` | What checkpoints found and which stage found it, then reviews apart, over the last 30 days or the number given |
+| `/ele:flag`             | Flag a moment of the session as good or bad with why, or `list` the project's flags; see [Flags](notes-and-recall.md#flags) |
 | `/ele:handoff`          | Write the handoff the next session opens with, or `list` pending and closed ones; see [Handoffs](handoffs-and-reminders.md#handoffs) |
 | `/ele:mine`             | Judge past checkpoint runs and review cycles, for tuning the checkpoint skill                    |
 | `/ele:plan`             | Pick up the active plan, or `new <name>` or `convert <spec>`; see [Plans](plans.md)              |
@@ -47,6 +48,19 @@ ele context --size
 
 Every live note and pending handoff for the project, with no budget. `--size`
 prints the running session's context in tokens instead.
+
+```text
+ele flag bad [--owner <name>] [--project <name>] [--session <id> [--at <time>]] <why>
+ele flag good [--owner <name>] [--project <name>] [--session <id> [--at <time>]] <why>
+ele flag list [--owner <name>] [--project <name>]
+```
+
+Flag the running session at this moment as good or bad, with why. `--session`
+flags an earlier one by id, or by a prefix only one indexed session has, at its
+last entry, or at `--at <time>`: an RFC 3339 time inside the session, such as
+an entry's timestamp from `ele show`. `list` shows the project's flags, newest
+first, each with the time `ele show <session> --at <time>` opens it at. The
+start block never shows a flag.
 
 ```text
 ele forget [--owner <name>] [--restore] <id>...

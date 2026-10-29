@@ -15,6 +15,8 @@ The `ele` plugin adds the skills and hooks that use the binary:
 
 - `/ele:handoff`, `/ele:plan`, `/ele:recall` and `/ele:remember` for memory and
   plans
+- `/ele:flag`, which marks a moment of the session as good or bad, with why,
+  for later study
 - `/ele:wrap`, which at a session's end asks what to keep as notes, plan inbox
   items, progress lines or a recipe, which due reminders to close, and whether to
   hand off

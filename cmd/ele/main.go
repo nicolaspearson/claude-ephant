@@ -38,6 +38,9 @@ const usage = `usage:
   ele context [--owner <name>] [--project <name>]
   ele context --size
   ele events [--during <skill>] [--kind <kind>] [--name <name>] [--owner <name>] [--project <name>] [--session <id>] [--since <YYYY-MM-DD|Nd>] [--limit <n>] [--no-sync]
+  ele flag bad [--owner <name>] [--project <name>] [--session <id> [--at <time>]] <why>
+  ele flag good [--owner <name>] [--project <name>] [--session <id> [--at <time>]] <why>
+  ele flag list [--owner <name>] [--project <name>]
   ele forget [--owner <name>] [--restore] <id>...
   ele handoff close [--owner <name>] [--project <name>] <id>...
   ele handoff list [--all] [--owner <name>] [--project <name>]
@@ -90,6 +93,7 @@ var commands = map[string]func(ctx context.Context, args []string, stdout io.Wri
 	"config":   configCommand,
 	"context":  projectContext,
 	"events":   events,
+	"flag":     flagCommand,
 	"forget":   forget,
 	"handoff":  handoffCommand,
 	"mine":     mine,

@@ -16,6 +16,7 @@ var (
 		"config":     {"get"},
 		"context":    nil,
 		"events":     nil,
+		"flag":       nil,
 		"handoff":    {"close", "list", "reopen"},
 		"plan":       {"check", "list", "show"},
 		"recall":     nil,

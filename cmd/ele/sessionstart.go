@@ -89,7 +89,7 @@ func liveNotes(all []notes.Note, project string) (questions []notes.Note, others
 	}
 	for _, note := range all {
 		switch {
-		case superseded[note.ID], note.Scope == notes.ScopeProject && note.Project != project, note.Kind == notes.KindHandoff, note.Kind == notes.KindPlan, note.Kind == notes.KindReminder:
+		case superseded[note.ID], note.Scope == notes.ScopeProject && note.Project != project, note.Kind == notes.KindFlag, note.Kind == notes.KindHandoff, note.Kind == notes.KindPlan, note.Kind == notes.KindReminder:
 		case note.Kind == notes.KindQuestion:
 			questions = append(questions, note)
 		default:

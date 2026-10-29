@@ -90,7 +90,11 @@ func remember(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 		fmt.Fprintln(stderr, "ele: a plan note is written by ele plan start <path>, not ele remember")
 		return 2
 	}
-	kinds := slices.DeleteFunc(slices.Clone(notes.Kinds), func(kind string) bool { return kind == notes.KindPlan })
+	if *kind == notes.KindFlag {
+		fmt.Fprintln(stderr, `ele: a flag note is written by ele flag good|bad "<why>", not ele remember`)
+		return 2
+	}
+	kinds := slices.DeleteFunc(slices.Clone(notes.Kinds), func(kind string) bool { return kind == notes.KindFlag || kind == notes.KindPlan })
 	if !slices.Contains(kinds, *kind) {
 		fmt.Fprintf(stderr, "ele: unknown kind %q; use %s\n", *kind, strings.Join(kinds, ", "))
 		return 2
@@ -281,9 +285,9 @@ func (e unownedError) Error() string {
 
 func sayingTheSame(existing []notes.Note, candidate notes.Note) string {
 	superseded := supersededBy(existing)
-	// A closed handoff or reminder no longer shows, so the same words may be saved again; a superseded note shows nowhere.
+	// A closed handoff or reminder no longer shows, so the same words may be saved again; a superseded note or a flag shows nowhere.
 	hidden := func(note notes.Note) bool {
-		return superseded[note.ID] != "" || (note.Kind == notes.KindHandoff && note.Shown != "") || note.Closed != ""
+		return superseded[note.ID] != "" || note.Kind == notes.KindFlag || (note.Kind == notes.KindHandoff && note.Shown != "") || note.Closed != ""
 	}
 	if hidden(candidate) {
 		return ""

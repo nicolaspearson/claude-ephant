@@ -1,0 +1,11 @@
+schema_version: "1.1"
+name: flag-saves
+description: ele:flag saves a bad flag on the running session through ele flag bad and reports its id
+runs: 1
+execution:
+  max_turns: 10
+  allowed_tools: [Bash, Skill]
+  prompt: |
+    /ele:flag bad you ran the whole test suite when I asked for one package
+context:
+  scaffold_script: scaffold.sh

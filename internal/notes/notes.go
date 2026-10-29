@@ -25,6 +25,7 @@ const DueMinute = "2006-01-02T15:04"
 const (
 	KindDecision = "decision"
 	KindFact     = "fact"
+	KindFlag     = "flag"
 	KindHandoff  = "handoff"
 	KindPlan     = "plan"
 	KindQuestion = "question"
@@ -36,13 +37,17 @@ const (
 	ScopeEverywhere = "everywhere"
 	ScopeGlobal     = "global"
 	ScopeProject    = "project"
+
+	VerdictBad  = "bad"
+	VerdictGood = "good"
 )
 
 var (
 	ErrInvalid = errors.New("invalid note")
 
-	Kinds  = []string{KindDecision, KindFact, KindHandoff, KindPlan, KindQuestion, KindReminder}
-	scopes = []string{ScopeEverywhere, ScopeGlobal, ScopeProject}
+	Kinds    = []string{KindDecision, KindFact, KindFlag, KindHandoff, KindPlan, KindQuestion, KindReminder}
+	Verdicts = []string{VerdictBad, VerdictGood}
+	scopes   = []string{ScopeEverywhere, ScopeGlobal, ScopeProject}
 
 	// Five digits of days stay inside a time.Duration.
 	everyShape = regexp.MustCompile(`^([1-9][0-9]{0,4})([dhm]?)$`)
@@ -71,6 +76,7 @@ type Note struct {
 	Shown      string
 	Supersedes []string
 	Time       string
+	Verdict    string
 }
 
 func ClearClosed(directory string, note Note) error {
@@ -103,6 +109,7 @@ func Format(note Note) []byte {
 		{"shown", note.Shown},
 		{"supersedes", strings.Join(note.Supersedes, ", ")},
 		{"time", note.Time},
+		{"verdict", note.Verdict},
 	} {
 		if field.value != "" {
 			fmt.Fprintf(&out, "%s: %s\n", field.key, field.value)
@@ -225,6 +232,7 @@ func Parse(path string, content []byte) (Note, error) {
 	fields := map[string]*string{
 		"closed": &note.Closed, "date": &note.Date, "done-file": &note.DoneFile, "due": &note.Due, "every": &every, "kind": &note.Kind, "owner": &note.Owner, "profile": &note.Profile,
 		"project": &note.Project, "scope": &note.Scope, "session": &note.Session, "shown": &note.Shown, "supersedes": &supersedes, "time": &note.Time,
+		"verdict": &note.Verdict,
 	}
 	seen := map[string]bool{}
 	closed := false
@@ -432,6 +440,14 @@ func problem(note Note) string {
 		return fmt.Sprintf("everywhere scope but owner %q, not %s", note.Owner, OwnerEverywhere)
 	case note.Owner == OwnerEverywhere && note.Scope != ScopeEverywhere:
 		return fmt.Sprintf("owner %s with scope %q, not %s", OwnerEverywhere, note.Scope, ScopeEverywhere)
+	case note.Kind == KindFlag && note.Scope != ScopeProject:
+		return fmt.Sprintf("flag with %s scope", note.Scope)
+	case note.Kind == KindFlag && (note.Session == "" || note.Time == ""):
+		return "flag with no session or time"
+	case note.Kind == KindFlag && !slices.Contains(Verdicts, note.Verdict):
+		return fmt.Sprintf("flag verdict %q is not one of %s", note.Verdict, strings.Join(Verdicts, ", "))
+	case note.Kind != KindFlag && note.Verdict != "":
+		return fmt.Sprintf("%s with a verdict, which only a flag takes", note.Kind)
 	case note.Kind == KindHandoff && note.Scope != ScopeProject:
 		return fmt.Sprintf("handoff with %s scope", note.Scope)
 	case note.Kind == KindPlan && note.Scope != ScopeProject:

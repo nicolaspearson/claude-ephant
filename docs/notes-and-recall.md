@@ -70,6 +70,17 @@ Notes are Markdown files under `notes/<owner>/` in the
 [data directory](data-and-privacy.md#storage), and can be edited by hand; the
 next sync picks up the change, and names any file it cannot read.
 
+### Flags
+
+A flag marks a moment of a session as good or bad, with why, so a later look
+at what went well or badly can find it. Say `/ele:flag bad you ran the whole
+suite when I asked for one package`, or run `ele flag good|bad "<why>"`; it is
+stamped with the session and the time. `--session <id>` flags an earlier
+session at its last entry, or at `--at <time>`, an entry's timestamp from
+`ele show`. `ele flag list` shows the project's flags with their times, and
+`ele show <session> --at <time>` opens the session at one. A flag never shows in the
+start block or in `ele context`.
+
 ### What a session starts with
 
 At startup, after `/clear` and after a compaction, the session opens with a
