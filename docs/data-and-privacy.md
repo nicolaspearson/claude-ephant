@@ -100,6 +100,7 @@ block a session starts with names any option set away from its default.
 | `checkpoint_gate`  | `true`  | Off, a turn that changed files and claims done is not blocked for `/ele:checkpoint`                                          |
 | `colour`           | `true`  | Off, the messages ele shows you are plain text, for a client that does not render ANSI colour. `NO_COLOR` turns it off too |
 | `compact_hint_at`  | `150000` | Context tokens from which the Stop hook suggests `/compact` or a handoff, again every 100k past it; `0` turns the suggestion off |
+| `lone_handoff_pending` | `false` | On, a lone handoff stays pending until you pick or drop it, as several do, instead of showing once |
 | `notes_ask`        | `true`  | Off, the Stop hook never asks for notes; `/ele:remember` and `/ele:wrap` still propose them |
 | `recipes`          | `true`  | Off, `/ele:wrap` offers no recipe; a typed `/ele:recipe` still proposes one |
 | `reminders`        | `true`  | Off, no reminder shows at session start                                                                                     |

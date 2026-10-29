@@ -17,11 +17,15 @@ The handoff shows only at startup or after `/clear`, never on resume or after a
 compaction, so it is not used up by a session that did not start the work
 afresh.
 
-- A lone pending handoff is marked shown when the session opens with it, and
-  does not show again
+- Unless the `lone_handoff_pending` option is on, a lone pending handoff is
+  marked shown when the session opens with it, and does not show again
 - With several pending, the session lists them and asks which to pick up. The
   ones you pick or drop are closed with `ele handoff close <id>`; the rest show
   again at the next start, so a second stream of work is not lost
+- With the `lone_handoff_pending` option on, a lone handoff is asked about as
+  several are, and shows at each start until you pick or drop it
+
+`/ele:handoff list` shows pending and closed handoffs. The same from a shell:
 
 ```sh
 ele handoff list            # pending handoffs, newest first

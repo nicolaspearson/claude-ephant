@@ -72,6 +72,12 @@ var Options = []Option{
 		Name:        "compact_hint_at",
 	},
 	{
+		Default:     false,
+		Description: "Keeps a lone handoff pending until picked or dropped, listed as several are, in place of marking it shown once.",
+		Kind:        KindBoolean,
+		Name:        "lone_handoff_pending",
+	},
+	{
 		Default:     true,
 		Description: "Asks for notes in the Stop hook once per stretch of work; off, /ele:remember still works.",
 		Kind:        KindBoolean,

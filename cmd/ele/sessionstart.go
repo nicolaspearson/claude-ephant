@@ -41,10 +41,14 @@ const (
 	staleAfter     = 24 * time.Hour
 )
 
-func handoffSection(dataDirectory string, pending []notes.Note, now time.Time) string {
+func handoffSection(dataDirectory string, pending []notes.Note, now time.Time, asked bool) string {
 	var section strings.Builder
-	if len(pending) > 1 {
-		fmt.Fprintf(&section, "%d handoffs from ele, newest first, each pending until picked or dropped:\n", len(pending))
+	if asked {
+		if len(pending) == 1 {
+			section.WriteString("1 handoff from ele, pending until picked or dropped:\n")
+		} else {
+			fmt.Fprintf(&section, "%d handoffs from ele, newest first, each pending until picked or dropped:\n", len(pending))
+		}
 		for _, handoff := range pending {
 			fmt.Fprintf(&section, "- %s:\n  %s\n", noteSource(handoff), strings.ReplaceAll(strings.TrimSpace(redact.Redact(handoff.Body)), "\n", "\n  "))
 		}
@@ -347,7 +351,7 @@ func writeSessionStart(ctx context.Context, stdout io.Writer, dataDirectory stri
 	}
 	project, owner := index.NewProjects(ownerMap).Resolve(directory)
 	settings, err := config.Load(configPath(dataDirectory))
-	coloured, remindersOn := true, true
+	coloured, lonePending, remindersOn := true, false, true
 	if err != nil {
 		fmt.Fprintf(stdout, "ele: %v; every option reads as its default.\n", err)
 	} else {
@@ -355,6 +359,9 @@ func writeSessionStart(ctx context.Context, stdout io.Writer, dataDirectory stri
 			fmt.Fprintf(stdout, "Config from ele, off its defaults: %s.\n", strings.Join(changed, ", "))
 		}
 		coloured = colourOn(settings, owner)
+		if value, valueErr := settings.Value("lone_handoff_pending", owner); valueErr == nil {
+			lonePending = value.Value == true
+		}
 		if value, valueErr := settings.Value("reminders", owner); valueErr == nil {
 			remindersOn = value.Value == true
 		}
@@ -373,10 +380,11 @@ func writeSessionStart(ctx context.Context, stdout io.Writer, dataDirectory stri
 	var shown []string
 	// A resumed or compacted session keeps its context; the handoff is for a fresh one.
 	if pending := pendingHandoffs(all, project); len(pending) > 0 && (source == "clear" || source == "startup") {
-		handoff := handoffSection(dataDirectory, pending, now)
+		asked := len(pending) > 1 || lonePending
+		handoff := handoffSection(dataDirectory, pending, now, asked)
 		shown = append(shown, handoff)
 		fmt.Fprint(stdout, handoff)
-		if len(pending) > 1 {
+		if asked {
 			fmt.Fprintln(stdout, "Ask the user which handoff to pick up and whether to drop any. Run ele handoff close <id>... for each picked or dropped; the rest return at the next startup or /clear.")
 		}
 		fmt.Fprintln(stdout)

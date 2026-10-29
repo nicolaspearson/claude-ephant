@@ -1,0 +1,11 @@
+schema_version: "1.1"
+name: handoff-list
+description: ele:handoff list shows pending and closed handoffs from ele handoff list --all and changes none
+runs: 1
+execution:
+  max_turns: 10
+  allowed_tools: [Bash, Skill]
+  prompt: |
+    Show me this project's handoffs with /ele:handoff list.
+context:
+  scaffold_script: scaffold.sh

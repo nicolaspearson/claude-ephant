@@ -172,6 +172,33 @@ func TestRunSessionStartShowsAHandoffOnce(t *testing.T) {
 	require.NotContains(t, shown, "20261017-ffffff")
 }
 
+func TestRunSessionStartKeepsALoneHandoffPendingWithTheOption(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	start := func() string {
+		var output bytes.Buffer
+		code := sessionStart(context.Background(), []string{"--no-sync"}, strings.NewReader(`{"session_id":"s","source":"clear"}`), &output, &output)
+		require.Equal(t, 0, code, output.String())
+		return output.String()
+	}
+	_, err := notes.Write(filepath.Join(home, "data", "notes"), notes.Note{Body: "Next: the start block.", Date: "2026-10-17", ID: "20261017-aaaaaa", Kind: notes.KindHandoff, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Time: "2026-10-17T09:00:00Z"})
+	require.NoError(t, err)
+	writeFile(t, filepath.Join(home, "data", "config.json"), `{"lone_handoff_pending": true}`)
+
+	section := "1 handoff from ele, pending until picked or dropped:\n- note 20261017-aaaaaa of 2026-10-17 09:00Z:\n  Next: the start block."
+	for range 2 {
+		shown, message := hookOutput(t, start())
+		require.Equal(t, section, message)
+		require.Contains(t, shown, section+"\nAsk the user which handoff to pick up and whether to drop any. Run ele handoff close <id>... for each picked or dropped; the rest return at the next startup or /clear.\n\n")
+	}
+
+	writeFile(t, filepath.Join(home, "data", "config.json"), `{"lone_handoff_pending": false}`)
+	_, message := hookOutput(t, start())
+	require.Equal(t, "Handoff from ele, note 20261017-aaaaaa of 2026-10-17 09:00Z, shown once:\nNext: the start block.", message)
+	shown, _ := hookOutput(t, start())
+	require.NotContains(t, shown, "20261017-aaaaaa", "off, a lone handoff is marked shown")
+}
+
 func TestRunSessionStartShowsActivePlansEveryTime(t *testing.T) {
 	home := recallFixture(t)
 	gateway := filepath.Join(home, "w", "corp", "gateway")
