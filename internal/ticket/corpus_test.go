@@ -249,6 +249,19 @@ func TestCorpusKeysANamedPlanItemOnItsNameSoARewordKeepsItsRulings(t *testing.T)
 	require.Equal(t, "repo/.documentation/plans/plan.md: ship-it\n  ruled 2026-10-21: f1 — r1\n  text CHANGED since\n", output.String())
 }
 
+func TestCorpusKeysAnInboxItemOnItsTitleAndAnActionOnItsName(t *testing.T) {
+	plan := "## Actions\n\n- [ ] ship-it: Ship the thing\n  - done when shipped\n\n## Inbox\n\n- idea-x: try it\n- 2026-10-28: one\n- 2026-10-28: two\n"
+
+	entries := corpusManifest(t, t.TempDir(), plan)
+
+	require.Equal(t, []string{
+		"repo/.documentation/plans/plan.md: ship-it",
+		"repo/.documentation/plans/plan.md: idea-x: try it",
+		"repo/.documentation/plans/plan.md: 2026-10-28: one",
+		"repo/.documentation/plans/plan.md: 2026-10-28: two",
+	}, fieldOf(entries, "key"))
+}
+
 func TestCorpusSplitsAPlanIntoActionsThenInboxItems(t *testing.T) {
 	out := t.TempDir()
 

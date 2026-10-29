@@ -79,6 +79,7 @@ type fetched struct {
 }
 
 type planEntry struct {
+	action bool
 	hashed string
 	raw    string
 	state  string
@@ -588,7 +589,10 @@ func planEntries(ctx context.Context, commands Commands, path string) ([]corpusE
 	var entries []corpusEntry
 	for index, item := range planItems(text) {
 		name := fmt.Sprintf("%s-%02d", stem, index+1)
-		key := plan.Name(item.title)
+		key := ""
+		if item.action {
+			key = plan.Name(item.title)
+		}
 		if key == "" {
 			key = item.title
 		}
@@ -623,7 +627,7 @@ func planItems(text string) []planEntry {
 			} else if section == "Inbox" {
 				state = "inbox"
 			}
-			current = &gathering{lines: []string{line}, entry: planEntry{state: state, title: collapseWhitespace(match[2])}}
+			current = &gathering{lines: []string{line}, entry: planEntry{action: section == "Actions", state: state, title: collapseWhitespace(match[2])}}
 			items = append(items, current)
 		} else if current != nil && (strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t") || trimWhitespace(line) == "") {
 			current.lines = append(current.lines, line)

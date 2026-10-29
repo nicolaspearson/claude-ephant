@@ -17,7 +17,7 @@ The format:
 - A Context line not verified against the code or data says "not checked"
 - An architectural Decision carries a `rejected: <option>, because …` line for each option it turned down, so an ADR drafted at the close has its considered options
 - An item is a `- [ ]` or `- [x]` line and its indented body
-  - Each action but the closing one leads with a short lowercase kebab name, `- [ ] judge-blocks: …`, written once and never changed, unique across active and closed plans. `ele plan start` refuses a name another active plan holds or a closed plan used, and an item starting `word: ` is read as named `word`
+  - Each action but the closing one leads with a short lowercase kebab name, `- [ ] judge-blocks: …`, written once and never changed, unique across active and closed plans. `ele plan start` refuses a name another active plan holds or a closed plan used, and an action starting `word: ` is read as named `word`; an Inbox line is never named: its leading `word: ` or date is not a name
   - Each action but the closing one carries a `done when …` line in its body: what will be observable once it is done
   - Progress goes in the body as dated lines, `as of <date>: …` or `next: …`, so a session stopping mid-item needs no handoff
   - A tick carries one line saying what was asserted, at which boundary and at which commit
