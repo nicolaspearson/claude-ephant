@@ -45,8 +45,9 @@ The `ele` plugin adds the skills and hooks that use the binary:
 ## Install
 
 1. Install the binary. The plugin's hooks call `ele` from `PATH`, so it must be
-   on `PATH` before the plugin is enabled. Releases carry macOS and Linux
-   binaries for amd64 and arm64. With Homebrew, on macOS or Linux:
+   on `PATH` before the plugin is enabled. Releases carry binaries for the
+   platforms under [Compatibility](#compatibility). With Homebrew, on macOS or
+   Linux:
 
    ```sh
    brew install nicolaspearson/tap/ele
@@ -126,6 +127,22 @@ the install script again, or `go install …/cmd/ele@latest`. Then:
 
 `ele version` prints a released binary's tag, to check against the
 latest release.
+
+## Compatibility
+
+`ele` runs on macOS and Linux, on amd64 and arm64. There is no Windows build.
+
+From 1.0.0, `ele` follows semantic versioning. Within a major version, a
+release does not break:
+
+- its commands and flags
+- the data directory and the note format; a later version migrates them
+  forward itself
+- the behaviour of the `ele` commands the plugin's hooks call
+
+The plugin is not covered: it installs from `main`, so `hooks.json` and the
+skills' wording change with any commit. Keep `ele` at least as new as the
+plugin; see [Update](#update).
 
 ## Contributing
 

@@ -106,12 +106,21 @@ keep.
 
 ### Must have
 
-- [ ] promise: State the 1.0 compatibility promise and supported platforms in
+- [x] promise: State the 1.0 compatibility promise and supported platforms in
   the README, as the Decisions word it
   - done when the README states what semver covers and what it does not, that
     `ele` must be at least as new as the plugin, and names macOS and Linux on
     amd64 and arm64 with no Windows build; and `task format`, `task lint` and
     `task lint-docs` pass
+  - as of 2026-10-29: `release.yml`'s build step targets darwin and linux on
+    amd64 and arm64 only, and `install.sh` fails on any other OS or machine;
+    the README's Update section already says to update the binary before the
+    plugin
+  - asserted in the promise commit: README's Compatibility section names macOS
+    and Linux on amd64 and arm64 with no Windows build (matching
+    `release.yml`'s build targets and `install.sh`), what semver covers from
+    1.0.0 and that the plugin is not covered, and that `ele` must be at least
+    as new as the plugin; `task format`, `task lint` and `task lint-docs` exit 0
 - [ ] linux-data-dir: Move Linux's data directory to XDG, as the Decisions
   word it
   - done when `internal/datadir` tests, each seen red, cover: Linux with and
