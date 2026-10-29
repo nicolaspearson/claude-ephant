@@ -96,8 +96,9 @@ created: 2026-10-23
   in your words; the review loop checks the items against it and never edits
   it
 - **`## Context`** holds dated facts; one not checked against the code says
-  "not checked". A **Decision** that chose an architecture lists each option
-  it turned down as `rejected: <option>, because …`
+  "not checked". A **Decision** that is architectural, meaning hard to
+  reverse, surprising without context and the result of a real trade-off, all
+  three, lists each option it turned down as `rejected: <option>, because …`
 - **Items** are `- [ ]` lines with an indented body. Each but the last leads
   with a short kebab-case name, written once and never changed, and carries a
   `done when` line saying what will be observable once it is done
@@ -117,9 +118,9 @@ created: 2026-10-23
   from. **`## Out of scope`** keeps what was ruled out, and why
 - **The last action** closes the plan: fold each Decision where it outlives the
   plan, as [Closing one](#closing-one) sorts it; then, with a spec, fold what
-  the plan built into it; without one, propose each out-of-scope line as a
-  decision note. Then `ele plan done`, and delete the file. Git history is its
-  archive
+  the plan built into it, and its out-of-scope lines as a `Not doing:` list;
+  without one, propose each out-of-scope line as a decision note. Then
+  `ele plan done`, and delete the file. Git history is its archive
 
 ## Working through one
 

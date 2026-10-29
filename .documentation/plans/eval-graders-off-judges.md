@@ -20,7 +20,7 @@ An LLM judge's verdict is not stable: in setup-maps a Haiku judge passed a reply
 - As of 2026-10-29: 23 `type: llm` graders in 14 of the 17 evals under `plugin/evals`, 10 of them in recipe-audit; `plan-new-review` and `setup-maps` hold none, `recall` none
 - As of 2026-10-29: most llm-graded cases already have a `tool_used` grader for the command or write their llm grader names (`ele flag bad`, `ele remember` or its `max: 0`, `ele handoff list --all`, the `SKILL.md` Write, `ln -s`), and the llm grader mostly judges claims about the reply: reported as saved, asks write or skip, does not claim it was written, names a finding. Not all: recipe-writes' grader says `recipe_dir` was unset, a read no grader checks, and `wrap-deferred/open-work` and `wrap-recipe-off/no-recipe` name no command
 - As of 2026-10-29: 15 of the 17 cases set `runs: 1`; `wrap-asks` and `wrap-deferred` set `runs: 3`
-- As of 2026-10-29, from plan-workflow's new-eval probe on claude 2.1.308: AskUserQuestion does not load in the eval sandbox, so an ask is a claim in the reply, never a tool call
+- As of 2026-10-29, from a probe on claude 2.1.308: AskUserQuestion does not load in the eval sandbox, so an ask is a claim in the reply, never a tool call
 - As of 2026-10-29, from the `claude plugin eval` docs: `regex` takes `pattern`, `flags`, `match` (`not_contains`, `count:N`) and `target` (`last_message` by default, `trace`, `files`, a workspace file); an `llm` grader passes on 2 of 3 judge votes, Haiku by default
 - As of 2026-10-29: CONTRIBUTING's Evals section says how a case is laid out and run, and nothing about which grader type to use; no spec under `.documentation/specs/` describes evals, so this plan has none
 - As of 2026-10-29: ele-followups' `grader-alternation` edits recipe-audit's `no-run-step`, `no-run-script` and `no-run-runner` graders, none of them `type: llm`; the two plans touch different files in that case
@@ -40,7 +40,7 @@ An LLM judge's verdict is not stable: in setup-maps a Haiku judge passed a reply
 ## Actions
 
 - [ ] grader-rule: CONTRIBUTING's Evals section states which grader type checks what
-  - done when the section says: a fact the trace holds, a command run, a file written or a tool called, is graded with `tool_used`; a literal the reply must or must not hold with `regex` on `last_message`; an `llm` grader judges one claim neither can check, and only one the case exists to test, each with its reason; and `task format`, `task check FORCE=1` and `task audit` pass
+  - done when the section says: a fact the trace holds, a command run, a file written or a tool called, is graded with `tool_used`; a literal the reply must or must not hold with `regex` on `last_message`; an `llm` grader judges one claim neither can check, and only one the case exists to test, each with its reason; that AskUserQuestion does not load in the eval sandbox (as of 2026-10-29, claude 2.1.308), so an ask is graded on the reply and its behaviour is also checked in a real session; and `task format`, `task check FORCE=1` and `task audit` pass
 - [ ] recipe-audit-graders: recipe-audit's 10 `type: llm` graders follow the rule
   - blocked: grader-rule; the conversions follow the rule as written
   - as of 2026-10-29: the eval run also scores `no-run-step`, `no-run-script` and `no-run-runner`, which ele-followups/grader-alternation finds matching a quoted `grep -E` alternation as a run; such a failure is traced to that grader, not this item's
