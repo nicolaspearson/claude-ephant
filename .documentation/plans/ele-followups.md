@@ -92,8 +92,6 @@ Close the gaps ele-features and recipe-audit left: see shipped features work in 
 
 ## Inbox
 
-- 2026-10-29, from plan-workflow/drafts-mode's hand runs: in claude-ephant, which has entries under owners hyve and personal, `ele plan list --project claude-ephant` fails with "has entries under owners hyve, personal; pass --owner <name>", while plain `ele plan list` at the root works; `ele recall --project` fails the same way, and `context` and `handoff list` with `--project` resolve the owner as both do, read from code, not run. plan-audit's Which plans and its handoff and context calls, ticket-audit's §0 and the recall skill's Project context give the `--project` form, and that section says to say so rather than choose an owner, so an audit here cannot get past its first call; the skills to drop `--project` where the working directory resolves, or, reversing that section's rule, the commands to resolve an owner for a project the working directory's owner holds
-
 ## Out of scope
 
 - The self-audit, reading ele's records to propose fixes to ele: its own plan, scoped in its own grill (ruled 2026-10-28, from ele-features' close)
