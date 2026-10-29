@@ -42,12 +42,13 @@ exist on this machine. Name skill files to audit only those:
   command that takes a package and runs it, is checked for
   itself only: its package and what follows are listed as not checked, since
   asking the package for its help would fetch and run it
-- Nothing but `command -v`, help and version commands and `man` is run. A shell
-  function or alias has nothing run, a script is read rather than run (with
-  the files it loads, when it defines no commands of its own), and a
-  subcommand's help is asked for only when the tool's own help shows it takes
-  one, since a tool that ignores an unknown flag would run the step. A compiled
-  tool that ignores its flags still runs once
+- Nothing but `command -v`, help and version commands and `man` is run, `man`
+  in the C locale so a flag's hyphens print as plain `-`. A shell function or
+  alias has nothing run, a script is read rather than run (with the files it
+  loads, when it defines no commands of its own), and a subcommand's help is
+  asked for only when the tool's own help shows it takes one, since a tool
+  that ignores an unknown flag would run the step. A compiled tool that
+  ignores its flags still runs once
 
 Each finding comes with the line it is on; where the fix is clear, Claude shows
 the line before and after and edits the skill only once you approve. Without
