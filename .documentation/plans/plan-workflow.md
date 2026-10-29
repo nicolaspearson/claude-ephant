@@ -91,6 +91,7 @@ A plan is only as good as the questions asked before it starts. `/ele:plan new` 
 ## Inbox
 
 - 2026-10-29, from research-plan-skills' checkpoint: rule on the practices `plugin/reference/plan-practices.md` marks proposed, each by the item it names when that item is picked up, adopting it into a Decision or rejecting it there: review-loop's stable finding ids; decision-fold's hard-to-reverse, surprising and trade-off test for an architectural Decision
+- 2026-10-29, from plan-reviewer's hand runs: the same finding came back at different levels on reruns of one draft (an ambiguous ordering requirement major then minor, a requirement naming Redis blocker then major), so review-loop's gate on open blockers and majors can flip between passes on unchanged text; review-loop to decide whether a later pass's brief carries the earlier level with the settled findings, or the gate tolerates it
 
 ## Out of scope
 
