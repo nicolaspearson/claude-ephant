@@ -49,6 +49,26 @@ func TestParse(t *testing.T) {
 			name:    "harness tag without origin",
 		},
 		{
+			entries: []Entry{entry(KindConversation, "✦ Heads up · from the parent")},
+			line:    `{"type":"user","isSidechain":true,` + base + `,"message":{"content":"✦ Heads up · from the parent"}}`,
+			name:    "heads-up marker in a subagent brief",
+		},
+		{
+			entries: []Entry{entry(KindPrompt, "what does ✦ Heads up · mean")},
+			line:    `{"type":"user",` + base + `,"message":{"content":"what does ✦ Heads up · mean"}}`,
+			name:    "heads-up marker inside a prompt",
+		},
+		{
+			entries: []Entry{entry(KindHeadsUp, "Here is a note offered by a side agent:\n\n> Heads up · The retry loop never backs off\n>\n> **Retries**")},
+			line:    `{"type":"user","origin":{"kind":"human"},"promptSource":"typed",` + base + `,"message":{"content":"Here is a note offered by a side agent:\n\n> Heads up · The retry loop never backs off\n>\n> **Retries**"}}`,
+			name:    "heads-up sent through chat in main session",
+		},
+		{
+			entries: []Entry{entry(KindHeadsUp, "  ✦ Heads up · Two writers share the file"), entry(KindPrompt, "and fix it")},
+			line:    `{"type":"user",` + base + `,"message":{"content":[{"type":"text","text":"  ✦ Heads up · Two writers share the file"},{"type":"text","text":"and fix it"}]}}`,
+			name:    "heads-up text block beside a typed one",
+		},
+		{
 			entries: nil,
 			line:    `{"type":"attachment",` + base + `}`,
 			name:    "housekeeping line",
@@ -67,6 +87,11 @@ func TestParse(t *testing.T) {
 			entries: nil,
 			line:    `{"type":"user",` + base + `,"message":{"content":"[Request interrupted by user]"}}`,
 			name:    "request interrupted marker",
+		},
+		{
+			entries: []Entry{entry(KindHeadsUp, "✦ Heads up · The retry loop never backs off")},
+			line:    `{"type":"user","origin":{"kind":"human"},"promptSource":"typed",` + base + `,"message":{"content":"✦ Heads up · The retry loop never backs off"}}`,
+			name:    "sent heads-up",
 		},
 		{
 			entries: []Entry{entry(KindPrompt, "<command-name>/checkpoint</command-name>")},

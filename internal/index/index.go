@@ -83,7 +83,7 @@ CREATE INDEX IF NOT EXISTS events_session_kind ON events (session, kind, timesta
 CREATE VIRTUAL TABLE IF NOT EXISTS entries_fts USING fts5(text, content='entries', content_rowid='id');`
 
 // Version is bumped when the schema or what sync derives changes; an index holding another version is rebuilt.
-const Version = "11"
+const Version = "12"
 
 type Index struct {
 	db       *sql.DB

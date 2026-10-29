@@ -110,9 +110,9 @@ ele recall [--all | --owner <name>] [--kind <k,k>] [--project <name>] [--since <
 ```
 
 Search past sessions and notes; every word must appear. `--kind` takes `note`,
-`prompt`, `conversation` and `tool`, comma-separated. `--since` takes a date or a
-number of days back, as `7d`. `--limit` caps the matches. `--no-sync` searches
-without syncing first.
+`prompt`, `heads-up`, `conversation` and `tool`, comma-separated. `--since`
+takes a date or a number of days back, as `7d`. `--limit` caps the matches.
+`--no-sync` searches without syncing first.
 
 ```text
 ele show [--around <text> | --at <time>] [--context <n>] <session>

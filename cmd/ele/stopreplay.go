@@ -273,7 +273,7 @@ func (r *replayer) block(timestamp string, uuid string, asked bool) {
 func (r *replayer) entry(entry transcript.Entry, feedback bool) {
 	switch {
 	case feedback && entry.Kind == transcript.KindPrompt:
-	case entry.Kind == transcript.KindPrompt:
+	case transcript.Prompted(entry.Kind):
 		if !r.recorded && r.output {
 			r.stop(entry.Timestamp, entry.UUID, stopPlaced, false)
 			r.blockStop = false

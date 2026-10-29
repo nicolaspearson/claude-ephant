@@ -13,13 +13,13 @@ import (
 
 var ErrAmbiguousSession = errors.New("session prefix matches more than one session")
 
-var Kinds = []string{KindNote, transcript.KindPrompt, transcript.KindConversation, transcript.KindTool}
+var Kinds = []string{KindNote, transcript.KindPrompt, transcript.KindHeadsUp, transcript.KindConversation, transcript.KindTool}
 
-// Kinds rank before relevance: notes and the user's own words outrank what was said about them.
+// Kinds rank before relevance: notes and the user's own words outrank what was said about them; a heads-up is Claude's words.
 const kindRank = `CASE
 	WHEN e.kind = 'note' THEN 0
 	WHEN e.kind = 'prompt' THEN 1
-	WHEN e.kind = 'conversation' THEN 2
+	WHEN e.kind IN ('heads-up', 'conversation') THEN 2
 	WHEN e.kind = 'tool' THEN 3
 	ELSE 4
 END`

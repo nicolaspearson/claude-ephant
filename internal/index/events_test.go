@@ -170,7 +170,7 @@ func TestEventsFollowAHookBlockToItsReply(t *testing.T) {
 	write(t, filepath.Join(projects, "-w", "s1.jsonl"), said("00", false, "All done.")+
 		block("01")+said("02", false, "This isn't a checkpoint; the handler is unwired.")+prompt("03", "go on")+
 		block("04")+line("05", `"type":"assistant","message":{"content":[{"type":"tool_use","name":"Skill","input":{"skill":"ele:checkpoint"}}]}`)+said("06", false, "Not done until the review is in.")+
-		block("07")+prompt("08", "go on")+said("09", false, "Answering the prompt.")+
+		block("07")+prompt("08", "✦ Heads up · go on")+said("09", false, "Answering the prompt.")+
 		block("10")+said("11", true, "subagent prose, not a checkpoint")+said("12", false, "Checkpointing now.")+
 		prompt("13", "go on")+block("14")+prompt("15", `<command-name>/ele:checkpoint</command-name>`)+
 		line("16", `"type":"user","isMeta":true,"message":{"content":"Stop hook feedback:\nPropose notes now."}`)+said("17", false, "Nothing worth keeping, mid-task.")+
@@ -241,7 +241,7 @@ func TestEventsFollowANotesAskToItsWorkAndNote(t *testing.T) {
 	}
 	write(t, filepath.Join(projects, "-w", "s1.jsonl"), call("00", "Skill", `{"skill":"tdd"}`)+edit("01")+bash("02", "go test ./...")+ask("03")+
 		call("04", "AskUserQuestion", `{"questions":[]}`)+bash("05", "SID=s1 ele remember --kind fact 'a'")+call("06", "AskUserQuestion", `{"questions":[]}`)+
-		bash("07", "go test ./...")+ask("08")+prompt("09", "write it")+bash("10", "ele remember --kind fact 'b'")+
+		bash("07", "go test ./...")+ask("08")+prompt("09", "✦ Heads up · write it")+bash("10", "ele remember --kind fact 'b'")+
 		edit("11")+call("12", "Skill", `{"skill":"ele:checkpoint"}`)+bash("13", "go vet ./...")+ask("14")+bash("15", "ele remember --help")+
 		prompt("16", "go on")+call("17", "AskUserQuestion", `{"questions":[]}`)+ask("18")+
 		prompt("19", "<command-name>/ele:handoff</command-name>")+bash("20", "cd /w && ele remember --kind handoff 'c'")+ask("21")+

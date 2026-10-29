@@ -160,6 +160,26 @@ func TestRunRecallRefusesBadScopeAndKinds(t *testing.T) {
 	require.Contains(t, output, "2 matches")
 }
 
+func TestRunRecallFindsASentHeadsUpByItsKind(t *testing.T) {
+	home := recallFixture(t)
+	notesRepository := filepath.Join(home, "w", "personal", "notes")
+	writeFile(t, filepath.Join(home, ".claude", "projects", "-notes", "ghi3.jsonl"),
+		`{"type":"user","origin":{"kind":"human"},"promptSource":"typed","cwd":"`+notesRepository+`","sessionId":"ghi3","timestamp":"2026-10-16T09:00:00Z","uuid":"h1","message":{"content":"✦ Heads up · The retry loop never backs off"}}`+"\n")
+
+	output, code := runCommand(t, "recall", "--all", "--kind", "heads-up", "retry")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "1 match")
+	require.Contains(t, output, "heads-up")
+
+	output, code = runCommand(t, "recall", "--no-sync", "--all", "--kind", "prompt", "retry")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "No matches")
+
+	output, code = runCommand(t, "usage", "--owner", "personal")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "2 sessions, 2 prompts for personal.\n", "a sent heads-up starts a turn")
+}
+
 func TestRunRecallScopesToTheWorkingDirectorysOwner(t *testing.T) {
 	home := recallFixture(t)
 	gateway := filepath.Join(home, "w", "corp", "gateway")

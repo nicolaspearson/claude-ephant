@@ -111,11 +111,13 @@ ele recall --since 30d --kind note,prompt migration
 - Every word must appear. Words are matched as plain text, so punctuation and
   search operators mean nothing special
 - Results are grouped by session, best match first: notes, then what you typed,
-  then conversation, then tool calls, each with a short snippet
+  then conversation and sent heads-ups, then tool calls, each with a short
+  snippet
 - It searches the current directory's owner. `--project <name>` narrows to one
   project, `--owner <name>` searches another owner, `--all` every owner
-- `--kind` takes `note`, `prompt`, `conversation` and `tool`; `--since` a date
-  or a number of days back, as `7d`; `--limit` caps the matches, 20 by default
+- `--kind` takes `note`, `prompt`, `heads-up`, `conversation` and `tool`;
+  `--since` a date or a number of days back, as `7d`; `--limit` caps the
+  matches, 20 by default
 
 Recall syncs first, so the session you are in is searchable. `--no-sync` skips
 that.
@@ -123,9 +125,12 @@ that.
 ### What is searchable
 
 What you typed, Claude's replies, and one line per tool call: the tool and its
-main input, such as the command run or the file edited. Tool output, thinking
-and compaction summaries are not indexed. Sessions started through the Agent
-SDK are archived but not indexed, so automated runs do not flood the results.
+main input, such as the command run or the file edited. A "You should know"
+note you send into the session, with Chat in main session or as its own
+`✦ Heads up ·` line, is its own kind, `heads-up`; a note you do not send never
+reaches the transcript and is not indexed. Tool output, thinking and
+compaction summaries are not indexed. Sessions started through the Agent SDK
+are archived but not indexed, so automated runs do not flood the results.
 
 ### Reading a whole discussion
 

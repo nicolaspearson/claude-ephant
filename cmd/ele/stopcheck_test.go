@@ -107,6 +107,7 @@ func TestAdvance(t *testing.T) {
 		{entries: []transcript.Entry{{Kind: transcript.KindPrompt, Text: "next"}}, from: stopState{InReview: true}, name: "a prompt does not end a review", want: stopState{InReview: true}},
 		{entries: []transcript.Entry{{Kind: transcript.KindPrompt, Text: "go on"}}, from: stopState{Proposing: true}, name: "a prompt ends a proposal", want: stopState{}},
 		{entries: []transcript.Entry{{Kind: transcript.KindPrompt, Text: "go on"}}, from: stopState{InCheckpoint: true, StretchBlocked: true}, name: "a prompt ends the checkpoint, not the stretch", want: stopState{StretchBlocked: true}},
+		{entries: []transcript.Entry{{Kind: transcript.KindHeadsUp, Text: "✦ Heads up · x"}}, from: stopState{InCheckpoint: true, Proposing: true}, name: "a sent heads-up ends a checkpoint and a proposal as a prompt does", want: stopState{}},
 		{entries: tool("Bash: cd /w && ele remember --kind fact \"x\"; rm -rf y"), from: stopState{Pending: true, Proposing: true}, name: "a proposal's own note and write are not work", want: stopState{Proposing: true}},
 		{entries: tool("Bash: git status --porcelain", "Edit: .documentation/plans/p.md"), from: stopState{Proposing: true}, name: "a proposal's own reads and edits are not work", want: stopState{Proposing: true}},
 		{entries: tool(`AskUserQuestion: {"questions":[]}`), from: stopState{Proposing: true}, name: "a question asking a remember block's notes is not work", want: stopState{Proposing: true}},

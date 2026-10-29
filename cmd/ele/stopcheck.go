@@ -74,7 +74,7 @@ type stopOutput struct {
 func advance(state stopState, entries []transcript.Entry, events []dto.TranscriptEvent) stopState {
 	for _, entry := range entries {
 		switch {
-		case entry.Kind == transcript.KindPrompt:
+		case transcript.Prompted(entry.Kind):
 			state.InCheckpoint, state.Proposing = false, false
 		case entry.Kind != transcript.KindTool:
 		case strings.HasPrefix(entry.Text, "Bash: ") && writesNote(entry.Command):

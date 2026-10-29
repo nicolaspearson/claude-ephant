@@ -16,7 +16,7 @@ ele recall <words>
 Scoped to the current directory's owner, or with `--project <name>` to that project's owner. Widen or narrow only when the user asks or the scope is clearly wrong:
 
 - `--all` or `--owner <name>`: another owner's history. Content then crosses into this session, so say which owner it came from
-- `--kind note,prompt,conversation,tool`
+- `--kind note,prompt,heads-up,conversation,tool`
 - `--since <YYYY-MM-DD|7d>`, `--limit <n>`
 
 ## Project context

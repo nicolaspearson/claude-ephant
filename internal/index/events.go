@@ -25,6 +25,7 @@ var closingCalls = map[string][]string{
 
 const (
 	notesAskCondition = `kind = '` + transcript.EventHookBlock + `' AND name = 'Stop' AND instr(attributes, 'ele:remember') > 0`
+	promptKinds       = `('` + transcript.KindHeadsUp + `', '` + transcript.KindPrompt + `')`
 	proposalSkill     = `(name IN ('handoff', 'remember', 'wrap') OR name LIKE '%:handoff' OR name LIKE '%:remember' OR name LIKE '%:wrap')`
 	wroteNote         = `text LIKE 'Bash: %' AND instr(text, 'ele remember ') > 0 AND instr(text, 'ele remember --help') = 0`
 )
@@ -70,7 +71,7 @@ func duringCondition(during string) (string, []any) {
 		AND julianday(events.timestamp) <= julianday(opener.timestamp) + 2.0 / 24
 		AND NOT EXISTS (SELECT 1 FROM events closer WHERE ` + runEvent("closer") + ` AND NOT ` + named("closer") + `
 			AND closer.timestamp > opener.timestamp AND closer.timestamp <= events.timestamp)
-		AND NOT EXISTS (SELECT 1 FROM entries prompt WHERE prompt.session = events.session AND prompt.subagent = 0 AND prompt.kind = '` + transcript.KindPrompt + `'
+		AND NOT EXISTS (SELECT 1 FROM entries prompt WHERE prompt.session = events.session AND prompt.subagent = 0 AND prompt.kind IN ` + promptKinds + `
 			AND prompt.timestamp > opener.timestamp AND prompt.timestamp <= events.timestamp AND ` + closesRun + `))`
 	return condition, append(append(append([]any{}, names...), names...), closesArguments...)
 }
@@ -168,7 +169,7 @@ func (x *Index) Events(ctx context.Context, query dto.EventQuery) ([]dto.Event, 
 // Bounded by the next prompt: a later reply answers the user. A checkpoint run is no dispute.
 func (x *Index) followBlock(ctx context.Context, event *dto.Event) error {
 	var prompt sql.NullString
-	err := x.db.QueryRowContext(ctx, `SELECT min(timestamp) FROM entries WHERE session = ? AND subagent = 0 AND kind = ? AND timestamp > ?`, event.Session, transcript.KindPrompt, event.Timestamp).Scan(&prompt)
+	err := x.db.QueryRowContext(ctx, `SELECT min(timestamp) FROM entries WHERE session = ? AND subagent = 0 AND kind IN `+promptKinds+` AND timestamp > ?`, event.Session, event.Timestamp).Scan(&prompt)
 	if err != nil {
 		return fmt.Errorf("find the prompt after a hook block: %w", err)
 	}
@@ -304,8 +305,8 @@ func (x *Index) followNotesAsk(ctx context.Context, event *dto.Event) error {
 	if skill.Valid {
 		event.Attributes["skill"] = skill.String
 	}
-	prompts, err := x.db.QueryContext(ctx, `SELECT text, timestamp FROM entries WHERE session = ? AND subagent = 0 AND kind = ? AND timestamp > ? ORDER BY timestamp, id LIMIT 2`,
-		event.Session, transcript.KindPrompt, event.Timestamp)
+	prompts, err := x.db.QueryContext(ctx, `SELECT text, timestamp FROM entries WHERE session = ? AND subagent = 0 AND kind IN `+promptKinds+` AND timestamp > ? ORDER BY timestamp, id LIMIT 2`,
+		event.Session, event.Timestamp)
 	if err != nil {
 		return fmt.Errorf("find the prompts after a notes ask: %w", err)
 	}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/nicolaspearson/claude-ephant/internal/dto"
@@ -11,9 +12,14 @@ import (
 
 const (
 	KindConversation = "conversation"
+	KindHeadsUp      = "heads-up"
 	KindPrompt       = "prompt"
 	KindTool         = "tool"
 )
+
+// Claude Code marks a heads-up only by its text: once sent, its line is a typed prompt's. It arrives as the note's own
+// line, or, sent with Chat in main session, quoted under an intro.
+var headsUpPrefixes = []string{"✦ Heads up ·", "Here is a note offered by a side agent:\n\n> Heads up ·"}
 
 const inputLimit = 300
 
@@ -130,17 +136,25 @@ func Parse(raw []byte) ([]Entry, []dto.TranscriptEvent, error) {
 		userKind = KindConversation
 	}
 
+	userEntry := func(text string) Entry {
+		trimmed := strings.TrimSpace(text)
+		if userKind == KindPrompt && slices.ContainsFunc(headsUpPrefixes, func(prefix string) bool { return strings.HasPrefix(trimmed, prefix) }) {
+			return with(base, KindHeadsUp, text)
+		}
+		return with(base, userKind, text)
+	}
+
 	if blocks == nil {
 		if parsed.Type != "user" || !typed(text) {
 			return nil, events, nil
 		}
-		return []Entry{with(base, userKind, text)}, events, nil
+		return []Entry{userEntry(text)}, events, nil
 	}
 	var entries []Entry
 	for _, block := range blocks {
 		switch {
 		case block.Type == "text" && parsed.Type == "user" && typed(block.Text):
-			entries = append(entries, with(base, userKind, block.Text))
+			entries = append(entries, userEntry(block.Text))
 		case block.Type == "text" && parsed.Type == "assistant" && strings.TrimSpace(block.Text) != "":
 			entries = append(entries, with(base, KindConversation, block.Text))
 		case block.Type == "tool_use" && parsed.Type == "assistant":
@@ -152,6 +166,11 @@ func Parse(raw []byte) ([]Entry, []dto.TranscriptEvent, error) {
 		}
 	}
 	return entries, events, nil
+}
+
+// Prompted reports whether an entry of this kind starts a turn.
+func Prompted(kind string) bool {
+	return kind == KindPrompt || kind == KindHeadsUp
 }
 
 func StartsCommand(command string, prefix string) bool {

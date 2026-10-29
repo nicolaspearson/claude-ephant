@@ -24,12 +24,15 @@ func (x *Index) Usage(ctx context.Context, query dto.UsageQuery) (dto.Usage, err
 		conditions = append(conditions, "timestamp >= ?")
 		arguments = append(arguments, query.Since)
 	}
+	whereKind := func(kind string) string {
+		return " WHERE " + strings.Join(append([]string{kind}, conditions...), " AND ")
+	}
 	where := func(kind string) string {
-		return " WHERE " + strings.Join(append([]string{"kind = '" + kind + "'"}, conditions...), " AND ")
+		return whereKind("kind = '" + kind + "'")
 	}
 
 	var usage dto.Usage
-	err := x.db.QueryRowContext(ctx, `SELECT count(*), count(DISTINCT session) FROM entries`+where("prompt"), arguments...).Scan(&usage.Prompts, &usage.Sessions)
+	err := x.db.QueryRowContext(ctx, `SELECT count(*), count(DISTINCT session) FROM entries`+whereKind("kind IN "+promptKinds), arguments...).Scan(&usage.Prompts, &usage.Sessions)
 	if err != nil {
 		return dto.Usage{}, fmt.Errorf("count prompts: %w", err)
 	}

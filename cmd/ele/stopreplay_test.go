@@ -135,6 +135,20 @@ func TestReplayTranscriptPlacesStopsWhereNoneIsRecorded(t *testing.T) {
 	}, replayed(t, lines), "blocks within 2 s are one stop; a prompt after output, and the last line, are stops")
 }
 
+func TestReplayTranscriptPlacesAStopBeforeASentHeadsUp(t *testing.T) {
+	lines := &replayLines{}
+	lines.prompt().tool("Edit", `{"file_path":"a.go"}`).add(`"type":"user","message":{"content":"✦ Heads up · The retry loop never backs off"}`)
+	headsUp := lines.stamp()
+	lines.tool("Edit", `{"file_path":"b.go"}`)
+	last := lines.stamp()
+
+	var timestamps []string
+	for _, stop := range replayed(t, lines) {
+		timestamps = append(timestamps, stop.Timestamp)
+	}
+	require.Equal(t, []string{headsUp, last}, timestamps, "a sent heads-up after output ends the turn as a prompt does")
+}
+
 func TestReplayTranscriptJudgesNoPlacedStopItHasSeen(t *testing.T) {
 	const ask = "Follow /ele:remember's Propose section now"
 	lines := &replayLines{}
