@@ -59,10 +59,11 @@ A plan is only as good as the questions asked before it starts. `/ele:plan new` 
 
 ## Actions
 
-- [ ] research-plan-skills: Research published planning and spec skills and workflows into a reference file the plan reviewer, `new` and the closing fold read
+- [x] research-plan-skills: Research published planning and spec skills and workflows into a reference file the plan reviewer, `new` and the closing fold read
+  - asserted in the research-plan-skills commit: `plugin/reference/plan-practices.md`, dated 2026-10-29, gives each practice in the primary-source research notes bearing on how a plan is written, reviewed and closed and how a decision is recorded a verdict, tool mechanics left out as its intro says (adopted with its item, proposed to an item, rejected with a reason, or already, naming where), from OpenSpec, spec-kit, Nygard and MADR, mattpocock/skills, Kiro, BMAD and Claude Code; the spec's Plans section names the file; proposed practices and the closing-check gap are Inbox lines; three checkpoint reviewers read it against the notes and the plan skill
   - done when a reference file under `plugin/reference/`, dated, lists each practice found, with its source, and says for each whether ele adopts it, rejects it with a reason, or already does it; the sources include OpenSpec, GitHub spec-kit, ADR practice (Nygard, MADR) and at least two published agent planning skills; the spec names the file
+  - as of 2026-10-29, before this item's change: `plugin/reference/` held `errors.md` and `review-voice.md`; the spec named no practices file, its Plans section's "Borrowed from OpenSpec" line the place to name it. No skill section applies an adopted practice yet, so each names the item that will, review-loop's done-when replacing it with the section
 - [ ] plan-reviewer: `ele:plan-reviewer` reviews a draft plan against its requirements, spec, conventions, accepted ADRs and the reference file
-  - blocked: research-plan-skills
   - done when the agent and its instructions exist as the Decisions set; the reference file holds the ADR-finding rule, for all three series in Context, and the severity scale; by hand, in a scratch git repository holding a spec, an accepted ADR and CLAUDE.md, a draft seeded with one instance of each kind the Decisions have the reviewer report gets each reported, with severity and the line it rests on, and the coverage table; a clean control draft comes back with no blocker or major; the spec and `docs/plans.md` say so
 - [ ] drafts-mode: plan-audit audits an unstarted draft in a Drafts mode
   - blocked: plan-reviewer
@@ -85,6 +86,9 @@ A plan is only as good as the questions asked before it starts. `/ele:plan new` 
 - [ ] Fold what this plan built, and each Decision sorted as decision-fold says, with its out-of-scope lines as `Not doing:`, into the spec, run `ele plan done .documentation/plans/plan-workflow.md`, and delete this plan
 
 ## Inbox
+
+- 2026-10-29, from research-plan-skills' checkpoint: rule on the practices `plugin/reference/plan-practices.md` marks proposed, each by the item it names when that item is picked up, adopting it into a Decision or rejecting it there: plan-reviewer's requirement naming an implementation as a question, prefer the lower severity when unsure, only an accepted ADR binding a draft; review-loop's stable finding ids; decision-fold's hard-to-reverse, surprising and trade-off test for an architectural Decision
+- 2026-10-29, from research-plan-skills' checkpoint: `ele plan check` warns on a closing action ticked while other actions are open, as it does with inbox items; `Check` in `internal/plan` has no such case, as OpenSpec's archive warns on unticked tasks
 
 ## Out of scope
 
