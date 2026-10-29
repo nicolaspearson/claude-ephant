@@ -2,6 +2,8 @@ package plan
 
 import (
 	"context"
+	"encoding/json"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -370,6 +372,30 @@ func TestPreviousPrefersAnUncommittedTick(t *testing.T) {
 	tick, _, err = Previous(context.Background(), root, "plans.md")
 	require.NoError(t, err)
 	require.Equal(t, Tick{Title: "Third"}, tick, "of two ticks in one diff, the later in the file")
+}
+
+func TestWriteStoredLeavesAReaderOfTheEarlierFileItWhole(t *testing.T) {
+	directory := t.TempDir()
+	earlier, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n- [ ] a: A\n"))
+	require.NoError(t, err)
+	require.NoError(t, WriteStored(directory, "id", "earlier.md", earlier))
+	reader, err := os.Open(filepath.Join(directory, "id.json"))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = reader.Close() })
+
+	later, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n- [x] a: A\n- [ ] b: B\n"))
+	require.NoError(t, err)
+	require.NoError(t, WriteStored(directory, "id", "later.md", later))
+
+	content, err := io.ReadAll(reader)
+	require.NoError(t, err)
+	var held Stored
+	require.NoError(t, json.Unmarshal(content, &held))
+	require.Equal(t, Stored{Items: []StoredItem{{Name: "a"}}, Path: "earlier.md"}, held)
+	stored, ok, err := ReadStored(directory, "id")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, Stored{Items: []StoredItem{{Done: true, Name: "a"}, {Name: "b"}}, Path: "later.md"}, stored)
 }
 
 func runGit(t *testing.T, root string, args ...string) {

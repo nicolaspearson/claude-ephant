@@ -54,8 +54,10 @@ Close the gaps ele-features and recipe-audit left: see shipped features work in 
   - as of 2026-10-28, reported by the user: a /clear before 16:45 left the nudge out of the due block and one after showed it again with ↻; the test nudge forgotten, since closing a repeating one re-arms it
   - after: 2026-10-30
   - as of 2026-10-28: the `--everywhere` half waits on the hook-stats nudge, everywhere and every 7 days, next due 2026-10-30, seen in the start block of a session under hyve or bitgorilla, owners other than personal, where it was saved; running /hook-stats or closing the nudge before then moves its due past that day
-- [ ] plan-write-atomic: `WriteStored` in `internal/plan` writes a temp file and renames it, as notes do, so a backup copying `plans/` during an `ele plan done` never takes torn JSON
-  - done when a test sees no partial stored-plan file while one is written, seen red against the in-place write
+- [x] plan-write-atomic: `WriteStored` in `internal/plan` writes a temp file and renames it, as notes do, so a backup copying `plans/` during an `ele plan done` never takes torn JSON
+  - done when a test holding the stored file open across a `WriteStored` still reads the earlier JSON whole and a fresh read gets the new one, seen red against the in-place write; a leftover temp file is never read, since `ReadStored` opens `<id>.json` by name
+  - as of 2026-10-28, premise check: `WriteStored` in `internal/plan` ends in `os.WriteFile` on `<id>.json`; `internal/notes` writes through `os.CreateTemp` and `os.Rename`; `loadPlanSet` in `cmd/ele` reads stored plans only through `ReadStored`, by id
+  - asserted in the plan-write-atomic commit: TestWriteStoredLeavesAReaderOfTheEarlierFileItWhole holds `<id>.json` open across a second `WriteStored`, reads the earlier plan whole from it and the later one through `ReadStored`, red with the in-place `os.WriteFile`; a leftover `<id>.json.*.tmp` is never read, since only `ReadStored` opens `plans/`, by name, and `ele backup` skips `*.tmp`, by code reading, not tested; a remove-then-create write would also pass the test; the spec's backup paragraph says so
 - [ ] backup-order-pinned: a test pins `copyDataDirectory` in `cmd/ele` copying `notes` before `plans`, which keeps a backup consistent because `ele plan done` writes the stored names before marking the note shown
   - done when the test fails with `plans` copied before `notes`, seen red
 - [ ] man-hyphens: recipe audit's man-page lookup runs `LC_ALL=C man <page> </dev/null | col -b`, so a page renders ASCII hyphens

@@ -124,7 +124,7 @@ claude-ephant/
   plans/                    closed plans' item names, one <note id>.json each; ele plan done
 ```
 
-Data never lives in the repo, not even gitignored. `ele backup <dir>` copies `archive/`, `config.json`, `forgotten/`, `mining/`, `notes/`, `owner-map.json`, `plans/` and the database via `VACUUM INTO`, so a restore keeps the names that resolve `blocked:` edges into closed plans. It holds the archive lock, and the mining lock when the cache exists, for the whole copy, leaves out lock files, and refuses a directory that is not empty or lies inside the data directory or a git checkout.
+Data never lives in the repo, not even gitignored. `ele backup <dir>` copies `archive/`, `config.json`, `forgotten/`, `mining/`, `notes/`, `owner-map.json`, `plans/` and the database via `VACUUM INTO`, so a restore keeps the names that resolve `blocked:` edges into closed plans. It holds the archive lock, and the mining lock when the cache exists, for the whole copy, leaves out lock files, and refuses a directory that is not empty or lies inside the data directory or a git checkout. `ele plan done` writes a closed plan's names to a temporary file and renames it into place, so a backup copying `plans/` meanwhile takes the old file or the new one, never a torn one.
 
 ## Configuration
 

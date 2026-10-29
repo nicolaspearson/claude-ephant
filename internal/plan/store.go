@@ -50,5 +50,23 @@ func WriteStored(directory string, id string, path string, parsed Plan) error {
 	if err = os.MkdirAll(directory, 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(directory, id+".json"), append(content, '\n'), 0o644)
+	// Renamed into place, so a backup copying plans/ meanwhile takes the old file or the new one, never a torn one.
+	temporary, err := os.CreateTemp(directory, id+".json.*.tmp")
+	if err != nil {
+		return err
+	}
+	_, err = temporary.Write(append(content, '\n'))
+	if closeErr := temporary.Close(); err == nil {
+		err = closeErr
+	}
+	if err == nil {
+		err = os.Chmod(temporary.Name(), 0o644)
+	}
+	if err == nil {
+		err = os.Rename(temporary.Name(), filepath.Join(directory, id+".json"))
+	}
+	if err != nil {
+		_ = os.Remove(temporary.Name())
+	}
+	return err
 }
