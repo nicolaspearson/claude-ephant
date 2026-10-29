@@ -1,0 +1,12 @@
+schema_version: "1.1"
+name: plan-new-review
+description: /ele:plan new reads the accepted ADR, drafts the plan without the item the ADR rules out, runs at least two audit and review passes over the draft, and does not start the plan unapproved
+runs: 1
+execution:
+  max_turns: 150
+  timeout_seconds: 3600
+  allowed_tools: [Agent, Bash, Glob, Grep, Read, Skill, Write]
+  prompt: |
+    /ele:plan new tally-flags. Plan adding three flags to tally: `--lines` to count lines instead of words, `--json` to print the count as a JSON object, and `--url <url>` to fetch a web page and count its words. Drop anything the spec or an ADR rules out, and say so. AskUserQuestion is not available here: take your recommended answer to every question as mine and the whole as confirmed, without waiting for me, and run every step up to the start. I have not approved starting the plan, so do not run ele plan start; end with the review summary and the plan.
+context:
+  scaffold_script: scaffold.sh
