@@ -1,0 +1,96 @@
+---
+kind: plan
+created: 2026-10-29
+spec: .documentation/specs/design.md
+---
+
+# Plan workflow
+
+## Why
+
+A plan is only as good as the questions asked before it starts. `/ele:plan new` settles questions in rounds but starts the plan unaudited, from a draft only its author has read, and a closed plan takes its decisions' reasons with it. Make `new` and `convert` grounded in checked facts, audited and independently reviewed over several passes before `ele plan start`; send each decision a later reader needs to the home it outlives the plan in; and close the small gaps in naming checks.
+
+## Requirements
+
+1. Starting a new plan follows a rigorous process, so we build the right thing: the plan rests on checked facts and is iterated over several passes before it starts, rather than one round of questions
+2. A review pass ensures the plan meets our requirements, has no contradictions and is industry grade, from research on similarly published skills and the reviewer's own knowledge
+3. Each Decision a later reader needs is recorded where it outlives the plan: its reason in the spec, or an ADR in a repository that keeps ADRs, on approval
+4. `ele plan start` says when a plan could not be checked for a name clash
+5. `ele plan check` warns on an unnamed action
+6. The ticket corpus gives an Inbox line no name
+
+## Context
+
+- As of 2026-10-29: `/ele:plan new` settles questions in rounds, looking facts up through `ele recall` and then the code, writes the plan from `template.md` and starts it; only `convert` audits its drafts with `ele:plan-audit`, passing every draft together
+- As of 2026-10-29: plan-audit's §9 proposes each edit and applies it on approval, ticket-audit asks to approve the audit's scope and puts questions to the user mid-audit, §3 to §8's methods are recorded in a ledger, and findings are ordered by cost with no severity scale
+- As of 2026-10-29: the spec's Plans section says git history is a plan's archive and lists OpenSpec's archive step as not borrowed
+- As of 2026-10-28: folding ele-features into the spec, all three checkpoint reviewers found plan Decisions whose reasons only the plan held (reminder dedup ignoring due, ↻ in both copies, colour off beating `--colour`)
+- As of 2026-10-29: six repositories under `~/Work` keep ADRs under `docs/adr` or `.documentation/adr`: four as `NNNN-slug.md`, one as `NNN-slug.md` beside a `000-template.md`, and one as `ADR_<TOPIC>_NNN_<SLUG>.md`, numbered per topic; claude-ephant keeps none
+- As of 2026-10-22: plans-that-close started unaudited and its first checkpoint raised 18 findings, most of them contradictions and stale premises an audit catches; the figure not re-counted
+- As of 2026-10-29: `loadPlanSet` in `cmd/ele` leaves out an active plan missing from the checkout or not parsing, and a closed plan whose stored record is missing or does not read; the set it builds feeds `ele plan start`, `check` and `show`; `startPlan` refuses a clash and says nothing of what was left out
+- As of 2026-10-29: closed plans finish-build, plans and skill-lessons have no stored record in the personal data directory, so their names are never checked for a clash
+- As of 2026-10-29: `Check` in `internal/plan` has no rule on an unnamed action; it labels one `action` in other warnings
+- As of 2026-10-29: `planItems` in `internal/ticket` takes items under `## Actions` and `## Inbox` with no name, and `planEntries` keys each on `plan.Name` of its title, else the title; an Inbox line `- 2026-10-28: …` is keyed `2026-10-28`, so two from one day share a key, and one `- 2026-10-28, from …` falls back to its title
+- As of 2026-10-29: no eval under `plugin/evals` launches a plugin agent or allows the Agent tool, and its graders use only `type`, `tool`, `input_match`, `min`, `max` and `arm`, so none orders calls; 13 of the 16 list AskUserQuestion in `allowed_tools`, though it was not seen to load; `ele ticket corpus` runs `git rev-parse`, so a scaffold plan must sit in a git repository
+- As of 2026-10-29: `ele:checkpoint-reviewer` runs on `model: sonnet` with Bash, Glob, Grep and Read; `ele:review-reader` on `model: inherit` with Glob, Grep and Read
+- As of 2026-10-29: mr-review's closing action folds what the plan built, and ele-followups' that and its out-of-scope lines; neither sorts its Decisions, and a session closing a plan runs the text in its file, not the template
+
+## Decisions
+
+- Web research on published planning and spec skills runs once, as an item, into a dated reference file under `plugin/reference/`, read by the reviewer, by `new` and by the closing fold: a search per plan costs much and changes little. Each practice the file marks adopted names the skill section that applies it; one needing work outside this plan's items becomes an Inbox line
+- A plan gains an optional `## Requirements` section, numbered, in the user's words: `new` writes it from the confirmed rounds, `convert` from the spec items it quotes, confirmed in its rounds; without it the reviewer checks a draft against its own Decisions. A plan without one, such as one written before it, gets no coverage table from the reviewer or pickup. It is deleted with the plan, the spec then describing what was built. The review loop never edits it: a finding against a requirement goes to the user as a question, since editing it to clear a finding makes the check circular
+- A Context line not verified against code or data says "not checked"
+- The reviewer is its own agent, `ele:plan-reviewer`, on `model: opus` with Read, Grep and Glob and no Bash, its instructions in `plugin/skills/plan/reviewers/plan.md`, never seeing the session that wrote the draft: the author reads a draft as confirmation, and the review leans on the model's own knowledge
+- The reviewer reads the requirements, the plan's `spec:`, the user's and the repository's CLAUDE.md, the repository's accepted ADRs and the reference file, each by absolute path from its brief; it reports requirement coverage as a table of each requirement against its items, an ambiguous or untestable requirement as a question, an item no requirement asks for, contradictions with the spec or an ADR, an item breaking a CLAUDE.md rule, done-when lines not observable, not achievable or able to pass while the requirement fails, and practices the reference file or its own knowledge says are missing; code premises, contradictions between items and plans, and `blocked:` edges stay plan-audit's
+- plan-audit gains a Drafts mode for an unstarted draft: §1's corpus and §2's subagents, then only §3 to §8's methods, no §0, §9 or §10, no scope approval, no per-edit approval, no ledger writes, each finding given a severity, and its questions handed back to the loop rather than asked; it reads `## Requirements` with Context and Decisions. `new` passes it the draft with every active plan, as `convert` passes all its drafts
+- The review loop runs at least 2 passes and at most 3, each running plan-audit's Drafts mode and a fresh reviewer: the second checks the revision itself, as the checkpoint's re-review does. Each finding gets a verdict before any revision, fixed, refuted, deliberate or open, with its reason, so a false positive never silently becomes an edit; a later pass's brief carries earlier findings with their verdicts as settled, re-raised only with new evidence. Findings carry a severity from the reference file's scale; the loop ends when no blocker or major is open after pass 2, or after pass 3, what is open then going to the user as questions, minors listed without blocking; the user then sees the verdicts and a diff from the first draft
+- `convert` runs the same loop over its drafts: both entry points draft plans
+- A rigorous `new` is asserted by an eval grading tool calls and the draft's Write content, not an LLM judge, since judges failed correct replies; `ele plan start` is graded at max 0 under a prompt that confirms the rounds but not the start, so the order of calls needs no grader; a real session run is also required, since AskUserQuestion was not seen to load in evals. Should a plugin agent not load in the eval sandbox, the eval grades the audit calls, the draft and the start alone, the reviewer's launch rests on the real session run, and an inbox line records the gap
+- The closing action sorts each Decision: process ones go with the plan; design ones carry their reason into the spec, or with no spec become a `decision` note; architectural ones become an ADR, proposed as a draft and written on approval, only where the repository already keeps ADRs, a repository without them never getting one unasked
+- An architectural Decision carries a `rejected: <option>, because …` line for each option it turned down, written by `new` and `convert` and shown in the template, so an ADR drafted at close has its considered options
+- An ADR follows the repository's own format and status line and takes the next number in its series; superseding an existing ADR is its own question
+- `new` reads the repository's accepted ADRs as settled constraints, and the reviewer reports a draft item contradicting one as a finding
+- The rule for finding ADRs, where they live, which formats count, what accepted means and the next number in a series, and the severity scale, a blocker being a plan that would build the wrong thing or cannot finish, a major a requirement that could go undelivered or an item that cannot be ticked as written, a minor anything else, are each written once, in the reference file, by plan-reviewer; plan-audit's Drafts mode and the plan skill point at them
+- claude-ephant stays spec-only: its specs carry each decision's reason
+- A closed plan with no stored record counts as unchecked for a clash, and the records missing here are backfilled from each plan's last commit, so the line does not fire on every start; no command writes a closed plan's record today, `ele plan done` refusing a plan not active, so the item chooses how
+- Ticket Inbox items are keyed on their title, matching `internal/plan`, which names only `## Actions` items; ledger rulings on a date-keyed Inbox item are dropped, since Inbox lines are triaged, not ruled
+- `ele plan check` warns only on an open unnamed action other than the closing one, as it does for a missing done-when
+- The rigour items come first, in file order, each one session's work
+
+## Actions
+
+- [ ] research-plan-skills: Research published planning and spec skills and workflows into a reference file the plan reviewer, `new` and the closing fold read
+  - done when a reference file under `plugin/reference/`, dated, lists each practice found, with its source, and says for each whether ele adopts it, rejects it with a reason, or already does it; the sources include OpenSpec, GitHub spec-kit, ADR practice (Nygard, MADR) and at least two published agent planning skills; the spec names the file
+- [ ] plan-reviewer: `ele:plan-reviewer` reviews a draft plan against its requirements, spec, conventions, accepted ADRs and the reference file
+  - blocked: research-plan-skills
+  - done when the agent and its instructions exist as the Decisions set; the reference file holds the ADR-finding rule, for all three series in Context, and the severity scale; by hand, in a scratch git repository holding a spec, an accepted ADR and CLAUDE.md, a draft seeded with one instance of each kind the Decisions have the reviewer report gets each reported, with severity and the line it rests on, and the coverage table; a clean control draft comes back with no blocker or major; the spec and `docs/plans.md` say so
+- [ ] drafts-mode: plan-audit audits an unstarted draft in a Drafts mode
+  - blocked: plan-reviewer
+  - done when plan-audit's skill has the Drafts mode the Decisions set, pointing at the reference file's severity scale; by hand over a scratch draft beside the active plans, it reports a seeded contradiction with another active plan as a major, asks nothing and writes no ledger record; the spec and `docs/plans.md` say so
+- [ ] review-loop: `/ele:plan new` and `convert` ground each round in checked facts and accepted ADRs, write `## Requirements` and `rejected:` lines, then draft, audit, review and revise, 2 to 3 passes, before `ele plan start`
+  - blocked: drafts-mode
+  - done when the plan skill's `new` and `convert` say each step the Decisions set for them and the loop; `template.md` holds `## Requirements` and a `rejected:` line; the reference file names the section applying each adopted practice, and Inbox holds a line for each needing work outside this plan's items; the spec and `docs/plans.md` say so
+- [ ] new-eval: An eval and a real session show `/ele:plan new` running the review loop
+  - blocked: review-loop
+  - done when a probe shows whether a plugin agent and AskUserQuestion load in the eval sandbox, written under this item; an eval through the clone plugin, as the Decisions set, its scaffold a git repository with a spec and an accepted ADR, one ruling out an item the prompt asks for, its prompt saying to drop what the spec or an ADR rules out and say so, grades a Read of a scaffold path, the draft's Write without the ruled-out item under Actions, at least two `ele ticket corpus` calls, one per pass, at least two `ele:plan-reviewer` Agent calls where the probe allows, and `ele plan start` at max 0, seen red on the old skill; a real session's `/ele:plan new` is observed reviewing twice, with a verdict per finding and the diff shown, what was seen written under this item
+- [ ] decision-fold: The closing action sorts each Decision into process, design or architectural, and folds it where it outlives the plan
+  - blocked: review-loop
+  - done when `template.md`'s closing action names the plan skill section holding the sort, and that section, the spec and `docs/plans.md` say how each kind is folded; every plan active at the time has its closing action rewritten to sort its Decisions; by hand on a scratch copy of one of them holding design Decisions, the fold carries each one's reason into the spec; in a fixture repository for each ADR series in Context, an architectural Decision is drafted as the next in that series, with its rejected options, and written on approval, and nothing is written when declined; with no `spec:`, a design Decision is proposed as a `decision` note; what was seen written under this item
+- [ ] start-clash-unchecked: `ele plan start` says when an active plan missing from the checkout or not parsing, or a closed plan whose record is missing or unreadable, could not be checked for a name clash
+  - done when a test starting a plan beside each of the four starts the plan, exits 0 and prints a line naming what was unchecked, and one with every record readable prints none, seen red; records for finish-build, plans and skill-lessons exist, each holding the item names of its plan's last commit, how they were written said under this item; the spec, `docs/plans.md` and `ele plan start --help` say so
+- [ ] unnamed-action-warning: `ele plan check` warns on an unnamed action, as the Decisions set
+  - done when a test gets a warning on an open unnamed action and none on a ticked one or the closing action, seen red; the spec, `docs/plans.md`'s warnings list, plan-audit's warnings list and `ele plan check --help` say so
+- [ ] ticket-inbox-names: The ticket corpus keys an Inbox item on its title
+  - done when a test of `planEntries` in `internal/ticket` keys an Inbox line starting `word: `, and two starting `- 2026-10-28:` from one day, each on its own title, and an Actions item on its name, seen red; `checkpoint-and-ticket-audit.md`, plan-audit's ledger-key rules and the plan skill's "an item starting `word:` is read as named" say only an action is named, an Inbox item keyed on its title
+- [ ] Fold what this plan built, and each Decision sorted as decision-fold says, with its out-of-scope lines as `Not doing:`, into the spec, run `ele plan done .documentation/plans/plan-workflow.md`, and delete this plan
+
+## Inbox
+
+## Out of scope
+
+- Parallel worktrees, and grouping several items into one session: they change how a plan runs, their own plan scoped by a rigorous `new` (ruled 2026-10-29, from the scoping rounds)
+- Archiving a closed plan's text on `ele plan done`: git is the archive, and the decision fold keeps the reasons that were lost (ruled 2026-10-29, from the scoping rounds)
+- Reviewing a plan amended mid-way, such as an inbox line moved into an action: pickup's premise check and the checkpoint already review plan edits (ruled 2026-10-29, from the review passes)
+- `serves:` lines tracing each item to its requirements: the reviewer's coverage table does that work (ruled 2026-10-29, from the review passes)
+- Writing an ADR mid-plan rather than at close: a Decision can still change before the plan closes (ruled 2026-10-29, from the review passes)
+- A cost budget for the review loop: the 3-pass cap bounds it (ruled 2026-10-29, from the review passes)
