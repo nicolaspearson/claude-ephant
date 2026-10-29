@@ -91,7 +91,7 @@ themselves.
   - done when a published finding's log line carries its anchor and the forge's answer, `ele checkpoint log` validates it and refuses a malformed one, and stats count anchors by kind and result, each tested and seen red
   - from the inbox, 2026-10-26: the review log carries no anchor per finding, and no GitLab review has sent `line_range`
   - as of 2026-10-27: on GitHub, `GET pulls/<n>/reviews/<id>/comments` returned `start_line` and `line` as null for a published review's comments, while `GET pulls/<n>/comments` gave 21 to 23 and 11; the anchor log reads them from the latter
-- [ ] Fold what this plan built into `.documentation/specs/review.md`, run `ele plan done .documentation/plans/mr-review.md`, and delete this plan
+- [ ] Fold each Decision through `/ele:plan-audit close .documentation/plans/mr-review.md`, then what this plan built and its out-of-scope lines as `Not doing:` into `.documentation/specs/review.md`, run `ele plan done .documentation/plans/mr-review.md`, and delete this plan
 
 ## Inbox
 

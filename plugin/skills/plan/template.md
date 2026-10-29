@@ -27,7 +27,7 @@ spec: <path to the spec this plan implements, from the git root; delete the line
 
 - [ ] <kebab-name>: <first item: one session's work>
   - done when <what is observable once it is done>
-- [ ] Fold what this plan built, and its out-of-scope lines as `Not doing:`, into the spec, run `ele plan done .documentation/plans/<name>.md`, and delete this plan
+- [ ] Fold each Decision through `/ele:plan-audit close .documentation/plans/<name>.md`, then what this plan built and its out-of-scope lines as `Not doing:` into the spec, run `ele plan done .documentation/plans/<name>.md`, and delete this plan
 
 ## Inbox
 

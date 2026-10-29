@@ -17,7 +17,7 @@ works from any directory; see [Owners](owners.md).
 | `/ele:handoff`          | Write the handoff the next session opens with, or `list` pending and closed ones; see [Handoffs](handoffs-and-reminders.md#handoffs) |
 | `/ele:mine`             | Judge past checkpoint runs and review cycles, for tuning the checkpoint skill                    |
 | `/ele:plan`             | Pick up the active plan, or `new <name>` or `convert <spec>`; see [Plans](plans.md)              |
-| `/ele:plan-audit`       | Audit active plans against the code and each other                                               |
+| `/ele:plan-audit`       | Audit active plans against the code and each other, `drafts` before a start, or `close` a plan's Decisions |
 | `/ele:recall`           | Search earlier sessions; see [Recall](notes-and-recall.md#recall)                                 |
 | `/ele:recipe`           | Keep a procedure the session ran as a skill of your own, or `audit` your skills for stale commands; see [Recipes](recipes.md) |
 | `/ele:remember`         | Save a decision, question, fact or reminder                                                       |

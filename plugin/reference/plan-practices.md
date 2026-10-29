@@ -389,8 +389,8 @@ How a draft finds the ADRs it is held to, and how an ADR is numbered:
 
 - **Write an ADR only when the decision is hard to reverse, surprising
   without context, and the result of a real trade-off** (domain-modeling).
-  Proposed for decision-fold: the test that sorts a Decision as
-  architectural
+  Adopted in plan-audit's Close mode: the test that sorts a Decision as
+  architectural, all three parts required
 - **ADRs for design decisions too** (adr.github.io). Rejected: a design
   Decision's reason goes into the spec; ADRs hold architectural ones
 - **Considered options and the chosen one "because …"** (MADR; spec-kit's
@@ -402,7 +402,8 @@ How a draft finds the ADRs it is held to, and how an ADR is numbered:
   repository's format holds them
 - **Sections: context of value-neutral forces, a decision in active voice,
   status, every consequence, good and bad** (Nygard; MADR's "Good, because"
-  and "Bad, because", its decision drivers). Adopted by decision-fold, where
+  and "Bad, because", its decision drivers). Adopted in plan-audit's Close
+  mode for context, decision and every consequence, good and bad, where
   the repository's own format holds those sections
 - **Confirmation: how compliance with the ADR is checked** (MADR). Rejected
   as ele's addition: the ADR is written at close, after the done-when lines
@@ -411,16 +412,16 @@ How a draft finds the ADRs it is held to, and how an ADR is numbered:
   addition: the repository's format sets its fields
 - **Numbered sequentially, never reused, per category where a repository
   numbers that way; a superseded record kept, pointing at its replacement**
-  (Nygard, MADR). Adopted by decision-fold: the next number in the
+  (Nygard, MADR). Adopted in plan-audit's Close mode: the next number in the
   repository's series; superseding is its own question
 - **Status values** proposed, accepted, deprecated, superseded, and MADR's
   rejected (Nygard, MADR). Adopted in [ADRs](#adrs) below, which
   `plan/reviewers/plan.md`'s Read and the plan skill's Grounding apply: only
   an accepted ADR binds a draft
 - **A minimal record: context, the decision and why, in a few sentences**
-  (MADR's minimal template; domain-modeling's 1-3 sentences). Adopted by
-  decision-fold where the repository's format is that short; otherwise its
-  format rules
+  (MADR's minimal template; domain-modeling's 1-3 sentences). Adopted in
+  plan-audit's Close mode where the repository's format is that short;
+  otherwise its format rules
 - **One decision per record, one or two pages, written for a future
-  developer** (Nygard). Adopted by decision-fold: one ADR per architectural
-  Decision
+  developer** (Nygard). Adopted in plan-audit's Close mode: one ADR per
+  architectural Decision

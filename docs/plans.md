@@ -83,7 +83,7 @@ created: 2026-10-23
 - [ ] drop-rescans: Skip files whose size has not changed
   - blocked: batch-writes
   - done when …
-- [ ] Propose each out-of-scope line as a `decision` through `/ele:remember`, run `ele plan done .documentation/plans/faster-sync.md`, and delete this plan
+- [ ] Fold each Decision through `/ele:plan-audit close .documentation/plans/faster-sync.md`, propose each out-of-scope line as a `decision` through `/ele:remember`, run `ele plan done .documentation/plans/faster-sync.md`, and delete this plan
 
 ## Inbox
 
@@ -115,9 +115,11 @@ created: 2026-10-23
   own UUID passes; with the index unreadable it warns on every such line
 - **`## Inbox`** takes work found mid-session, each line dated with where it came
   from. **`## Out of scope`** keeps what was ruled out, and why
-- **The last action** closes the plan: with a spec, fold what the plan built into
-  it; without one, propose each out-of-scope line as a decision note. Then
-  `ele plan done`, and delete the file. Git history is its archive
+- **The last action** closes the plan: fold each Decision where it outlives the
+  plan, as [Closing one](#closing-one) sorts it; then, with a spec, fold what
+  the plan built into it; without one, propose each out-of-scope line as a
+  decision note. Then `ele plan done`, and delete the file. Git history is its
+  archive
 
 ## Working through one
 
@@ -146,6 +148,9 @@ ele plan check              # warnings: stale dates, done blockers, old inbox it
 other: premises that no longer hold, items that contradict, waits nothing will
 end, inbox items to triage, and plans ready to close. Run it before picking up a
 plan after time away, or when plans feel stuck.
+
+`/ele:plan-audit close <path>` runs no audit: it sorts a closing plan's
+Decisions, as [Closing one](#closing-one) says.
 
 `/ele:plan-audit drafts <path>...` audits plans not yet started, for a review
 before `ele plan start`, adding every active plan itself; the review loop runs
@@ -179,7 +184,20 @@ partially accepted one binds for the part it says is in force.
 ## Closing one
 
 Once the last action is the only one open and the inbox is empty, do the last
-action. `ele plan done <path>`, run from the plan's checkout, closes the plan
+action. It first runs `/ele:plan-audit close <path>`, which Claude can start
+itself, so the sort runs however the closing action is reached. It sorts each Decision into one of three kinds, shows you the sort
+with each fold drafted, and writes what you approve:
+
+- **Architectural**: hard to reverse, surprising without context, and the
+  result of a real trade-off, all three. In a repository that keeps ADRs it is
+  drafted as the next ADR in its series, in that series' format, its
+  `rejected:` lines as the options considered. Declined, or in a repository
+  with no ADRs, it is folded as design: ele never starts an ADR series unasked
+- **Design**: why what was built behaves as it does. Its reason goes into the
+  spec beside that behaviour; with no spec, it is proposed as a decision note
+- **Process**: how the plan was run, such as its order. It goes with the plan
+
+`ele plan done <path>`, run from the plan's checkout, closes the plan
 and keeps its item names, so a `blocked:` line in another plan still resolves
 and names stay unique after the file is deleted. It closes whatever it is given,
 so check the inbox is empty first; `ele plan check` says when only the last

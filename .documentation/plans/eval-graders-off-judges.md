@@ -51,7 +51,7 @@ An LLM judge's verdict is not stable: in setup-maps a Haiku judge passed a reply
 - [ ] recipe-wrap-graders: the `type: llm` graders of recipe-asks, recipe-writes, recipe-writes-dir, wrap-asks, wrap-deferred, wrap-recipe and wrap-recipe-off follow the rule
   - blocked: grader-rule; the conversions follow the rule as written
   - done when each of `recipe-asks/asks`, `recipe-writes/reports`, `recipe-writes-dir/reports`, `wrap-asks/asks`, `wrap-deferred/open-work`, `wrap-recipe/proposes` and `wrap-recipe-off/no-recipe` is a `tool_used` or `regex` grader or one-claim `llm` graders, no remaining `llm` grader judging a claim a `tool_used` or `regex` grader could check, or one the case does not exist to test, per the rule grader-rule wrote; each dropped claim listed under this item with its reason, each new pattern seen red by hand probe; `task format`, `task check FORCE=1` and `task audit` pass; and each of those seven cases' eval runs, as the Decisions set them, on the user's go, has its per-grader results written under this item, naming any grader whose verdict split across a case's runs; each failed or split verdict traced to the reply or the grader, a grader at fault fixed and its case run again, a reply at fault written down as the model's failure with its reason
-- [ ] Propose each out-of-scope line as a `decision` through `/ele:remember`, run `ele plan done .documentation/plans/eval-graders-off-judges.md`, and delete this plan
+- [ ] Fold each Decision through `/ele:plan-audit close .documentation/plans/eval-graders-off-judges.md`, propose each out-of-scope line as a `decision` through `/ele:remember`, run `ele plan done .documentation/plans/eval-graders-off-judges.md`, and delete this plan
 
 ## Inbox
 

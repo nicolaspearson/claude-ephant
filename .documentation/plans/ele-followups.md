@@ -88,7 +88,7 @@ Close the gaps ele-features and recipe-audit left: see shipped features work in 
   - done when no grader matches a quoted `grep -E` alternation holding its target after the `|`, double- or single-quoted: `deploy-dev` or `bin/deploy-dev` for `no-run-step`, `forge`, `bin/forge` or `cli.js` for `no-run-script`, `npx @acme/sbom` for `no-run-runner`; and every command each grader matches or misses today, outside an open quote, it still matches or misses, a pipe such as `ls | forge` included; each seen red, by hand probe
   - as of 2026-10-29, by hand probe in node over a JSON-encoded Bash input: `no-run-step` matches `grep -E "forge|deploy-dev" SKILL.md`, the `|` taken as a separator; `no-run-script` matches `grep -E "deploy-dev|forge" SKILL.md` and `grep -E "x|cli.js" f`; `no-run-runner` matches `grep -E "x|npx @acme/sbom" SKILL.md`; neither of the first two matches `cat bin/deploy-dev`; `no-run-script` matches `ls | forge`. A `|` inside an open quote is an alternation and one outside a pipe, and no pattern tracks quotes, so that is the discriminator to build
   - as of 2026-10-29, not in this item: `no-run-script` misses single-quoted runs, `bash -c 'forge'`, since its lookahead after `forge` excludes `'`; `no-run-runner` misses a quoted path to the runner, `"/usr/bin/npx" @acme/sbom`
-- [ ] Fold what this plan built, and its out-of-scope lines as `Not doing:`, into the spec, run `ele plan done .documentation/plans/ele-followups.md`, and delete this plan
+- [ ] Fold each Decision through `/ele:plan-audit close .documentation/plans/ele-followups.md`, then what this plan built and its out-of-scope lines as `Not doing:` into the spec, run `ele plan done .documentation/plans/ele-followups.md`, and delete this plan
 
 ## Inbox
 
