@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -13,6 +14,13 @@ import (
 	"github.com/nicolaspearson/claude-ephant/internal/archive"
 	"github.com/nicolaspearson/claude-ephant/internal/store"
 )
+
+func TestBackupCopiesNotesBeforePlans(t *testing.T) {
+	notesAt, plansAt := slices.Index(backupParts, "notes"), slices.Index(backupParts, "plans")
+	require.NotEqual(t, -1, notesAt)
+	require.NotEqual(t, -1, plansAt)
+	require.Less(t, notesAt, plansAt, "ele plan done stores a plan's names before marking its note closed, so a note copied as closed has whatever names were stored in the plans copied after it")
+}
 
 func TestRunBackupCopiesTheDataDirectoryAndTheIndex(t *testing.T) {
 	home := recallFixture(t)
