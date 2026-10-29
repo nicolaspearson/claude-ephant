@@ -128,6 +128,13 @@ func checkoutRoot() (string, error) {
 	return filepath.EvalSymlinks(index.GitRoot(directory))
 }
 
+func closedPlans(all []notes.Note, project string) []notes.Note {
+	superseded := supersededBy(all)
+	return slices.DeleteFunc(newestOfKind(all, notes.KindPlan, project), func(note notes.Note) bool {
+		return note.Shown == "" || superseded[note.ID] != ""
+	})
+}
+
 func listPlans(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
 	flags := newFlagSet("plan list", stderr)
 	listAll := flags.Bool("all", false, "add done and superseded plans")
@@ -191,7 +198,17 @@ func planDone(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 		root, _ = checkoutRoot()
 	}
 	active := activePlans(scope.all, scope.project)
-	var chosen []notes.Note
+	unrecorded := slices.DeleteFunc(closedPlans(scope.all, scope.project), func(note notes.Note) bool {
+		_, ok, readErr := plan.ReadStored(planStore(scope.noteDirectory), note.ID)
+		return readErr == nil && ok
+	})
+	appendNew := func(list []notes.Note, note notes.Note) []notes.Note {
+		if slices.ContainsFunc(list, func(other notes.Note) bool { return other.ID == note.ID }) {
+			return list
+		}
+		return append(list, note)
+	}
+	var chosen, toRecord []notes.Note
 	// Checked before any is closed, so a mistyped argument closes nothing.
 	for _, argument := range arguments {
 		relative := ""
@@ -199,17 +216,34 @@ func planDone(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 			relative, _ = planPath(root, argument)
 		}
 		// The resolved path before the raw body, which from a subdirectory can name another plan.
-		at := slices.IndexFunc(active, func(note notes.Note) bool { return note.ID == argument || note.Body == relative })
-		if at < 0 {
-			at = slices.IndexFunc(active, func(note notes.Note) bool { return note.Body == argument })
+		find := func(plans []notes.Note) int {
+			if at := slices.IndexFunc(plans, func(note notes.Note) bool { return note.ID == argument || note.Body == relative }); at >= 0 {
+				return at
+			}
+			return slices.IndexFunc(plans, func(note notes.Note) bool { return note.Body == argument })
 		}
-		if at < 0 {
-			fmt.Fprintf(stderr, "ele: %s is not an active plan of %s; ele plan list lists them, --project <name> for another project's\n", argument, present(scope.owner, scope.project))
+		if at := find(active); at >= 0 {
+			chosen = appendNew(chosen, active[at])
+			continue
+		}
+		if at := find(unrecorded); at >= 0 {
+			// The file there is the active plan's, so it would store the wrong names.
+			if slices.ContainsFunc(active, func(note notes.Note) bool { return note.Body == unrecorded[at].Body }) {
+				fmt.Fprintf(stderr, "ele: closed plan %s (%s) shares its path with an active plan, so its names cannot be read from it\n", unrecorded[at].Body, unrecorded[at].ID)
+				return 1
+			}
+			toRecord = appendNew(toRecord, unrecorded[at])
+			continue
+		}
+		fmt.Fprintf(stderr, "ele: %s is not an active plan of %s; ele plan list lists them, --project <name> for another project's\n", argument, present(scope.owner, scope.project))
+		return 1
+	}
+	for _, note := range toRecord {
+		if _, storeErr := storePlanItems(ctx, root, scope.noteDirectory, note); storeErr != nil {
+			fmt.Fprintf(stderr, "ele: item names of closed plan %s not stored: %v\n", note.Body, redact.Redact(storeErr.Error()))
 			return 1
 		}
-		if !slices.ContainsFunc(chosen, func(note notes.Note) bool { return note.ID == active[at].ID }) {
-			chosen = append(chosen, active[at])
-		}
+		fmt.Fprintf(stdout, "Stored the item names of closed plan %s (%s), so they resolve edges and stay reserved.\n", note.Body, note.ID)
 	}
 	now := time.Now()
 	for _, note := range chosen {
@@ -458,7 +492,8 @@ func startPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.W
 		fmt.Fprintf(stderr, "ele: %s is already started; ele plan show prints it\n", relative)
 		return 1
 	}
-	if clashes := loadPlanSet(root, scope.all, scope.project, scope.noteDirectory).clashes(relative, parsed); len(clashes) > 0 {
+	plans := loadPlanSet(root, scope.all, scope.project, scope.noteDirectory)
+	if clashes := plans.clashes(relative, parsed); len(clashes) > 0 {
 		fmt.Fprintf(stderr, "ele: %s: %s; %s\n", relative, strings.Join(clashes, ", "), namesUnique)
 		return 1
 	}
@@ -485,6 +520,17 @@ func startPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.W
 		return 1
 	}
 	fmt.Fprintf(stdout, "Started plan %s as %s; ele plan show prints its next item.\n", relative, id)
+	var unchecked []string
+	for _, left := range plans.unchecked {
+		// A closed plan at this path may share its names, as clashes allows.
+		if left.path != relative {
+			unchecked = append(unchecked, left.reason)
+		}
+	}
+	if len(unchecked) > 0 {
+		slices.Sort(unchecked)
+		fmt.Fprintf(stdout, "Not checked for a name clash: %s.\n", strings.Join(unchecked, "; "))
+	}
 	return 0
 }
 

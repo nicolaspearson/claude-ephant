@@ -50,7 +50,11 @@ ele plan start .documentation/plans/<name>.md
 ```
 
 It refuses a file without `kind: plan` in its front matter and a checkbox under
-`## Actions`.
+`## Actions`, and an item name another active or closed plan holds. It starts
+the plan but names what it could not check for that clash: an active plan
+missing from the checkout, unreadable or not parsing, and a closed plan with no
+readable record of its names, which `ele plan done <id>` stores from its file or
+last commit.
 
 ## The format
 

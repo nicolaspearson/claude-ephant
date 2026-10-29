@@ -98,11 +98,14 @@ ele plan check [<path>]
 ele plan done [--owner <name>] [--project <name>] <path|id>...
 ```
 
-`start` makes a plan file active. `show` prints its counts, previous item,
+`start` makes a plan file active, refusing an item name another plan holds and
+naming each plan it could not check for one. `show` prints its counts, previous item,
 blocked items and next item, the project's active plan by default. `list` lists
 active plans; `--all` adds done and superseded ones. `check` lists each plan's
 warnings with their lines. `done` closes a plan and keeps its item names, so run
 it from the plan's checkout once its last item is done; it does not check.
+Given a closed plan with no readable record of its names, `done` stores one from
+the plan's file or last commit.
 
 ## History
 

@@ -23,32 +23,52 @@ const namesUnique = "item names are unique across active and closed plans"
 // Tests fix it, so a dated fixture does not age into a warning.
 var planClock = time.Now
 
-// A plan missing from the checkout or not parsing is left out: it resolves no edge and clashes with nothing.
+// A plan that cannot be loaded is left out and named in unchecked: it resolves no edge and clashes with nothing.
 type planSet struct {
 	active        map[string]plan.Plan
 	activePaths   []string
 	closed        []plan.Stored
 	dataDirectory string
+	unchecked     []uncheckedPlan
+}
+
+type uncheckedPlan struct {
+	path   string
+	reason string
 }
 
 func loadPlanSet(root string, all []notes.Note, project string, noteDirectory string) planSet {
 	set := planSet{active: map[string]plan.Plan{}, dataDirectory: filepath.Dir(noteDirectory)}
+	leaveOut := func(note notes.Note, format string, arguments ...any) {
+		set.unchecked = append(set.unchecked, uncheckedPlan{path: note.Body, reason: fmt.Sprintf(format, arguments...)})
+	}
 	for _, note := range activePlans(all, project) {
 		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(note.Body)))
+		if errors.Is(err, fs.ErrNotExist) {
+			leaveOut(note, "active plan %s, missing from the checkout", note.Body)
+			continue
+		}
 		if err != nil {
+			leaveOut(note, "active plan %s, which does not read", note.Body)
 			continue
 		}
-		if parsed, err := plan.Parse(content); err == nil {
-			set.active[note.Body] = parsed
-			set.activePaths = append(set.activePaths, note.Body)
+		parsed, err := plan.Parse(content)
+		if err != nil {
+			leaveOut(note, "active plan %s, which does not parse", note.Body)
+			continue
 		}
+		set.active[note.Body] = parsed
+		set.activePaths = append(set.activePaths, note.Body)
 	}
-	superseded := supersededBy(all)
-	for _, note := range newestOfKind(all, notes.KindPlan, project) {
-		if note.Shown == "" || superseded[note.ID] != "" {
-			continue
-		}
-		if stored, ok, err := plan.ReadStored(planStore(noteDirectory), note.ID); err == nil && ok {
+	// The hint names the id: given the path, ele plan done takes an active plan restarted there first.
+	for _, note := range closedPlans(all, project) {
+		stored, ok, err := plan.ReadStored(planStore(noteDirectory), note.ID)
+		switch {
+		case err != nil:
+			leaveOut(note, "closed plan %s, whose stored record does not read (ele plan done %s rewrites it)", note.Body, note.ID)
+		case !ok:
+			leaveOut(note, "closed plan %s, with no stored record (ele plan done %s writes it)", note.Body, note.ID)
+		default:
 			set.closed = append(set.closed, stored)
 		}
 	}

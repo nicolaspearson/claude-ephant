@@ -278,6 +278,74 @@ func TestRunPlanShowFreesAnItemOnceAnotherPlansBlockerIsTicked(t *testing.T) {
 	require.Equal(t, "Plan other.md: 1 open, 0 blocked, 0 done, 0 in the inbox.\n1 warning; ele plan check other.md lists it.\nFlagged:\n- wire: Wire\n  flag: blocker build/commands is done; drop it from blocked:\nNext, line 5:\n- [ ] wire: Wire\n  blocked: build/commands\n", output)
 }
 
+func TestRunPlanStartNamesThePlansItCouldNotCheckAndDoneStoresAClosedPlansRecord(t *testing.T) {
+	home := recallFixture(t)
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	records := filepath.Join(home, "data", "plans")
+	named := func(name string) string {
+		return "---\nkind: plan\n---\n## Actions\n- [ ] " + name + ": " + name + "\n"
+	}
+	t.Chdir(gateway)
+	ids := map[string]string{}
+	for _, name := range []string{"broken", "directory", "gone", "missing", "unreadable"} {
+		writeFile(t, filepath.Join(gateway, name+".md"), named(name))
+		output, code := runCommand(t, "plan", "start", name+".md")
+		require.Equal(t, 0, code, output)
+		ids[name] = started.FindStringSubmatch(output)[2]
+	}
+	for _, name := range []string{"gone", "unreadable"} {
+		output, code := runCommand(t, "plan", "done", name+".md")
+		require.Equal(t, 0, code, output)
+	}
+	require.NoError(t, os.Remove(filepath.Join(records, ids["gone"]+".json")))
+	writeFile(t, filepath.Join(records, ids["unreadable"]+".json"), "not json")
+	require.NoError(t, os.Remove(filepath.Join(gateway, "missing.md")))
+	writeFile(t, filepath.Join(gateway, "broken.md"), "---\nkind: spec\n---\n")
+	require.NoError(t, os.Remove(filepath.Join(gateway, "directory.md")))
+	require.NoError(t, os.Mkdir(filepath.Join(gateway, "directory.md"), 0o755))
+
+	writeFile(t, filepath.Join(gateway, "next.md"), named("gone"))
+	output, code := runCommand(t, "plan", "start", "next.md")
+	require.Equal(t, 0, code, output)
+	require.Regexp(t, `^Started plan next\.md as \d{8}-[0-9a-f]{6}; ele plan show prints its next item\.\n`+
+		regexp.QuoteMeta("Not checked for a name clash: active plan broken.md, which does not parse; active plan directory.md, which does not read; active plan missing.md, missing from the checkout; "+
+			"closed plan gone.md, with no stored record (ele plan done "+ids["gone"]+" writes it); closed plan unreadable.md, whose stored record does not read (ele plan done "+ids["unreadable"]+" rewrites it).\n")+`$`, output,
+		"a name the unchecked closed plan used starts unrefused")
+
+	output, code = runCommand(t, "plan", "done", ids["gone"], "unreadable.md", "next.md")
+	require.Equal(t, 0, code, output)
+	stored, _, found := strings.Cut(output, "Done with plan next.md")
+	require.True(t, found, output)
+	require.Equal(t, "Stored the item names of closed plan gone.md ("+ids["gone"]+"), so they resolve edges and stay reserved.\n"+
+		"Stored the item names of closed plan unreadable.md ("+ids["unreadable"]+"), so they resolve edges and stay reserved.\n", stored)
+	writeFile(t, filepath.Join(gateway, "missing.md"), named("missing"))
+	writeFile(t, filepath.Join(gateway, "broken.md"), named("broken"))
+	require.NoError(t, os.Remove(filepath.Join(gateway, "directory.md")))
+	writeFile(t, filepath.Join(gateway, "directory.md"), named("directory"))
+
+	writeFile(t, filepath.Join(gateway, "again.md"), named("unreadable"))
+	output, code = runCommand(t, "plan", "start", "again.md")
+	require.Equal(t, 1, code)
+	require.Equal(t, "ele: again.md: item name \"unreadable\" was used by closed plan unreadable.md; item names are unique across active and closed plans\n", output, "the rewritten record reserves its names")
+	writeFile(t, filepath.Join(gateway, "again.md"), named("fresh"))
+	output, code = runCommand(t, "plan", "start", "again.md")
+	require.Equal(t, 0, code, output)
+	require.Regexp(t, `^Started plan again\.md as \S+; ele plan show prints its next item\.\n$`, output, "every plan checked, no line")
+
+	output, code = runCommand(t, "plan", "done", "gone.md")
+	require.Equal(t, 1, code, "a closed plan whose record reads is not an argument")
+	require.Equal(t, "ele: gone.md is not an active plan of corp · gateway; ele plan list lists them, --project <name> for another project's\n", output)
+
+	require.NoError(t, os.Remove(filepath.Join(records, ids["gone"]+".json")))
+	writeFile(t, filepath.Join(gateway, "gone.md"), named("restarted"))
+	output, code = runCommand(t, "plan", "start", "gone.md")
+	require.Equal(t, 0, code, output)
+	require.Regexp(t, `^Started plan gone\.md as \S+; ele plan show prints its next item\.\n$`, output, "a closed plan at its own path cannot clash, so it goes unnamed")
+	output, code = runCommand(t, "plan", "done", ids["gone"])
+	require.Equal(t, 1, code)
+	require.Equal(t, "ele: closed plan gone.md ("+ids["gone"]+") shares its path with an active plan, so its names cannot be read from it\n", output)
+}
+
 func TestRunPlanStartRefusesWhatIsNotAPlan(t *testing.T) {
 	home := recallFixture(t)
 	gateway := filepath.Join(home, "w", "corp", "gateway")
