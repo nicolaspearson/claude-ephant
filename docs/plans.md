@@ -108,6 +108,12 @@ other: premises that no longer hold, items that contradict, waits nothing will
 end, inbox items to triage, and plans ready to close. Run it before picking up a
 plan after time away, or when plans feel stuck.
 
+`/ele:plan-audit drafts <path>...` audits plans not yet started, for a review
+before `ele plan start`, adding every active plan itself; no `/ele:plan` step
+runs it yet. It reports each finding with a level, blocker, major or minor,
+and the line it rests on, and returns its questions in the report: it asks you
+nothing, edits no plan and records nothing in the audit ledger.
+
 The `ele:plan-reviewer` agent reviews a draft plan before it starts; no
 `/ele:plan` step launches it yet. It never sees the session that wrote the
 draft. It reads the draft, its spec, your and the repository's `CLAUDE.md`,

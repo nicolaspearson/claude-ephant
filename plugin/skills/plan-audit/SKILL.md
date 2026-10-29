@@ -1,6 +1,7 @@
 ---
 name: plan-audit
 description: Audit ele plans against the code and each other for stale premises, contradictions, waits nothing ends, inbox items to triage and plans ready to close. Use before picking up or closing a plan, when plans feel stuck, or when asked for a plan audit.
+argument-hint: "[<path>... | drafts <path>...]"
 ---
 
 A plan audit runs ticket-audit's engine over plans. `<ticket-audit>` is
@@ -35,6 +36,35 @@ to close. Report them as found by `ele plan check`; no method re-derives them.
 
 Done when every plan in scope is listed with its path and its check warnings, or
 "no warnings".
+
+## Drafts mode
+
+With `drafts` and paths: the paths are unstarted drafts, audited for a review
+loop. It reports and changes nothing. In scope are the drafts and every active
+plan of the repository, listed by `ele plan list` run at its root. The Which
+plans section and the ticket-audit sections below run with these differences:
+
+- No §0, and none of this skill's own methods, Waits nothing ends to Closing
+- §1: read each draft's `## Requirements` with its Context and Decisions. A
+  repository the caller does not mark ours or read-only, and current, is a
+  question
+- §2: no scope approval. §3 runs over every open action of the drafts, the
+  closing one included; §4 to §8 across every plan in scope, so a draft
+  contradicting an active plan is found
+- Ask the user nothing: a question §1 or Questions and rulings would ask, after
+  its recall and grep, goes in the report, as does a subagent's
+- No §9 and no §10 ledger record: no file is edited and nothing is recorded
+- Each finding takes a level from the Severity section of
+  `reference/plan-practices.md` in the plugin root, the directory holding
+  `skills/`, and the plan path and line it rests on, in each plan for a
+  contradiction between two
+
+The report: ticket-audit's §10 report without its record, plus each plan's
+`ele plan check` warnings, the findings blockers first, each with its level,
+and the open questions.
+
+Done when every finding carries a level and a line, every question is in the
+report, and no plan file or ledger was written.
 
 ## Ticket-audit's sections, for plans
 
