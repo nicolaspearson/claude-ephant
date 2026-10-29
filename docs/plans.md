@@ -108,6 +108,29 @@ other: premises that no longer hold, items that contradict, waits nothing will
 end, inbox items to triage, and plans ready to close. Run it before picking up a
 plan after time away, or when plans feel stuck.
 
+The `ele:plan-reviewer` agent reviews a draft plan before it starts; no
+`/ele:plan` step launches it yet. It never sees the session that wrote the
+draft. It reads the draft, its spec, your and the repository's `CLAUDE.md`,
+the repository's accepted ADRs and ele's planning-practices reference, and
+reports:
+
+- each requirement against the items that deliver it
+- a requirement that is ambiguous, untestable or names an implementation, as a
+  question for you
+- an item no requirement asks for, or one going past what its requirement asks
+- an item contradicting the spec or an accepted ADR, or breaking a `CLAUDE.md`
+  rule
+- a done-when line that cannot be observed, cannot be met, or could pass while
+  its requirement fails
+- a practice the plan is missing
+
+Each finding is a blocker (the plan would build the wrong thing or cannot
+finish), a major (a requirement could go undelivered, or an item cannot be
+ticked as written) or a minor. ADRs are looked for under `docs/adr`,
+`.documentation/adr` or `docs/decisions`, or the directory the repository's
+`CLAUDE.md` names. An ADR with no status line counts as accepted, and a
+partially accepted one binds for the part it says is in force.
+
 ## Closing one
 
 Once the last action is the only one open and the inbox is empty, do the last

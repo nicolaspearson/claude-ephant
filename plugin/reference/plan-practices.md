@@ -11,7 +11,9 @@ from their primary sources as of 2026-10-29, each with ele's verdict:
 - **Rejected**: with the reason
 - **Already**: naming where ele does it today
 
-Written for the plan reviewer, `/ele:plan new` and the closing fold to read.
+Written for the plan reviewer, `/ele:plan new` and the closing fold to read,
+with ele's [severity scale](#severity) for a draft's findings and its [rule for
+finding ADRs](#adrs).
 It covers the practices that bear on how a plan is written, reviewed and
 closed and how a decision is recorded. Left out: each tool's mechanics, such as
 its CLI flags, length bounds, file names, placeholders and editor keys, and
@@ -101,7 +103,7 @@ IEEE 1028's anomaly classes are paywalled and not used here.
 - **Success criteria measurable, technology-agnostic and verifiable**
   (spec-kit). Adopted by plan-reviewer: a done-when line not observable is a
   finding
-- **Keep the how out of requirements** (OpenSpec). Proposed for
+- **Keep the how out of requirements** (OpenSpec). Adopted by
   plan-reviewer: a requirement naming an implementation reported as a
   question
 - **Scenarios**, GIVEN/WHEN/THEN under each requirement (OpenSpec, spec-kit,
@@ -216,7 +218,7 @@ IEEE 1028's anomaly classes are paywalled and not used here.
   checklist nor `/implement`'s gate on its unticked items is needed; a generated
   checklist per plan would repeat them
 - **Severity when unsure: prefer the lower level** (OpenSpec verify).
-  Proposed for plan-reviewer, with its scale
+  Adopted by plan-reviewer, with its scale
 - **Severity ranks impact, not the size of the fix** (BMAD). Adopted by
   plan-reviewer: the plan's Decisions define each level by its effect
 - **Label what does not block, so not every comment reads as mandatory**
@@ -249,7 +251,45 @@ spec-kit's definitions, verbatim:
 - LOW: "Style/wording improvements, minor redundancy not affecting execution
   order"
 
-plan-reviewer writes ele's scale here, as the plan's Decisions set it.
+## Severity
+
+ele's scale for a finding against a draft plan, by its effect, never the size
+of its fix:
+
+- **Blocker**: the plan, built as written, would build the wrong thing or
+  cannot finish
+- **Major**: a requirement could go undelivered, or an item cannot be ticked as
+  written
+- **Minor**: anything else
+
+Unsure between two levels, take the lower. A requirement question takes a
+level as any finding does.
+
+## ADRs
+
+How a draft finds the ADRs it is held to, and how an ADR is numbered:
+
+- **Where**: `docs/adr`, `.documentation/adr` or MADR's `docs/decisions` under
+  the repository root, or the directory the repository's `CLAUDE.md` names,
+  which wins. A repository with none of them keeps no ADRs
+- **Which files**: each Markdown file whose name carries a number in one of the
+  series below. A `README.md`, a template such as `000-template.md` and
+  anything not Markdown are not records
+- **Status**: the first non-blank line under a `## Status` heading; with no
+  such heading, a front-matter `status:` or a `Status:` or `**Status:**` line,
+  whichever comes first in the file. A `Status:` or `**Status:**` label
+  leading the value is skipped, as are `_` and `*` around it; what is left,
+  any case, starts with `accepted`, `partially accepted`, `proposed`,
+  `rejected`, `deprecated` or `superseded`, "Superseded by …" being
+  superseded and "Proposed — deferred …" proposed
+- **Accepted**: only an accepted ADR binds a draft; one with no status line at
+  all counts as accepted, since such a record is written once decided. A
+  partially accepted one binds for the part its status says is in force. Any
+  other status is context only
+- **Series**: `NNNN-slug.md`, `NNN-slug.md`, or `ADR_<TOPIC>_NNN_<SLUG>.md`
+  numbered per topic. The next number is the highest in the series plus one,
+  at the series' width; per topic, the highest in that topic, a new topic
+  starting at 1. A number is never reused
 
 ## Items
 
@@ -327,10 +367,9 @@ plan-reviewer writes ele's scale here, as the plan's Decisions set it.
   Already: a plan with no `spec:` proposes its out-of-scope lines as
   `decision` notes in its closing action instead
 - **Refuse or warn on closing with unticked tasks** (OpenSpec `validate
-  --archived` and `/opsx:archive`). Adopted by the user's ruling, held by an
-  Inbox line: `ele plan
-  check` warns on a closing action ticked while other actions are open, as
-  it does with inbox items
+  --archived` and `/opsx:archive`). Adopted by unnamed-action-warning:
+  `ele plan check` warns on a closing action ticked while other actions are
+  open, as it does with inbox items
 
 ## Decision records
 
@@ -360,7 +399,8 @@ plan-reviewer writes ele's scale here, as the plan's Decisions set it.
   (Nygard, MADR). Adopted by decision-fold: the next number in the
   repository's series; superseding is its own question
 - **Status values** proposed, accepted, deprecated, superseded, and MADR's
-  rejected (Nygard, MADR). Proposed for plan-reviewer: only an accepted ADR binds a draft
+  rejected (Nygard, MADR). Adopted by plan-reviewer: only an accepted ADR binds a
+  draft
 - **A minimal record: context, the decision and why, in a few sentences**
   (MADR's minimal template; domain-modeling's 1-3 sentences). Adopted by
   decision-fold where the repository's format is that short; otherwise its
