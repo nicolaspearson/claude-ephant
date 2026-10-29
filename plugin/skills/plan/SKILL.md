@@ -72,7 +72,7 @@ With no argument. Made for a return after days away, so trust nothing the plan s
 4. **Premise check.** On a yes, before building:
    - Re-derive each claim the item makes about code: cite `file:line`, or mark it "not checked"
    - Re-read each blocked item's reasons and propose removing those now settled
-   - Run `ele plan check <path>` and propose a fix for each warning: re-measure a stale `as of` line, drop a done blocker or a passed `after:`, add a missing done-when, triage an old inbox item at step 5, rewrite a line citing ele data (delete provenance, describe what was observed, move a dependency into the plan)
+   - Run `ele plan check <path>` and propose a fix for each warning: re-measure a stale `as of` line, drop a done blocker or a passed `after:`, add a missing name or done-when, untick a closing action ticked while another is open, triage an old inbox item at step 5, rewrite a line citing ele data (delete provenance, describe what was observed, move a dependency into the plan)
    - Check that a decision the item relies on lives in one place, and that a status or count it states is dated or derived
    - Write what you find under the item as dated lines
    - Where a finding makes the item's title or a `## Context` line wrong, propose the reword as its own question, the old text beside the new, and write it on approval. The yes to start is not approval for it. Declined, the finding stays a dated line only

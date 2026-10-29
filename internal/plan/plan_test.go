@@ -134,6 +134,26 @@ func TestCheckWarnsOnEleData(t *testing.T) {
 	}
 }
 
+func TestCheckWarnsOnAnOpenUnnamedAction(t *testing.T) {
+	tests := []struct {
+		content string
+		name    string
+		want    []Warning
+	}{
+		{content: "- [ ] a: A\n  done when it is\n- [ ] Close\n", name: "closing"},
+		{content: "- [ ] Unnamed\n  done when it is\n- [ ] Close\n", name: "open", want: []Warning{{Line: 5, Text: "action has no name; lead its title with a kebab-case name and a colon"}}},
+		{content: "- [x] Unnamed\n- [ ] b: B\n  done when it is\n- [ ] Close\n", name: "ticked"},
+	}
+	now := time.Date(2026, 10, 21, 12, 0, 0, 0, time.Local)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			parsed, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n" + test.content))
+			require.NoError(t, err)
+			require.Equal(t, test.want, parsed.Resolve(now, nil).Check(now))
+		})
+	}
+}
+
 func TestParseRecordsWhatEachCitationNames(t *testing.T) {
 	parsed, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n" +
 		"- [ ] a: A, from note 20261020-ead7f7 in session a5491a94-1c2d-4e5f-8a9b-0c1d2e3f4a5b\n" +
@@ -158,7 +178,8 @@ func TestCheckSaysWhenAPlanIsReadyToClose(t *testing.T) {
 		{content: "- [ ] a: A\n  done when it is\n- [ ] Close\n", name: "open work"},
 		{content: "- [x] a: A\n- [ ] Close\n", name: "ready", want: []Warning{{Line: 6, Text: "every action but the closing one is done; ready to close"}}},
 		{content: "- [x] a: A\n- [x] Close\n## Inbox\n- 2026-10-21, new\n", name: "ticked over an inbox", want: []Warning{{Line: 6, Text: "the closing action is ticked while the inbox holds items; triage them first"}}},
-		{content: "- [ ] a: A\n  done when it is\n- [x] Close\n## Inbox\n- 2026-10-21, new\n", name: "ticked over an inbox and open work", want: []Warning{{Line: 7, Text: "the closing action is ticked while the inbox holds items; triage them first"}}},
+		{content: "- [ ] a: A\n  done when it is\n- [x] Close\n## Inbox\n- 2026-10-21, new\n", name: "ticked over an inbox and open work", want: []Warning{{Line: 7, Text: "the closing action is ticked while other actions are open"}, {Line: 7, Text: "the closing action is ticked while the inbox holds items; triage them first"}}},
+		{content: "- [ ] a: A\n  done when it is\n- [x] Close\n", name: "ticked over open work", want: []Warning{{Line: 7, Text: "the closing action is ticked while other actions are open"}}},
 	}
 	now := time.Date(2026, 10, 21, 12, 0, 0, 0, time.Local)
 	for _, test := range tests {

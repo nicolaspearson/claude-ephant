@@ -381,9 +381,9 @@ How a draft finds the ADRs it is held to, and how an ADR is numbered:
   Already: a plan with no `spec:` proposes its out-of-scope lines as
   `decision` notes in its closing action instead
 - **Refuse or warn on closing with unticked tasks** (OpenSpec `validate
-  --archived` and `/opsx:archive`). Adopted by unnamed-action-warning:
-  `ele plan check` warns on a closing action ticked while other actions are
-  open, as it does with inbox items
+  --archived` and `/opsx:archive`). Adopted in `ele plan check`: it warns on
+  a closing action ticked while other actions are open, as it does with inbox
+  items
 
 ## Decision records
 

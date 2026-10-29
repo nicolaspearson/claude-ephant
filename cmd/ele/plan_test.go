@@ -149,7 +149,7 @@ func TestRunPlanShowNamesEachActivePlanOrAMissingFile(t *testing.T) {
 
 	output, code := runCommand(t, "plan", "show")
 	require.Equal(t, 0, code, output)
-	summary := `\.md: 1 open, 1 blocked, 1 done, 1 in the inbox\. 1 warning; ele plan check lists it\. Next: Commands\n`
+	summary := `\.md: 1 open, 1 blocked, 1 done, 1 in the inbox\. 2 warnings; ele plan check lists them\. Next: Commands\n`
 	require.Regexp(t, `^Active plans for corp · gateway, newest first; ele plan show <path> prints one:\n- \S+: (first|second)`+summary+`- \S+: (first|second)`+summary+`$`, output, "the next item skips the blocked one")
 
 	require.NoError(t, os.Remove(filepath.Join(gateway, "first.md")))
@@ -396,7 +396,7 @@ func TestRunPlanStartsShowsListsAndCloses(t *testing.T) {
 	output, code = runCommand(t, "plan", "show")
 	require.Equal(t, 0, code, output)
 	require.Equal(t, `Plan .documentation/plans/build.md: 1 open, 1 blocked, 1 done, 1 in the inbox.
-1 warning; ele plan check .documentation/plans/build.md lists it.
+2 warnings; ele plan check .documentation/plans/build.md lists them.
 Blocked:
 - Start block
   blocked: the parser first

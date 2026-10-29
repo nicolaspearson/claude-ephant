@@ -32,8 +32,9 @@ ele plan check <path>
 
 Its warnings are mechanical and already found: a blocker done or missing, an
 `after:` date passed, an `as of` line past 14 days, an old or undated inbox
-item, an open action with no done-when, a name another plan holds, a plan ready
-to close. Report them as found by `ele plan check`; no method re-derives them.
+item, an open action with no name or no done-when, a name another plan holds,
+a plan ready to close, a closing action ticked while another action is open.
+Report them as found by `ele plan check`; no method re-derives them.
 
 Done when every plan in scope is listed with its path and its check warnings, or
 "no warnings".

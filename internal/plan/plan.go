@@ -294,9 +294,15 @@ func (p Plan) Check(now time.Time) []Warning {
 		for _, flag := range action.Flags {
 			warnings = append(warnings, Warning{Line: action.Line, Text: label + ": " + flag})
 		}
+		if !action.Done && at != last && action.Name == "" {
+			warnings = append(warnings, Warning{Line: action.Line, Text: "action has no name; lead its title with a kebab-case name and a colon"})
+		}
 		if !action.Done && at != last && !action.DoneWhen {
 			warnings = append(warnings, Warning{Line: action.Line, Text: label + ": no done when line"})
 		}
+	}
+	if last >= 1 && p.Actions[last].Done && slices.ContainsFunc(p.Actions[:last], func(action Item) bool { return !action.Done }) {
+		warnings = append(warnings, Warning{Line: p.Actions[last].Line, Text: "the closing action is ticked while other actions are open"})
 	}
 	for _, citation := range p.Citations {
 		warnings = append(warnings, Warning{Line: citation.Line, Text: "cites ele data, which resolves only in its author's data directory; delete provenance, describe what was observed, and move a dependency into the plan, superseding its note"})

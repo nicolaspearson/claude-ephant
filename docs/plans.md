@@ -139,7 +139,7 @@ approval.
 ```sh
 ele plan show               # the active plan: counts, previous item, blocked items, next item
 ele plan list               # every active plan of the project
-ele plan check              # warnings: stale dates, done blockers, old inbox items, missing done-when, ele data cited
+ele plan check              # warnings: stale dates, done blockers, old inbox items, missing name or done-when, ele data cited, closing ticked early
 ```
 
 ## Auditing plans
@@ -201,4 +201,4 @@ with each fold drafted, and writes what you approve:
 and keeps its item names, so a `blocked:` line in another plan still resolves
 and names stay unique after the file is deleted. It closes whatever it is given,
 so check the inbox is empty first; `ele plan check` says when only the last
-action is left.
+action is left, and warns when it is ticked while another action is open.
