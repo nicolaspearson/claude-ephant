@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.13.0](https://github.com/nicolaspearson/claude-ephant/compare/v0.12.0...v0.13.0) (2026-10-30)
+
+
+### Features
+
+* **cli:** freeze the 1.0 CLI: help for every command, checkpoint stats --since, notes dropped from the checkpoint log (cli-freeze) ([5e89a28](https://github.com/nicolaspearson/claude-ephant/commit/5e89a284372dde14e352a03a61bc88a8d57bbd20))
+* **datadir:** checkpoint log and ticket-audit ledger move into the data directory (logs-into-data-dir) ([cbf81a5](https://github.com/nicolaspearson/claude-ephant/commit/cbf81a596d39e8fefaa7404334bcd9d9e94988ac))
+* **datadir:** Linux keeps its data under XDG_DATA_HOME, moving the old directory once (linux-data-dir) ([abc8047](https://github.com/nicolaspearson/claude-ephant/commit/abc80479a7fa334c640b4170627891230bf27fe5))
+* **lint:** skill lint under task check; docs: commands.md against --help, review marked experimental (skill-lint, review-status, cli-docs) ([88720d7](https://github.com/nicolaspearson/claude-ephant/commit/88720d77030cdb761835082d22ccf58748d9b2d2))
+* **release:** publish a draft release by hand through workflow_dispatch (release-dispatch) ([4d8c42f](https://github.com/nicolaspearson/claude-ephant/commit/4d8c42fed9eaad5499ce6c7f2f96ea00705b2dea))
+
+
+### Bug Fixes
+
+* **mine:** ele mine --report keeps the mined notes counts as the Stop hook's baseline (cli-freeze) ([9e05ba9](https://github.com/nicolaspearson/claude-ephant/commit/9e05ba9f61eed5a457bc0aa2f2c6eebcb4e25d7f))
+* **transcript:** redact before Truncate cuts, so no fragment of a split secret is indexed (redact-before-cut) ([96728a5](https://github.com/nicolaspearson/claude-ephant/commit/96728a52d9e9b564acf92001d337c21e642b4b29))
+
 ## [0.12.0](https://github.com/nicolaspearson/claude-ephant/compare/v0.11.0...v0.12.0) (2026-10-29)
 
 
