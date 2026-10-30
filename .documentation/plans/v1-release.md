@@ -375,10 +375,18 @@ keep.
     covered by `plan_test.go`, `difflib.go` by `corpus_test.go`
     - 17 items in the Inbox, several bundling a list of like findings; each
       of both readers' findings, counted against the Inbox, is in one
-- [ ] audit-rest: Audit the remaining packages under `internal/`
+- [x] audit-rest: Audit the remaining packages under `internal/`
   - done when the files read are listed under this item with a dated count,
     each finding is in the Inbox, and the five Go audits together name every
     package under `internal/`
+  - asserted in the commit carrying this tick: the list below matches `ls`
+    of the eight packages, 32 files; the five Go audits name each of the 16
+    entries of `ls internal` once; each finding of the four readers'
+    reports, counted against the Inbox, is in an item dated 2026-10-30 "from
+    audit-rest"; the readers probed the long note line, the blank body, the
+    `Profile` and `ID` checks, the `[` home and the digest redaction; a
+    checkpoint's readers checked most other claims against the code, and six
+    fixes to the items followed
   - as of 2026-10-30: 32 files, 5,728 lines, all read whole by a bugs and a
     conventions-prose reader each: `mining`'s cache, digest, report, take,
     timing, units and watermark `.go` and their `_test.go`; `config`,
@@ -395,6 +403,15 @@ keep.
   `release-please-config.json`
   - done when the files read are listed under this item with a dated count
     and each finding is in the Inbox
+  - as of 2026-10-30: 10 files, 828 lines, all read whole by a bugs and a
+    conventions-prose reader each: `install.sh`, `plugin/hooks/hooks.json`,
+    `ci.yml`, `release.yml` and `tap.yml` under `.github/workflows/`,
+    `Taskfile.yml`, `Taskfile.tools.yml`, `.claude-plugin/marketplace.json`,
+    `plugin/.claude-plugin/plugin.json` and `release-please-config.json`;
+    the five pinned action SHAs match their version comments, resolved with
+    `gh api`; `plugin/hooks/` holds no script, and there is no `scripts/`
+    - 7 items in the Inbox, several bundling a list of like findings; each
+      of both readers' findings, counted against the Inbox, is in one
 - [ ] triage-findings: Tier every audit finding in the Inbox
   - blocked: skills-audit, audit-cmd, audit-index, audit-checkpoint,
     audit-plan, audit-rest, audit-tooling
@@ -1010,6 +1027,50 @@ keep.
   siblings say `directory`; `take.go` and `units.go`'s `Named` read JSON
   Lines with the same loop and key, which `UnitKey` names; `report.go`'s
   `cut` and `digest.go`'s `clip` truncate alike
+- 2026-10-30, from audit-tooling: the README's install and Update give
+  `go install …/cmd/ele@latest`, but `release-please-config.json` sets
+  `draft` and `force-tag-creation`, so a release's tag is on the remote
+  while it is still a draft: `@latest` installs a release left a draft for
+  a person, its merge having failed the check, and a GitHub pre-release with
+  a plain tag, neither of which `install.sh` or brew serves, and the module
+  proxy keeps the version for good. `task release:go` installs `@<tag>` of
+  the published release
+- 2026-10-30, from audit-tooling: `install.sh`. Its `trap 'rm -rf "$work"'
+  EXIT` does not fire on a signal under dash, the `/bin/sh` of Debian and
+  Ubuntu that `curl … | sh` runs, so Ctrl-C mid-download leaves the work
+  directory and its partial tarball (probed); `ELE_VERSION=0.12.0` without
+  its `v` fails as "could not download", with nothing saying a `v` is
+  needed; on Linux, GNU `install -m 0755` unlinks then writes, so a kill
+  between them leaves no `ele` on PATH and every hook fails, with 127 or
+  with 1 where `|| exit 1` wraps it, where macOS's renames a temp file into
+  place; `curl` takes no `--proto '=https'`
+- 2026-10-30, from audit-tooling: `task precommit` runs `format`, `check`,
+  then `lint-fix` (`gofmt -s -w`) and `fix` (`go fix`), so the tree it
+  leaves to commit is not the one `check` passed, and `lint`'s `gofmt -l`
+  without `-s` never sees those rewrites; CONTRIBUTING documents the order
+- 2026-10-30, from audit-tooling: no gate lints the workflows: actionlint
+  is in neither `task check` nor `ci.yml`, run by hand for release-dispatch
+  as its tick records, so a broken
+  `if:`, a bad `needs` output or shell in a `run:` block of `release.yml` or
+  `tap.yml` first fails during a release; `install.sh` is the only shell
+  `lint`'s shellcheck reads
+- 2026-10-30, from audit-tooling: `ci.yml` floats what its own rumdl
+  comment says must be pinned, since "the same commit passes today and fails
+  tomorrow": `setup-task` installs Task `3.x`, and shellcheck comes from the
+  runner image. Its Go build cache key is go.sum and go.mod alone, so after
+  the first run for a go.sum every run hits it exactly, never saves, and
+  rebuilds whatever changed since that first run
+- 2026-10-30, from audit-tooling: `tap.yml` by hand refuses neither a
+  pre-release nor a tag older than the latest, so either reaches every brew
+  user, where Release skips pre-releases; the Inbox's stale-draft item is
+  the same family on the Release side
+- 2026-10-30, from audit-tooling: questions and nits. Does `ele sync
+  --background` detach inside Claude Code's SessionEnd window? `test` with
+  `FORCE=0` still forces, since `{{if .FORCE}}` reads any value as set;
+  `release:check` word-splits `$(which -a ele)`, so a path with a space
+  breaks its listing; `bump-minor-pre-major` does nothing from 1.0.0; the
+  plugin's description is duplicated verbatim in `marketplace.json` and
+  `plugin.json`, which carries no `homepage`, `repository` or `license`
 
 ## Out of scope
 
