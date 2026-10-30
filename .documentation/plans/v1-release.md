@@ -323,6 +323,19 @@ keep.
   `internal/archive`, `internal/store` and `internal/redact`
   - done when the files read are listed under this item with a dated count
     and each finding is in the Inbox
+  - as of 2026-10-30: 28 files, 4,339 lines
+    - read whole by both readers, bugs and conventions-prose: `index`'s
+      events, index, notes, schema, search, settings, stats, transcripts,
+      usage and writer `.go`; `transcript`'s events and transcript `.go`;
+      `archive.go`, `store.go` and `redact.go`; `index`'s index, notes,
+      schema, search, stats and transcripts `_test.go`; `archive_test.go`,
+      `store_test.go` and `redact_test.go`
+    - read whole by the bugs reader, in part by the other: `index`'s
+      `events_test.go` and `usage_test.go`, `transcript`'s `events_test.go`
+      and `transcript_test.go`
+    - 11 items in the Inbox, several bundling a list of like findings, and
+      one added to audit-cmd's dates item; each of both readers' findings,
+      counted against the Inbox, is in one
 - [ ] audit-checkpoint: Audit `internal/checkpoint`
   - done when the files read are listed under this item with a dated count
     and each finding is in the Inbox
@@ -532,7 +545,11 @@ keep.
 - 2026-10-30, from audit-cmd: dates. `--since` and stop-check `--replay`
   dates are UTC days, `remember --due` local, and `docs/commands.md` states
   neither; a note's `Date` is local while its `Time` is UTC, and
-  `newestOfKind` sorts by both
+  `newestOfKind` sorts by both. audit-index adds: `index`'s `Search`,
+  `Events` and `Usage` compare UTC stamps as strings against the date as
+  typed, or `parseSince`'s UTC date for `Nd`, so at UTC+4
+  `ele recall --since 2026-10-30` drops the first four local hours of the
+  30th, and west of UTC it takes in hours of the 29th
 - 2026-10-30, from audit-cmd: questions on the data commands, each unsettled
   by the code. `backup` fails whole on a symlink, or on a note renamed away
   mid-walk by a concurrent `forget`. `reminder close` prints "due again" for
@@ -584,6 +601,66 @@ keep.
 - 2026-10-30, from audit-cmd, for audit-index: `internal/index`'s `GitRoot`
   stops at a worktree's `.git` file, so a worktree's project is its folder's
   name, not the repository's
+- 2026-10-30, from audit-index: `redact`'s assignment pattern misses what
+  `docs/data-and-privacy.md` promises, "any `key=value` or `key: value` whose
+  key looks secret, JSON keys included": run against the pattern as of
+  2026-10-30, `curl -d "{\"password\":\"hunter2\"}"` and `X-Api-Key: s3cr3t`
+  come back unchanged, since the key allows no `\"` and no hyphen. The gitlab pattern matches `glpat-` alone, where the doc says
+  "GitLab tokens": `glrt-`, `gldt-`, `glptt-`, `glcbt-`, `glft-` and `gloas-`
+  pass
+- 2026-10-30, from audit-index: secret shapes `redact` misses that the docs
+  do not promise: `Authorization: Bearer <opaque>` and `--api-key s3cr3t`
+  (both checked unchanged), `--password hunter2`, `scheme://user:pass@host`, `passphrase` and
+  `credential` keys, Slack, Stripe, Google and npm token formats, a PEM block
+  cut before its `END` line, a quoted value holding `\"`, whose tail after
+  the escape leaks, and any value starting with `[`, which the
+  already-redacted skip passes. Which does a 1.0 privacy promise cover?
+- 2026-10-30, from audit-index: `redact` over-matches counts: `"max_tokens":
+  4096` becomes `[redacted:assignment]` (checked), as do `input_tokens: 123`
+  and prose like `total tokens: 500`, so recall loses numbers
+- 2026-10-30, from audit-index: event attributes holding a `[]string`, the
+  `changed` list `transcript`'s `hookBlockAttributes` takes from hook text and
+  `reviewers`, are stored raw: `index`'s `writeEvent` redacts string values
+  alone, where `design.md` says "attribute strings are redacted as entries
+  are". `transcript.Parse` redacts tool lines but returns prompt and
+  conversation text raw for the writer to redact, undocumented, and
+  stop-check also reads its `Entry.Text`: should `Parse` redact every kind?
+- 2026-10-30, from audit-index: `archive.Sync` walks `source.Directory`
+  without resolving it, and `filepath.WalkDir` does not descend a symlinked
+  root (probed), so a profile whose `projects/` is a symlink archives nothing
+  while sync reports success; `index`'s `noteFiles` resolves its root for
+  this reason
+- 2026-10-30, from audit-index: one bad file stops every sync. `archive`'s
+  `syncFile` erroring on a transcript removed mid-walk or unreadable aborts
+  the walk before `saveManifest`; `index`'s `updateFile` fails "skip N
+  indexed bytes: EOF" on an archive file shorter than `indexed_bytes`, as from
+  an older backup, or on a corrupt `.gz`; `UpdateNotes` returns on the first
+  unreadable note, so `last-sync` is never written. Skip and report instead?
+- 2026-10-30, from audit-index: `store.Open` leaves `ele.db`, `-wal` and
+  `-shm` at SQLite's default mode, private only because ele makes the data
+  directory 0700; an `ELE_HOME` already 0755 leaves the index, conversation
+  text included, world-readable. The docs promise modes for the archive alone
+- 2026-10-30, from audit-index: crash and race edges, each unsettled.
+  `archive`'s `syncFile` takes `tailHash` after reading the chunk, so a
+  rewrite in place between the two records the new hash over old bytes, and
+  a rewrite keeping the last 4 KiB is never seen; `appendMember` and
+  `saveManifest` rename without syncing the directory; a recall during
+  `ele sync --rebuild` reads a partial index with no sign of it
+- 2026-10-30, from audit-index: exported with no caller outside its package:
+  `store.OpenReadOnly` (tests alone), `archive.LoadManifest`,
+  `index.ErrAmbiguousSession`. `index`'s `Reset` still drops
+  `claude_mem_tables`, which no schema creates
+- 2026-10-30, from audit-index: tests. `TestSearchTreatsQueryPunctuationAsWords`
+  has no `stop-check` entry, so it proves only no error and no rows.
+  Uncovered: a symlinked archive root, redaction of `changed`, hyphenated
+  keys, an archive file shorter than `indexed_bytes`, `--since` across a
+  local day boundary; `index`'s `disputingReply` and `followNotesAsk`
+  heuristics have no test of their patterns alone
+- 2026-10-30, from audit-index: small. `transcript`'s exported `Truncate`
+  sits among unexported functions; `TestParseEvents`' "older stop hook block"
+  rows break the table's order; `index_test.go`'s `rows` names a variable
+  `r`; the comment above `toolErrorAttributes` documents `callLine`, an
+  attribute key
 
 ## Out of scope
 
