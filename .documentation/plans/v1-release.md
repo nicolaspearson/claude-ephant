@@ -319,10 +319,16 @@ keep.
       its head read and grepped for personal data
     - 21 items in the Inbox, one of them for audit-index, several bundling
       a list of like findings
-- [ ] audit-index: Audit `internal/index`, `internal/transcript`,
+- [x] audit-index: Audit `internal/index`, `internal/transcript`,
   `internal/archive`, `internal/store` and `internal/redact`
   - done when the files read are listed under this item with a dated count
     and each finding is in the Inbox
+  - asserted in the commit carrying this tick: the list below matches `ls` of
+    the five packages, 28 files; each finding of both readers' reports,
+    counted against the Inbox, is in an item dated 2026-10-30 "from
+    audit-index" or in audit-cmd's dates item; the redaction misses and the
+    symlinked-root walk were run, most other claims checked against the code
+    by a checkpoint's reader, which led to six fixes to the items
   - as of 2026-10-30: 28 files, 4,339 lines
     - read whole by both readers, bugs and conventions-prose: `index`'s
       events, index, notes, schema, search, settings, stats, transcripts,
@@ -339,6 +345,13 @@ keep.
 - [ ] audit-checkpoint: Audit `internal/checkpoint`
   - done when the files read are listed under this item with a dated count
     and each finding is in the Inbox
+  - as of 2026-10-30: 12 files, 3,385 lines, all read whole by both readers,
+    bugs and conventions-prose: density, freeze, gate, glob, log, state and
+    stats `.go`, and the density, freeze, log, state and stats `_test.go`;
+    `gate` and `glob` have no test file, `cmd/ele`'s gate tests and
+    `state_test.go` covering them
+    - 15 items in the Inbox, several bundling a list of like findings; each
+      of both readers' findings, counted against the Inbox, is in one
 - [ ] audit-plan: Audit `internal/plan` and `internal/ticket`
   - done when the files read are listed under this item with a dated count
     and each finding is in the Inbox
@@ -661,6 +674,102 @@ keep.
   rows break the table's order; `index_test.go`'s `rows` names a variable
   `r`; the comment above `toolErrorAttributes` documents `callLine`, an
   attribute key
+- 2026-10-30, from audit-checkpoint: `ele checkpoint check` says "covered"
+  for bytes nobody reviewed. `Record` stores the hash of every dirty path,
+  frozen or not, as its own comment says, and `Reviewed` passes when every
+  dirty path matches, so unrelated work dirty at record time is later
+  "covered" and the skill stops on it, `checkpointCheck` printing "every
+  changed path … is what the last checkpoint reviewed". `Record` also hashes
+  the tree at record time without comparing the freeze's fingerprint, so an
+  edit between freeze and record is recorded as reviewed; the skill guards
+  that by hand
+- 2026-10-30, from audit-checkpoint: `DirtyPaths` sorts and cuts the dirty
+  list at `pathCap`, 200, with no sign, so past the 200th path an edit moves
+  no fingerprint, `check` stays covered, the skill's re-review is skipped and
+  the Stop gate never sees it
+- 2026-10-30, from audit-checkpoint: `ValidateOptout` tests four fixed probe
+  strings, so it accepts `*e*`, `*/*/*/*` and `[0-9a-f]*` (each probed),
+  where its doc says it refuses a glob matching "nearly every" path and
+  `optout --help` one "matching any path"; `*e*` matches nearly every path,
+  exempting most of the repository from the gate for the session
+- 2026-10-30, from audit-checkpoint: what the checkpoint `duration` measures.
+  It is `log`'s time less `.started`, which a `--start` freeze, or any freeze
+  with none present, writes and only `log` and `close` remove. Two of the
+  three 0-second runs logged 2026-10-23..30 were traced in their transcripts
+  to one chained `freeze --start … && record && log` run after the reviews
+  and fixes, the third not traced. One long run, 41,589 s, was traced to
+  idle time: `.started` never expires, so a later freeze in the same session
+  keeps it, the two-hour window or not. Nothing floors a 0 or clamps a
+  negative from clock skew, and `stats` puts both in the median. The spec,
+  `log --help` and stats' output say "first freeze", the skill "the freeze
+  that opened the run"; the spec says any freeze opens a run when none is
+  open but starts the clock only when none is running. Should the clock
+  restart after the window, and should the skill forbid chaining the
+  `--start` freeze with `log`?
+- 2026-10-30, from audit-checkpoint: `freeze`'s `appendGit` ignores every
+  git exit status, its comment saying a diff that finds changes exits 1,
+  true of `--no-index` alone; a tracked diff failing with 128 drops from the
+  `.diff` while the summary still says "froze N paths"
+- 2026-10-30, from audit-checkpoint: `freeze` path handling. Paths go to git
+  without `--literal-pathspecs`, so `pages/[id].tsx` is a glob; a relative
+  `../x` is accepted and diffed from outside the root, where no fingerprint
+  covers it; a directory is accepted, and `Record`'s frozen paths never match
+  the files in it; two repositories sharing a basename overwrite each other's
+  `checkpoint-<repo>.*` in one scratchpad; the `.diff` is truncated before
+  the "the diff of N paths is empty" refusal and the diff and fingerprint
+  steps that can fail, so a freeze stopped there leaves a `.hash` its
+  `.diff` no longer matches
+- 2026-10-30, from audit-checkpoint: `density`'s `addedLines` keeps the tab
+  git ends a `+++ b/` header with when the path holds a space (probed with
+  `my file.go`), so the file gets no row, and a quoted header ending `"\t`
+  fails `strconv.Unquote`, crediting its lines to the previous file
+- 2026-10-30, from audit-checkpoint: fingerprint edges in `WriteState` and
+  `DirtyPaths`. A dangling symlink hashes as a deleted path; a symlink hashes
+  by its target's bytes; an untracked non-regular path hashes empty diff
+  output, a constant; a path holding a newline corrupts `State.Bytes` and
+  `--stdin-paths`; with no commit yet, the `git diff HEAD` error is
+  discarded and staged files are invisible to `hash`, `check` and the gate
+- 2026-10-30, from audit-checkpoint: `glob`'s `match` backtracks
+  exponentially: `*a*a*a*a*a*a*b` against 60 `a`s took 1.76 s (probed), and
+  `OptedOut` runs it on up to 200 paths in the Stop hook
+- 2026-10-30, from audit-checkpoint: `Record` writes through fixed
+  `.d.tmp`, `.tmp` and `.paths.tmp` names per repository, so two sessions
+  recording at once interleave, and swaps its three artefacts by separate
+  renames, so a crash between them leaves record and copy disagreeing.
+  `Open` rounds the age up, closing a run at about 119 minutes, not 120
+- 2026-10-30, from audit-checkpoint: the skill's §12 still sends `notes`, and
+  `Append` stores it, where the spec says `log` "accepts and ignores one from
+  an older skill"; `stats`' comment "The log no longer records notes" is
+  untrue, since `parseRun` ignores what the log holds
+- 2026-10-30, from audit-checkpoint: tests.
+  `TestAppendKeepsTheFreezeTimeWhenTheLineIsNotWritten` writes
+  `ReviewedFile`'s `.started` while `Append` reads the session's `RunFile`, so
+  it cannot fail; `gate`'s `lastTurn`, `finalText`, `spokenText` and patterns
+  have no unit test, only `cmd/ele`'s `TestRunCheckpointGate*`. Uncovered:
+  over 200 dirty paths, an off-list dirty path after `Record`, a dangling
+  symlink, an optout of `*e*`, a path with a space in `density`
+- 2026-10-30, from audit-checkpoint: questions. Does the Stop hook's
+  `session_id` still equal `CLAUDE_CODE_SESSION_ID` after `/clear` or a
+  resume, since the gate reads one and freeze, record and optout the other?
+  Does `lastTurn` miss a turn whose prompt holds array content, such as an
+  image, so an earlier skill call suppresses the gate? `StateFile` sits under
+  a shared temp dir another local user could pre-create. `close` prints
+  `closed:` with no run open
+- 2026-10-30, from audit-checkpoint: comments off the code. `ValidateOptout`'s
+  "nearly every one"; `Freeze`'s "inside an open run", where an expired run's
+  clock is kept too; `appendGit`'s exit-status claim; `densityLead`'s
+  second half, which describes `minimumAddedComments`; `doneClaim`'s dated
+  figures, which do not explain the pattern; `gate`'s "Both passes have to
+  appear" paragraph, which narrates; `ReviewedBytes`' doc naming one of six
+  false returns
+- 2026-10-30, from audit-checkpoint: order and shape. Out of order:
+  `density`'s `skipSuffixes` and `commentStarts`, `ValidateOptout`'s probes,
+  rows in `TestMatchGlobMatchesAsBashDoes`, the moved-paths test, two
+  `log_test.go` tables, `log_test.go`'s test funcs, `density_test.go`'s
+  helpers. `gate`'s `finalText` and `spokenText` walk the same text markers;
+  `appendDiff` repeats its diff-then-numstat shape per branch; `stats` names
+  `a, b` in a sort closure; every test file's `writeFile` lives in
+  `density_test.go`
 
 ## Out of scope
 
