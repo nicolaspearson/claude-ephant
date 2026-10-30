@@ -231,13 +231,25 @@ keep.
     the hook log and review state as outside; `design.md`,
     `docs/data-and-privacy.md` and the audit spec say where each lives;
     `task check FORCE=1` and `task audit` pass
-- [ ] redact-before-cut: Redact every text `transcript.Truncate` cuts before
+- [x] redact-before-cut: Redact every text `transcript.Truncate` cuts before
   the cut, as a tool error already is
   - done when a test per caller whose text reaches the index, each seen red,
     indexes a secret straddling the 300-rune cut and finds no fragment of it;
     `internal/index`'s `Version` is bumped, so an index built before the fix
     is rebuilt on the first sync with no fragment left; `design.md` says
     redaction runs before the cut
+  - asserted in the redact-before-cut commit: `transcript.Truncate` redacts
+    before it collapses and cuts; `internal/index`'s
+    TestUpdateKeepsNoFragmentOfASecretTheCutSplits indexes a GitHub token
+    straddling the 300-rune cut through each caller whose cut text reaches the
+    index (a tool line by primary input and by its JSON fallback, an agent
+    call's description, a Stop hook block's reason) and finds no `ghp_`
+    fragment, each case red with the redaction removed and red again with the
+    limit raised past the token; a hook block's reply and a tool error were
+    redacted before their cut already; `Version` 13, and `cmd/ele`'s
+    TestRunSyncRebuildsAnIndexThatCutBeforeRedacting leaves 3 fragments of a
+    version-12 index at 12 and none at 13; `design.md` says redaction runs
+    before each cut of indexed text; `task check FORCE=1` and `task audit` pass
 - [ ] release-dispatch: Add a `workflow_dispatch` trigger to `release.yml`
   taking a tag, which checks that commit, builds, uploads and publishes its
   draft
@@ -278,12 +290,10 @@ keep.
     matching `plugin/`'s, each finding is in the Inbox, and every command or
     flag a skill names exists in `--help`
 - [ ] audit-cmd: Audit `cmd/ele`
-  - blocked: redact-before-cut
   - done when the files read are listed under this item with a dated count
     and each finding is in the Inbox
 - [ ] audit-index: Audit `internal/index`, `internal/transcript`,
   `internal/archive`, `internal/store` and `internal/redact`
-  - blocked: redact-before-cut
   - done when the files read are listed under this item with a dated count
     and each finding is in the Inbox
 - [ ] audit-checkpoint: Audit `internal/checkpoint`
@@ -433,6 +443,13 @@ keep.
 - 2026-10-30, from cli-freeze's persisted-files survey: `archive/claude-mem/`
   in the data dir is neither written nor read since its indexing was removed,
   yet `ele backup` copies it and `ele status` counts its size
+- 2026-10-30, from redact-before-cut's checkpoint: a quoted secret assignment
+  whose value spans a newline, `PASSWORD="abc` then `def…"` in a Bash heredoc,
+  is not matched on the raw text, since the quoted value excludes newlines;
+  `transcript.Truncate`'s whitespace collapse makes it matchable, but a cut
+  inside the value leaves no closing quote, so the writer's pass misses it and
+  a fragment is indexed. Older than redact-before-cut. Redact again after the
+  collapse and before the cut, or let the quoted value span newlines?
 
 ## Out of scope
 

@@ -131,6 +131,26 @@ func TestRunSyncRebuildsAnIndexOfAnotherVersion(t *testing.T) {
 	}
 }
 
+func TestRunSyncRebuildsAnIndexThatCutBeforeRedacting(t *testing.T) {
+	home := recallFixture(t)
+	db, err := store.Open(filepath.Join(home, "data", "ele.db"))
+	require.NoError(t, err)
+	// An index built by version 12, which cut before redacting.
+	_, err = db.Exec(`UPDATE entries SET text = text || ' ghp_abcdefghijklmn…'; UPDATE settings SET value = '12' WHERE key = 'index-version'`)
+	require.NoError(t, err)
+	require.NoError(t, db.Close())
+
+	output, code := runCommand(t, "sync")
+	require.Equal(t, 0, code, output)
+
+	db, err = store.Open(filepath.Join(home, "data", "ele.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, db.Close()) })
+	var fragments int
+	require.NoError(t, db.QueryRow(`SELECT count(*) FROM entries WHERE instr(text, 'ghp_') > 0`).Scan(&fragments))
+	require.Zero(t, fragments)
+}
+
 func TestRunSyncRebuildsTablesThatDoNotMatch(t *testing.T) {
 	home := recallFixture(t)
 	searchIndex, err := index.Open(filepath.Join(home, "data", "ele.db"))

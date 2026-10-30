@@ -83,6 +83,49 @@ func TestUpdateIndexesNewArchiveBytesWithOwners(t *testing.T) {
 	require.Len(t, rows(t, index), 4)
 }
 
+func TestUpdateKeepsNoFragmentOfASecretTheCutSplits(t *testing.T) {
+	const secret = "ghp_abcdefghijklmnopqrstuvwxyz0123456789"
+	// The secret starts before the 300-rune cut and ends after it.
+	straddling := strings.Repeat("a", 281) + " " + secret + " beyond"
+	toolLine := func(name, input string) string {
+		return line("assistant", "/w", `[{"type":"tool_use","name":"`+name+`","input":{`+input+`}}]`)
+	}
+	for name, transcriptLine := range map[string]string{
+		"agent description":  toolLine("Agent", `"description":"`+straddling+`","subagent_type":"general-purpose"`),
+		"hook block reason":  strings.Replace(line("user", "/w", `"Stop hook feedback:\n`+straddling+`"`), `"cwd"`, `"isMeta":true,"cwd"`, 1),
+		"tool input":         toolLine("Bash", `"command":"`+straddling+`"`),
+		"tool input as JSON": toolLine("Mystery", `"payload":"`+straddling+`"`),
+	} {
+		t.Run(name, func(t *testing.T) {
+			root := t.TempDir()
+			projects := filepath.Join(root, "projects")
+			write(t, filepath.Join(projects, "-w", "s1.jsonl"), transcriptLine)
+			index := open(t, filepath.Join(root, "ele.db"))
+			update(t, index, projects, filepath.Join(root, "archive"), ownermap.OwnerMap{})
+
+			var stored []string
+			for _, entry := range rows(t, index) {
+				stored = append(stored, entry.Text)
+			}
+			events, _, err := index.Events(context.Background(), dto.EventQuery{})
+			require.NoError(t, err)
+			for _, event := range events {
+				for _, value := range event.Attributes {
+					if text, ok := value.(string); ok {
+						stored = append(stored, text)
+					}
+				}
+			}
+			require.NotEmpty(t, stored)
+			for _, text := range stored {
+				require.NotContains(t, text, "ghp_", "a fragment of the secret is indexed")
+				require.NotContains(t, text, "beyond", "the cut no longer falls inside the secret")
+			}
+			require.Contains(t, strings.Join(stored, "\n"), "[redac", "the secret's place holds its placeholder, whole or cut")
+		})
+	}
+}
+
 func TestUpdateKeysEntriesByLineAndPlace(t *testing.T) {
 	root := t.TempDir()
 	projects := filepath.Join(root, "projects")

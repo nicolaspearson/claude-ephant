@@ -110,6 +110,7 @@ Built from sections, each with its own budget; each handoff's is the three-line 
 
 - The archive is verbatim. Directory `0700`, files `0600`
 - A redaction pass runs before text is indexed or printed: known token formats (Anthropic and OpenAI keys, GitHub and GitLab tokens, AWS access key IDs, JWTs, PEM private keys) become `[redacted:<kind>]`, and the value of any `key=value` or `key: value` whose key looks secret, JSON keys included, becomes `[redacted:assignment]`
+- Redaction runs before each cut of indexed transcript text, `transcript.Truncate`'s to 300 characters and the tool error's tail alike: a token the cut splits no longer matches a pattern. The cut can split a placeholder, never the token
 - Patterns live in one table with tests. A new pattern takes effect on `ele reindex`
 
 ## Storage
