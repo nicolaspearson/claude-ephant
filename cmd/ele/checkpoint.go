@@ -294,20 +294,40 @@ func checkpointSnapshot(ctx context.Context, args []string, stdin io.Reader, std
 
 func checkpointStats(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) int {
 	flags := newFlagSet("checkpoint stats", stderr)
+	since := flags.String("since", "", "only checkpoints from this date (YYYY-MM-DD) or this many days back (7d); 30d by default")
 	positional, err := parseInterspersed(flags, args)
 	if err != nil || len(positional) > 1 {
 		return rejectCall(flags, err, stdout, stderr)
 	}
-	days := 30
-	if len(positional) == 1 {
-		if days, err = strconv.Atoi(positional[0]); err != nil {
+	if *since != "" && len(positional) == 1 {
+		fmt.Fprintln(stderr, "ele: pass --since or <days>, not both")
+		return 2
+	}
+	now := time.Now().UTC()
+	var from time.Time
+	switch {
+	case len(positional) == 1:
+		days, parseErr := strconv.Atoi(positional[0])
+		if parseErr != nil {
 			fmt.Fprintf(stderr, "ele: days %q is not a whole number\n", positional[0])
 			return 2
 		}
+		from = now.AddDate(0, 0, -days)
+	case *since != "":
+		date, sinceErr := parseSince(*since, now)
+		if sinceErr == nil {
+			from, sinceErr = time.Parse(time.DateOnly, date)
+		}
+		if sinceErr != nil {
+			fmt.Fprintf(stderr, "ele: %v\n", sinceErr)
+			return 2
+		}
+	default:
+		from = now.AddDate(0, 0, -30)
 	}
 	logPath, err := checkpoint.LogPath()
 	if err == nil {
-		err = checkpoint.WriteStats(stdout, logPath, time.Now().UTC().AddDate(0, 0, -days))
+		err = checkpoint.WriteStats(stdout, logPath, from)
 	}
 	if err != nil {
 		fmt.Fprintf(stderr, "ele: %v\n", err)

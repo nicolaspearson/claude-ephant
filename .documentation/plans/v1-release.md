@@ -153,7 +153,7 @@ keep.
     `/root/.local/share/claude-ephant`; `design.md` and
     `docs/data-and-privacy.md` say so, with the downgrade line;
     `task check FORCE=1` and `task audit` pass
-- [ ] cli-freeze: Read every `ele <command> --help` for names, flags and
+- [x] cli-freeze: Read every `ele <command> --help` for names, flags and
   output that 1.0 would lock in; settle the checkpoint log's `notes` field;
   check each file ele persists carries a version a later binary migrates from
   - done when the commands read are listed under this item with a count, dated
@@ -162,6 +162,62 @@ keep.
     each file ele persists in its data directory is listed with its version
     marker, added where missing, or why it needs none; the spec and `docs/`
     page of each change say so; and `task check FORCE=1` passes
+  - as of 2026-10-30: read 55 commands' `--help`, the 63 synopsis lines of
+    `ele --help` (`ticket ledger` counted as `record` and `rulings`):
+    `backup`; `checkpoint` `base`, `check`, `close`, `density`, `freeze`,
+    `gate`, `hash`, `log`, `optout`, `record`, `snapshot`, `stats`; `config`
+    `get`, `list`, `set`, `unset`; `context`; `events`; `flag` `bad`, `good`,
+    `list`; `forget`; `handoff` `close`, `list`, `reopen`; `mine`; `owner`
+    `add`, `add-path`, `add-project`, `remove-path`, `remove-project`; `plan`
+    `check`, `done`, `list`, `show`, `start`; `recall`; `reindex`; `remember`;
+    `reminder` `close`, `list`, `reopen`; `session-start`; `show`; `stats`;
+    `status`; `stop-check`; `sync`; `ticket` `claims`, `corpus`, `ledger
+    record`, `ledger rulings`; `usage`; `version`. Fixed: a
+    flag placeholder holding `]` was cut in its help row (`remember --due`),
+    and one ending `...` now keeps it (`--supersedes <id>...`);
+    the nine checkpoint subcommands the skill and hooks call (`base`, `check`,
+    `close`, `freeze`, `gate`, `hash`, `optout`, `record`, `snapshot`) had no
+    purpose and sat outside the overview, now in it, since semver covers them;
+    `checkpoint stats` takes `--since <YYYY-MM-DD|Nd>` as `events`, `usage`
+    and `recall` do, a bare `<days>` kept until `rename-cutover`. Kept:
+    `stop-check --replay --since` takes a date or RFC 3339 time, not `Nd`,
+    since a replay window needs times and the command is for development
+  - as of 2026-10-30: `notes` dropped: every run logged since 2026-10-20 has
+    it 0, and the skill sends 0, the Stop hook proposing notes instead; `log`
+    accepts and ignores it, stats and `ele mine --report` stop reading it, and
+    `rename-cutover` removes it from the checkpoint and review skills.
+    `plugin/skills/mine/classify-checkpoint-runs.md` still asks the classifier
+    for it, unread, left for `skills-audit`, since changing the prompt changes
+    the classifier's hash
+  - as of 2026-10-30: persisted files and their markers, in `design.md`'s
+    Storage section: only `ele.db` has one (`internal/index`'s `Version`); the
+    JSON files ignore unknown keys, so a later format adds `version` and reads
+    its absence as 1.0; notes reject an unknown key, which only a downgrade
+    meets; `last-sync`, `sync.log`, `move-notice` and stop-check state are
+    rewritten or reset. Outside the data dir: `~/.claude/logs`'
+    `checkpoints.jsonl` and `ticket-audits.jsonl`, moved by `logs-into-data-dir`;
+    the hook log, shared with the user's own hooks, and the review state in
+    `~/.claude/cache/checkpoint-reviewed/` and the temp dir, a cache, stay
+    outside and uncovered
+  - asserted in the cli-freeze commit: all 55 commands' `--help` read from a
+    clone build and listed, matching `ele --help`'s 63 synopsis lines;
+    `help_test`, seen red under mutation, asserts every command, the nine
+    checkpoint subcommands included, prints a purpose and each flag's
+    placeholder whole as its synopsis has it; `checkpoint log` accepts a record
+    with no `notes` and stats reads one, each seen red; `checkpoint stats
+    --since` windows by date, seen red; `design.md`'s Storage section gives
+    each persisted file's version marker or why it needs none;
+    `task check FORCE=1` and `task audit` pass
+- [ ] logs-into-data-dir: Move `checkpoints.jsonl` and `ticket-audits.jsonl`
+  from `~/.claude/logs` into the data directory, so the promise, `ele backup`,
+  `ELE_HOME` and the Linux move cover them
+  - done when tests, each seen red, cover: a first use moving each log once,
+    with a notice as the data dir move gives; no move when the new file
+    exists; `CHECKPOINT_LOG` and `--ledger` still winning; and `ele backup`
+    copying both. The README's promise names the hook log and the review state
+    as outside it; `design.md`, `docs/data-and-privacy.md` and
+    `.documentation/specs/checkpoint-and-ticket-audit.md` say where each lives;
+    and `task check FORCE=1` passes
 - [ ] redact-before-cut: Redact every text `transcript.Truncate` cuts before
   the cut, as a tool error already is
   - done when a test per caller whose text reaches the index, each seen red,
@@ -193,24 +249,23 @@ keep.
     the README mark it experimental
 - [ ] readme-guides: Sweep the README and every page under `docs/` against the
   code
-  - blocked: promise, linux-data-dir, cli-freeze, redact-before-cut,
-    review-status
+  - blocked: promise, linux-data-dir, cli-freeze, logs-into-data-dir,
+    redact-before-cut, review-status
   - done when each page's commands and flags are checked against `--help`,
     each behaviour it states is checked against the code or a run, and
     `task format`, `task lint` and `task lint-docs` pass
 - [ ] cli-docs: Sweep `docs/commands.md` against every `ele <command> --help`
-  - blocked: cli-freeze, linux-data-dir
   - done when every command and flag `ele --help` lists has its row, each
     row's description matches its `--help`, no row names one that is gone, and
     `task lint-docs` passes
 - [ ] skills-audit: Audit the skills, agents, commands, reference files and
   evals under `plugin/` against their specs, the CLI and each other
-  - blocked: skill-lint, cli-freeze
+  - blocked: skill-lint
   - done when the files read are listed under this item with a dated count
     matching `plugin/`'s, each finding is in the Inbox, and every command or
     flag a skill names exists in `--help`
 - [ ] audit-cmd: Audit `cmd/ele`
-  - blocked: cli-freeze, linux-data-dir, redact-before-cut
+  - blocked: redact-before-cut
   - done when the files read are listed under this item with a dated count
     and each finding is in the Inbox
 - [ ] audit-index: Audit `internal/index`, `internal/transcript`,
@@ -219,14 +274,12 @@ keep.
   - done when the files read are listed under this item with a dated count
     and each finding is in the Inbox
 - [ ] audit-checkpoint: Audit `internal/checkpoint`
-  - blocked: cli-freeze
   - done when the files read are listed under this item with a dated count
     and each finding is in the Inbox
 - [ ] audit-plan: Audit `internal/plan` and `internal/ticket`
   - done when the files read are listed under this item with a dated count
     and each finding is in the Inbox
 - [ ] audit-rest: Audit the remaining packages under `internal/`
-  - blocked: linux-data-dir
   - done when the files read are listed under this item with a dated count,
     each finding is in the Inbox, and the five Go audits together name every
     package under `internal/`
@@ -246,13 +299,16 @@ keep.
     each new must have or should have named on `cut-v1`'s `blocked:` line
 - [ ] interim-release: The user merges the release PR for a 0.x release
   carrying `linux-data-dir` and `cli-freeze`
-  - blocked: linux-data-dir, cli-freeze, release-dispatch
+  - blocked: release-dispatch
   - done when that release is the latest with its four tarballs and
     `checksums.txt`, its tag written under this item
 - [ ] rename-cutover: Move skills and hooks to the names `cli-freeze`
   renamed, then remove the old names
   - blocked: interim-release
-  - done when no file under `plugin/` names an old command or flag, the
+  - done when no file under `plugin/` names an old command or flag or has a
+    log record carry `notes`, `plugin/commands/checkpoint-stats.md` and
+    `docs/checkpoint-and-ticket-audit.md` take `--since`, `checkpoint stats`
+    refuses a bare `<days>`, the
     binary rejects each old name, `docs/commands.md` names only the new ones,
     and `task check FORCE=1` passes; or `cli-freeze` renamed nothing, said
     under this item
@@ -339,10 +395,11 @@ keep.
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: promise, linux-data-dir, cli-freeze, redact-before-cut,
-    release-dispatch, skill-lint, review-status, readme-guides, cli-docs,
-    skills-audit, audit-cmd, audit-index, audit-checkpoint, audit-plan,
-    audit-rest, audit-tooling, triage-findings, interim-release,
+  - blocked: promise, linux-data-dir, cli-freeze, logs-into-data-dir,
+    redact-before-cut, release-dispatch, skill-lint, review-status,
+    readme-guides, cli-docs, skills-audit, audit-cmd, audit-index,
+    audit-checkpoint, audit-plan, audit-rest, audit-tooling, triage-findings,
+    interim-release,
     rename-cutover, clean-install, gate-false-blocks, gate-data-dir,
     first-scan-timeout, block-as-error, config-dir, project-owner
   - done when v1.0.0 is the latest release with its four tarballs and

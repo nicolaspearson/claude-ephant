@@ -124,6 +124,9 @@ func TestProblemsAcceptsAValidRecord(t *testing.T) {
 	for name, record := range map[string]string{
 		"a finding raised by two reviewers": with(t, func(record map[string]any) { finding(record)["also_raised_by"] = []any{"bugs"} }),
 		"empty findings":                    with(t, func(record map[string]any) { record["findings"] = []any{} }),
+		"no notes":                          with(t, func(record map[string]any) { delete(record, "notes") }),
+		"notes from an older skill":         with(t, func(record map[string]any) { record["notes"] = "x" }),
+		"review with no notes":              withReview(t, func(record map[string]any) { delete(record, "notes") }),
 		"review":                            validReview,
 		"review on a local branch":          withReview(t, func(record map[string]any) { record["scope"] = "local-branch"; record["target"] = "feature/x" }),
 		"review with a refuted finding": withReview(t, func(record map[string]any) {
@@ -172,7 +175,6 @@ func TestProblemsRefusesARecordTheStatsWouldMisread(t *testing.T) {
 		{"mutations one over run", with(t, func(record map[string]any) { record["mutations"].(map[string]any)["failed"] = 5 }), "mutations.failed plus mutations.inconclusive exceeds mutations.run"},
 		{"negative count", with(t, func(record map[string]any) { record["mutations"].(map[string]any)["run"] = -1 }), "mutations.run is not a whole number"},
 		{"not an object", "[]", "the record is not an object"},
-		{"notes missing", with(t, func(record map[string]any) { delete(record, "notes") }), "notes.approved is not a whole number"},
 		{"rereview missing", with(t, func(record map[string]any) { delete(record, "rereview") }), "rereview null is not one of ran, skipped"},
 		{"review missing dropped", withReview(t, func(record map[string]any) { delete(record, "dropped") }), "dropped.excluded is not a whole number"},
 		{"review in small mode", withReview(t, func(record map[string]any) { record["mode"] = "small" }), `mode "small" is not one of full`},

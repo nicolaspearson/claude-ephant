@@ -44,7 +44,6 @@ type Run struct {
 	Findings      []Finding
 	Mode          string
 	Mutations     map[string]float64
-	Notes         map[string]float64
 	Rereview      string
 	Scope         string
 	Timed         bool
@@ -221,17 +220,12 @@ func Report(w io.Writer, runs []Run) {
 	WriteMostCommon(w, older, func(category string) string { return fmt.Sprintf("%-32s", category) })
 
 	mutations := map[string]float64{}
-	notes := map[string]float64{}
 	for _, run := range runs {
 		for key, count := range run.Mutations {
 			mutations[key] += count
 		}
-		for key, count := range run.Notes {
-			notes[key] += count
-		}
 	}
 	fmt.Fprintf(w, "\nMutations: %s run, %s failed as meant, %s did not compile or did not land (%s)\n", whole(mutations["run"]), whole(mutations["failed"]), whole(mutations["inconclusive"]), percent(mutations["inconclusive"], mutations["run"]))
-	fmt.Fprintf(w, "Notes: %s proposed, %s approved\n", whole(notes["proposed"]), whole(notes["approved"]))
 
 	var durations []float64
 	byMode := map[string][]float64{}
@@ -433,12 +427,11 @@ func parseRun(line string) (Run, time.Time, bool) {
 	}
 	mode, modeOK := object["mode"].(string)
 	lines, linesOK := number(valueAt(object, "change", "lines"))
-	notes, notesOK := parseCounts(object["notes"], "proposed")
 	entries, findingsOK := object["findings"].([]any)
-	if !modeOK || !linesOK || !notesOK || !findingsOK {
+	if !modeOK || !linesOK || !findingsOK {
 		return Run{}, time.Time{}, false
 	}
-	run.ChangeLines, run.Mode, run.Notes = lines, mode, notes
+	run.ChangeLines, run.Mode = lines, mode
 	if IsReview(object) {
 		if run.Dropped, ok = parseCounts(object["dropped"], "excluded"); !ok {
 			return Run{}, time.Time{}, false

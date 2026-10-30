@@ -341,10 +341,10 @@ stopping before reviewed nothing and logs nothing:
   commit with no MR logs as `local-branch`
 - A review record reads and changes no run state: the session's open checkpoint
   run, if any, keeps its clock, and the record gets no `duration`
-- `mode` is `full`; `change` the diff's files and lines; `notes` both 0;
-  `target`, the MR reference or the branch, and `reviewed`, the head SHA the
-  reviewers read, since the record's `head` is the clone's. `mutations` and
-  `rereview` are absent: neither runs
+- `mode` is `full`; `change` the diff's files and lines; `target`, the MR
+  reference or the branch, and `reviewed`, the head SHA the reviewers read,
+  since the record's `head` is the clone's. `mutations` and `rereview` are
+  absent: neither runs
 - `dropped`: counts of findings the filter removed, `excluded` and `raised`,
   and `minor`, the minor findings the user never took further. They are never
   verified, so they are counts, not findings. A lead never taken further is

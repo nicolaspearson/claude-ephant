@@ -120,7 +120,7 @@ func Problems(input io.Reader) (map[string]any, []string, error) {
 		problems = append(problems, notOneOf("mode", valueAt(record, "mode"), "full", "small")...)
 	}
 	problems = append(problems, notOneOf("scope", valueAt(record, "scope"), "branch", "delta", "local-branch", "mr", "uncommitted")...)
-	counts := [][]string{{"change", "files"}, {"change", "lines"}, {"notes", "approved"}, {"notes", "proposed"}}
+	counts := [][]string{{"change", "files"}, {"change", "lines"}}
 	if review {
 		counts = append(counts, []string{"dropped", "excluded"}, []string{"dropped", "minor"}, []string{"dropped", "raised"})
 		for _, name := range []string{"mutations", "rereview"} {

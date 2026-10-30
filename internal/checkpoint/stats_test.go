@@ -33,7 +33,7 @@ func TestReportListsTheFifteenCommonestLateCategoriesTiesInFirstSeenOrder(t *tes
 	require.Equal(t, fmt.Sprintf("  %-9s %-32s 1", "gate", "c13"), lines[14])
 }
 
-func TestWriteStatsCountsVerdictsRereviewsOlderFindingsMutationsAndNotes(t *testing.T) {
+func TestWriteStatsCountsVerdictsRereviewsOlderFindingsAndMutations(t *testing.T) {
 	findings := []string{
 		statsFinding(``, "bugs", ``, "refuted"),
 		statsFinding(``, "bugs", ``, "refuted"),
@@ -42,15 +42,17 @@ func TestWriteStatsCountsVerdictsRereviewsOlderFindingsMutationsAndNotes(t *test
 		strings.NewReplacer(`"origin":"change"`, `"origin":"fix"`, `"stage":"review"`, `"stage":"rereview"`).Replace(statsFinding(``, "prose", ``, "fixed")),
 		strings.NewReplacer(`"category":"x"`, `"category":"y"`, `"origin":"change"`, `"origin":"earlier"`, `"stage":"review"`, `"stage":"rereview"`).Replace(statsFinding(``, "prose", ``, "deliberate")),
 	}
-	loggedRun := strings.NewReplacer(`"failed":0,"inconclusive":0,"run":0`, `"failed":1,"inconclusive":1,"run":3`, `"approved":0,"proposed":0`, `"approved":1,"proposed":2`).Replace(statsRecord(``, "["+strings.Join(findings, ",")+"]", "full"))
+	loggedRun := strings.NewReplacer(`"failed":0,"inconclusive":0,"run":0`, `"failed":1,"inconclusive":1,"run":3`).Replace(statsRecord(``, "["+strings.Join(findings, ",")+"]", "full"))
 	skipped := strings.Replace(statsRecord(``, "[]", "small"), `"rereview":"ran"`, `"rereview":"skipped"`, 1)
+	skipped = strings.Replace(skipped, `"notes":{"approved":0,"proposed":0},`, ``, 1)
 
 	output := writeStats(t, writeStatsLog(t, loggedRun, skipped), 30)
 
 	require.Contains(t, output, "\nrereview   prose          full        1        0     0           1         0%\nreview     bugs           full        0        2     1           0        66%\n")
 	require.Contains(t, output, "\nRe-reviews: ran in 1 of 2 checkpoints (skipped when nothing changed after the first review)\n  found something confirmed: 1 of 1\n  broken by a fix: 1\n  missed by the first review: 1\n")
 	require.Contains(t, output, "\nOlder than the change (origin earlier), by category\n  y                                1\n")
-	require.Contains(t, output, "\nMutations: 3 run, 1 failed as meant, 1 did not compile or did not land (33%)\nNotes: 2 proposed, 1 approved\n")
+	require.Contains(t, output, "\nMutations: 3 run, 1 failed as meant, 1 did not compile or did not land (33%)\nDuration")
+	require.NotContains(t, output, "Notes:")
 }
 
 func TestWriteStatsCreditsSeverityAndSharedFindingsAndTimesRuns(t *testing.T) {

@@ -301,11 +301,36 @@ func TestRunCheckpointStatsRefusesBadArguments(t *testing.T) {
 
 	output, code = runCheckpointStats(t, "1", "2")
 	require.Equal(t, 2, code)
-	require.True(t, strings.HasPrefix(output, "ele checkpoint stats [<days>]\n"), output)
+	require.True(t, strings.HasPrefix(output, "ele checkpoint stats [--since <YYYY-MM-DD|Nd>]\n"), output)
+
+	output, code = runCheckpointStats(t, "--since", "7d", "7")
+	require.Equal(t, 2, code)
+	require.Equal(t, "ele: pass --since or <days>, not both\n", output)
+
+	output, code = runCheckpointStats(t, "--since", "last week")
+	require.Equal(t, 2, code)
+	require.Equal(t, "ele: --since takes YYYY-MM-DD or a number of days like 7d, not \"last week\"\n", output)
 
 	output, code = runCheckpointStats(t, "--baseline")
 	require.Equal(t, 2, code, "the mined baseline moved to ele mine --report")
 	require.Contains(t, output, "flag provided but not defined: -baseline")
+}
+
+func TestRunCheckpointStatsWindowsBySinceOrDays(t *testing.T) {
+	t.Setenv("CHECKPOINT_LOG", filepath.Join(t.TempDir(), "checkpoints.jsonl"))
+	today := time.Now().UTC()
+
+	for _, args := range [][]string{{"--since", "7d"}, {"7"}} {
+		output, code := runCheckpointStats(t, args...)
+		require.Equal(t, 0, code, output)
+		require.True(t, strings.HasPrefix(output, "Since "+today.AddDate(0, 0, -7).Format(time.DateOnly)+":"), args)
+	}
+	output, code := runCheckpointStats(t, "--since", "2026-01-02")
+	require.Equal(t, 0, code, output)
+	require.True(t, strings.HasPrefix(output, "Since 2026-01-02:"), output)
+	output, code = runCheckpointStats(t)
+	require.Equal(t, 0, code, output)
+	require.True(t, strings.HasPrefix(output, "Since "+today.AddDate(0, 0, -30).Format(time.DateOnly)+":"), output)
 }
 
 func checkpointRepository(t *testing.T) (string, string) {

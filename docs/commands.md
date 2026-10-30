@@ -210,7 +210,7 @@ each.
 | `ele stop-check`                                | Stop hook: the notes ask and the context size hint; `--replay` replays it, under [History](#history) |
 | `ele checkpoint gate`, `ele checkpoint snapshot` | Stop and UserPromptSubmit hooks: the checkpoint gate |
 | `ele checkpoint base`, `check`, `close`, `density`, `freeze`, `hash`, `log`, `optout`, `record` | `/ele:checkpoint` |
-| `ele checkpoint stats [<days>]`                 | `/ele:checkpoint-stats`                            |
+| `ele checkpoint stats [--since <YYYY-MM-DD\|Nd>]` | `/ele:checkpoint-stats`                            |
 | `ele ticket corpus`, `ele ticket ledger`        | `/ele:ticket-audit` and `/ele:plan-audit`          |
 | `ele ticket claims`                             | `/ele:ticket-claims`                               |
 | `ele mine`                                      | `/ele:mine`; `ele mine --report` reports what it stored |

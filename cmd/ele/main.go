@@ -30,7 +30,7 @@ const usage = `usage:
   ele checkpoint optout <root> <glob>...
   ele checkpoint record [<root>]
   ele checkpoint snapshot < <prompt-hook.json>
-  ele checkpoint stats [<days>]
+  ele checkpoint stats [--since <YYYY-MM-DD|Nd>]
   ele config get [--owner <name>] <key>
   ele config list [--owner <name>]
   ele config set [--owner <name>] <key> <value>

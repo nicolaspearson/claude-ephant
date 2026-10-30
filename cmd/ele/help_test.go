@@ -48,7 +48,7 @@ func TestRunPrintsTheOverviewNamingEveryCommand(t *testing.T) {
 }
 
 func TestRunAnswersHelpForEveryCommand(t *testing.T) {
-	invocations := [][]string{{"checkpoint", "density"}, {"checkpoint", "log"}, {"checkpoint", "stats"}, {"config", "get"}, {"config", "list"}, {"config", "set"}, {"config", "unset"}, {"flag", "bad"}, {"flag", "good"}, {"flag", "list"}, {"handoff", "close"}, {"handoff", "list"}, {"handoff", "reopen"}, {"owner", "add"}, {"owner", "add-path"}, {"owner", "add-project"}, {"owner", "remove-path"}, {"owner", "remove-project"}, {"plan", "done"}, {"plan", "list"}, {"plan", "show"}, {"plan", "start"}, {"reminder", "close"}, {"reminder", "list"}, {"reminder", "reopen"}, {"ticket", "claims"}, {"ticket", "corpus"}, {"ticket", "ledger"}}
+	invocations := [][]string{{"checkpoint", "base"}, {"checkpoint", "check"}, {"checkpoint", "close"}, {"checkpoint", "density"}, {"checkpoint", "freeze"}, {"checkpoint", "gate"}, {"checkpoint", "hash"}, {"checkpoint", "log"}, {"checkpoint", "optout"}, {"checkpoint", "record"}, {"checkpoint", "snapshot"}, {"checkpoint", "stats"}, {"config", "get"}, {"config", "list"}, {"config", "set"}, {"config", "unset"}, {"flag", "bad"}, {"flag", "good"}, {"flag", "list"}, {"handoff", "close"}, {"handoff", "list"}, {"handoff", "reopen"}, {"owner", "add"}, {"owner", "add-path"}, {"owner", "add-project"}, {"owner", "remove-path"}, {"owner", "remove-project"}, {"plan", "done"}, {"plan", "list"}, {"plan", "show"}, {"plan", "start"}, {"reminder", "close"}, {"reminder", "list"}, {"reminder", "reopen"}, {"ticket", "claims"}, {"ticket", "corpus"}, {"ticket", "ledger"}}
 	for name := range commands {
 		if !slices.Contains([]string{"checkpoint", "config", "flag", "handoff", "owner", "plan", "reminder", "ticket"}, name) {
 			invocations = append(invocations, []string{name})
@@ -60,6 +60,14 @@ func TestRunAnswersHelpForEveryCommand(t *testing.T) {
 		require.Equal(t, 0, code, full)
 		require.Empty(t, stderr, full)
 		require.Regexp(t, `^(ele `+regexp.QuoteMeta(full)+`( .*)?\n)+[A-Z][^\n]*\.\n(  --\S.*\n)*$`, stdout, full)
+		synopsis, _, _ := strings.Cut(stdout, "\n"+purposes[full])
+		if purposes[full] == "" {
+			synopsis, _, _ = strings.Cut(stdout, "\n"+purposes[invocation[0]])
+		}
+		for _, row := range regexp.MustCompile(`(?m)^  (--\S+ \S+) {2,}`).FindAllStringSubmatch(stdout, -1) {
+			require.Regexp(t, regexp.QuoteMeta(row[1])+`(\]|\s|$)`, synopsis, "%s: a flag's placeholder is its synopsis's, whole", full)
+			require.Equal(t, strings.Count(row[1], "["), strings.Count(row[1], "]"), "%s: %s cut inside its brackets", full, row[1])
+		}
 	}
 }
 

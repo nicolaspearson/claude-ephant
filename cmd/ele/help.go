@@ -59,7 +59,14 @@ Mining
 Checkpoint
   checkpoint density  comment density of the diff against its file and its peers
   checkpoint log      append a checkpoint's record to the log
-  checkpoint stats    what checkpoints found and which stage found it, then reviews apart; <days> back, default 30
+  checkpoint stats    what checkpoints found and which stage found it, then reviews apart; --since, default 30d
+  checkpoint base     the merge-base a branch checkpoint diffs against
+  checkpoint check    whether the last checkpoint covers every changed path
+  checkpoint freeze   write the diff for the reviewers and open the run
+  checkpoint hash     the changed paths' fingerprint, for the re-review check
+  checkpoint record   mark the frozen run reviewed and end it
+  checkpoint close    end a run without a record
+  checkpoint optout   exempt paths from the gate for this session
 
 Ticket
   ticket claims   open tickets mistyped as a task or granting themselves execution
@@ -67,16 +74,27 @@ Ticket
   ticket ledger   record what an audit ran against each item, or show earlier rulings
 
 Hooks
-  session-start   the SessionStart block
-  stop-check      ask for notes once per stretch of work; suggest /compact or a handoff as context grows
+  session-start        the SessionStart block
+  stop-check           ask for notes once per stretch of work; suggest /compact or a handoff as context grows
+  checkpoint gate      Stop:block a done claim over unreviewed changes
+  checkpoint snapshot  UserPromptSubmit: the turn's baseline for the gate
 
 ele <command> --help says what each flag does.`
 
 var purposes = map[string]string{
 	"backup":               "Copy the archive, notes, forgotten notes, mining runs, config, owner map, closed plans' item names and the index into a new or empty directory.",
+	"checkpoint base":      "Print the merge-base of HEAD with its upstream, else with origin/HEAD, for a branch checkpoint; refuses with neither or with no shared history.",
+	"checkpoint check":     "Exit 0 when every changed path is what the last checkpoint recorded, staged or committed since included; 1 when anything changed since, none ran, or nothing is changed.",
+	"checkpoint close":     "End this session's open checkpoint run without a record, stopping its clock.",
 	"checkpoint density":   "Per file in the diff since --ref, the share of added lines that are comments, beside the file's own share and the median of its nearest peers of the same suffix; flags the outliers.",
+	"checkpoint freeze":    "Write each named path's diff against HEAD, or --base, into <dir> with the fingerprint the re-review compares, print its line count and mode, and open or extend this session's run for two hours; --start restarts the run's clock. Refuses a path with no change.",
+	"checkpoint gate":      "The Stop hook: block, once per turn, a turn whose reply claims done after changing files since the prompt's snapshot, unless a checkpoint is recorded or open, the skill ran that turn, the reply names both a quality and a prose pass, or the paths are opted out; nothing with the checkpoint_gate option off.",
+	"checkpoint hash":      "Print the fingerprint of the working tree's changed paths, to compare with a freeze's.",
 	"checkpoint log":       "Read a checkpoint's or review's record on stdin, refuse one the stats would misread, and append it with its date, HEAD, repository and, for a checkpoint, duration since the first freeze. A review, scope mr or local-branch, leaves an open checkpoint run's clock running.",
-	"checkpoint stats":     "What the log's checkpoints found and which stage found it over the last <days> days, 30 by default; then review runs apart, with how often the user skipped their findings and what the filter dropped.",
+	"checkpoint optout":    "Exempt the paths matching each glob from the checkpoint gate for this session; refuses a glob matching any path, such as * or **.",
+	"checkpoint record":    "Mark what this session's open run froze as reviewed and end the run; refuses with no open run.",
+	"checkpoint snapshot":  "The UserPromptSubmit hook: save the working tree's state at the turn's first prompt, the baseline the gate compares against.",
+	"checkpoint stats":     "What the log's checkpoints found and which stage found it since --since, 30 days back by default; then review runs apart, with how often the user skipped their findings and what the filter dropped. A bare number of days still works in place of --since until 1.0.",
 	"config get":           "One option's value: the owner's override, else the global value, else the default. A config.json that does not parse, or holds a known option of the wrong kind, reads as defaults, said on stderr.",
 	"config list":          "Each option's value, where it comes from and what it does, and any stored key no option takes.",
 	"config set":           "Store an option's value in config.json, globally or for --owner. Refuses inside a Claude Code session.",
@@ -181,7 +199,7 @@ func writeCommandHelp(w io.Writer, name string, flags *flag.FlagSet) {
 		placeholder, description := flag.UnquoteUsage(defined)
 		flagName := "--" + defined.Name
 		if placeholder != "" {
-			if match := regexp.MustCompile(`--` + regexp.QuoteMeta(defined.Name) + ` ([^\s\]]+)`).FindStringSubmatch(strings.Join(matched, "\n")); match != nil {
+			if match := regexp.MustCompile(`--` + regexp.QuoteMeta(defined.Name) + ` (<[^>]*>(?:\.\.\.)?|[^\s\]]+)`).FindStringSubmatch(strings.Join(matched, "\n")); match != nil {
 				placeholder = match[1]
 			} else {
 				placeholder = "<" + placeholder + ">"
