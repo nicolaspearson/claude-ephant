@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -94,16 +93,33 @@ func TestRunTicketLedgerNeedsACommandAManifestAndForRecordTheRecords(t *testing.
 	}
 }
 
-func TestRunTicketLedgerReadsTheDefaultLedgerUnderHome(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	require.NoError(t, os.MkdirAll(filepath.Join(home, ".claude", "logs"), 0o700))
-	require.NoError(t, os.WriteFile(filepath.Join(home, ".claude", "logs", "ticket-audits.jsonl"), []byte(`{"audited":"2026-10-01","hash":"h","key":"k","methods":[],"rulings":[{"finding":"f","ruling":"r"}]}`+"\n"), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(home, "manifest.json"), []byte(`[{"hash":"h","key":"k"}]`), 0o600))
+func TestRunTicketLedgerPrefersTheLedgerFlag(t *testing.T) {
+	home := ledgerHome(t, "default")
+	writeFile(t, filepath.Join(home, "elsewhere.jsonl"), `{"audited":"2026-10-02","hash":"h","key":"k","methods":[],"rulings":[{"finding":"f","ruling":"flagged"}]}`+"\n")
+	var output bytes.Buffer
+
+	code := ticketCommand(context.Background(), []string{"ledger", "rulings", "--manifest", "~/manifest.json", "--ledger", filepath.Join(home, "elsewhere.jsonl")}, &output, &output)
+
+	require.Equal(t, 0, code, output.String())
+	require.Equal(t, "k\n  ruled 2026-10-02: f — flagged\n  text unchanged since\n", output.String())
+}
+
+func TestRunTicketLedgerReadsTheDefaultLedgerInTheDataDirectory(t *testing.T) {
+	ledgerHome(t, "r")
 	var output bytes.Buffer
 
 	code := ticketCommand(context.Background(), []string{"ledger", "rulings", "--manifest", "~/manifest.json"}, &output, &output)
 
 	require.Equal(t, 0, code, output.String())
 	require.Equal(t, "k\n  ruled 2026-10-01: f — r\n  text unchanged since\n", output.String())
+}
+
+func ledgerHome(t *testing.T, ruling string) string {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("ELE_HOME", filepath.Join(home, "data"))
+	t.Setenv("HOME", home)
+	writeFile(t, filepath.Join(home, "data", "logs", "ticket-audits.jsonl"), `{"audited":"2026-10-01","hash":"h","key":"k","methods":[],"rulings":[{"finding":"f","ruling":"`+ruling+`"}]}`+"\n")
+	writeFile(t, filepath.Join(home, "manifest.json"), `[{"hash":"h","key":"k"}]`)
+	return home
 }

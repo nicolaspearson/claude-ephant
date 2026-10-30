@@ -46,9 +46,10 @@ ele config set checkpoint_gate false
 
 ### What checkpoints found
 
-Each run is logged to `~/.claude/logs/checkpoints.jsonl`, under `~/.claude`
-whatever `CLAUDE_CONFIG_DIR` says, as are the ticket-audit ledger and the copies
-of reviewed files.
+Each run is logged to `logs/checkpoints.jsonl` in the
+[data directory](data-and-privacy.md#storage), next to the ticket-audit ledger.
+The copies of reviewed files stay under `~/.claude/cache/`, whatever
+`CLAUDE_CONFIG_DIR` says.
 `/ele:checkpoint-stats [days]` reports from it: which reviewer found what, how
 much was refuted, what the re-review and the checks caught, and how long runs
 took. Use it to tune the skill, not to judge the code. Reviews of a merge
@@ -73,7 +74,8 @@ It needs `gh` or `glab`, logged in, and `jq` for GitLab. Run it before picking
 up a ticket or closing a map. It drafts every tracker change and hands it to you
 to run: nothing is written to the tracker by the audit itself.
 
-Your rulings on its findings go in a ledger, `~/.claude/logs/ticket-audits.jsonl`.
+Your rulings on its findings go in a ledger, `logs/ticket-audits.jsonl` in the
+data directory.
 A later audit of the same map raises a ruled finding again with your ruling
 beside it, and says whether the ticket's text changed since.
 

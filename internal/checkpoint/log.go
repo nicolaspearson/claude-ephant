@@ -16,6 +16,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/nicolaspearson/claude-ephant/internal/datadir"
 )
 
 var (
@@ -76,11 +78,7 @@ func LogPath() (string, error) {
 	if path := os.Getenv("CHECKPOINT_LOG"); path != "" {
 		return path, nil
 	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(home, ".claude", "logs", "checkpoints.jsonl"), nil
+	return datadir.LogPath(datadir.CheckpointLog)
 }
 
 // Problems reads every value on input, so empty input and two records are refused, not logged as none or two runs.

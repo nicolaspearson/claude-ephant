@@ -120,6 +120,28 @@ func TestAppendLeavesAnOpenRunsClockWhenLoggingAReview(t *testing.T) {
 	require.Equal(t, started, string(content))
 }
 
+func TestLogPathDefaultsToTheDataDirectory(t *testing.T) {
+	directory := t.TempDir()
+	t.Setenv("CHECKPOINT_LOG", "")
+	t.Setenv("ELE_HOME", directory)
+
+	path, err := LogPath()
+
+	require.NoError(t, err)
+	require.Equal(t, filepath.Join(directory, "logs", "checkpoints.jsonl"), path)
+}
+
+func TestLogPathPrefersCheckpointLog(t *testing.T) {
+	override := filepath.Join(t.TempDir(), "elsewhere.jsonl")
+	t.Setenv("CHECKPOINT_LOG", override)
+	t.Setenv("ELE_HOME", t.TempDir())
+
+	path, err := LogPath()
+
+	require.NoError(t, err)
+	require.Equal(t, override, path)
+}
+
 func TestProblemsAcceptsAValidRecord(t *testing.T) {
 	for name, record := range map[string]string{
 		"a finding raised by two reviewers": with(t, func(record map[string]any) { finding(record)["also_raised_by"] = []any{"bugs"} }),

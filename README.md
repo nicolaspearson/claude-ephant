@@ -140,6 +140,10 @@ release does not break:
   forward itself
 - the behaviour of the `ele` commands the plugin's hooks call
 
+The hook log under `~/.claude/logs`, shared with your own hooks, and
+`/ele:checkpoint`'s review state, a cache, live outside the data directory and
+outside this promise.
+
 The plugin is not covered: it installs from `main`, so `hooks.json` and the
 skills' wording change with any commit. Keep `ele` at least as new as the
 plugin; see [Update](#update).

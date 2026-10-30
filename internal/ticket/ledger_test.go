@@ -23,6 +23,16 @@ func TestDumpsStringWritesASCIIEscapes(t *testing.T) {
 	require.Equal(t, `"\u00e9 \"q\" \\ \n\t\b\f\r \u0001 \u007f \u2028 \ud83d\ude00 <&> /"`, dumpsString("\u00e9 \"q\" \\ \n\t\b\f\r \x01 \x7f \u2028 \U0001f600 <&> /"))
 }
 
+func TestLedgerPathDefaultsToTheDataDirectory(t *testing.T) {
+	directory := t.TempDir()
+	t.Setenv("ELE_HOME", directory)
+
+	path, err := LedgerPath()
+
+	require.NoError(t, err)
+	require.Equal(t, filepath.Join(directory, "logs", "ticket-audits.jsonl"), path)
+}
+
 func TestRecordAppendsOneLinePerItemWithTheManifestHash(t *testing.T) {
 	directory := t.TempDir()
 	ledgerPath := filepath.Join(directory, "logs", "ticket-audits.jsonl")

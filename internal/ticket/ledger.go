@@ -14,6 +14,8 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf16"
+
+	"github.com/nicolaspearson/claude-ephant/internal/datadir"
 )
 
 var methods = []string{"artefacts", "contradiction", "decisions", "graph", "premises", "status"}
@@ -36,11 +38,7 @@ type ruling struct {
 }
 
 func LedgerPath() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(home, ".claude", "logs", "ticket-audits.jsonl"), nil
+	return datadir.LogPath(datadir.TicketLedger)
 }
 
 // Record writes nothing unless every record can be recorded: a partial set reads as a whole audit.

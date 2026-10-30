@@ -208,7 +208,7 @@ keep.
     --since` windows by date, seen red; `design.md`'s Storage section gives
     each persisted file's version marker or why it needs none;
     `task check FORCE=1` and `task audit` pass
-- [ ] logs-into-data-dir: Move `checkpoints.jsonl` and `ticket-audits.jsonl`
+- [x] logs-into-data-dir: Move `checkpoints.jsonl` and `ticket-audits.jsonl`
   from `~/.claude/logs` into the data directory, so the promise, `ele backup`,
   `ELE_HOME` and the Linux move cover them
   - done when tests, each seen red, cover: a first use moving each log once,
@@ -218,6 +218,19 @@ keep.
     as outside it; `design.md`, `docs/data-and-privacy.md` and
     `.documentation/specs/checkpoint-and-ticket-audit.md` say where each lives;
     and `task check FORCE=1` passes
+  - asserted in the logs-into-data-dir commit: a first `ele` command moves each
+    of `~/.claude/logs`' `checkpoints.jsonl` and `ticket-audits.jsonl` into the
+    data dir's `logs/`, once, by hard link, with a `move-notice` line per log
+    that a repeated failure leaves once; an existing new file is left alone;
+    `ELE_HOME` skips both moves, leaving a notice that names the old log, and
+    `CHECKPOINT_LOG` skips the checkpoint log's;
+    `CHECKPOINT_LOG` and `--ledger` still win; `ele backup` copies `logs/`;
+    each seen red under mutation in `internal/datadir`, `internal/checkpoint`,
+    `internal/ticket` and `cmd/ele` tests. A clone build run against the real
+    environment moved both logs and printed both notices, then they were moved back by hand. README's promise names
+    the hook log and review state as outside; `design.md`,
+    `docs/data-and-privacy.md` and the audit spec say where each lives;
+    `task check FORCE=1` and `task audit` pass
 - [ ] redact-before-cut: Redact every text `transcript.Truncate` cuts before
   the cut, as a tool error already is
   - done when a test per caller whose text reaches the index, each seen red,

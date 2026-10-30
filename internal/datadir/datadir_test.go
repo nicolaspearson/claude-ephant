@@ -197,13 +197,122 @@ func TestMigrateLeavesMacOSAlone(t *testing.T) {
 	require.NoDirExists(t, filepath.Join(home, ".local", "share", "claude-ephant"))
 }
 
-func setHome(t *testing.T) string {
-	t.Helper()
-	home := t.TempDir()
-	t.Setenv("ELE_HOME", "")
-	t.Setenv("HOME", home)
-	t.Setenv("XDG_DATA_HOME", "")
-	return home
+func TestMigrateMovesLogsOnce(t *testing.T) {
+	home := setHome(t)
+	old := seedLogs(t, home)
+	data := filepath.Join(home, "Library", "Application Support", "claude-ephant")
+
+	notice := migrate("darwin")
+
+	require.Equal(t, "ele moved "+old[0]+" to "+filepath.Join(data, "logs", CheckpointLog)+".\nele moved "+old[1]+" to "+filepath.Join(data, "logs", TicketLedger)+".", notice)
+	for i, file := range []string{CheckpointLog, TicketLedger} {
+		require.NoFileExists(t, old[i])
+		content, err := os.ReadFile(filepath.Join(data, "logs", file))
+		require.NoError(t, err)
+		require.Equal(t, file+"\n", string(content))
+	}
+	require.Equal(t, notice, TakeNotice(data))
+	require.Empty(t, migrate("darwin"))
+}
+
+func TestMigrateMovesLogsAfterTheDirectory(t *testing.T) {
+	home := setHome(t)
+	legacy := seedLegacy(t, home)
+	old := seedLogs(t, home)
+	xdg := filepath.Join(home, ".local", "share", "claude-ephant")
+
+	notice := migrate("linux")
+
+	require.Equal(t, "ele moved its data directory from "+legacy+" to "+xdg+".\nele moved "+old[0]+" to "+filepath.Join(xdg, "logs", CheckpointLog)+".\nele moved "+old[1]+" to "+filepath.Join(xdg, "logs", TicketLedger)+".", notice)
+	require.FileExists(t, filepath.Join(xdg, "logs", CheckpointLog))
+	require.FileExists(t, filepath.Join(xdg, "logs", TicketLedger))
+	require.Equal(t, notice, TakeNotice(xdg))
+}
+
+func TestMigrateLeavesBothLogsWhenNewExists(t *testing.T) {
+	home := setHome(t)
+	old := seedLogs(t, home)
+	current := filepath.Join(home, "Library", "Application Support", "claude-ephant", "logs", CheckpointLog)
+	require.NoError(t, os.MkdirAll(filepath.Dir(current), 0o700))
+	require.NoError(t, os.WriteFile(current, []byte("new\n"), 0o600))
+
+	notice := migrate("darwin")
+
+	require.NotContains(t, notice, old[0])
+	require.FileExists(t, old[0])
+	content, err := os.ReadFile(current)
+	require.NoError(t, err)
+	require.Equal(t, "new\n", string(content))
+	require.Contains(t, notice, old[1])
+}
+
+func TestMigrateLeavesLogsToTheirOverrides(t *testing.T) {
+	home := setHome(t)
+	old := seedLogs(t, home)
+	t.Setenv("CHECKPOINT_LOG", filepath.Join(t.TempDir(), CheckpointLog))
+
+	notice := migrate("darwin")
+
+	require.NotContains(t, notice, old[0])
+	require.FileExists(t, old[0])
+	require.NoFileExists(t, old[1])
+
+	old = seedLogs(t, home)
+	override := t.TempDir()
+	t.Setenv("ELE_HOME", override)
+	notice = migrate("darwin")
+	require.Equal(t, "ELE_HOME is set, so ele did not move "+old[1]+"; it reads and writes only "+filepath.Join(override, "logs", TicketLedger)+", so move it there by hand to keep its history.", notice)
+	require.FileExists(t, old[1])
+	require.NoDirExists(t, filepath.Join(override, "logs"))
+	require.Equal(t, notice, TakeNotice(override))
+}
+
+func TestMigrateConcurrentFirstUsesMoveEachLogOnce(t *testing.T) {
+	home := setHome(t)
+	seedLogs(t, home)
+	notices := make([]string, 32)
+	var group sync.WaitGroup
+	for i := range notices {
+		group.Go(func() {
+			notices[i] = migrate("darwin")
+		})
+	}
+	group.Wait()
+
+	require.Equal(t, 2, strings.Count(strings.Join(notices, "\n"), "ele moved "))
+	content, err := os.ReadFile(filepath.Join(home, "Library", "Application Support", "claude-ephant", "logs", CheckpointLog))
+	require.NoError(t, err)
+	require.Equal(t, CheckpointLog+"\n", string(content))
+}
+
+func TestMigrateFailedLinkKeepsOldLog(t *testing.T) {
+	home := setHome(t)
+	old := seedLogs(t, home)
+	data := filepath.Join(home, "Library", "Application Support", "claude-ephant")
+	original := link
+	link = func(source string, target string) error {
+		return &os.LinkError{Op: "link", Old: source, New: target, Err: syscall.EXDEV}
+	}
+	t.Cleanup(func() { link = original })
+
+	notice := migrate("darwin")
+
+	require.Contains(t, notice, "ele could not move "+old[0]+" to "+filepath.Join(data, "logs", CheckpointLog))
+	require.Contains(t, notice, "cross-device link")
+	require.Contains(t, notice, "move it by hand")
+	require.FileExists(t, old[0])
+	require.Equal(t, notice, migrate("darwin"), "every command retries a failed link")
+	require.Equal(t, notice, TakeNotice(data), "a retried failure leaves its notice once")
+}
+
+func TestLogPathIsUnderTheDataDirectory(t *testing.T) {
+	directory := t.TempDir()
+	t.Setenv("ELE_HOME", directory)
+
+	path, err := LogPath(TicketLedger)
+
+	require.NoError(t, err)
+	require.Equal(t, filepath.Join(directory, "logs", TicketLedger), path)
 }
 
 func seedLegacy(t *testing.T, home string) string {
@@ -212,4 +321,26 @@ func seedLegacy(t *testing.T, home string) string {
 	require.NoError(t, os.MkdirAll(legacy, 0o700))
 	require.NoError(t, os.WriteFile(filepath.Join(legacy, "config.json"), []byte("{}\n"), 0o600))
 	return legacy
+}
+
+func seedLogs(t *testing.T, home string) []string {
+	t.Helper()
+	var paths []string
+	for _, file := range []string{CheckpointLog, TicketLedger} {
+		path := filepath.Join(home, ".claude", "logs", file)
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
+		require.NoError(t, os.WriteFile(path, []byte(file+"\n"), 0o600))
+		paths = append(paths, path)
+	}
+	return paths
+}
+
+func setHome(t *testing.T) string {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("CHECKPOINT_LOG", "")
+	t.Setenv("ELE_HOME", "")
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_DATA_HOME", "")
+	return home
 }

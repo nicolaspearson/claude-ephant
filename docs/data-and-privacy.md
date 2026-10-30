@@ -32,8 +32,9 @@ claude-ephant/
   ele.db           the search index
   forgotten/       notes ele forget moved out
   last-sync        when the last sync succeeded
+  logs/            checkpoints.jsonl and ticket-audits.jsonl
   mining/          checkpoint mining judgments
-  move-notice      Linux only: the move's outcome, until a session shows it
+  move-notice      the data directory and log moves' outcomes, until a session shows them
   notes/           notes, one Markdown file each, by owner
   owner-map.json   owners, path rules and project entries
   plans/           item names of closed plans
@@ -44,10 +45,17 @@ claude-ephant/
 ele never writes its data into a repository. Plans are the exception by design:
 they are files you keep in the repository they describe.
 
-The checkpoint and ticket-audit skills keep their logs under `~/.claude/`:
-`logs/checkpoints.jsonl`, `logs/ticket-audits.jsonl`, `logs/hooks-<month>.log`,
-and the copies of reviewed files in `cache/checkpoint-reviewed/`. A checkpoint
-run's state lives in `claude-checkpoint/` under the system temporary directory.
+The checkpoint log and the ticket-audit ledger live in `logs/`. Releases before
+1.0 kept them in `~/.claude/logs/`; the first `ele` command after upgrading
+moves each one, once, when the new one does not exist yet, and the next session
+start tells you. With `ELE_HOME` set, ele does not move them; each session
+start names the old file until you move it to `logs/` yourself. `CHECKPOINT_LOG`
+skips the checkpoint log's move.
+
+Outside the data directory, and outside `ele backup`: the hook log,
+`~/.claude/logs/hooks-<month>.log`, shared with your own hooks, and the copies
+of reviewed files in `~/.claude/cache/checkpoint-reviewed/`. A checkpoint run's
+state lives in `claude-checkpoint/` under the system temporary directory.
 
 ### The archive
 
@@ -89,10 +97,10 @@ notes included. Keep secrets out of notes.
 ele backup <dir>
 ```
 
-Copies the archive, notes, forgotten notes, mining data, config, owner map,
-closed plans' item names and a consistent copy of the index into `<dir>`, which
-must be empty or not exist. It refuses a directory inside the data directory or
-inside a git checkout.
+Copies the archive, notes, forgotten notes, the checkpoint log and ticket-audit
+ledger, mining data, config, owner map, closed plans' item names and a
+consistent copy of the index into `<dir>`, which must be empty or not exist. It
+refuses a directory inside the data directory or inside a git checkout.
 
 ## Options
 

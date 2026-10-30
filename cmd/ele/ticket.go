@@ -140,7 +140,7 @@ func ticketCorpus(ctx context.Context, args []string, stdout io.Writer, stderr i
 
 func ticketLedger(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
 	flags := newFlagSet("ticket ledger", stderr)
-	ledgerPath := flags.String("ledger", "", "the ledger `file`, by default ~/.claude/logs/ticket-audits.jsonl")
+	ledgerPath := flags.String("ledger", "", "the ledger `file`, by default logs/ticket-audits.jsonl in the data directory")
 	manifestPath := flags.String("manifest", "", "the manifest.json `file` the ticket corpus wrote")
 	recordsPath := flags.String("records", "", "record: the JSON list of records, as a `file`")
 	positional, err := parseInterspersed(flags, args)
