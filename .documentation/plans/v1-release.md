@@ -342,9 +342,16 @@ keep.
     - 11 items in the Inbox, several bundling a list of like findings, and
       one added to audit-cmd's dates item; each of both readers' findings,
       counted against the Inbox, is in one
-- [ ] audit-checkpoint: Audit `internal/checkpoint`
+- [x] audit-checkpoint: Audit `internal/checkpoint`
   - done when the files read are listed under this item with a dated count
     and each finding is in the Inbox
+  - asserted in the commit carrying this tick: the list below matches `ls
+    internal/checkpoint`, 12 files; each finding of both readers' reports,
+    counted against the Inbox, is in an item dated 2026-10-30 "from
+    audit-checkpoint"; the readers probed the optout globs, the glob timing
+    and the space-in-path header, and one traced two 0-second durations to
+    the sessions that logged them; a checkpoint's readers checked most other
+    claims against the code, ten fixes to the items following
   - as of 2026-10-30: 12 files, 3,385 lines, all read whole by both readers,
     bugs and conventions-prose: density, freeze, gate, glob, log, state and
     stats `.go`, and the density, freeze, log, state and stats `_test.go`;
@@ -620,7 +627,9 @@ keep.
   2026-10-30, `curl -d "{\"password\":\"hunter2\"}"` and `X-Api-Key: s3cr3t`
   come back unchanged, since the key allows no `\"` and no hyphen. The gitlab pattern matches `glpat-` alone, where the doc says
   "GitLab tokens": `glrt-`, `gldt-`, `glptt-`, `glcbt-`, `glft-` and `gloas-`
-  pass
+  pass. A fix scrubs only what is indexed after it, so it needs
+  `internal/index`'s `Version` bumped, as redact-before-cut did, for an
+  existing index to rebuild without what the old patterns let through
 - 2026-10-30, from audit-index: secret shapes `redact` misses that the docs
   do not promise: `Authorization: Bearer <opaque>` and `--api-key s3cr3t`
   (both checked unchanged), `--password hunter2`, `scheme://user:pass@host`, `passphrase` and
