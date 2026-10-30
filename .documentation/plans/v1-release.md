@@ -362,6 +362,13 @@ keep.
 - [ ] audit-plan: Audit `internal/plan` and `internal/ticket`
   - done when the files read are listed under this item with a dated count
     and each finding is in the Inbox
+  - as of 2026-10-30: 11 files, 3,615 lines, all read whole by both readers,
+    bugs and conventions-prose: `plan`'s git, plan and store `.go` and
+    `plan_test.go`; `ticket`'s claims, corpus, difflib and ledger `.go` and
+    the claims, corpus and ledger `_test.go`. `git.go` and `store.go` are
+    covered by `plan_test.go`, `difflib.go` by `corpus_test.go`
+    - 17 items in the Inbox, several bundling a list of like findings; each
+      of both readers' findings, counted against the Inbox, is in one
 - [ ] audit-rest: Audit the remaining packages under `internal/`
   - done when the files read are listed under this item with a dated count,
     each finding is in the Inbox, and the five Go audits together name every
@@ -779,6 +786,107 @@ keep.
   `appendDiff` repeats its diff-then-numstat shape per branch; `stats` names
   `a, b` in a sort closure; every test file's `writeFile` lives in
   `density_test.go`
+- 2026-10-30, from audit-plan: `ele ticket prepare --clean` removes every
+  `*.md` in `--out` and `--out/raw`, not only corpus files (`ticket`'s
+  `prepare`), so `--out docs --clean` deletes the docs; its help's "empty
+  --out first" is untrue too, since other files stay
+- 2026-10-30, from audit-plan: `ticket`'s `detectCLI` matches "gitlab" then
+  "github" anywhere in the lowercased origin URL, so a GitHub repository
+  whose path holds "gitlab" picks `glab` and every fetch fails; `hasTracker`
+  accepts any remote holding "github.com", path included. Match the host
+- 2026-10-30, from audit-plan: `ticket`'s `WriteClaims` lists open issues
+  with `--limit 200` and filters by the numbers asked for, so a number that
+  is closed, unknown or open beyond the 200 gh returns is dropped unchecked,
+  and with no other number flagged it prints "No open ticket is mistyped or
+  grants itself execution."
+- 2026-10-30, from audit-plan: `plan`'s `Next` returns the first open
+  action not held, and the closing action carries no `blocked:`, so when
+  every other open action is held, by a cycle, prose or an `after:` date
+  (probed), Next is the closing action, against `docs/plans.md`'s "Once the
+  last action is the only one open"; `writePlanView`'s "every open item is
+  blocked" cannot print for a plan in the documented format
+- 2026-10-30, from audit-plan: `plan.Parse` drops an item whose header an
+  edit merged onto the previous item's last body line, so the line reads
+  `done when x`, then the checkbox and `b: B` (probed): `b` is not counted,
+  never Next, an edge to it "does not exist", and `ele plan check` says
+  nothing. Not in the Inbox before this item, as of 2026-10-30
+- 2026-10-30, from audit-plan: a plan item's ticket-audit ledger key is
+  `filepath.Base` of the checkout plus plan path and name (`ticket`'s
+  `planLocation`), so a worktree or a clone under another folder name loses
+  its earlier rulings, and two repositories in same-named folders share
+  them; ticket keys take the remote's project path instead, and the spec
+  says "a plan action's repository"
+- 2026-10-30, from audit-plan: `ticket`'s `planItems` is a second plan
+  parser disagreeing with `plan.Parse`: no fence tracking, so a fenced
+  `## Inbox` or `- [ ] x` switches section or adds an item; any column-0
+  `-` line under Actions is an action; a `#` heading does not end the
+  section. No live plan hits it as of 2026-10-30
+- 2026-10-30, from audit-plan: `plan`'s `Previous` misses or misreports
+  ticks. `git log -- path` has no `--follow`, so after a `git mv` the earlier
+  ticks are gone (probed); a tick later reverted is still Previous while the
+  item is Next (probed); a tick committed with a title reword is not a flip;
+  any `rev-parse HEAD` failure, a missing git or a corrupt repository
+  included, reads as "outside git"
+- 2026-10-30, from audit-plan: plan lines the parser holds or drops with no
+  warning, each a question. `Blocked:` and `After:` capitalised are ignored,
+  releasing the item, while `done when` matches any case; `blocked: a,`, an
+  empty `blocked:` or `blocked: a c` read as prose and hold forever; a
+  self-block or a cycle holds with no flag (probed); a ticked item listing
+  an open blocker draws none; a fence indented four or more spaces still
+  opens a fence, swallowing what follows (probed); `* [ ]` items and `*`,
+  `+` or numbered Inbox lines are not counted
+- 2026-10-30, from audit-plan: the ticket-audit ledger. `Record` appends
+  with a plain write, so a torn last line from a full disk or a kill makes
+  `loadLedger` refuse the file until hand-edited, failing every
+  ticket-audit §1, where its doc says it "writes nothing unless every
+  record can be recorded"; the ledger grows a line per item per audit, and
+  `WriteRulings` prints a re-recorded ruling once per line
+- 2026-10-30, from audit-plan: `ticket`'s `paged` stops at 20 pages, 2,000
+  comments, and glab's `search` at 2,000 hits, both silently, where gh's
+  path warns at its 500 cap; the comment "20 pages outrun any ticket's
+  notes" is undated
+- 2026-10-30, from audit-plan: `ticket`'s `detectCLI` and `trackerProject`
+  print the raw origin remote in errors, so a remote holding
+  `user:token@` puts the token on stderr and into the transcript when it
+  names neither tracker with both CLIs installed, or `remoteProject` cannot
+  read a project path from it
+- 2026-10-30, from audit-plan: docs. `docs/plans.md` and
+  `.documentation/specs/design.md` give `after: <date>` alone; the UTC
+  `YYYY-MM-DD HH:MMZ` form is in the plan skill only, and a date-only
+  `after:` is local midnight. Neither says a malformed `after:`, `created`
+  or unknown front-matter key makes the whole plan unparseable, which 1.0
+  would lock in. The spec's ledger key says `repo#number`; the code writes
+  `owner/repo#number`
+- 2026-10-30, from audit-plan: `ticket` copies Python: `isWhitespace` takes
+  `\x1c`-`\x1f`, `splitLines` follows `str.splitlines`, the ledger and
+  manifest are hand-written to match `json.dumps` byte for byte, errors print
+  Python list reprs, and `difflib.go` ports CPython's `SequenceMatcher` and
+  `unified_diff` (405 generated cases matched Python 3, probed) with no
+  attribution. Is compatibility with the retired scripts still required? If
+  so the spec should say `collapseWhitespace` and `itemHash` cannot change
+  after 1.0 without flipping every ledger entry to changed; if not, simplify
+- 2026-10-30, from audit-plan: small. `plan.Resolve` panics on a nil
+  `lookup` with any plan edge; `WriteClaims` prints "1 open tickets are
+  flagged." and its test asserts it; `Corpus` says "no tickets written" for
+  a plan with no items, and a plan corpus prints "ticket(s)" and
+  `#<plan>-NN`; blank lines in
+  front matter are refused; `planLocation`'s parameter `plan` shadows the
+  package
+- 2026-10-30, from audit-plan: shape. `WriteClaims` execs through its own
+  `run`, bypassing the injected `Commands`, so its test puts a fake `gh` on
+  PATH; `ledger`'s `wellFormed` inlines `corpus`' `isWhitespace` and
+  `trimWhitespace`; `cleanPath` is `filepath.Clean` without resolving `..`
+  and keeping a leading `//`, with no test of its own
+- 2026-10-30, from audit-plan: tests. `plan_test.go`'s "front matter never
+  closes" case hits "is not key: value", leaving the real error untested;
+  `TestNextIsNoneWhenEveryOpenItemIsBlocked` has no closing action.
+  Uncovered: a self-block or cycle, a capitalised `Blocked:`, a merged
+  header, an empty `blocked:`, a BOM, tabs or an empty file, which the
+  parser handles (probed), `WriteStored`'s cleanup, a renamed or reverted
+  tick, difflib's several hunks and empty or identical inputs, a
+  fenced heading in `planItems`, a torn ledger line. Out of order:
+  `corpus_test.go`'s and `plan_test.go`'s test funcs and the
+  `TestCompareMatches…` and `TestDetectCLI…` tables
 
 ## Out of scope
 
