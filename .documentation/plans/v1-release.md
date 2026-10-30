@@ -397,12 +397,18 @@ keep.
       audit-plan 2 and this audit the other 8
     - 14 items in the Inbox, several bundling a list of like findings; each
       of the four readers' findings, counted against the Inbox, is in one
-- [ ] audit-tooling: Audit `install.sh`, `plugin/hooks/hooks.json`, the
+- [x] audit-tooling: Audit `install.sh`, `plugin/hooks/hooks.json`, the
   workflows under `.github/workflows/`, `Taskfile.yml`, `Taskfile.tools.yml`,
   `.claude-plugin/marketplace.json`, `plugin/.claude-plugin/plugin.json` and
   `release-please-config.json`
   - done when the files read are listed under this item with a dated count
     and each finding is in the Inbox
+  - asserted in the commit carrying this tick: the list below names the 10
+    files the item lists; each finding of both readers' reports, counted
+    against the Inbox, is in an item dated 2026-10-30 "from audit-tooling";
+    the bugs reader resolved the action SHAs and probed the dash trap; a
+    small-mode checkpoint reader checked most other claims against the
+    files, and three fixes to the items followed
   - as of 2026-10-30: 10 files, 828 lines, all read whole by a bugs and a
     conventions-prose reader each: `install.sh`, `plugin/hooks/hooks.json`,
     `ci.yml`, `release.yml` and `tap.yml` under `.github/workflows/`,
