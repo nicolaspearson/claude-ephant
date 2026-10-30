@@ -44,6 +44,7 @@ type Run struct {
 	Findings      []Finding
 	Mode          string
 	Mutations     map[string]float64
+	Notes         map[string]float64
 	Rereview      string
 	Scope         string
 	Timed         bool
@@ -220,12 +221,20 @@ func Report(w io.Writer, runs []Run) {
 	WriteMostCommon(w, older, func(category string) string { return fmt.Sprintf("%-32s", category) })
 
 	mutations := map[string]float64{}
+	notes := map[string]float64{}
 	for _, run := range runs {
 		for key, count := range run.Mutations {
 			mutations[key] += count
 		}
+		for key, count := range run.Notes {
+			notes[key] += count
+		}
 	}
 	fmt.Fprintf(w, "\nMutations: %s run, %s failed as meant, %s did not compile or did not land (%s)\n", whole(mutations["run"]), whole(mutations["failed"]), whole(mutations["inconclusive"]), percent(mutations["inconclusive"], mutations["run"]))
+	// The log no longer records notes; only mined runs carry them.
+	if len(notes) > 0 {
+		fmt.Fprintf(w, "Notes: %s proposed, %s approved\n", whole(notes["proposed"]), whole(notes["approved"]))
+	}
 
 	var durations []float64
 	byMode := map[string][]float64{}

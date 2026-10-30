@@ -44,6 +44,26 @@ func TestReportLeavesOutAnInlineRunJudgedWithoutPerPassCounts(t *testing.T) {
 	require.Contains(t, report.String(), "Said a checkpoint was unwanted: units 1.", "a unit judged no checkpoint still counts")
 }
 
+func TestReportKeepsTheNotesTheMinedRunsProposed(t *testing.T) {
+	runs := []Judgment{
+		judgment("subagent", "s1", "2026-10-16T10:00:00Z", `{"mode":"full","findings":[],"notes":{"approved":1,"proposed":2}}`),
+		judgment("subagent", "s1", "2026-10-17T10:00:00Z", `{"mode":"full","findings":[],"notes":{"approved":0,"proposed":1}}`),
+	}
+	var report bytes.Buffer
+
+	require.NoError(t, Report(&report, runs, nil, nil))
+
+	require.Contains(t, report.String(), "\nNotes: 3 proposed, 1 approved\n")
+
+	report.Reset()
+	require.NoError(t, Report(&report, []Judgment{judgment("subagent", "s1", "2026-10-21T10:00:00Z", `{"mode":"full","findings":[],"notes":{"approved":0,"proposed":0}}`)}, nil, nil))
+	require.Contains(t, report.String(), "\nNotes: 0 proposed, 0 approved\n", "a mined zero is a figure")
+
+	report.Reset()
+	require.NoError(t, Report(&report, []Judgment{judgment("subagent", "s1", "2026-10-21T10:00:00Z", `{"mode":"full","findings":[]}`)}, nil, nil))
+	require.NotContains(t, report.String(), "Notes:")
+}
+
 func TestReportReadsTheLastStoredJudgmentPerUnit(t *testing.T) {
 	runs := []Judgment{
 		judgment("subagent", "s1", "2026-10-08T10:00:00Z", `{"mode":"full","findings":[{"source":"bugs","stage":"review","verdict":"refuted","category":"naming"}]}`),

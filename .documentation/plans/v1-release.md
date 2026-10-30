@@ -184,11 +184,11 @@ keep.
     since a replay window needs times and the command is for development
   - as of 2026-10-30: `notes` dropped: every run logged since 2026-10-20 has
     it 0, and the skill sends 0, the Stop hook proposing notes instead; `log`
-    accepts and ignores it, stats and `ele mine --report` stop reading it, and
+    accepts and ignores it, `checkpoint stats` stops reading it, and
     `rename-cutover` removes it from the checkpoint and review skills.
-    `plugin/skills/mine/classify-checkpoint-runs.md` still asks the classifier
-    for it, unread, left for `skills-audit`, since changing the prompt changes
-    the classifier's hash
+    `ele mine --report` keeps its Notes line from mined judgments, whose
+    sessions before 2026-10-20 hold non-zero counts: the baseline for the Stop
+    hook's notes ask
   - as of 2026-10-30: persisted files and their markers, in `design.md`'s
     Storage section: only `ele.db` has one (`internal/index`'s `Version`); the
     JSON files ignore unknown keys, so a later format adds `version` and reads
