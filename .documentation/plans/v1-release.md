@@ -412,6 +412,15 @@ keep.
 
 ## Inbox
 
+- 2026-10-30, from cli-freeze's persisted-files survey: nothing removes a
+  checkpoint run's leftovers. The session's `.optout` file under the temp
+  dir's `claude-checkpoint/` is never deleted, and a run frozen but never
+  recorded or closed leaves its `.started` file in
+  `~/.claude/cache/checkpoint-reviewed/` with no sweep
+- 2026-10-30, from cli-freeze's persisted-files survey: `archive/claude-mem/`
+  in the data dir is neither written nor read since its indexing was removed,
+  yet `ele backup` copies it and `ele status` counts its size
+
 ## Out of scope
 
 - Self-audit of ele's own records: a feature, not a release gate (ruled
