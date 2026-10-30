@@ -250,7 +250,7 @@ keep.
     TestRunSyncRebuildsAnIndexThatCutBeforeRedacting leaves 3 fragments of a
     version-12 index at 12 and none at 13; `design.md` says redaction runs
     before each cut of indexed text; `task check FORCE=1` and `task audit` pass
-- [ ] release-dispatch: Add a `workflow_dispatch` trigger to `release.yml`
+- [x] release-dispatch: Add a `workflow_dispatch` trigger to `release.yml`
   taking a tag, which checks that commit, builds, uploads and publishes its
   draft
   - done when actionlint, run by hand, passes; CONTRIBUTING's Releases section
@@ -258,15 +258,14 @@ keep.
     Tap job; a run the user triggers on a throwaway pre-release draft
     publishes it with tarballs whose sums match its `checksums.txt`; and the
     user deletes that release and its tag, their absence checked
-  - as of 2026-10-30: `release.yml` takes a `workflow_dispatch` tag, checks
-    its commit through `ci.yml`'s new `ref` input, refuses a non-draft,
-    publishes a pre-release without latest and skips Tap for it; CONTRIBUTING's
-    Releases section describes it and the throwaway run; `task check FORCE=1`
-    and `task audit` pass; actionlint, run by hand with shellcheck installed,
-    passes; no run triggered
-  - next: the user pushes, runs the throwaway dispatch from CONTRIBUTING,
-    checks the sums against `checksums.txt` and that Tap was skipped, and
-    deletes the release and tag, checking they are gone
+  - asserted in the release-dispatch tick commit, work in 4d8c42f: run
+    41010566211, dispatched on the user's go-ahead on a throwaway draft
+    pre-release, checked out and checked the tag's commit, published it as a
+    pre-release with v0.12.0 still latest and Tap skipped, its four tarballs
+    matching `checksums.txt`; actionlint, run by hand by the user, passes;
+    CONTRIBUTING's Releases section describes the dispatch and the throwaway
+    run; on the same go-ahead the release and tag were deleted, and both
+    checked absent
 - [ ] skill-lint: A Go lint under `task check`: the description of a skill
   without `disable-model-invocation` contains `Use when`, relative links
   resolve, `SKILL.md` stays under 500 lines, and extra files sit under
@@ -319,7 +318,6 @@ keep.
   workflows under `.github/workflows/`, `Taskfile.yml`, `Taskfile.tools.yml`,
   `.claude-plugin/marketplace.json`, `plugin/.claude-plugin/plugin.json` and
   `release-please-config.json`
-  - blocked: release-dispatch
   - done when the files read are listed under this item with a dated count
     and each finding is in the Inbox
 - [ ] triage-findings: Tier every audit finding in the Inbox
@@ -331,7 +329,6 @@ keep.
     each new must have or should have named on `cut-v1`'s `blocked:` line
 - [ ] interim-release: The user merges the release PR for a 0.x release
   carrying `linux-data-dir` and `cli-freeze`
-  - blocked: release-dispatch
   - done when that release is the latest with its four tarballs and
     `checksums.txt`, its tag written under this item
 - [ ] rename-cutover: Move skills and hooks to the names `cli-freeze`
