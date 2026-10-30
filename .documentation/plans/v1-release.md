@@ -359,9 +359,15 @@ keep.
     `state_test.go` covering them
     - 15 items in the Inbox, several bundling a list of like findings; each
       of both readers' findings, counted against the Inbox, is in one
-- [ ] audit-plan: Audit `internal/plan` and `internal/ticket`
+- [x] audit-plan: Audit `internal/plan` and `internal/ticket`
   - done when the files read are listed under this item with a dated count
     and each finding is in the Inbox
+  - asserted in the commit carrying this tick: the list below matches `ls`
+    of the two packages, 11 files; each finding of both readers' reports,
+    counted against the Inbox, is in an item dated 2026-10-30 "from
+    audit-plan"; the bugs reader probed the parser, `Previous` and difflib
+    against Python; a checkpoint's readers checked most other claims against
+    the code, and nine fixes to the items followed
   - as of 2026-10-30: 11 files, 3,615 lines, all read whole by both readers,
     bugs and conventions-prose: `plan`'s git, plan and store `.go` and
     `plan_test.go`; `ticket`'s claims, corpus, difflib and ledger `.go` and
@@ -373,6 +379,16 @@ keep.
   - done when the files read are listed under this item with a dated count,
     each finding is in the Inbox, and the five Go audits together name every
     package under `internal/`
+  - as of 2026-10-30: 32 files, 5,728 lines, all read whole by a bugs and a
+    conventions-prose reader each: `mining`'s cache, digest, report, take,
+    timing, units and watermark `.go` and their `_test.go`; `config`,
+    `datadir`, `highlight`, `notes`, `ownermap` and `profile`, each a `.go`
+    and its `_test.go`; `dto`'s event, indexstats, miningunit, owner,
+    transcript and usage `.go`, which other packages' tests exercise
+    - `internal/` holds 16 packages: audit-index named 5, audit-checkpoint 1,
+      audit-plan 2 and this audit the other 8
+    - 14 items in the Inbox, several bundling a list of like findings; each
+      of the four readers' findings, counted against the Inbox, is in one
 - [ ] audit-tooling: Audit `install.sh`, `plugin/hooks/hooks.json`, the
   workflows under `.github/workflows/`, `Taskfile.yml`, `Taskfile.tools.yml`,
   `.claude-plugin/marketplace.json`, `plugin/.claude-plugin/plugin.json` and
@@ -887,6 +903,113 @@ keep.
   fenced heading in `planItems`, a torn ledger line. Out of order:
   `corpus_test.go`'s and `plan_test.go`'s test funcs and the
   `TestCompareMatches…` and `TestDetectCLI…` tables
+- 2026-10-30, from audit-rest: `notes.Parse` reads with a default
+  `bufio.Scanner`, so a body line over 64 KiB, which `Write` accepts, fails
+  with "token too long" (probed): not `ErrInvalid`, so `ReadOwner` aborts
+  the whole owner, and session start, `ele remember`, context, stop-check,
+  status and the owner commands fail for it until that file is fixed by
+  hand. `ReadOwner`'s doc says it counts the files `Parse` rejects; only
+  `ErrInvalid` ones are
+- 2026-10-30, from audit-rest: `notes.Write` accepts what `Parse` then
+  rejects or worse. A whitespace-only body is written and read back as
+  "empty body", lost (probed), since `problem` tests the untrimmed body;
+  `Owner`, `Profile`, `ID` and `Supersedes` entries go unchecked, so a
+  `Profile` holding a newline writes an unreadable note and an `ID` of
+  `../../esc` writes outside the notes folder (both probed). `Profile` comes
+  from the config dir's base name; owner and id are checked by `cmd/ele`
+  today, but `Write` is the exported boundary
+- 2026-10-30, from audit-rest: `notes` writes. `Write` creates the file with
+  `O_EXCL` and writes in place, so a concurrent read sees half a note and a
+  write cut short leaves an invalid file holding its id; `rewriteKey` and
+  `Move` are unlocked read-modify-writes, so of two rewrites of one note
+  the later rename drops the other's key, and a `MarkShown` that read a note
+  before an owner command's `Move` renames it back under its old owner,
+  leaving it under both; a crash leaves `*.tmp`
+  files nothing sweeps; `Move` never checks the opening `---`;
+  `Relocate` has no test
+- 2026-10-30, from audit-rest: `datadir`'s `resolve` makes a relative
+  `ELE_HOME` absolute against the working directory, which a test pins and
+  `docs/data-and-privacy.md` does not mention; hooks run in each project's
+  directory, so `ELE_HOME=data` gives each project its own store, and a
+  literal `~/ele` from a settings `env` block becomes `<cwd>/~/ele`. On
+  Linux, a process that resolved the old directory just before `move`
+  renames it can recreate it, so `resolve` picks XDG and that process's
+  writes are stranded. `moveLog` with both the old and new log present
+  leaves the old one with no notice, as the spec has it
+- 2026-10-30, from audit-rest: `ownermap.Read` applies none of the checks
+  `ele owner add` does, where `docs/owners.md` says the map "can be edited by
+  hand": an owner `../x` becomes a notes folder, a `~/code` rule never
+  matches, and `/a/b` and `/a/b/` clean to one key, the
+  owner kept depending on map order. `OwnerOfPath` resolves no symlinks, so a
+  cwd reached through one misses a rule given the other way. `Save` writes
+  `"owners": null` when there are none, and nil path or project maps as
+  `null`, through a fixed `.tmp`, unlocked
+- 2026-10-30, from audit-rest: `profile.Discover` follows symlinks and keeps
+  no real path, so a `~/.claude-work` linking to `~/.claude` archives and
+  indexes every transcript twice, under both profiles, a setup the project's
+  recipe skill expects; `~/.claude-claude` and a bare `~/.claude-` both name
+  to `claude`, sharing its archive keys, and `Current(".claudefoo")` names
+  one `Discover` never lists; a home holding `[` fails its `filepath.Glob`
+  (probed)
+- 2026-10-30, from audit-rest: `ele events` prints `dto.Event` as JSON, an
+  API at 1.0, and `TestRunEventsPrintsOneJSONObjectPerLine` decodes the
+  output back through the same tags, so renaming `json:"kind"` or dropping
+  an `omitempty` keeps it green. `dto.DecodeAttributes` returns the bare
+  `json.Unmarshal` error and decodes numbers to `float64`, losing integers
+  past 2^53
+- 2026-10-30, from audit-rest: `mining`'s `Digest` quotes a checkpoint
+  run's other tool calls as `json.Marshal(block.Input)` redacted, so an
+  assignment's quotes are `\"` and the value passes, the escaped-quote miss
+  of audit-index's redaction item by another path: `API_KEY="s3cr3tvalue123"`
+  in an MCP or `WebFetch` input reaches the digest and the classifier
+  subagent (probed); no test covers the branch
+- 2026-10-30, from audit-rest: `mining`'s `Take` stores each classifier
+  line checking only `session` and `timestamp`, and `lastPerUnit` decodes
+  every stored result into a typed struct, so one line with
+  `"is_checkpoint":"yes"` or a string `change.lines` fails
+  `ele mine --report` from then on, as does a `report_ts` that is not
+  RFC 3339 once a later cycle in that session is checked against it;
+  re-judging under
+  the same prompt hashes the same, so `Store` keeps the bad line and only a
+  hand edit of the cache repairs it
+- 2026-10-30, from audit-rest: mining file formats. `Load` fails the whole
+  cache on a blank line, where `Take` and `Named` skip them; `Store`
+  re-marshals every held judgment through `Judgment`, dropping keys it does
+  not declare; `loadWatermarks` decodes into `map[string]time.Time`, so a
+  `"version": 2` fails every `ele mine`. `design.md` says the cache and its
+  watermarks "ignore keys they do not know, so a later format adds a
+  `version` key", true of reading the cache alone
+- 2026-10-30, from audit-rest: `docs/data-and-privacy.md`'s Secrets says
+  text is redacted before it is indexed or printed, but not that
+  `ele mine --digests` writes redacted transcript excerpts, prior asks,
+  agent prompts, Bash commands and edit paths among them, into the session
+  scratchpad for `/ele:mine` to hand to model subagents, nor that the skill's
+  cleanup leaves the digest `.txt` files there
+- 2026-10-30, from audit-rest: mining questions. `writeDigests` stops the
+  whole listing at the first unit `Digest` cannot read, and that unit stays
+  pending, so every later listing stops there; `readTranscript` takes no
+  archive lock while `appendMember` appends in place. `Pending` can mine a
+  live session's still-open window, and that judgment is final. Inline-era
+  review cycles count under "Subagent era" and are timed. `upperQuartile`'s
+  p75 can exceed the slowest launch on two values, as its test pins. `Take`
+  takes `pending[0]` as the earliest, relying on its callers' sort.
+  `subagentPath` joins an unchecked `agentId`. `Judgment`, `Timing`,
+  `TimedUnit`, `UnitKey` and `Taken` cross into `cmd/ele` outside `dto`
+- 2026-10-30, from audit-rest: small. `highlight.Message` strips control
+  characters but not bidi overrides or U+2028, and its loops shadow the
+  types `rule` and `span`; `config.Options` is an exported mutable slice,
+  `Set` on a zero `Config` panics on its nil map, and `Load` names whichever
+  bad option map order meets first; `datadir`'s `syscall.Flock` rules out a
+  Windows build, which CONTRIBUTING says there is none of
+- 2026-10-30, from audit-rest: order and shape. Out of order: `mining`'s
+  `finding` fields `RereviewKind` and `ReraisesUserDecision`, `units.go`'s
+  exported functions, `cache.go`'s functions, `report.go`'s `checkpoint`
+  method among the types; `notes_test.go`'s `TestParseRejectsInvalidNotes`
+  and `TestEveryRoundTripsEachUnit` tables and `highlight_test.go`'s
+  `TestMessage`. `Take` names the cache directory `cache` where its
+  siblings say `directory`; `take.go` and `units.go`'s `Named` read JSON
+  Lines with the same loop and key, which `UnitKey` names; `report.go`'s
+  `cut` and `digest.go`'s `clip` truncate alike
 
 ## Out of scope
 
