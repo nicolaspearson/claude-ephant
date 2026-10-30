@@ -300,6 +300,18 @@ keep.
 - [ ] audit-cmd: Audit `cmd/ele`
   - done when the files read are listed under this item with a dated count
     and each finding is in the Inbox
+  - as of 2026-10-30: 49 files, all of `cmd/ele`, each command name below
+    standing for its `.go` and `_test.go`
+    - read whole by a bugs and a conventions-prose reader each: all 25
+      sources
+    - read whole by one bugs reader: the tests of backup, config, flag,
+      forget, help, main, owner, plan, recall, remember, reminder, status,
+      ticket, usage and version; handoff and planset have none
+    - read in part: the tests of bashwork, checkpoint, context, events, mine,
+      sessionstart, stopcheck and stopreplay, and `testdata/stop-check.jsonl`,
+      its head read and grepped for personal data
+    - 21 items in the Inbox, one of them for audit-index, several bundling
+      a list of like findings
 - [ ] audit-index: Audit `internal/index`, `internal/transcript`,
   `internal/archive`, `internal/store` and `internal/redact`
   - done when the files read are listed under this item with a dated count
@@ -456,6 +468,112 @@ keep.
   inside the value leaves no closing quote, so the writer's pass misses it and
   a fragment is indexed. Older than redact-before-cut. Redact again after the
   collapse and before the cut, or let the quoted value span newlines?
+- 2026-10-30, from release-dispatch's checkpoint: a hand-published
+  non-pre-release draft is marked latest and tapped even when a newer release
+  exists, so `install.sh` and brew would move users back to it. Should
+  publish refuse a tag that sorts below the current latest?
+- 2026-10-30, from audit-cmd: `ele show --at` compares its argument with
+  entry timestamps as strings (`cmd/ele` `show`), while `ele flag --at`
+  parses RFC 3339 instants (`indexedMoment`). A flag time to the second skips
+  entries stamped with milliseconds in that second, and an offset time lands
+  hours off; `TestRunShowCentresOnAMatch` asserts the bare-prefix form
+- 2026-10-30, from audit-cmd: `bashwork`'s read list (`eleNotWork`) leaves
+  out `ele checkpoint stats`, `ele config list`, `ele stats` and `ele usage`,
+  as does `stop-check.md`'s "What it reads", so `/ele:checkpoint-stats` marks
+  the session mid-task and draws a notes ask
+- 2026-10-30, from audit-cmd: `sync.log` is opened append-only by
+  `startSync` and never cut, 189,635 bytes on the author's machine as of
+  2026-10-30, and `ele status` reads it whole. Cap or rotate it?
+- 2026-10-30, from audit-cmd: `last-sync` is written in place by `syncAll`
+  and read without the lock by `writeSessionStart`, so a start racing a sync
+  can print "sync stamp is malformed"; `writeStopState` writes the
+  stop-check state in place too, where a killed write drops the stretch.
+  Write both through a temp file and rename?
+- 2026-10-30, from audit-cmd: `ele help <command>`, `ele --version` and
+  `ele -v` exit 2 with "unknown command"; accept them, or record their
+  absence as part of the frozen CLI?
+- 2026-10-30, from audit-cmd: help text off the code. `backup`'s purpose and
+  overview line omit `logs/`, which `backupParts` copies; `reminder list`'s
+  omits everywhere reminders, which `remindersHere` lists; `docs/commands.md`'s
+  `status` line omits the running sync, the options off their defaults and
+  the sync log tail
+- 2026-10-30, from audit-cmd: `checkpoint freeze` refuses a missing output
+  directory or no paths with the synopsis alone, no reason
+  (`checkpointFreeze`'s `rejectCall(flags, nil, …)`); `checkpoint gate` and
+  `snapshot` read stdin with no terminal guard, so run by hand they hang,
+  where `readHookInput` refuses a terminal
+- 2026-10-30, from audit-cmd: `ele context --size` (`contextSize`) scans the
+  whole transcript; stop-check's `lastContextTokens` reads a bounded tail,
+  since a transcript can pass 100 MB, and the spec says they compute it alike
+- 2026-10-30, from audit-cmd: the SessionStart block's handoff section has
+  no budget, and the plan section caps only the next item's body
+  (`planBodyBudget`), not its blocked list or the multi-plan summary; only
+  notes shrink to `blockBudget`'s room, so long pending handoffs can push the
+  block past the size the model sees whole. How long do real handoffs run?
+- 2026-10-30, from audit-cmd: the bare-number form of `checkpoint stats`,
+  due to go at 1.0, is what `plugin/commands/checkpoint-stats.md` passes,
+  `docs/commands.md`'s `/ele:checkpoint-stats` row describes ("or the number
+  given") and `docs/checkpoint-and-ticket-audit.md` shows as `[days]`;
+  removing it needs all three changed with it. The
+  two forms also differ: a bare `7` is now minus 7 days, `--since 7d` the UTC
+  start of that day
+- 2026-10-30, from audit-cmd: `design.md` says `sync.log` is "printed, never
+  parsed"; `ele status` parses its header stamps to show the log since the
+  last success
+- 2026-10-30, from audit-cmd: dates. `--since` and stop-check `--replay`
+  dates are UTC days, `remember --due` local, and `docs/commands.md` states
+  neither; a note's `Date` is local while its `Time` is UTC, and
+  `newestOfKind` sorts by both
+- 2026-10-30, from audit-cmd: questions on the data commands, each unsettled
+  by the code. `backup` fails whole on a symlink, or on a note renamed away
+  mid-walk by a concurrent `forget`. `reminder close` prints "due again" for
+  a nudge whose done file is unreadable, shown again at once. `forget A B`
+  refuses when A supersedes B. Owner commands blame "a sync" for a lock
+  `backup` holds, and a `notes.Move` failing partway leaves moved notes with
+  no owner-map save. `recall --limit 0` silently means 20. `config set` is an
+  unlocked read-modify-write through a fixed `config.json.tmp`. `ticket`
+  accepts `--cli` with `--plan` and ignores `ledger rulings --records`
+- 2026-10-30, from audit-cmd: `bashwork`'s `shellScan.expand` tracks
+  assignments flat, ignoring subshell scope and `${f#…}` operators, so
+  `f=src/x.go; (f=/tmp/y); echo > $f` reads as a write to /tmp. Contrived
+- 2026-10-30, from audit-cmd: `checkpoint.go`'s `hookInput.StopHookActive`
+  takes `true` or `"true"`; `stopcheck`'s hook struct takes a bool alone, so
+  a string would fail every Stop. Does Claude Code ever send the string?
+- 2026-10-30, from audit-cmd: duplicated helpers. `remember`'s `~`
+  expansion repeats `ticket`'s `expandHome`; the one-line collapse
+  `strings.Join(strings.Fields(redact.Redact(…)), " ")` recurs in flag,
+  handoff, reminder, remember, recall, sessionstart and `transcript`; six
+  note-state filters in plan, handoff and reminder share one shape;
+  `checkPlan` and `showPlan` repeat the plan-set load; recall repeats
+  `syncedIndex`'s sync-then-warn. Shared helpers (`repeatedFlag`,
+  `unownedError`, `projectNotes`, `supersededBy`, `newestOfKind`) sit in
+  their first consumer's file
+- 2026-10-30, from audit-cmd: ordering. Out of alphabetical order:
+  `noteMove` and `ownerChange` in owner; `copyFile` and `copyTree` in backup;
+  handoff's and plan's function runs; `unownedError` in remember; `show`'s
+  flag declarations; `subagentEdit`, `subagentWorks`, `logsCheckpoint`,
+  `writesNote`, `takeJudgments`, `digestName`, `noteSource`; remember's and
+  plan's test tables and funcs. Tests in another command's file: two in
+  `config_test.go`, one each in `flag_test.go` and `recall_test.go`, four in
+  `reminder_test.go`
+- 2026-10-30, from audit-cmd: comments. `withNextDue`'s says it replaces
+  each nudge's Due, but only done-file nudges change, in place.
+  `stopSummaryType`'s claim about Claude Code is undated. recall's "a quarter
+  of the best" measurement and "None: nothing precedes it." are unclear.
+  plan's "ele prints plan paths from the checkout root." sits above the wrong
+  line
+- 2026-10-30, from audit-cmd: small code. `status` alone uses `sort.Slice`;
+  plan's `slices.IndexFunc` result `at` is unused; `remember`'s
+  `"ele: --%v"` reads right only while `notes.ParseEvery`'s message starts
+  `every`; `handoff`'s refusal builds a format string at run time and reads
+  as a run-on; a stray blank line opens a loop in `status`
+- 2026-10-30, from audit-cmd: branches no test reaches: `configUnset`'s "has
+  no value set", `copyTree`'s non-regular file, `indexedMoment`'s "no
+  timestamped entry", `checkPlan`'s parse error, `writeResults`' "Top N
+  (--limit)"
+- 2026-10-30, from audit-cmd, for audit-index: `internal/index`'s `GitRoot`
+  stops at a worktree's `.git` file, so a worktree's project is its folder's
+  name, not the repository's
 
 ## Out of scope
 
