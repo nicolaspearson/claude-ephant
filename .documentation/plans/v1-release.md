@@ -262,10 +262,11 @@ keep.
     its commit through `ci.yml`'s new `ref` input, refuses a non-draft,
     publishes a pre-release without latest and skips Tap for it; CONTRIBUTING's
     Releases section describes it and the throwaway run; `task check FORCE=1`
-    and `task audit` pass; no run triggered
-  - next: the user runs actionlint, merges, runs the throwaway dispatch from
-    CONTRIBUTING, checks the sums against `checksums.txt`, and deletes the
-    release and tag
+    and `task audit` pass; actionlint, run by hand with shellcheck installed,
+    passes; no run triggered
+  - next: the user pushes, runs the throwaway dispatch from CONTRIBUTING,
+    checks the sums against `checksums.txt` and that Tap was skipped, and
+    deletes the release and tag, checking they are gone
 - [ ] skill-lint: A Go lint under `task check`: the description of a skill
   without `disable-model-invocation` contains `Use when`, relative links
   resolve, `SKILL.md` stays under 500 lines, and extra files sit under
