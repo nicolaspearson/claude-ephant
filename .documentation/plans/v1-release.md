@@ -297,9 +297,16 @@ keep.
   - done when the files read are listed under this item with a dated count
     matching `plugin/`'s, each finding is in the Inbox, and every command or
     flag a skill names exists in `--help`
-- [ ] audit-cmd: Audit `cmd/ele`
+- [x] audit-cmd: Audit `cmd/ele`
   - done when the files read are listed under this item with a dated count
     and each finding is in the Inbox
+  - asserted in the audit-cmd tick commit: the list below matches
+    `ls cmd/ele`, 25 sources, 23 tests and one testdata file; each finding of
+    the four readers' reports, counted against the Inbox, is in an item dated
+    2026-10-30 "from audit-cmd", four wrong claims among them fixed by a
+    checkpoint, most of their claims
+    spot-checked against the code by a checkpoint's readers and the
+    ordering, comment and untested-branch items left on the auditors' word
   - as of 2026-10-30: 49 files, all of `cmd/ele`, each command name below
     standing for its `.go` and `_test.go`
     - read whole by a bugs and a conventions-prose reader each: all 25
@@ -504,7 +511,9 @@ keep.
   where `readHookInput` refuses a terminal
 - 2026-10-30, from audit-cmd: `ele context --size` (`contextSize`) scans the
   whole transcript; stop-check's `lastContextTokens` reads a bounded tail,
-  since a transcript can pass 100 MB, and the spec says they compute it alike
+  since a transcript can pass 100 MB, and the spec says they compute it alike.
+  `contextSize` also errors when the session's transcript glob matches two
+  project directories; can a resumed session leave two?
 - 2026-10-30, from audit-cmd: the SessionStart block's handoff section has
   no budget, and the plan section caps only the next item's body
   (`planBodyBudget`), not its blocked list or the multi-plan summary; only
@@ -566,7 +575,8 @@ keep.
   plan's `slices.IndexFunc` result `at` is unused; `remember`'s
   `"ele: --%v"` reads right only while `notes.ParseEvery`'s message starts
   `every`; `handoff`'s refusal builds a format string at run time and reads
-  as a run-on; a stray blank line opens a loop in `status`
+  as a run-on; a stray blank line opens a loop in `status`; `remember` is
+  one function of about 175 lines
 - 2026-10-30, from audit-cmd: branches no test reaches: `configUnset`'s "has
   no value set", `copyTree`'s non-regular file, `indexedMoment`'s "no
   timestamped entry", `checkPlan`'s parse error, `writeResults`' "Top N
