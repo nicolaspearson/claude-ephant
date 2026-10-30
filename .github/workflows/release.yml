@@ -1,9 +1,16 @@
 name: Release
-run-name: "Release: ${{ github.event.head_commit.message }}"
+run-name: "Release: ${{ github.event_name == 'workflow_dispatch' && format('publish {0}', inputs.tag) || github.event.head_commit.message }}"
 
+# By hand: publishes a draft a push left for a person.
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "A draft release's tag, already pushed"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -18,10 +25,13 @@ jobs:
   check:
     name: Check
     uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ inputs.tag }}
 
   release-please:
     name: Release please
     needs: check
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -38,17 +48,37 @@ jobs:
   # The release is a draft until its binaries are up, so latest never lacks them.
   # A release of a commit other than the one checked here, as when its merge
   # failed the check and a later push released it, stays a draft for a person.
+  #
+  # !cancelled(): on a dispatch release-please is skipped, which would skip this.
   publish:
     name: Build and publish
-    needs: release-please
-    if: needs.release-please.outputs.created == 'true' && needs.release-please.outputs.sha == github.sha
+    needs: [check, release-please]
+    if: >-
+      !cancelled() && needs.check.result == 'success' &&
+      (github.event_name == 'workflow_dispatch' ||
+      (needs.release-please.outputs.created == 'true' && needs.release-please.outputs.sha == github.sha))
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      TAG: ${{ inputs.tag || needs.release-please.outputs.tag }}
+    outputs:
+      prerelease: ${{ steps.draft.outputs.prerelease }}
+      tag: ${{ env.TAG }}
     steps:
+      # Only a draft: a re-run on a published release would swap the binaries under its users.
+      - name: Find the draft
+        id: draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          state=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease --jq '"\(.isDraft) \(.isPrerelease)"')
+          [ "${state% *}" = true ] || { echo "$TAG is not a draft release" >&2; exit 1; }
+          echo "prerelease=${state#* }" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.release-please.outputs.tag }}
+          ref: ${{ env.TAG }}
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           cache: false
@@ -56,8 +86,6 @@ jobs:
       # Pure Go (modernc.org/sqlite), so one runner cross-compiles every target.
       # No version in the names, so releases/latest/download/<name> stays a stable URL.
       - name: Build
-        env:
-          TAG: ${{ needs.release-please.outputs.tag }}
         run: |
           mkdir dist
           for target in darwin/amd64 darwin/arm64 linux/amd64 linux/arm64; do
@@ -68,19 +96,26 @@ jobs:
           done
           (cd dist && sha256sum ele_*.tar.gz > checksums.txt && cat checksums.txt)
       # Clobber, so a re-run of this job replaces what a failed one left.
+      # A pre-release is never latest: releases/latest/download/<name> is what install.sh fetches.
       - name: Upload and publish
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ needs.release-please.outputs.tag }}
+          PRERELEASE: ${{ steps.draft.outputs.prerelease }}
         run: |
           gh release upload "$TAG" dist/ele_*.tar.gz dist/checksums.txt --clobber
-          gh release edit "$TAG" --draft=false --latest
+          if [ "$PRERELEASE" = true ]; then
+            gh release edit "$TAG" --draft=false --prerelease --latest=false
+          else
+            gh release edit "$TAG" --draft=false --latest
+          fi
 
+  # A pre-release stays out of the formula, which brew users upgrade to.
   tap:
     name: Tap
-    needs: [release-please, publish]
+    needs: publish
+    if: ${{ !cancelled() && needs.publish.result == 'success' && needs.publish.outputs.prerelease == 'false' }}
     uses: ./.github/workflows/tap.yml
     with:
-      tag: ${{ needs.release-please.outputs.tag }}
+      tag: ${{ needs.publish.outputs.tag }}
     secrets:
       HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}

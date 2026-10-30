@@ -258,6 +258,14 @@ keep.
     Tap job; a run the user triggers on a throwaway pre-release draft
     publishes it with tarballs whose sums match its `checksums.txt`; and the
     user deletes that release and its tag, their absence checked
+  - as of 2026-10-30: `release.yml` takes a `workflow_dispatch` tag, checks
+    its commit through `ci.yml`'s new `ref` input, refuses a non-draft,
+    publishes a pre-release without latest and skips Tap for it; CONTRIBUTING's
+    Releases section describes it and the throwaway run; `task check FORCE=1`
+    and `task audit` pass; no run triggered
+  - next: the user runs actionlint, merges, runs the throwaway dispatch from
+    CONTRIBUTING, checks the sums against `checksums.txt`, and deletes the
+    release and tag
 - [ ] skill-lint: A Go lint under `task check`: the description of a skill
   without `disable-model-invocation` contains `Use when`, relative links
   resolve, `SKILL.md` stays under 500 lines, and extra files sit under

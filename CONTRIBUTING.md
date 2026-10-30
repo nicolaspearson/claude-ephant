@@ -120,6 +120,36 @@ and a `checksums.txt`, and publishes the release as latest, so
 `releases/latest/download/<name>` is a stable URL. A release of any other
 commit stays a draft for a person. There is no GoReleaser and no Windows build.
 
+To publish such a draft, run Release by hand with its tag. The run checks the
+tag's commit, refuses a release that is not a draft, then builds, uploads and
+publishes it as a push would. A pre-release is never marked latest and never
+reaches the Tap job. `gh workflow run` runs the workflow as it is on `main`
+unless `--ref` names another branch. To try it without cutting a version, tag
+`main` with a throwaway tag, make a draft pre-release on it and run Release:
+
+```sh
+git fetch origin && git tag v0.0.0-dispatch origin/main && git push origin v0.0.0-dispatch
+gh release create v0.0.0-dispatch --draft --prerelease --verify-tag --title v0.0.0-dispatch --notes "Throwaway"
+gh workflow run release.yml -f tag=v0.0.0-dispatch
+```
+
+`gh workflow run` only queues the run. Once it finishes, check the release is
+published as a pre-release, not latest, and that its tarballs match its sums:
+
+```sh
+gh release list --limit 3
+dir=$(mktemp -d) && gh release download v0.0.0-dispatch --dir "$dir" && (cd "$dir" && shasum -a 256 -c checksums.txt)
+```
+
+Then delete both and check they are gone, the last two commands each expected
+to find nothing:
+
+```sh
+gh release delete v0.0.0-dispatch --cleanup-tag --yes && git tag -d v0.0.0-dispatch
+gh release view v0.0.0-dispatch
+git ls-remote --tags origin v0.0.0-dispatch
+```
+
 The plugin has no version: the marketplace serves `plugin/` from `main`, so a
 plugin change reaches users at their next marketplace update after the push,
 and the binary it needs only at the next release.
