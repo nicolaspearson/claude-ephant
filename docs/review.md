@@ -6,6 +6,8 @@ shows the major findings first, and you choose for each whether it goes into the
 review, comes out as Markdown to post yourself, or is skipped. It changes
 nothing in your clone and commits nothing; uncommitted work is checkpoint's.
 
+`/ele:review` is experimental: it is still being built.
+
 ```text
 /ele:review <!123 | #123 | MR or PR URL | branch | commit> [spec:<issue, URL or path>]
 ```

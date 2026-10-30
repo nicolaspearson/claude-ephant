@@ -266,7 +266,7 @@ keep.
     CONTRIBUTING's Releases section describes the dispatch and the throwaway
     run; on the same go-ahead the release and tag were deleted, and both
     checked absent
-- [ ] skill-lint: A Go lint under `task check`: the description of a skill
+- [x] skill-lint: A Go lint under `task check`: the description of a skill
   without `disable-model-invocation` contains `Use when`, relative links
   resolve, `SKILL.md` stays under 500 lines, and extra files sit under
   `references/`, `scripts/` or `assets/` or are allowed by name
@@ -276,10 +276,23 @@ keep.
     name; each description the lint reads holds `Use when`, `checkpoint`'s
     among them; `task check FORCE=1` passes on the tree;
     and CONTRIBUTING names the lint
-- [ ] review-status: `/ele:review`'s docs say whether it is experimental at
+  - asserted in the skill-lint commit: `internal/skilllint`'s `TestCheck`
+    plants a violation per rule, each failing, and a mutation of each rule's
+    check turned its case red; `TestPluginSkills` passes over
+    `plugin/skills/` under `task check FORCE=1`, which CI runs, with
+    `checkpoint/SKILL.md` at 484 lines, the ten root files moved into
+    `references/` with their pointers, `reviewers/` allowed by name, and
+    checkpoint's, plan-audit's and ticket-audit's descriptions given
+    `Use when`; besides Markdown links, the link rule checks code spans naming
+    a `.md` file under a skill's own `references/`, `scripts/`, `assets/` or
+    `reviewers/`, the form the skills' pointers take
+- [x] review-status: `/ele:review`'s docs say whether it is experimental at
   release
   - done when `mr-review`'s `review-skill` is ticked, or `docs/review.md` and
     the README mark it experimental
+  - asserted in the commit carrying this tick: `mr-review`'s `review-skill`
+    is unticked, and `docs/review.md`'s opening and the README's line linking
+    it each say `/ele:review` is experimental
 - [ ] readme-guides: Sweep the README and every page under `docs/` against the
   code
   - blocked: promise, linux-data-dir, cli-freeze, logs-into-data-dir,
@@ -287,13 +300,20 @@ keep.
   - done when each page's commands and flags are checked against `--help`,
     each behaviour it states is checked against the code or a run, and
     `task format`, `task lint` and `task lint-docs` pass
-- [ ] cli-docs: Sweep `docs/commands.md` against every `ele <command> --help`
+- [x] cli-docs: Sweep `docs/commands.md` against every `ele <command> --help`
   - done when every command and flag `ele --help` lists has its row, each
     row's description matches its `--help`, no row names one that is gone, and
     `task lint-docs` passes
+  - asserted in the commit carrying this tick: against the help of a clone
+    build, all 63 usage lines of `ele --help` appear verbatim in the page's
+    synopsis blocks; each command is described, and each flag it takes, the
+    intro covering `--owner` and `--project`; no command or flag the page names
+    is missing from the help; the descriptions that differed in meaning,
+    `version`, `backup`, `status`, `plan check`, `plan done`, `reminder list`
+    and `reopen`, `handoff reopen`, `stop-check --replay` and the owner
+    commands among them, now follow `--help`; `task lint-docs` passes
 - [ ] skills-audit: Audit the skills, agents, commands, reference files and
   evals under `plugin/` against their specs, the CLI and each other
-  - blocked: skill-lint
   - done when the files read are listed under this item with a dated count
     matching `plugin/`'s, each finding is in the Inbox, and every command or
     flag a skill names exists in `--help`

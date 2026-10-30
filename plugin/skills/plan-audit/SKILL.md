@@ -1,6 +1,6 @@
 ---
 name: plan-audit
-description: Audit ele plans against the code and each other for stale premises, contradictions, waits nothing ends, inbox items to triage and plans ready to close. Use before picking up or closing a plan, when plans feel stuck, or when asked for a plan audit; with close and a plan's path, when working its closing action.
+description: Audit ele plans against the code and each other for stale premises, contradictions, waits nothing ends, inbox items to triage and plans ready to close. Use when about to pick up or close a plan, when plans feel stuck, or when asked for a plan audit; with close and a plan's path, when working its closing action.
 argument-hint: "[<path>... | drafts <path>... | close <path>]"
 ---
 

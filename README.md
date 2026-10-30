@@ -93,7 +93,7 @@ The `ele` plugin adds the skills and hooks that use the binary:
    [Handoffs](docs/handoffs-and-reminders.md#handoffs)
 
 [Plans](docs/plans.md), [Recipes](docs/recipes.md), [Checkpoint and ticket-audit](docs/checkpoint-and-ticket-audit.md)
-and [Review](docs/review.md) cover the rest, and the [command reference](docs/commands.md) lists every
+and [Review](docs/review.md) (`/ele:review`, experimental) cover the rest, and the [command reference](docs/commands.md) lists every
 command.
 
 ## Options

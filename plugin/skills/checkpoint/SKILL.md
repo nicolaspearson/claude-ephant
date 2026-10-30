@@ -1,6 +1,6 @@
 ---
 name: checkpoint
-description: Checkpoint work before reporting it done or ready to commit, or when the user asks for a checkpoint or pre-commit review.
+description: Review work in subagents before it is reported done or ready to commit. Use when about to say work is done or ready to commit, or when the user asks for a checkpoint or pre-commit review.
 ---
 
 The session that wrote the code does not review it. It knows what every line was
@@ -49,7 +49,7 @@ unversioned directory, hold work git will never report, reviewed against a saved
 copy of what they replaced, or against the file itself where there is none.
 
 **Branch scope**, when the user asks for a review of the branch or accepts the
-offer: read `BRANCH.md` beside this file first; it changes what the sections
+offer: read `references/BRANCH.md` first; it changes what the sections
 below mean.
 
 Build the change list: every tracked file in the diff, every untracked file from
@@ -93,7 +93,7 @@ session's checkpoint of the same repository neither ends nor times it.
 last freeze over two hours old, or `CLAUDE_CODE_SESSION_ID` unset.
 
 **Delta scope**: when the freeze prints `changed since the last checkpoint`,
-read `DELTA.md` beside this file; it can end the checkpoint here.
+read `references/DELTA.md`; it can end the checkpoint here.
 
 §1 is done when every repository the change touches is frozen, its freeze naming
 every path on the change list, and the staged-differently and rename lists exist
@@ -127,7 +127,7 @@ Gather what is settled, for the brief:
 - Rulings the user made this session.
 - Findings an earlier round left on purpose, with the reason.
 - Failures already known to happen at HEAD, each proved in a HEAD export
-  (`HEAD-EXPORT.md` beside this file), not assumed.
+  (`references/HEAD-EXPORT.md`), not assumed.
 
 Gather the paths of every set of conventions in force over the changed files —
 paths only, the reviewer reads them:
@@ -153,7 +153,7 @@ value or is stated empty.
 One brief, shared by every reviewer, every path absolute:
 
 - Each repository root and its frozen diff.
-- The scope. Delta: as `DELTA.md` says.
+- The scope. Delta: as `references/DELTA.md` says.
 - The change list, untracked and outside-git files marked as such.
 - The paths §1 found staged differently from the working tree.
 - The convention file paths.
@@ -238,7 +238,7 @@ search of the code for it, or of the brief's Observed field where it needs
 something observed; an unasked change by naming the requirement that needed it,
 if any.
 
-Give each finding one of §12's verdicts:
+Give each finding one of these verdicts:
 
 - **`deliberate`** — confirmed, and a missing or partial requirement the brief
   says this change does not set out to deliver: left to §7's `next:` line.
@@ -254,8 +254,8 @@ Reviewers overlap. Merge a finding two of them raised before verifying it, and
 log it once.
 
 Keep a running list for §12 of every finding — from a reviewer, the gate, a
-mutation or the user — with the fields §12 logs. A finding counts once, at the
-first stage that caught it.
+mutation or the user — with the fields §12 logs, their values in
+`references/LOG.md`. A finding counts once, at the first stage that caught it.
 
 Then, in the parent, once the gate has finished, fix the confirmed findings. As
 of 2026-10-15 three in four re-review findings were something a fix broke,
@@ -291,15 +291,15 @@ Run §4's gate again, captured the same way, once §5's fixes and mutations are
 done, unless nothing changed since it started. Say so if skipped.
 
 A red check is pre-existing only once it fails the same way at HEAD: read
-`HEAD-EXPORT.md` beside this file for the export and for when such a check
+`references/HEAD-EXPORT.md` for the export and for when such a check
 counts as green. A test this change turns red is fixed in the code, as §5 says;
 its assertions change only if this change sets out to change what it covers.
 Any check that neither passes nor counts as green, and is not being fixed in
 this run: see Stopping early.
 
 §6 is done when the latest gate log ends in `gate exit` and every §2 check is
-passing, counted green per `HEAD-EXPORT.md`, unverified, or handed to Stopping
-early.
+passing, counted green per `references/HEAD-EXPORT.md`, unverified, or handed to
+Stopping early.
 
 ## 7. Plan
 
@@ -311,8 +311,8 @@ from the plan file itself: usually the next one, never assumed to be. No active
 plan, or none the change worked on: say so and go on. A plan in a repository the
 change does not touch is out of scope: name it, write nothing.
 
-When the change worked on an active plan's item: read `PLAN.md` beside this
-file; it proposes the item's tick or progress line, writes it on approval, and
+When the change worked on an active plan's item: read `references/PLAN.md`;
+it proposes the item's tick or progress line, writes it on approval, and
 makes the write a fix §8 re-reviews.
 
 §7 is done when each touched repository's plan state is reported — no active
@@ -442,29 +442,7 @@ ele checkpoint log <root> <<'EOF'
 EOF
 ```
 
-- `also_raised_by`: optional; the other sources that raised a finding merged into
-  this one, so the severity table still credits each.
-- `change`: files on the change list, and lines added plus removed.
-- `mode`: `full`, `small`.
-- `mutations`: `run`; `failed` for the reason stated; `inconclusive`, a mutation
-  that did not compile or did not land. One that landed and did not bite is a
-  finding, stage `mutation`, not a count.
-- `notes`: both 0; ele's Stop hook proposes notes outside the checkpoint.
-- `origin`: `change`, `earlier` (code older than the change), `fix` (introduced
-  by a fix in this run).
-- `rereview`: `ran`, `skipped` (§8 found the fingerprint unmoved).
-- `scope`: `uncommitted`, `delta` (the freeze wrote a delta), `branch`.
-- `severity`: `blocker` (wrong on the main path: wrong output, lost data, a broken
-  build), `defect` (wrong only in a reachable edge case), `quality` (correct, but
-  misleading a reader, untested, against a convention other than wording or
-  order, or a Shape finding), `nit` (wording or order alone, misleading no one).
-- `source`: free text; the reviewer (`bugs`, `conventions` or `prose` by the
-  merged reviewer's section, or `spec`), the gate check by name, or `user`.
-- `stage`: `gate`, `mutation`, `rereview`, `review`, `user`. A finding the user
-  raises after this line is written goes in the next checkpoint's record, stage
-  `user`, origin `earlier`.
-- `verdict`: `deliberate` (confirmed and left on purpose), `fixed`, `open`
-  (reported as a question), `refuted`.
+Each field's values are in `references/LOG.md`.
 
 `ele checkpoint log` adds `duration`, seconds since the freeze that opened the
 run, when a freeze recorded one, and refuses a record the stats would misread,

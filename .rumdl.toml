@@ -10,4 +10,4 @@ exclude = ["CHANGELOG.md", "plugin/evals"]
 # The trailing space in `word: ` is the syntax the skill describes.
 "plugin/skills/plan/SKILL.md" = ["MD038"]
 # Angle-bracket placeholders, not HTML.
-"plugin/skills/plan/template.md" = ["MD033"]
+"plugin/skills/plan/references/template.md" = ["MD033"]

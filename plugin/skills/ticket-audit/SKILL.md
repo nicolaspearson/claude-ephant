@@ -1,6 +1,6 @@
 ---
 name: ticket-audit
-description: Audit a tracker's ticket map against the code for stale premises and contradictions. Use before picking up a ticket, before closing a map, or when asked for a ticket audit; for ele plans, use ele:plan-audit.
+description: Audit a tracker's ticket map against the code for stale premises and contradictions. Use when about to pick up a ticket or close a map, or when asked for a ticket audit; for ele plans, use ele:plan-audit.
 ---
 
 Tracker writes are the user's to run; §9 says how.
@@ -99,7 +99,7 @@ the table does not show.
 
 A blocker marked `?` is outside the corpus and has no state in it; a bare `#N`
 names this repository. Fetch each `?` blocker's state and each ticket's native
-blockers per `TRACKERS.md` beside this file, before letting a blocker hold a
+blockers per `references/TRACKERS.md`, before letting a blocker hold a
 ticket off the frontier. No ticket in the map coming back with a `blocks` or
 `is_blocked_by` link means the map uses no native blocking, and the `Blocked by`
 lines are the whole graph.

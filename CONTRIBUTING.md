@@ -61,6 +61,11 @@ as new as the plugin.
   or heading. `lint-docs` fails a `.go` or `.html` line-number citation, or a
   note id, under `docs/` or `.documentation/`: cite a package and an
   identifier, and describe what was observed in place of a note id
+- `test` includes the skill lint, `internal/skilllint`, over
+  `plugin/skills/`: a skill the model can invoke has `Use when` in its
+  description, each relative link resolves, each `SKILL.md` stays under 500
+  lines, and a skill keeps nothing beside `SKILL.md` but `references/`,
+  `scripts/`, `assets/` and `reviewers/`
 - CI runs `task check FORCE=1` and `task audit` on every pull request, every
   push to `main` and weekly
 

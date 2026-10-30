@@ -6,12 +6,12 @@ disable-model-invocation: true
 
 # Mine
 
-Each analysis lists the units no pass has judged, past its watermark, unless a re-judge names its units. Subagents classify their digests with a fixed prompt beside this file, and `ele` stores the judgments under that prompt's hash.
+Each analysis lists the units no pass has judged, past its watermark, unless a re-judge names its units. Subagents classify their digests with a fixed prompt in `references/`, and `ele` stores the judgments under that prompt's hash.
 
-| Analysis          | Prompt                        |
-| ----------------- | ----------------------------- |
-| `checkpoint-runs` | `classify-checkpoint-runs.md` |
-| `review-cycles`   | `classify-review-cycles.md`   |
+| Analysis          | Prompt                                   |
+| ----------------- | ---------------------------------------- |
+| `checkpoint-runs` | `references/classify-checkpoint-runs.md` |
+| `review-cycles`   | `references/classify-review-cycles.md`   |
 
 Both analyses unless the user names one. Pass each prompt as an absolute path resolved from this skill's base directory.
 

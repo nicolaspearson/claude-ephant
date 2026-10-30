@@ -18,7 +18,7 @@ review; the steps below say how each reaches a reviewer.
 `<scratch>` below is a new directory in the session scratchpad. The forge is
 GitLab or GitHub, from `git -C <root> config --get remote.origin.url`; once it
 is known, read
-`GITLAB.md` or `GITHUB.md` beside this file, which hold every forge call this
+`references/GITLAB.md` or `references/GITHUB.md`, which hold every forge call this
 skill makes.
 
 Keep a list of **notices** as the run goes, each a line step 8 shows above its
