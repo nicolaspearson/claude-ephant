@@ -63,8 +63,11 @@ keep.
   `cut-v1`; nice to haves never gate it
 - Each item that changes behaviour updates the spec and `docs/` page
   describing it in the same change, as the repository's `CLAUDE.md` requires;
-  `readme-guides` and `cli-docs` are a final sweep, blocked on the must haves
-  that change behaviour, so the sweep runs once
+  `readme-guides` is the final sweep, `docs/commands.md` among its pages,
+  blocked on the must haves that change behaviour and the should haves that
+  edit `docs/`, so the sweep runs once; `cli-docs` ran before triage, and a
+  later CLI change updates `docs/commands.md` in its own change (ruled
+  2026-10-31)
 - Audit findings go to `## Inbox`, dated; an audit fixes nothing itself, and
   `triage-findings` tiers each one before the release
 - An audit reads whole files, not a diff: its brief points the reader at
@@ -295,8 +298,7 @@ keep.
     it each say `/ele:review` is experimental
 - [ ] readme-guides: Sweep the README and every page under `docs/` against the
   code
-  - blocked: promise, linux-data-dir, cli-freeze, logs-into-data-dir,
-    redact-before-cut, review-status
+  - blocked: redact-promise, index-private, ticket-clean, remote-secrets, notes-robust, sync-robust, cli-lock, release-safety, help-text, data-dir-edges, bashwork-reads, plan-parser-warnings, ticket-robust
   - done when each page's commands and flags are checked against `--help`,
     each behaviour it states is checked against the code or a run, and
     `task format`, `task lint` and `task lint-docs` pass
@@ -469,13 +471,18 @@ keep.
     `gh api`; `plugin/hooks/` holds no script, and there is no `scripts/`
     - 7 items in the Inbox, several bundling a list of like findings; each
       of both readers' findings, counted against the Inbox, is in one
-- [ ] triage-findings: Tier every audit finding in the Inbox
-  - blocked: skills-audit, audit-cmd, audit-index, audit-checkpoint,
-    audit-plan, audit-rest, audit-tooling
+- [x] triage-findings: Tier every audit finding in the Inbox
   - done when no audit finding is left in the Inbox, each moved to a named
     action under the tier the user rules or to `## Out of scope` on the
     user's ruling, and
     each new must have or should have named on `cut-v1`'s `blocked:` line
+  - asserted in the commit carrying this tick: on the user's ruling of
+    2026-10-31, the Inbox's 103 items, counted, went 102 into 23 new actions,
+    8 must, 9 should and 6 nice, their text moved word for word, and 1 to
+    `## Out of scope`; the Inbox is empty; `cut-v1`'s `blocked:` line names
+    the 17 new must and should actions, and `readme-guides`' the 8 musts and
+    the 5 shoulds that edit `docs/`, each on one line so `ele plan` reads it
+    as edges
 - [ ] interim-release: The user merges the release PR for a 0.x release
   carrying `linux-data-dir` and `cli-freeze`
   - done when that release is the latest with its four tarballs and
@@ -496,6 +503,195 @@ keep.
   - done when, for the interim release's tag, each install's
     `ele version` prints its tag, the plugin's hooks run in a fresh session, and
     `ele status` names the platform's data directory
+- [ ] redact-promise: Redaction holds to what `docs/data-and-privacy.md`
+  promises
+  - done when the user rules on the two questions below, multiline quoted values
+    and whether `transcript.Parse` redacts every kind; each shape the doc
+    promises and each case below the rulings keep is redacted, by a test that
+    fails on the old patterns; `internal/index`'s `Version` is bumped so an
+    existing index rebuilds; and the doc says what `ele mine --digests` writes,
+    where, and that `/ele:mine`'s cleanup leaves the digest files
+  - 2026-10-30, from redact-before-cut's checkpoint: a quoted secret assignment
+    whose value spans a newline, `PASSWORD="abc` then `def…"` in a Bash heredoc,
+    is not matched on the raw text, since the quoted value excludes newlines;
+    `transcript.Truncate`'s whitespace collapse makes it matchable, but a cut
+    inside the value leaves no closing quote, so the writer's pass misses it and
+    a fragment is indexed. Older than redact-before-cut. Redact again after the
+    collapse and before the cut, or let the quoted value span newlines?
+  - 2026-10-30, from audit-index: `redact`'s assignment pattern misses what
+    `docs/data-and-privacy.md` promises, "any `key=value` or `key: value` whose
+    key looks secret, JSON keys included": run against the pattern as of
+    2026-10-30, `curl -d "{\"password\":\"hunter2\"}"` and `X-Api-Key: s3cr3t`
+    come back unchanged, since the key allows no `\"` and no hyphen. The gitlab pattern matches `glpat-` alone, where the doc says
+    "GitLab tokens": `glrt-`, `gldt-`, `glptt-`, `glcbt-`, `glft-` and `gloas-`
+    pass. A fix scrubs only what is indexed after it, so it needs
+    `internal/index`'s `Version` bumped, as redact-before-cut did, for an
+    existing index to rebuild without what the old patterns let through
+  - 2026-10-30, from audit-index: event attributes holding a `[]string`, the
+    `changed` list `transcript`'s `hookBlockAttributes` takes from hook text and
+    `reviewers`, are stored raw: `index`'s `writeEvent` redacts string values
+    alone, where `design.md` says "attribute strings are redacted as entries
+    are". `transcript.Parse` redacts tool lines but returns prompt and
+    conversation text raw for the writer to redact, undocumented, and
+    stop-check also reads its `Entry.Text`: should `Parse` redact every kind?
+  - 2026-10-30, from audit-rest: `mining`'s `Digest` quotes a checkpoint
+    run's other tool calls as `json.Marshal(block.Input)` redacted, so an
+    assignment's quotes are `\"` and the value passes, the escaped-quote miss
+    of audit-index's redaction item by another path: `API_KEY="s3cr3tvalue123"`
+    in an MCP or `WebFetch` input reaches the digest and the classifier
+    subagent (probed); no test covers the branch
+  - 2026-10-30, from audit-rest: `docs/data-and-privacy.md`'s Secrets says
+    text is redacted before it is indexed or printed, but not that
+    `ele mine --digests` writes redacted transcript excerpts, prior asks,
+    agent prompts, Bash commands and edit paths among them, into the session
+    scratchpad for `/ele:mine` to hand to model subagents, nor that the skill's
+    cleanup leaves the digest `.txt` files there
+- [ ] index-private: The index files are private whatever the data directory's
+  mode
+  - done when `ele.db`, `-wal` and `-shm` are 0600 under an `ELE_HOME` made
+    0755, by a test, and `docs/data-and-privacy.md` states their mode
+  - 2026-10-30, from audit-index: `store.Open` leaves `ele.db`, `-wal` and
+    `-shm` at SQLite's default mode, private only because ele makes the data
+    directory 0700; an `ELE_HOME` already 0755 leaves the index, conversation
+    text included, world-readable. The docs promise modes for the archive alone
+- [ ] ticket-clean: `ele ticket corpus --clean` removes only what a corpus
+  writes
+  - done when a test planting another `.md` in `--out` finds it kept, and the
+    help says what `--clean` removes
+  - 2026-10-30, from audit-plan: `ele ticket corpus --clean` removes every
+    `*.md` in `--out` and `--out/raw`, not only corpus files (`ticket`'s
+    `prepare`), so `--out docs --clean` deletes the docs; its help's "empty
+    --out first" is untrue too, since other files stay
+- [ ] remote-secrets: Tracker detection reads the remote's host and never prints
+  its credentials
+  - done when a remote holding `user:token@` appears in no error, by a test, and
+    `detectCLI` and `hasTracker` match the remote's host, not its path, so a
+    GitHub remote whose path holds "gitlab" picks `gh`, by a test
+  - 2026-10-30, from audit-plan: `ticket`'s `detectCLI` matches "gitlab" then
+    "github" anywhere in the lowercased origin URL, so a GitHub repository
+    whose path holds "gitlab" picks `glab` and every fetch fails; `hasTracker`
+    accepts any remote holding "github.com", path included. Match the host
+  - 2026-10-30, from audit-plan: `ticket`'s `detectCLI` and `trackerProject`
+    print the raw origin remote in errors, so a remote holding
+    `user:token@` puts the token on stderr and into the transcript when it
+    names neither tracker with both CLIs installed, or `remoteProject` cannot
+    read a project path from it
+- [ ] notes-robust: Notes survive what `Write` accepts and what a hand edit
+  leaves
+  - done when a test covers each case below: a body line over 64 KiB fails
+    neither its owner nor session start; `Write` refuses what `Parse` rejects
+    and an id or profile that escapes the notes folder; a note is written
+    through a temp file and a rename; and `rewriteKey` and `Move` lock, so two
+    rewrites of one note keep both keys and a moved note sits under one owner;
+    the smaller cases, the `*.tmp` sweep, `Move`'s opening `---` check and a
+    `Relocate` test, are fixed or ruled out by the user
+  - 2026-10-30, from audit-rest: `notes.Parse` reads with a default
+    `bufio.Scanner`, so a body line over 64 KiB, which `Write` accepts, fails
+    with "token too long" (probed): not `ErrInvalid`, so `ReadOwner` aborts
+    the whole owner, and session start, `ele remember`, context, stop-check,
+    status and the owner commands fail for it until that file is fixed by
+    hand. `ReadOwner`'s doc says it counts the files `Parse` rejects; only
+    `ErrInvalid` ones are
+  - 2026-10-30, from audit-rest: `notes.Write` accepts what `Parse` then
+    rejects or worse. A whitespace-only body is written and read back as
+    "empty body", lost (probed), since `problem` tests the untrimmed body;
+    `Owner`, `Profile`, `ID` and `Supersedes` entries go unchecked, so a
+    `Profile` holding a newline writes an unreadable note and an `ID` of
+    `../../esc` writes outside the notes folder (both probed). `Profile` comes
+    from the config dir's base name; owner and id are checked by `cmd/ele`
+    today, but `Write` is the exported boundary
+  - 2026-10-30, from audit-rest: `notes` writes. `Write` creates the file with
+    `O_EXCL` and writes in place, so a concurrent read sees half a note and a
+    write cut short leaves an invalid file holding its id; `rewriteKey` and
+    `Move` are unlocked read-modify-writes, so of two rewrites of one note
+    the later rename drops the other's key, and a `MarkShown` that read a note
+    before an owner command's `Move` renames it back under its old owner,
+    leaving it under both; a crash leaves `*.tmp`
+    files nothing sweeps; `Move` never checks the opening `---`;
+    `Relocate` has no test
+- [ ] sync-robust: One bad file stops no sync
+  - done when a test covers each case below: a sync with an unreadable, vanished
+    or short archive file, or an unreadable note, archives and indexes the rest
+    and names that file; a symlinked `projects/` is archived; and `last-sync`
+    and the stop-check state are written through a temp file and a rename
+  - 2026-10-30, from audit-cmd: `last-sync` is written in place by `syncAll`
+    and read without the lock by `writeSessionStart`, so a start racing a sync
+    can print "sync stamp is malformed"; `writeStopState` writes the
+    stop-check state in place too, where a killed write drops the stretch.
+    Write both through a temp file and rename?
+  - 2026-10-30, from audit-index: `archive.Sync` walks `source.Directory`
+    without resolving it, and `filepath.WalkDir` does not descend a symlinked
+    root (probed), so a profile whose `projects/` is a symlink archives nothing
+    while sync reports success; `index`'s `noteFiles` resolves its root for
+    this reason
+  - 2026-10-30, from audit-index: one bad file stops every sync. `archive`'s
+    `syncFile` erroring on a transcript removed mid-walk or unreadable aborts
+    the walk before `saveManifest`; `index`'s `updateFile` fails "skip N
+    indexed bytes: EOF" on an archive file shorter than `indexed_bytes`, as from
+    an older backup, or on a corrupt `.gz`; `UpdateNotes` returns on the first
+    unreadable note, so `last-sync` is never written. Skip and report instead?
+- [ ] cli-lock: Rule on each CLI question 1.0 freezes
+  - done when each question below has the user's ruling in `## Decisions`; each
+    ruling and each defect below is carried into the code and into whichever of
+    `--help`, `docs/` and the spec state it; `ele events`' JSON keys are pinned
+    by a test asserting literal output; and `dto.DecodeAttributes` keeps
+    integers past 2^53 and names its input in its error, or the user rules it
+    out
+  - 2026-10-30, from audit-cmd: `ele help <command>`, `ele --version` and
+    `ele -v` exit 2 with "unknown command"; accept them, or record their
+    absence as part of the frozen CLI?
+  - 2026-10-30, from audit-cmd: the bare-number form of `checkpoint stats`,
+    due to go at 1.0, is what `plugin/commands/checkpoint-stats.md` passes,
+    `docs/commands.md`'s `/ele:checkpoint-stats` row describes ("or the number
+    given") and `docs/checkpoint-and-ticket-audit.md` shows as `[days]`;
+    removing it needs all three changed with it. The
+    two forms also differ: a bare `7` is now minus 7 days, `--since 7d` the UTC
+    start of that day
+  - 2026-10-30, from audit-cmd: dates. `--since` and stop-check `--replay`
+    dates are UTC days, `remember --due` local, and `docs/commands.md` states
+    neither; a note's `Date` is local while its `Time` is UTC, and
+    `newestOfKind` sorts by both. audit-index adds: `index`'s `Search`,
+    `Events` and `Usage` compare UTC stamps as strings against the date as
+    typed, or `parseSince`'s UTC date for `Nd`, so at UTC+4
+    `ele recall --since 2026-10-30` drops the first four local hours of the
+    30th, and west of UTC it takes in hours of the 29th
+  - 2026-10-30, from audit-checkpoint: the skill's §12 still sends `notes`, and
+    `Append` stores it, where the spec says `log` "accepts and ignores one from
+    an older skill"; `stats`' comment "The log no longer records notes" is
+    untrue, since `parseRun` ignores what the log holds
+  - 2026-10-30, from audit-plan: docs. `docs/plans.md` and
+    `.documentation/specs/design.md` give `after: <date>` alone; the UTC
+    `YYYY-MM-DD HH:MMZ` form is in the plan skill only, and a date-only
+    `after:` is local midnight. Neither says a malformed `after:`, `created`
+    or unknown front-matter key makes the whole plan unparseable, which 1.0
+    would lock in. The spec's ledger key says `repo#number`; the code writes
+    `owner/repo#number`
+  - 2026-10-30, from audit-rest: `ele events` prints `dto.Event` as JSON, an
+    API at 1.0, and `TestRunEventsPrintsOneJSONObjectPerLine` decodes the
+    output back through the same tags, so renaming `json:"kind"` or dropping
+    an `omitempty` keeps it green. `dto.DecodeAttributes` returns the bare
+    `json.Unmarshal` error and decodes numbers to `float64`, losing integers
+    past 2^53
+- [ ] release-safety: No release path ships an old or pre-release build to users
+  - done when publish and `tap.yml` refuse a pre-release and a tag below the
+    latest, shown by a run the user dispatches, and the README's install and
+    Update name no `go install …@latest` a draft's tag can serve
+  - 2026-10-30, from release-dispatch's checkpoint: a hand-published
+    non-pre-release draft is marked latest and tapped even when a newer release
+    exists, so `install.sh` and brew would move users back to it. Should
+    publish refuse a tag that sorts below the current latest?
+  - 2026-10-30, from audit-tooling: the README's install and Update give
+    `go install …/cmd/ele@latest`, but `release-please-config.json` sets
+    `draft` and `force-tag-creation`, so a release's tag is on the remote
+    while it is still a draft: `@latest` installs a release left a draft for
+    a person, its merge having failed the check, and a GitHub pre-release with
+    a plain tag, neither of which `install.sh` or brew serves, and the module
+    proxy keeps the version for good. `task release:go` installs `@<tag>` of
+    the published release
+  - 2026-10-30, from audit-tooling: `tap.yml` by hand refuses neither a
+    pre-release nor a tag older than the latest, so either reaches every brew
+    user, where Release skips pre-releases; the hand-published-draft item
+    above in this action is the same family on the Release side
 
 ### Should have
 
@@ -542,6 +738,291 @@ keep.
     the working directory's owner for a project it holds and still refuses
     one it does not; a plan audit here gets past its first call; and the
     recall skill's Project context, `design.md` and `docs/commands.md` say so
+- [ ] skill-fixes: Fix the skill defects that fail a session or skip its review
+  - done when each defect below is fixed in its skill or command file, the plan
+    and checkpoint skills agree on who proposes a tick, and `task check FORCE=1`
+    passes
+  - 2026-10-30, from skills-audit: checkpoint's §1 builds the change list from
+    `git status --porcelain`, which shows a new untracked directory as one
+    `?? dir/` line; `ele checkpoint freeze` refuses a directory ("is neither
+    tracked nor a file"), and `reference/errors.md` has no row for it, so a
+    change adding a package stops at §1 or loses its new files. Fix: use
+    `--untracked-files=all` there and for §9's `add` list
+  - 2026-10-30, from skills-audit: two skills write an item's tick under
+    different gates. `/ele:plan` step 6 proposes the tick once its line "can be
+    written", naming no checkpoint; checkpoint's `references/PLAN.md` ticks
+    only after §6's gate and an unfixed-spec check, and has the line
+    re-reviewed; `docs/plans.md` says checkpoint proposes it. A plan session
+    can tick unreviewed work, and checkpoint's §7 has no branch for an item
+    already ticked
+  - 2026-10-30, from skills-audit: `ticket-audit` §1 and §10, `plan-audit`'s
+    ticket-audit sections and `/ele:plan`'s review loop set `AUDIT=$(mktemp
+    -d)` or `BASE=$(mktemp -d)` and read `$AUDIT` or `$BASE` in later
+    commands, but Claude Code's Bash tool keeps no variable between calls, and
+    the assignment prints no path: `ledger rulings --manifest
+    "$AUDIT/manifest.json"` reads `/manifest.json` and fails, and the plan
+    loop's settled file and `diff -u` lose their directory. Fix: run `mktemp
+    -d` alone and write the printed path into later commands as a placeholder
+  - 2026-10-30, from skills-audit: `plugin/commands/checkpoint-stats.md`'s
+    Duration bullet says a re-review frozen over two hours after the last
+    freeze, or a freeze with no session id, restarts the clock; in
+    `internal/checkpoint` `openRun` only `--start` or a missing `.started`
+    rewrites it, and with no session no clock starts. This adds the command
+    file to the item from audit-checkpoint on what `duration` measures, which
+    does not name it
+  - 2026-10-30, from skills-audit: `/ele:plan`'s review loop step 5 runs `ele
+    plan check` on each draft, but `convert` splits drafts by repository and
+    the check refuses a path outside the working directory's checkout ("is
+    outside the project"), so the step, which does not say to run it from the
+    draft's repository, fails on a sibling repository's draft; `plan-audit`
+    says to run it from the plan's checkout
+  - 2026-10-30, from skills-audit: `ticket-audit`'s `references/TRACKERS.md`
+    counts `OPEN` (gh) and `opened` (glab) as open, but its `gh api
+    …/dependencies/blocked_by` command prints the REST API's lowercase `open`,
+    so a literal match reads an open native blocker as closed and frees the
+    ticket it blocks
+  - 2026-10-30, from skills-audit: checkpoint's §10 done-when wants a verdict
+    on every change-list file "from each reviewer that ran", while
+    `reviewers/spec.md` and §4 give spec a verdict per requirement, so a run
+    with a spec reviewer cannot meet it literally; `/ele:review` step 5 words
+    it right
+  - 2026-10-30, from skills-audit: `/ele:review` step 12 says a failed publish
+    "leaves nothing half-sent behind, per the forge file", true of GitHub's one
+    POST but not of `references/GITLAB.md`, which publishes drafts one by one,
+    so a failure part-way leaves those already published live, against the
+    step's claim; only the report's "which findings reached the forge" says so
+  - 2026-10-30, from skills-audit: `plan-audit`'s ticket-audit §0 recalls
+    earlier audits with `<topic>` set to every plan's file name plus `audit`,
+    but recall needs every word in one entry, so an audit over several plans
+    matches nothing and reports no earlier audit; `/ele:plan` pickup already
+    keeps recall to two or three words. Fix: one recall per plan
+- [ ] checkpoint-correctness: `ele checkpoint` reports and records what was
+  reviewed
+  - done when each defect below has a test that fails before its fix, or the
+    user rules it out of scope
+  - 2026-10-30, from cli-freeze's persisted-files survey: nothing removes a
+    checkpoint run's leftovers. The session's `.optout` file under the temp
+    dir's `claude-checkpoint/` is never deleted, and a run frozen but never
+    recorded or closed leaves its `.started` file in
+    `~/.claude/cache/checkpoint-reviewed/` with no sweep
+  - 2026-10-30, from audit-cmd: `checkpoint freeze` refuses a missing output
+    directory or no paths with the synopsis alone, no reason
+    (`checkpointFreeze`'s `rejectCall(flags, nil, …)`); `checkpoint gate` and
+    `snapshot` read stdin with no terminal guard, so run by hand they hang,
+    where `readHookInput` refuses a terminal
+  - 2026-10-30, from audit-checkpoint: `ele checkpoint check` says "covered"
+    for bytes nobody reviewed. `Record` stores the hash of every dirty path,
+    frozen or not, as its own comment says, and `Reviewed` passes when every
+    dirty path matches, so unrelated work dirty at record time is later
+    "covered" and the skill stops on it, `checkpointCheck` printing "every
+    changed path … is what the last checkpoint reviewed". `Record` also hashes
+    the tree at record time without comparing the freeze's fingerprint, so an
+    edit between freeze and record is recorded as reviewed; the skill guards
+    that by hand
+  - 2026-10-30, from audit-checkpoint: `DirtyPaths` sorts and cuts the dirty
+    list at `pathCap`, 200, with no sign, so past the 200th path an edit moves
+    no fingerprint, `check` stays covered, the skill's re-review is skipped and
+    the Stop gate never sees it
+  - 2026-10-30, from audit-checkpoint: `ValidateOptout` tests four fixed probe
+    strings, so it accepts `*e*`, `*/*/*/*` and `[0-9a-f]*` (each probed),
+    where its doc says it refuses a glob matching "nearly every" path and
+    `optout --help` one "matching any path"; `*e*` matches nearly every path,
+    exempting most of the repository from the gate for the session
+  - 2026-10-30, from audit-checkpoint: what the checkpoint `duration` measures.
+    It is `log`'s time less `.started`, which a `--start` freeze, or any freeze
+    with none present, writes and only `log` and `close` remove. Two of the
+    three 0-second runs logged 2026-10-23..30 were traced in their transcripts
+    to one chained `freeze --start … && record && log` run after the reviews
+    and fixes, the third not traced. One long run, 41,589 s, was traced to
+    idle time: `.started` never expires, so a later freeze in the same session
+    keeps it, the two-hour window or not. Nothing floors a 0 or clamps a
+    negative from clock skew, and `stats` puts both in the median. The spec,
+    `log --help` and stats' output say "first freeze", the skill "the freeze
+    that opened the run"; the spec says any freeze opens a run when none is
+    open but starts the clock only when none is running. Should the clock
+    restart after the window, and should the skill forbid chaining the
+    `--start` freeze with `log`?
+  - 2026-10-30, from audit-checkpoint: `freeze`'s `appendGit` ignores every
+    git exit status, its comment saying a diff that finds changes exits 1,
+    true of `--no-index` alone; a tracked diff failing with 128 drops from the
+    `.diff` while the summary still says "froze N paths"
+  - 2026-10-30, from audit-checkpoint: `freeze` path handling. Paths go to git
+    without `--literal-pathspecs`, so `pages/[id].tsx` is a glob; a relative
+    `../x` is accepted and diffed from outside the root, where no fingerprint
+    covers it; a directory is accepted, and `Record`'s frozen paths never match
+    the files in it; two repositories sharing a basename overwrite each other's
+    `checkpoint-<repo>.*` in one scratchpad; the `.diff` is truncated before
+    the "the diff of N paths is empty" refusal and the diff and fingerprint
+    steps that can fail, so a freeze stopped there leaves a `.hash` its
+    `.diff` no longer matches
+  - 2026-10-30, from audit-checkpoint: fingerprint edges in `WriteState` and
+    `DirtyPaths`. A dangling symlink hashes as a deleted path; a symlink hashes
+    by its target's bytes; an untracked non-regular path hashes empty diff
+    output, a constant; a path holding a newline corrupts `State.Bytes` and
+    `--stdin-paths`; with no commit yet, the `git diff HEAD` error is
+    discarded and staged files are invisible to `hash`, `check` and the gate
+  - 2026-10-30, from audit-checkpoint: `Record` writes through fixed
+    `.d.tmp`, `.tmp` and `.paths.tmp` names per repository, so two sessions
+    recording at once interleave, and swaps its three artefacts by separate
+    renames, so a crash between them leaves record and copy disagreeing.
+    `Open` rounds the age up, closing a run at about 119 minutes, not 120
+- [ ] plan-parser-warnings: `ele plan` parses or warns on every line form it now
+  holds or drops in silence
+  - done when each line form below is parsed or drawn as a warning by `ele plan
+    check`, each by a test, a `blocked:` list wrapped over lines among them;
+    `Next` never returns the closing action while another action is open; and
+    `Previous` follows a rename and a revert, each by a test
+  - 2026-10-30, from audit-plan: `plan`'s `Next` returns the first open
+    action not held, and the closing action carries no `blocked:`, so when
+    every other open action is held, by a cycle, prose or an `after:` date
+    (probed), Next is the closing action, against `docs/plans.md`'s "Once the
+    last action is the only one open"; `writePlanView`'s "every open item is
+    blocked" cannot print for a plan in the documented format
+  - 2026-10-30, from audit-plan: `plan.Parse` drops an item whose header an
+    edit merged onto the previous item's last body line, so the line reads
+    `done when x`, then the checkbox and `b: B` (probed): `b` is not counted,
+    never Next, an edge to it "does not exist", and `ele plan check` says
+    nothing
+  - 2026-10-30, from audit-plan: `plan`'s `Previous` misses or misreports
+    ticks. `git log -- path` has no `--follow`, so after a `git mv` the earlier
+    ticks are gone (probed); a tick later reverted is still Previous while the
+    item is Next (probed); a tick committed with a title reword is not a flip;
+    any `rev-parse HEAD` failure, a missing git or a corrupt repository
+    included, reads as "outside git"
+  - 2026-10-30, from audit-plan: plan lines the parser holds or drops with no
+    warning, each a question. `Blocked:` and `After:` capitalised are ignored,
+    releasing the item, while `done when` matches any case; `blocked: a,`, an
+    empty `blocked:` or `blocked: a c` read as prose and hold forever; a
+    self-block or a cycle holds with no flag (probed); a ticked item listing
+    an open blocker draws none; a fence indented four or more spaces still
+    opens a fence, swallowing what follows (probed); `* [ ]` items and `*`,
+    `+` or numbered Inbox lines are not counted
+- [ ] ticket-robust: `ele ticket` keeps its ledger and lists whole
+  - done when each defect below has a test that fails before its fix, or the
+    user rules it out of scope
+  - 2026-10-30, from audit-plan: `ticket`'s `WriteClaims` lists open issues
+    with `--limit 200` and filters by the numbers asked for, so a number that
+    is closed, unknown or open beyond the 200 gh returns is dropped unchecked,
+    and with no other number flagged it prints "No open ticket is mistyped or
+    grants itself execution."
+  - 2026-10-30, from audit-plan: a plan item's ticket-audit ledger key is
+    `filepath.Base` of the checkout plus plan path and name (`ticket`'s
+    `planLocation`), so a worktree or a clone under another folder name loses
+    its earlier rulings, and two repositories in same-named folders share
+    them; ticket keys take the remote's project path instead, and the spec
+    says "a plan action's repository"
+  - 2026-10-30, from audit-plan: `ticket`'s `planItems` is a second plan
+    parser disagreeing with `plan.Parse`: no fence tracking, so a fenced
+    `## Inbox` or `- [ ] x` switches section or adds an item; any column-0
+    `-` line under Actions is an action; a `#` heading does not end the
+    section. No live plan hits it as of 2026-10-30
+  - 2026-10-30, from audit-plan: the ticket-audit ledger. `Record` appends
+    with a plain write, so a torn last line from a full disk or a kill makes
+    `loadLedger` refuse the file until hand-edited, failing every
+    ticket-audit §1, where its doc says it "writes nothing unless every
+    record can be recorded"; the ledger grows a line per item per audit, and
+    `WriteRulings` prints a re-recorded ruling once per line
+  - 2026-10-30, from audit-plan: `ticket`'s `paged` stops at 20 pages, 2,000
+    comments, and glab's `search` at 2,000 hits, both silently, where gh's
+    path warns at its 500 cap; the comment "20 pages outrun any ticket's
+    notes" is undated
+- [ ] data-dir-edges: The data directory, owner map and profiles hold up to hand
+  edits and symlinks
+  - done when each defect below has a test that fails before its fix or the user
+    rules it out, and `docs/` and the spec say what stays, such as a relative
+    `ELE_HOME`
+  - 2026-10-30, from cli-freeze's persisted-files survey: `archive/claude-mem/`
+    in the data dir is neither written nor read since its indexing was removed,
+    yet `ele backup` copies it and `ele status` counts its size
+  - 2026-10-30, from audit-cmd: `sync.log` is opened append-only by
+    `startSync` and never cut, 189,635 bytes on the author's machine as of
+    2026-10-30, and `ele status` reads it whole. Cap or rotate it?
+  - 2026-10-30, from audit-cmd: `design.md` says `sync.log` is "printed, never
+    parsed"; `ele status` parses its header stamps to show the log since the
+    last success
+  - 2026-10-30, from audit-rest: `datadir`'s `resolve` makes a relative
+    `ELE_HOME` absolute against the working directory, which a test pins and
+    `docs/data-and-privacy.md` does not mention; hooks run in each project's
+    directory, so `ELE_HOME=data` gives each project its own store, and a
+    literal `~/ele` from a settings `env` block becomes `<cwd>/~/ele`. On
+    Linux, a process that resolved the old directory just before `move`
+    renames it can recreate it, so `resolve` picks XDG and that process's
+    writes are stranded. `moveLog` with both the old and new log present
+    leaves the old one with no notice, as the spec has it
+  - 2026-10-30, from audit-rest: `ownermap.Read` applies none of the checks
+    `ele owner add` does, where `docs/owners.md` says the map "can be edited by
+    hand": an owner `../x` becomes a notes folder, a `~/code` rule never
+    matches, and `/a/b` and `/a/b/` clean to one key, the
+    owner kept depending on map order. `OwnerOfPath` resolves no symlinks, so a
+    cwd reached through one misses a rule given the other way. `Save` writes
+    `"owners": null` when there are none, and nil path or project maps as
+    `null`, through a fixed `.tmp`, unlocked
+  - 2026-10-30, from audit-rest: `profile.Discover` follows symlinks and keeps
+    no real path, so a `~/.claude-work` linking to `~/.claude` archives and
+    indexes every transcript twice, under both profiles, a setup the project's
+    recipe skill expects; `~/.claude-claude` and a bare `~/.claude-` both name
+    to `claude`, sharing its archive keys, and `Current(".claudefoo")` names
+    one `Discover` never lists; a home holding `[` fails its `filepath.Glob`
+    (probed)
+- [ ] help-text: `--help` matches the code
+  - done when each help line below says what the code does, and
+    `docs/commands.md` follows it
+  - 2026-10-30, from audit-cmd: help text off the code. `backup`'s purpose and
+    overview line omit `logs/`, which `backupParts` copies; `reminder list`'s
+    omits everywhere reminders, which `remindersHere` lists; `docs/commands.md`'s
+    `status` line omits the running sync, the options off their defaults and
+    the sync log tail
+- [ ] bashwork-reads: Read-only `ele` commands draw no notes ask
+  - done when each command below reads as not work, by a test, and
+    `stop-check.md`'s "What it reads" lists it
+  - 2026-10-30, from audit-cmd: `bashwork`'s read list (`eleNotWork`) leaves
+    out `ele checkpoint stats`, `ele config list`, `ele stats` and `ele usage`,
+    as does `stop-check.md`'s "What it reads", so `/ele:checkpoint-stats` marks
+    the session mid-task and draws a notes ask
+- [ ] ci-hardening: CI lints what it ships and pins what it runs
+  - done when CI runs actionlint, pins Task and shellcheck, and keys its build
+    cache so a changed build saves; `install.sh` cleans up on a signal, accepts
+    a version without its `v`, replaces the binary through a rename and limits
+    `curl` to https
+  - 2026-10-30, from audit-tooling: `install.sh`. Its `trap 'rm -rf "$work"'
+    EXIT` does not fire on a signal under dash, the `/bin/sh` of Debian and
+    Ubuntu that `curl … | sh` runs, so Ctrl-C mid-download leaves the work
+    directory and its partial tarball (probed); `ELE_VERSION=0.12.0` without
+    its `v` fails as "could not download", with nothing saying a `v` is
+    needed; on Linux, GNU `install -m 0755` unlinks then writes, so a kill
+    between them leaves no `ele` on PATH and every hook fails, with 127 or
+    with 1 where `|| exit 1` wraps it, where macOS's renames a temp file into
+    place; `curl` takes no `--proto '=https'`
+  - 2026-10-30, from audit-tooling: no gate lints the workflows: actionlint
+    is in neither `task check` nor `ci.yml`, run by hand for release-dispatch
+    as its tick records, so a broken
+    `if:`, a bad `needs` output or shell in a `run:` block of `release.yml` or
+    `tap.yml` first fails during a release; `install.sh` is the only shell
+    `lint`'s shellcheck reads
+  - 2026-10-30, from audit-tooling: `ci.yml` floats what its own rumdl
+    comment says must be pinned, since "the same commit passes today and fails
+    tomorrow": `setup-task` installs Task `3.x`, and shellcheck comes from the
+    runner image. Its Go build cache key is go.sum and go.mod alone, so after
+    the first run for a go.sum every run hits it exactly, never saves, and
+    rebuilds whatever changed since that first run
+- [ ] eval-fixes: The evals grade what they name
+  - done when each grader below fails the runs it should and passes the rest,
+    `recipe`'s Audit Command bullet checks a relative path as a file, and the
+    scaffolds' sandbox claims agree and carry their date, checked by an eval run
+    the user asks for
+  - 2026-10-30, from skills-audit: evals. `recipe`'s Audit Command bullet
+    stops checking anything `command -v` prints that is not an absolute path,
+    which the relative `./tools/forge/bin/forge` is, so `recipe-audit`'s
+    `reports-script-holds` fails a run following it; `recipe-audit`'s
+    no-edit graders miss `sed -i` and `perl -pi` on a `SKILL.md`; and
+    `wrap-recipe`'s `proposes` wants the ask in the final reply, where its
+    siblings also accept one through a question tool, as wrap step 3 asks
+  - 2026-10-30, from skills-audit: eval scaffolds disagree on git:
+    `plan-new-review`'s says git cannot run in the sandbox, while the four
+    wrap cases' scaffolds `git init` so git does not root at the sandbox
+    HOME, and `setup-maps` relies on it; recipe-audit, recipe-writes-dir and
+    plan-new-review also state undated claims about the sandbox's denials.
+    Which holds, as of a run?
 
 ### Nice to have
 
@@ -568,18 +1049,284 @@ keep.
   ten fixture cases with planted defects
   - done when, run through `task eval` when the user asks, the suites pass,
     each case seen failing on a skill with its check removed
+- [ ] redact-extras: Redact the secret shapes the docs do not promise, and stop
+  over-matching counts
+  - done when each shape below is ruled in or out by the user, those in are
+    redacted by a test, and `max_tokens`-style counts survive
+  - 2026-10-30, from audit-index: secret shapes `redact` misses that the docs
+    do not promise: `Authorization: Bearer <opaque>` and `--api-key s3cr3t`
+    (both checked unchanged), `--password hunter2`, `scheme://user:pass@host`, `passphrase` and
+    `credential` keys, Slack, Stripe, Google and npm token formats, a PEM block
+    cut before its `END` line, a quoted value holding `\"`, whose tail after
+    the escape leaks, and any value starting with `[`, which the
+    already-redacted skip passes. Which does a 1.0 privacy promise cover?
+  - 2026-10-30, from audit-index: `redact` over-matches counts: `"max_tokens":
+    4096` becomes `[redacted:assignment]` (checked), as do `input_tokens: 123`
+    and prose like `total tokens: 500`, so recall loses numbers
+- [ ] mining-robust: One bad mining line or unit stops no listing or report
+  - done when each defect below has a test that fails before its fix, or the
+    user rules it out
+  - 2026-10-30, from audit-rest: `mining`'s `Take` stores each classifier
+    line checking only `session` and `timestamp`, and `lastPerUnit` decodes
+    every stored result into a typed struct, so one line with
+    `"is_checkpoint":"yes"` or a string `change.lines` fails
+    `ele mine --report` from then on, as does a `report_ts` that is not
+    RFC 3339 once a later cycle in that session is checked against it;
+    re-judging under
+    the same prompt hashes the same, so `Store` keeps the bad line and only a
+    hand edit of the cache repairs it
+  - 2026-10-30, from audit-rest: mining file formats. `Load` fails the whole
+    cache on a blank line, where `Take` and `Named` skip them; `Store`
+    re-marshals every held judgment through `Judgment`, dropping keys it does
+    not declare; `loadWatermarks` decodes into `map[string]time.Time`, so a
+    `"version": 2` fails every `ele mine`. `design.md` says the cache and its
+    watermarks "ignore keys they do not know, so a later format adds a
+    `version` key", true of reading the cache alone
+  - 2026-10-30, from audit-rest: mining questions. `writeDigests` stops the
+    whole listing at the first unit `Digest` cannot read, and that unit stays
+    pending, so every later listing stops there; `readTranscript` takes no
+    archive lock while `appendMember` appends in place. `Pending` can mine a
+    live session's still-open window, and that judgment is final. Inline-era
+    review cycles count under "Subagent era" and are timed. `upperQuartile`'s
+    p75 can exceed the slowest launch on two values, as its test pins. `Take`
+    takes `pending[0]` as the earliest, relying on its callers' sort.
+    `subagentPath` joins an unchecked `agentId`. `Judgment`, `Timing`,
+    `TimedUnit`, `UnitKey` and `Taken` cross into `cmd/ele` outside `dto`
+- [ ] small-cli: Smaller CLI and tooling defects
+  - done when each defect below is fixed with a test, or dropped on the user's
+    ruling
+  - 2026-10-30, from audit-cmd: `ele show --at` compares its argument with
+    entry timestamps as strings (`cmd/ele` `show`), while `ele flag --at`
+    parses RFC 3339 instants (`indexedMoment`). A flag time to the second skips
+    entries stamped with milliseconds in that second, and an offset time lands
+    hours off; `TestRunShowCentresOnAMatch` asserts the bare-prefix form
+  - 2026-10-30, from audit-cmd: `ele context --size` (`contextSize`) scans the
+    whole transcript; stop-check's `lastContextTokens` reads a bounded tail,
+    since a transcript can pass 100 MB, and the spec says they compute it alike.
+    `contextSize` also errors when the session's transcript glob matches two
+    project directories; can a resumed session leave two?
+  - 2026-10-30, from audit-cmd: the SessionStart block's handoff section has
+    no budget, and the plan section caps only the next item's body
+    (`planBodyBudget`), not its blocked list or the multi-plan summary; only
+    notes shrink to `blockBudget`'s room, so long pending handoffs can push the
+    block past the size the model sees whole. How long do real handoffs run?
+  - 2026-10-30, from audit-cmd, for audit-index: `internal/index`'s `GitRoot`
+    stops at a worktree's `.git` file, so a worktree's project is its folder's
+    name, not the repository's
+  - 2026-10-30, from audit-checkpoint: `density`'s `addedLines` keeps the tab
+    git ends a `+++ b/` header with when the path holds a space (probed with
+    `my file.go`), so the file gets no row, and a quoted header ending `"\t`
+    fails `strconv.Unquote`, crediting its lines to the previous file
+  - 2026-10-30, from audit-checkpoint: `glob`'s `match` backtracks
+    exponentially: `*a*a*a*a*a*a*b` against 60 `a`s took 1.76 s (probed), and
+    `OptedOut` runs it on up to 200 paths in the Stop hook
+  - 2026-10-30, from audit-tooling: `task precommit` runs `format`, `check`,
+    then `lint-fix` (`gofmt -s -w`) and `fix` (`go fix`), so the tree it
+    leaves to commit is not the one `check` passed, and `lint`'s `gofmt -l`
+    without `-s` never sees those rewrites; CONTRIBUTING documents the order
+- [ ] audit-tests: Tests the audits found missing or unable to fail
+  - done when each test below exists and has gone red once against a mutation,
+    and the order nits beside them are fixed or dropped on the user's ruling
+  - 2026-10-30, from audit-cmd: branches no test reaches: `configUnset`'s "has
+    no value set", `copyTree`'s non-regular file, `indexedMoment`'s "no
+    timestamped entry", `checkPlan`'s parse error, `writeResults`' "Top N
+    (--limit)"
+  - 2026-10-30, from audit-index: tests. `TestSearchTreatsQueryPunctuationAsWords`
+    has no `stop-check` entry, so it proves only no error and no rows.
+    Uncovered: a symlinked archive root, redaction of `changed`, hyphenated
+    keys, an archive file shorter than `indexed_bytes`, `--since` across a
+    local day boundary; `index`'s `disputingReply` and `followNotesAsk`
+    heuristics have no test of their patterns alone
+  - 2026-10-30, from audit-checkpoint: tests.
+    `TestAppendKeepsTheFreezeTimeWhenTheLineIsNotWritten` writes
+    `ReviewedFile`'s `.started` while `Append` reads the session's `RunFile`, so
+    it cannot fail; `gate`'s `lastTurn`, `finalText`, `spokenText` and patterns
+    have no unit test, only `cmd/ele`'s `TestRunCheckpointGate*`. Uncovered:
+    over 200 dirty paths, an off-list dirty path after `Record`, a dangling
+    symlink, an optout of `*e*`, a path with a space in `density`
+  - 2026-10-30, from audit-plan: tests. `plan_test.go`'s "front matter never
+    closes" case hits "is not key: value", leaving the real error untested;
+    `TestNextIsNoneWhenEveryOpenItemIsBlocked` has no closing action.
+    Uncovered: a self-block or cycle, a capitalised `Blocked:`, a merged
+    header, an empty `blocked:`, a BOM, tabs or an empty file, which the
+    parser handles (probed), `WriteStored`'s cleanup, a renamed or reverted
+    tick, difflib's several hunks and empty or identical inputs, a
+    fenced heading in `planItems`, a torn ledger line. Out of order:
+    `corpus_test.go`'s and `plan_test.go`'s test funcs and the
+    `TestCompareMatches…` and `TestDetectCLI…` tables
+- [ ] audit-tidy: Order, comments and shape the audits found
+  - done when each nit below is fixed or dropped on the user's ruling
+  - 2026-10-30, from audit-cmd: duplicated helpers. `remember`'s `~`
+    expansion repeats `ticket`'s `expandHome`; the one-line collapse
+    `strings.Join(strings.Fields(redact.Redact(…)), " ")` recurs in flag,
+    handoff, reminder, remember, recall, sessionstart and `transcript`; six
+    note-state filters in plan, handoff and reminder share one shape;
+    `checkPlan` and `showPlan` repeat the plan-set load; recall repeats
+    `syncedIndex`'s sync-then-warn. Shared helpers (`repeatedFlag`,
+    `unownedError`, `projectNotes`, `supersededBy`, `newestOfKind`) sit in
+    their first consumer's file
+  - 2026-10-30, from audit-cmd: ordering. Out of alphabetical order:
+    `noteMove` and `ownerChange` in owner; `copyFile` and `copyTree` in backup;
+    handoff's and plan's function runs; `unownedError` in remember; `show`'s
+    flag declarations; `subagentEdit`, `subagentWorks`, `logsCheckpoint`,
+    `writesNote`, `takeJudgments`, `digestName`, `noteSource`; remember's and
+    plan's test tables and funcs. Tests in another command's file: two in
+    `config_test.go`, one each in `flag_test.go` and `recall_test.go`, four in
+    `reminder_test.go`
+  - 2026-10-30, from audit-cmd: comments. `withNextDue`'s says it replaces
+    each nudge's Due, but only done-file nudges change, in place.
+    `stopSummaryType`'s claim about Claude Code is undated. recall's "a quarter
+    of the best" measurement and "None: nothing precedes it." are unclear.
+    plan's "ele prints plan paths from the checkout root." sits above the wrong
+    line
+  - 2026-10-30, from audit-cmd: small code. `status` alone uses `sort.Slice`;
+    plan's `slices.IndexFunc` result `at` is unused; `remember`'s
+    `"ele: --%v"` reads right only while `notes.ParseEvery`'s message starts
+    `every`; `handoff`'s refusal builds a format string at run time and reads
+    as a run-on; a stray blank line opens a loop in `status`; `remember` is
+    one function of about 175 lines
+  - 2026-10-30, from audit-index: exported with no caller outside its package:
+    `store.OpenReadOnly` (tests alone), `archive.LoadManifest`,
+    `index.ErrAmbiguousSession`. `index`'s `Reset` still drops
+    `claude_mem_tables`, which no schema creates
+  - 2026-10-30, from audit-index: small. `transcript`'s exported `Truncate`
+    sits among unexported functions; `TestParseEvents`' "older stop hook block"
+    rows break the table's order; `index_test.go`'s `rows` names a variable
+    `r`; the comment above `toolErrorAttributes` documents `callLine`, an
+    attribute key
+  - 2026-10-30, from audit-checkpoint: comments off the code. `ValidateOptout`'s
+    "nearly every one"; `Freeze`'s "inside an open run", where an expired run's
+    clock is kept too; `appendGit`'s exit-status claim; `densityLead`'s
+    second half, which describes `minimumAddedComments`; `doneClaim`'s dated
+    figures, which do not explain the pattern; `gate`'s "Both passes have to
+    appear" paragraph, which narrates; `ReviewedBytes`' doc naming one of six
+    false returns
+  - 2026-10-30, from audit-checkpoint: order and shape. Out of order:
+    `density`'s `skipSuffixes` and `commentStarts`, `ValidateOptout`'s probes,
+    rows in `TestMatchGlobMatchesAsBashDoes`, the moved-paths test, two
+    `log_test.go` tables, `log_test.go`'s test funcs, `density_test.go`'s
+    helpers. `gate`'s `finalText` and `spokenText` walk the same text markers;
+    `appendDiff` repeats its diff-then-numstat shape per branch; `stats` names
+    `a, b` in a sort closure; every test file's `writeFile` lives in
+    `density_test.go`
+  - 2026-10-30, from audit-plan: small. `plan.Resolve` panics on a nil
+    `lookup` with any plan edge; `WriteClaims` prints "1 open tickets are
+    flagged." and its test asserts it; `Corpus` says "no tickets written" for
+    a plan with no items, and a plan corpus prints "ticket(s)" and
+    `#<plan>-NN`; blank lines in
+    front matter are refused; `planLocation`'s parameter `plan` shadows the
+    package
+  - 2026-10-30, from audit-plan: shape. `WriteClaims` execs through its own
+    `run`, bypassing the injected `Commands`, so its test puts a fake `gh` on
+    PATH; `ledger`'s `wellFormed` inlines `corpus`' `isWhitespace` and
+    `trimWhitespace`; `cleanPath` is `filepath.Clean` without resolving `..`
+    and keeping a leading `//`, with no test of its own
+  - 2026-10-30, from audit-rest: small. `highlight.Message` strips control
+    characters but not bidi overrides or U+2028, and its loops shadow the
+    types `rule` and `span`; `config.Options` is an exported mutable slice,
+    `Set` on a zero `Config` panics on its nil map, and `Load` names whichever
+    bad option map order meets first; `datadir`'s `syscall.Flock` rules out a
+    Windows build, which CONTRIBUTING says there is none of
+  - 2026-10-30, from audit-rest: order and shape. Out of order: `mining`'s
+    `finding` fields `RereviewKind` and `ReraisesUserDecision`, `units.go`'s
+    exported functions, `cache.go`'s functions, `report.go`'s `checkpoint`
+    method among the types; `notes_test.go`'s `TestParseRejectsInvalidNotes`
+    and `TestEveryRoundTripsEachUnit` tables and `highlight_test.go`'s
+    `TestMessage`. `Take` names the cache directory `cache` where its
+    siblings say `directory`; `take.go` and `units.go`'s `Named` read JSON
+    Lines with the same loop and key, which `UnitKey` names; `report.go`'s
+    `cut` and `digest.go`'s `clip` truncate alike
+- [ ] audit-questions: Answer the audits' open questions
+  - done when each question below is answered, then moved to an action or
+    dropped, and each nit beside them is fixed or dropped, on the user's ruling
+  - 2026-10-30, from audit-cmd: questions on the data commands, each unsettled
+    by the code. `backup` fails whole on a symlink, or on a note renamed away
+    mid-walk by a concurrent `forget`. `reminder close` prints "due again" for
+    a nudge whose done file is unreadable, shown again at once. `forget A B`
+    refuses when A supersedes B. Owner commands blame "a sync" for a lock
+    `backup` holds, and a `notes.Move` failing partway leaves moved notes with
+    no owner-map save. `recall --limit 0` silently means 20. `config set` is an
+    unlocked read-modify-write through a fixed `config.json.tmp`. `ticket`
+    accepts `--cli` with `--plan` and ignores `ledger rulings --records`
+  - 2026-10-30, from audit-cmd: `checkpoint.go`'s `hookInput.StopHookActive`
+    takes `true` or `"true"`; `stopcheck`'s hook struct takes a bool alone, so
+    a string would fail every Stop. Does Claude Code ever send the string?
+  - 2026-10-30, from audit-index: crash and race edges, each unsettled.
+    `archive`'s `syncFile` takes `tailHash` after reading the chunk, so a
+    rewrite in place between the two records the new hash over old bytes, and
+    a rewrite keeping the last 4 KiB is never seen; `appendMember` and
+    `saveManifest` rename without syncing the directory; a recall during
+    `ele sync --rebuild` reads a partial index with no sign of it
+  - 2026-10-30, from audit-checkpoint: questions. Does the Stop hook's
+    `session_id` still equal `CLAUDE_CODE_SESSION_ID` after `/clear` or a
+    resume, since the gate reads one and freeze, record and optout the other?
+    Does `lastTurn` miss a turn whose prompt holds array content, such as an
+    image, so an earlier skill call suppresses the gate? `StateFile` sits under
+    a shared temp dir another local user could pre-create. `close` prints
+    `closed:` with no run open
+  - 2026-10-30, from audit-plan: `ticket` copies Python: `isWhitespace` takes
+    `\x1c`-`\x1f`, `splitLines` follows `str.splitlines`, the ledger and
+    manifest are hand-written to match `json.dumps` byte for byte, errors print
+    Python list reprs, and `difflib.go` ports CPython's `SequenceMatcher` and
+    `unified_diff` (405 generated cases matched Python 3, probed) with no
+    attribution. Is compatibility with the retired scripts still required? If
+    so the spec should say `collapseWhitespace` and `itemHash` cannot change
+    after 1.0 without flipping every ledger entry to changed; if not, simplify
+  - 2026-10-30, from audit-tooling: questions and nits. Does `ele sync
+    --background` detach inside Claude Code's SessionEnd window? `test` with
+    `FORCE=0` still forces, since `{{if .FORCE}}` reads any value as set;
+    `release:check` word-splits `$(which -a ele)`, so a path with a space
+    breaks its listing; `bump-minor-pre-major` does nothing from 1.0.0; the
+    plugin's description is duplicated verbatim in `marketplace.json` and
+    `plugin.json`, which carries no `homepage`, `repository` or `license`
+  - 2026-10-30, from skills-audit: checkpoint and review questions and nits. In
+    branch scope §9's done-when counts committed-only paths only the uncommitted
+    part can commit; §8's fixes reach §11's record with no gate run since §6;
+    reviewers are given the gate log's path and never told to read it; §11's
+    re-freeze names "the change list", not §8's adjusted one;
+    `references/PLAN.md` runs `ele plan check` without the `cd` §2 uses;
+    `references/DELTA.md` does not say whether `0 changed` in one of two roots
+    stops both; §7's `ele plan list --project` failing on an owner ambiguity
+    skips the tick proposal, though `ele plan list` from the root works; this
+    adds that skip to the project-owner item; review step 6.2's "a line the
+    change does not touch" drops a spec reviewer's missing requirement, which
+    step 6.5 calls a blocker; review's `git archive` honours an author's
+    `export-ignore`; review never discards `bugs.md`'s Tests to mutate; the two
+    Errors tables and `LOG.md`'s `scope` and review's `outcome` lists are unsorted
+  - 2026-10-30, from skills-audit: other skills' questions and nits. Skill and
+    agent front matter is not alphabetised while `ticket-claims.md` is; `setup`'s
+    first two steps and `remember`'s "Before writing" have no done when;
+    `.rumdl.toml`'s "the body opens … with no title" is untrue of every skill but
+    checkpoint, plan-audit and ticket-audit; `plan-audit`'s "Which plans" and
+    plan pickup step 4 list ele plan check's warnings and miss the ele-data and
+    inbox-at-close ones; `plan-practices.md` cites two sources its Sources lacks
+    and defines a Proposed state no entry uses; no row in `errors.md` itself says
+    not to rerun, only checkpoint's added ones; three of its rows describe hooks
+    the plugin does not ship, and `setup` keeps its own retry text; `flag` lacks
+    the deferred AskUserQuestion clause and does not say `--at` needs
+    `--session`; `checkpoint-stats.md` has no `allowed-tools` and passes
+    `$ARGUMENTS` unquoted; `setup` offers `--move` and `--move-to` where each
+    refusal names one; the mining prompts show a multi-line template, then ask
+    for one object per line; should wrap write a plan-candidate note unasked
+    under `auto_note_writes`; `handoff`'s "two groups" regroups a list ele prints
+    as one
+  - 2026-10-30, from skills-audit: eval questions and nits. Grader regexes
+    are copied across cases, so a fix lands once per copy; `plan-new-review`'s
+    `reads-adr` counts only the Read tool, and can the installed plugin's arm
+    read `plan-practices.md` if the sandbox denies `CLAUDE_CONFIG_DIR`?
+    `reports-partial-help` wants `man git-log` where the skill prefers `git
+    help log`; `reports-findings` needs a Go newer than
+    1.21.0 and `reports-stale-flag` any Go, which CONTRIBUTING's Evals section
+    does not state; `writes` and `writes-once`
+    count Write calls only; `links` needs `.claude-a` literally in `ln -s`;
+    `flag-saves`'s `reports` wants a note id with no error alternative; the
+    forge fixture's comment describes npm
 
 ### Release
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: promise, linux-data-dir, cli-freeze, logs-into-data-dir,
-    redact-before-cut, release-dispatch, skill-lint, review-status,
-    readme-guides, cli-docs, skills-audit, audit-cmd, audit-index,
-    audit-checkpoint, audit-plan, audit-rest, audit-tooling, triage-findings,
-    interim-release,
-    rename-cutover, clean-install, gate-false-blocks, gate-data-dir,
-    first-scan-timeout, block-as-error, config-dir, project-owner
+  - blocked: readme-guides, interim-release, rename-cutover, clean-install, gate-false-blocks, gate-data-dir, first-scan-timeout, block-as-error, config-dir, project-owner, redact-promise, index-private, ticket-clean, remote-secrets, notes-robust, sync-robust, cli-lock, release-safety, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`
@@ -589,654 +1336,6 @@ keep.
   .documentation/plans/v1-release.md`, and delete this plan
 
 ## Inbox
-
-- 2026-10-30, from cli-freeze's persisted-files survey: nothing removes a
-  checkpoint run's leftovers. The session's `.optout` file under the temp
-  dir's `claude-checkpoint/` is never deleted, and a run frozen but never
-  recorded or closed leaves its `.started` file in
-  `~/.claude/cache/checkpoint-reviewed/` with no sweep
-- 2026-10-30, from cli-freeze's persisted-files survey: `archive/claude-mem/`
-  in the data dir is neither written nor read since its indexing was removed,
-  yet `ele backup` copies it and `ele status` counts its size
-- 2026-10-30, from redact-before-cut's checkpoint: a quoted secret assignment
-  whose value spans a newline, `PASSWORD="abc` then `def…"` in a Bash heredoc,
-  is not matched on the raw text, since the quoted value excludes newlines;
-  `transcript.Truncate`'s whitespace collapse makes it matchable, but a cut
-  inside the value leaves no closing quote, so the writer's pass misses it and
-  a fragment is indexed. Older than redact-before-cut. Redact again after the
-  collapse and before the cut, or let the quoted value span newlines?
-- 2026-10-30, from release-dispatch's checkpoint: a hand-published
-  non-pre-release draft is marked latest and tapped even when a newer release
-  exists, so `install.sh` and brew would move users back to it. Should
-  publish refuse a tag that sorts below the current latest?
-- 2026-10-30, from audit-cmd: `ele show --at` compares its argument with
-  entry timestamps as strings (`cmd/ele` `show`), while `ele flag --at`
-  parses RFC 3339 instants (`indexedMoment`). A flag time to the second skips
-  entries stamped with milliseconds in that second, and an offset time lands
-  hours off; `TestRunShowCentresOnAMatch` asserts the bare-prefix form
-- 2026-10-30, from audit-cmd: `bashwork`'s read list (`eleNotWork`) leaves
-  out `ele checkpoint stats`, `ele config list`, `ele stats` and `ele usage`,
-  as does `stop-check.md`'s "What it reads", so `/ele:checkpoint-stats` marks
-  the session mid-task and draws a notes ask
-- 2026-10-30, from audit-cmd: `sync.log` is opened append-only by
-  `startSync` and never cut, 189,635 bytes on the author's machine as of
-  2026-10-30, and `ele status` reads it whole. Cap or rotate it?
-- 2026-10-30, from audit-cmd: `last-sync` is written in place by `syncAll`
-  and read without the lock by `writeSessionStart`, so a start racing a sync
-  can print "sync stamp is malformed"; `writeStopState` writes the
-  stop-check state in place too, where a killed write drops the stretch.
-  Write both through a temp file and rename?
-- 2026-10-30, from audit-cmd: `ele help <command>`, `ele --version` and
-  `ele -v` exit 2 with "unknown command"; accept them, or record their
-  absence as part of the frozen CLI?
-- 2026-10-30, from audit-cmd: help text off the code. `backup`'s purpose and
-  overview line omit `logs/`, which `backupParts` copies; `reminder list`'s
-  omits everywhere reminders, which `remindersHere` lists; `docs/commands.md`'s
-  `status` line omits the running sync, the options off their defaults and
-  the sync log tail
-- 2026-10-30, from audit-cmd: `checkpoint freeze` refuses a missing output
-  directory or no paths with the synopsis alone, no reason
-  (`checkpointFreeze`'s `rejectCall(flags, nil, …)`); `checkpoint gate` and
-  `snapshot` read stdin with no terminal guard, so run by hand they hang,
-  where `readHookInput` refuses a terminal
-- 2026-10-30, from audit-cmd: `ele context --size` (`contextSize`) scans the
-  whole transcript; stop-check's `lastContextTokens` reads a bounded tail,
-  since a transcript can pass 100 MB, and the spec says they compute it alike.
-  `contextSize` also errors when the session's transcript glob matches two
-  project directories; can a resumed session leave two?
-- 2026-10-30, from audit-cmd: the SessionStart block's handoff section has
-  no budget, and the plan section caps only the next item's body
-  (`planBodyBudget`), not its blocked list or the multi-plan summary; only
-  notes shrink to `blockBudget`'s room, so long pending handoffs can push the
-  block past the size the model sees whole. How long do real handoffs run?
-- 2026-10-30, from audit-cmd: the bare-number form of `checkpoint stats`,
-  due to go at 1.0, is what `plugin/commands/checkpoint-stats.md` passes,
-  `docs/commands.md`'s `/ele:checkpoint-stats` row describes ("or the number
-  given") and `docs/checkpoint-and-ticket-audit.md` shows as `[days]`;
-  removing it needs all three changed with it. The
-  two forms also differ: a bare `7` is now minus 7 days, `--since 7d` the UTC
-  start of that day
-- 2026-10-30, from audit-cmd: `design.md` says `sync.log` is "printed, never
-  parsed"; `ele status` parses its header stamps to show the log since the
-  last success
-- 2026-10-30, from audit-cmd: dates. `--since` and stop-check `--replay`
-  dates are UTC days, `remember --due` local, and `docs/commands.md` states
-  neither; a note's `Date` is local while its `Time` is UTC, and
-  `newestOfKind` sorts by both. audit-index adds: `index`'s `Search`,
-  `Events` and `Usage` compare UTC stamps as strings against the date as
-  typed, or `parseSince`'s UTC date for `Nd`, so at UTC+4
-  `ele recall --since 2026-10-30` drops the first four local hours of the
-  30th, and west of UTC it takes in hours of the 29th
-- 2026-10-30, from audit-cmd: questions on the data commands, each unsettled
-  by the code. `backup` fails whole on a symlink, or on a note renamed away
-  mid-walk by a concurrent `forget`. `reminder close` prints "due again" for
-  a nudge whose done file is unreadable, shown again at once. `forget A B`
-  refuses when A supersedes B. Owner commands blame "a sync" for a lock
-  `backup` holds, and a `notes.Move` failing partway leaves moved notes with
-  no owner-map save. `recall --limit 0` silently means 20. `config set` is an
-  unlocked read-modify-write through a fixed `config.json.tmp`. `ticket`
-  accepts `--cli` with `--plan` and ignores `ledger rulings --records`
-- 2026-10-30, from audit-cmd: `bashwork`'s `shellScan.expand` tracks
-  assignments flat, ignoring subshell scope and `${f#…}` operators, so
-  `f=src/x.go; (f=/tmp/y); echo > $f` reads as a write to /tmp. Contrived
-- 2026-10-30, from audit-cmd: `checkpoint.go`'s `hookInput.StopHookActive`
-  takes `true` or `"true"`; `stopcheck`'s hook struct takes a bool alone, so
-  a string would fail every Stop. Does Claude Code ever send the string?
-- 2026-10-30, from audit-cmd: duplicated helpers. `remember`'s `~`
-  expansion repeats `ticket`'s `expandHome`; the one-line collapse
-  `strings.Join(strings.Fields(redact.Redact(…)), " ")` recurs in flag,
-  handoff, reminder, remember, recall, sessionstart and `transcript`; six
-  note-state filters in plan, handoff and reminder share one shape;
-  `checkPlan` and `showPlan` repeat the plan-set load; recall repeats
-  `syncedIndex`'s sync-then-warn. Shared helpers (`repeatedFlag`,
-  `unownedError`, `projectNotes`, `supersededBy`, `newestOfKind`) sit in
-  their first consumer's file
-- 2026-10-30, from audit-cmd: ordering. Out of alphabetical order:
-  `noteMove` and `ownerChange` in owner; `copyFile` and `copyTree` in backup;
-  handoff's and plan's function runs; `unownedError` in remember; `show`'s
-  flag declarations; `subagentEdit`, `subagentWorks`, `logsCheckpoint`,
-  `writesNote`, `takeJudgments`, `digestName`, `noteSource`; remember's and
-  plan's test tables and funcs. Tests in another command's file: two in
-  `config_test.go`, one each in `flag_test.go` and `recall_test.go`, four in
-  `reminder_test.go`
-- 2026-10-30, from audit-cmd: comments. `withNextDue`'s says it replaces
-  each nudge's Due, but only done-file nudges change, in place.
-  `stopSummaryType`'s claim about Claude Code is undated. recall's "a quarter
-  of the best" measurement and "None: nothing precedes it." are unclear.
-  plan's "ele prints plan paths from the checkout root." sits above the wrong
-  line
-- 2026-10-30, from audit-cmd: small code. `status` alone uses `sort.Slice`;
-  plan's `slices.IndexFunc` result `at` is unused; `remember`'s
-  `"ele: --%v"` reads right only while `notes.ParseEvery`'s message starts
-  `every`; `handoff`'s refusal builds a format string at run time and reads
-  as a run-on; a stray blank line opens a loop in `status`; `remember` is
-  one function of about 175 lines
-- 2026-10-30, from audit-cmd: branches no test reaches: `configUnset`'s "has
-  no value set", `copyTree`'s non-regular file, `indexedMoment`'s "no
-  timestamped entry", `checkPlan`'s parse error, `writeResults`' "Top N
-  (--limit)"
-- 2026-10-30, from audit-cmd, for audit-index: `internal/index`'s `GitRoot`
-  stops at a worktree's `.git` file, so a worktree's project is its folder's
-  name, not the repository's
-- 2026-10-30, from audit-index: `redact`'s assignment pattern misses what
-  `docs/data-and-privacy.md` promises, "any `key=value` or `key: value` whose
-  key looks secret, JSON keys included": run against the pattern as of
-  2026-10-30, `curl -d "{\"password\":\"hunter2\"}"` and `X-Api-Key: s3cr3t`
-  come back unchanged, since the key allows no `\"` and no hyphen. The gitlab pattern matches `glpat-` alone, where the doc says
-  "GitLab tokens": `glrt-`, `gldt-`, `glptt-`, `glcbt-`, `glft-` and `gloas-`
-  pass. A fix scrubs only what is indexed after it, so it needs
-  `internal/index`'s `Version` bumped, as redact-before-cut did, for an
-  existing index to rebuild without what the old patterns let through
-- 2026-10-30, from audit-index: secret shapes `redact` misses that the docs
-  do not promise: `Authorization: Bearer <opaque>` and `--api-key s3cr3t`
-  (both checked unchanged), `--password hunter2`, `scheme://user:pass@host`, `passphrase` and
-  `credential` keys, Slack, Stripe, Google and npm token formats, a PEM block
-  cut before its `END` line, a quoted value holding `\"`, whose tail after
-  the escape leaks, and any value starting with `[`, which the
-  already-redacted skip passes. Which does a 1.0 privacy promise cover?
-- 2026-10-30, from audit-index: `redact` over-matches counts: `"max_tokens":
-  4096` becomes `[redacted:assignment]` (checked), as do `input_tokens: 123`
-  and prose like `total tokens: 500`, so recall loses numbers
-- 2026-10-30, from audit-index: event attributes holding a `[]string`, the
-  `changed` list `transcript`'s `hookBlockAttributes` takes from hook text and
-  `reviewers`, are stored raw: `index`'s `writeEvent` redacts string values
-  alone, where `design.md` says "attribute strings are redacted as entries
-  are". `transcript.Parse` redacts tool lines but returns prompt and
-  conversation text raw for the writer to redact, undocumented, and
-  stop-check also reads its `Entry.Text`: should `Parse` redact every kind?
-- 2026-10-30, from audit-index: `archive.Sync` walks `source.Directory`
-  without resolving it, and `filepath.WalkDir` does not descend a symlinked
-  root (probed), so a profile whose `projects/` is a symlink archives nothing
-  while sync reports success; `index`'s `noteFiles` resolves its root for
-  this reason
-- 2026-10-30, from audit-index: one bad file stops every sync. `archive`'s
-  `syncFile` erroring on a transcript removed mid-walk or unreadable aborts
-  the walk before `saveManifest`; `index`'s `updateFile` fails "skip N
-  indexed bytes: EOF" on an archive file shorter than `indexed_bytes`, as from
-  an older backup, or on a corrupt `.gz`; `UpdateNotes` returns on the first
-  unreadable note, so `last-sync` is never written. Skip and report instead?
-- 2026-10-30, from audit-index: `store.Open` leaves `ele.db`, `-wal` and
-  `-shm` at SQLite's default mode, private only because ele makes the data
-  directory 0700; an `ELE_HOME` already 0755 leaves the index, conversation
-  text included, world-readable. The docs promise modes for the archive alone
-- 2026-10-30, from audit-index: crash and race edges, each unsettled.
-  `archive`'s `syncFile` takes `tailHash` after reading the chunk, so a
-  rewrite in place between the two records the new hash over old bytes, and
-  a rewrite keeping the last 4 KiB is never seen; `appendMember` and
-  `saveManifest` rename without syncing the directory; a recall during
-  `ele sync --rebuild` reads a partial index with no sign of it
-- 2026-10-30, from audit-index: exported with no caller outside its package:
-  `store.OpenReadOnly` (tests alone), `archive.LoadManifest`,
-  `index.ErrAmbiguousSession`. `index`'s `Reset` still drops
-  `claude_mem_tables`, which no schema creates
-- 2026-10-30, from audit-index: tests. `TestSearchTreatsQueryPunctuationAsWords`
-  has no `stop-check` entry, so it proves only no error and no rows.
-  Uncovered: a symlinked archive root, redaction of `changed`, hyphenated
-  keys, an archive file shorter than `indexed_bytes`, `--since` across a
-  local day boundary; `index`'s `disputingReply` and `followNotesAsk`
-  heuristics have no test of their patterns alone
-- 2026-10-30, from audit-index: small. `transcript`'s exported `Truncate`
-  sits among unexported functions; `TestParseEvents`' "older stop hook block"
-  rows break the table's order; `index_test.go`'s `rows` names a variable
-  `r`; the comment above `toolErrorAttributes` documents `callLine`, an
-  attribute key
-- 2026-10-30, from audit-checkpoint: `ele checkpoint check` says "covered"
-  for bytes nobody reviewed. `Record` stores the hash of every dirty path,
-  frozen or not, as its own comment says, and `Reviewed` passes when every
-  dirty path matches, so unrelated work dirty at record time is later
-  "covered" and the skill stops on it, `checkpointCheck` printing "every
-  changed path … is what the last checkpoint reviewed". `Record` also hashes
-  the tree at record time without comparing the freeze's fingerprint, so an
-  edit between freeze and record is recorded as reviewed; the skill guards
-  that by hand
-- 2026-10-30, from audit-checkpoint: `DirtyPaths` sorts and cuts the dirty
-  list at `pathCap`, 200, with no sign, so past the 200th path an edit moves
-  no fingerprint, `check` stays covered, the skill's re-review is skipped and
-  the Stop gate never sees it
-- 2026-10-30, from audit-checkpoint: `ValidateOptout` tests four fixed probe
-  strings, so it accepts `*e*`, `*/*/*/*` and `[0-9a-f]*` (each probed),
-  where its doc says it refuses a glob matching "nearly every" path and
-  `optout --help` one "matching any path"; `*e*` matches nearly every path,
-  exempting most of the repository from the gate for the session
-- 2026-10-30, from audit-checkpoint: what the checkpoint `duration` measures.
-  It is `log`'s time less `.started`, which a `--start` freeze, or any freeze
-  with none present, writes and only `log` and `close` remove. Two of the
-  three 0-second runs logged 2026-10-23..30 were traced in their transcripts
-  to one chained `freeze --start … && record && log` run after the reviews
-  and fixes, the third not traced. One long run, 41,589 s, was traced to
-  idle time: `.started` never expires, so a later freeze in the same session
-  keeps it, the two-hour window or not. Nothing floors a 0 or clamps a
-  negative from clock skew, and `stats` puts both in the median. The spec,
-  `log --help` and stats' output say "first freeze", the skill "the freeze
-  that opened the run"; the spec says any freeze opens a run when none is
-  open but starts the clock only when none is running. Should the clock
-  restart after the window, and should the skill forbid chaining the
-  `--start` freeze with `log`?
-- 2026-10-30, from audit-checkpoint: `freeze`'s `appendGit` ignores every
-  git exit status, its comment saying a diff that finds changes exits 1,
-  true of `--no-index` alone; a tracked diff failing with 128 drops from the
-  `.diff` while the summary still says "froze N paths"
-- 2026-10-30, from audit-checkpoint: `freeze` path handling. Paths go to git
-  without `--literal-pathspecs`, so `pages/[id].tsx` is a glob; a relative
-  `../x` is accepted and diffed from outside the root, where no fingerprint
-  covers it; a directory is accepted, and `Record`'s frozen paths never match
-  the files in it; two repositories sharing a basename overwrite each other's
-  `checkpoint-<repo>.*` in one scratchpad; the `.diff` is truncated before
-  the "the diff of N paths is empty" refusal and the diff and fingerprint
-  steps that can fail, so a freeze stopped there leaves a `.hash` its
-  `.diff` no longer matches
-- 2026-10-30, from audit-checkpoint: `density`'s `addedLines` keeps the tab
-  git ends a `+++ b/` header with when the path holds a space (probed with
-  `my file.go`), so the file gets no row, and a quoted header ending `"\t`
-  fails `strconv.Unquote`, crediting its lines to the previous file
-- 2026-10-30, from audit-checkpoint: fingerprint edges in `WriteState` and
-  `DirtyPaths`. A dangling symlink hashes as a deleted path; a symlink hashes
-  by its target's bytes; an untracked non-regular path hashes empty diff
-  output, a constant; a path holding a newline corrupts `State.Bytes` and
-  `--stdin-paths`; with no commit yet, the `git diff HEAD` error is
-  discarded and staged files are invisible to `hash`, `check` and the gate
-- 2026-10-30, from audit-checkpoint: `glob`'s `match` backtracks
-  exponentially: `*a*a*a*a*a*a*b` against 60 `a`s took 1.76 s (probed), and
-  `OptedOut` runs it on up to 200 paths in the Stop hook
-- 2026-10-30, from audit-checkpoint: `Record` writes through fixed
-  `.d.tmp`, `.tmp` and `.paths.tmp` names per repository, so two sessions
-  recording at once interleave, and swaps its three artefacts by separate
-  renames, so a crash between them leaves record and copy disagreeing.
-  `Open` rounds the age up, closing a run at about 119 minutes, not 120
-- 2026-10-30, from audit-checkpoint: the skill's §12 still sends `notes`, and
-  `Append` stores it, where the spec says `log` "accepts and ignores one from
-  an older skill"; `stats`' comment "The log no longer records notes" is
-  untrue, since `parseRun` ignores what the log holds
-- 2026-10-30, from audit-checkpoint: tests.
-  `TestAppendKeepsTheFreezeTimeWhenTheLineIsNotWritten` writes
-  `ReviewedFile`'s `.started` while `Append` reads the session's `RunFile`, so
-  it cannot fail; `gate`'s `lastTurn`, `finalText`, `spokenText` and patterns
-  have no unit test, only `cmd/ele`'s `TestRunCheckpointGate*`. Uncovered:
-  over 200 dirty paths, an off-list dirty path after `Record`, a dangling
-  symlink, an optout of `*e*`, a path with a space in `density`
-- 2026-10-30, from audit-checkpoint: questions. Does the Stop hook's
-  `session_id` still equal `CLAUDE_CODE_SESSION_ID` after `/clear` or a
-  resume, since the gate reads one and freeze, record and optout the other?
-  Does `lastTurn` miss a turn whose prompt holds array content, such as an
-  image, so an earlier skill call suppresses the gate? `StateFile` sits under
-  a shared temp dir another local user could pre-create. `close` prints
-  `closed:` with no run open
-- 2026-10-30, from audit-checkpoint: comments off the code. `ValidateOptout`'s
-  "nearly every one"; `Freeze`'s "inside an open run", where an expired run's
-  clock is kept too; `appendGit`'s exit-status claim; `densityLead`'s
-  second half, which describes `minimumAddedComments`; `doneClaim`'s dated
-  figures, which do not explain the pattern; `gate`'s "Both passes have to
-  appear" paragraph, which narrates; `ReviewedBytes`' doc naming one of six
-  false returns
-- 2026-10-30, from audit-checkpoint: order and shape. Out of order:
-  `density`'s `skipSuffixes` and `commentStarts`, `ValidateOptout`'s probes,
-  rows in `TestMatchGlobMatchesAsBashDoes`, the moved-paths test, two
-  `log_test.go` tables, `log_test.go`'s test funcs, `density_test.go`'s
-  helpers. `gate`'s `finalText` and `spokenText` walk the same text markers;
-  `appendDiff` repeats its diff-then-numstat shape per branch; `stats` names
-  `a, b` in a sort closure; every test file's `writeFile` lives in
-  `density_test.go`
-- 2026-10-30, from audit-plan: `ele ticket prepare --clean` removes every
-  `*.md` in `--out` and `--out/raw`, not only corpus files (`ticket`'s
-  `prepare`), so `--out docs --clean` deletes the docs; its help's "empty
-  --out first" is untrue too, since other files stay
-- 2026-10-30, from audit-plan: `ticket`'s `detectCLI` matches "gitlab" then
-  "github" anywhere in the lowercased origin URL, so a GitHub repository
-  whose path holds "gitlab" picks `glab` and every fetch fails; `hasTracker`
-  accepts any remote holding "github.com", path included. Match the host
-- 2026-10-30, from audit-plan: `ticket`'s `WriteClaims` lists open issues
-  with `--limit 200` and filters by the numbers asked for, so a number that
-  is closed, unknown or open beyond the 200 gh returns is dropped unchecked,
-  and with no other number flagged it prints "No open ticket is mistyped or
-  grants itself execution."
-- 2026-10-30, from audit-plan: `plan`'s `Next` returns the first open
-  action not held, and the closing action carries no `blocked:`, so when
-  every other open action is held, by a cycle, prose or an `after:` date
-  (probed), Next is the closing action, against `docs/plans.md`'s "Once the
-  last action is the only one open"; `writePlanView`'s "every open item is
-  blocked" cannot print for a plan in the documented format
-- 2026-10-30, from audit-plan: `plan.Parse` drops an item whose header an
-  edit merged onto the previous item's last body line, so the line reads
-  `done when x`, then the checkbox and `b: B` (probed): `b` is not counted,
-  never Next, an edge to it "does not exist", and `ele plan check` says
-  nothing. Not in the Inbox before this item, as of 2026-10-30
-- 2026-10-30, from audit-plan: a plan item's ticket-audit ledger key is
-  `filepath.Base` of the checkout plus plan path and name (`ticket`'s
-  `planLocation`), so a worktree or a clone under another folder name loses
-  its earlier rulings, and two repositories in same-named folders share
-  them; ticket keys take the remote's project path instead, and the spec
-  says "a plan action's repository"
-- 2026-10-30, from audit-plan: `ticket`'s `planItems` is a second plan
-  parser disagreeing with `plan.Parse`: no fence tracking, so a fenced
-  `## Inbox` or `- [ ] x` switches section or adds an item; any column-0
-  `-` line under Actions is an action; a `#` heading does not end the
-  section. No live plan hits it as of 2026-10-30
-- 2026-10-30, from audit-plan: `plan`'s `Previous` misses or misreports
-  ticks. `git log -- path` has no `--follow`, so after a `git mv` the earlier
-  ticks are gone (probed); a tick later reverted is still Previous while the
-  item is Next (probed); a tick committed with a title reword is not a flip;
-  any `rev-parse HEAD` failure, a missing git or a corrupt repository
-  included, reads as "outside git"
-- 2026-10-30, from audit-plan: plan lines the parser holds or drops with no
-  warning, each a question. `Blocked:` and `After:` capitalised are ignored,
-  releasing the item, while `done when` matches any case; `blocked: a,`, an
-  empty `blocked:` or `blocked: a c` read as prose and hold forever; a
-  self-block or a cycle holds with no flag (probed); a ticked item listing
-  an open blocker draws none; a fence indented four or more spaces still
-  opens a fence, swallowing what follows (probed); `* [ ]` items and `*`,
-  `+` or numbered Inbox lines are not counted
-- 2026-10-30, from audit-plan: the ticket-audit ledger. `Record` appends
-  with a plain write, so a torn last line from a full disk or a kill makes
-  `loadLedger` refuse the file until hand-edited, failing every
-  ticket-audit §1, where its doc says it "writes nothing unless every
-  record can be recorded"; the ledger grows a line per item per audit, and
-  `WriteRulings` prints a re-recorded ruling once per line
-- 2026-10-30, from audit-plan: `ticket`'s `paged` stops at 20 pages, 2,000
-  comments, and glab's `search` at 2,000 hits, both silently, where gh's
-  path warns at its 500 cap; the comment "20 pages outrun any ticket's
-  notes" is undated
-- 2026-10-30, from audit-plan: `ticket`'s `detectCLI` and `trackerProject`
-  print the raw origin remote in errors, so a remote holding
-  `user:token@` puts the token on stderr and into the transcript when it
-  names neither tracker with both CLIs installed, or `remoteProject` cannot
-  read a project path from it
-- 2026-10-30, from audit-plan: docs. `docs/plans.md` and
-  `.documentation/specs/design.md` give `after: <date>` alone; the UTC
-  `YYYY-MM-DD HH:MMZ` form is in the plan skill only, and a date-only
-  `after:` is local midnight. Neither says a malformed `after:`, `created`
-  or unknown front-matter key makes the whole plan unparseable, which 1.0
-  would lock in. The spec's ledger key says `repo#number`; the code writes
-  `owner/repo#number`
-- 2026-10-30, from audit-plan: `ticket` copies Python: `isWhitespace` takes
-  `\x1c`-`\x1f`, `splitLines` follows `str.splitlines`, the ledger and
-  manifest are hand-written to match `json.dumps` byte for byte, errors print
-  Python list reprs, and `difflib.go` ports CPython's `SequenceMatcher` and
-  `unified_diff` (405 generated cases matched Python 3, probed) with no
-  attribution. Is compatibility with the retired scripts still required? If
-  so the spec should say `collapseWhitespace` and `itemHash` cannot change
-  after 1.0 without flipping every ledger entry to changed; if not, simplify
-- 2026-10-30, from audit-plan: small. `plan.Resolve` panics on a nil
-  `lookup` with any plan edge; `WriteClaims` prints "1 open tickets are
-  flagged." and its test asserts it; `Corpus` says "no tickets written" for
-  a plan with no items, and a plan corpus prints "ticket(s)" and
-  `#<plan>-NN`; blank lines in
-  front matter are refused; `planLocation`'s parameter `plan` shadows the
-  package
-- 2026-10-30, from audit-plan: shape. `WriteClaims` execs through its own
-  `run`, bypassing the injected `Commands`, so its test puts a fake `gh` on
-  PATH; `ledger`'s `wellFormed` inlines `corpus`' `isWhitespace` and
-  `trimWhitespace`; `cleanPath` is `filepath.Clean` without resolving `..`
-  and keeping a leading `//`, with no test of its own
-- 2026-10-30, from audit-plan: tests. `plan_test.go`'s "front matter never
-  closes" case hits "is not key: value", leaving the real error untested;
-  `TestNextIsNoneWhenEveryOpenItemIsBlocked` has no closing action.
-  Uncovered: a self-block or cycle, a capitalised `Blocked:`, a merged
-  header, an empty `blocked:`, a BOM, tabs or an empty file, which the
-  parser handles (probed), `WriteStored`'s cleanup, a renamed or reverted
-  tick, difflib's several hunks and empty or identical inputs, a
-  fenced heading in `planItems`, a torn ledger line. Out of order:
-  `corpus_test.go`'s and `plan_test.go`'s test funcs and the
-  `TestCompareMatches…` and `TestDetectCLI…` tables
-- 2026-10-30, from audit-rest: `notes.Parse` reads with a default
-  `bufio.Scanner`, so a body line over 64 KiB, which `Write` accepts, fails
-  with "token too long" (probed): not `ErrInvalid`, so `ReadOwner` aborts
-  the whole owner, and session start, `ele remember`, context, stop-check,
-  status and the owner commands fail for it until that file is fixed by
-  hand. `ReadOwner`'s doc says it counts the files `Parse` rejects; only
-  `ErrInvalid` ones are
-- 2026-10-30, from audit-rest: `notes.Write` accepts what `Parse` then
-  rejects or worse. A whitespace-only body is written and read back as
-  "empty body", lost (probed), since `problem` tests the untrimmed body;
-  `Owner`, `Profile`, `ID` and `Supersedes` entries go unchecked, so a
-  `Profile` holding a newline writes an unreadable note and an `ID` of
-  `../../esc` writes outside the notes folder (both probed). `Profile` comes
-  from the config dir's base name; owner and id are checked by `cmd/ele`
-  today, but `Write` is the exported boundary
-- 2026-10-30, from audit-rest: `notes` writes. `Write` creates the file with
-  `O_EXCL` and writes in place, so a concurrent read sees half a note and a
-  write cut short leaves an invalid file holding its id; `rewriteKey` and
-  `Move` are unlocked read-modify-writes, so of two rewrites of one note
-  the later rename drops the other's key, and a `MarkShown` that read a note
-  before an owner command's `Move` renames it back under its old owner,
-  leaving it under both; a crash leaves `*.tmp`
-  files nothing sweeps; `Move` never checks the opening `---`;
-  `Relocate` has no test
-- 2026-10-30, from audit-rest: `datadir`'s `resolve` makes a relative
-  `ELE_HOME` absolute against the working directory, which a test pins and
-  `docs/data-and-privacy.md` does not mention; hooks run in each project's
-  directory, so `ELE_HOME=data` gives each project its own store, and a
-  literal `~/ele` from a settings `env` block becomes `<cwd>/~/ele`. On
-  Linux, a process that resolved the old directory just before `move`
-  renames it can recreate it, so `resolve` picks XDG and that process's
-  writes are stranded. `moveLog` with both the old and new log present
-  leaves the old one with no notice, as the spec has it
-- 2026-10-30, from audit-rest: `ownermap.Read` applies none of the checks
-  `ele owner add` does, where `docs/owners.md` says the map "can be edited by
-  hand": an owner `../x` becomes a notes folder, a `~/code` rule never
-  matches, and `/a/b` and `/a/b/` clean to one key, the
-  owner kept depending on map order. `OwnerOfPath` resolves no symlinks, so a
-  cwd reached through one misses a rule given the other way. `Save` writes
-  `"owners": null` when there are none, and nil path or project maps as
-  `null`, through a fixed `.tmp`, unlocked
-- 2026-10-30, from audit-rest: `profile.Discover` follows symlinks and keeps
-  no real path, so a `~/.claude-work` linking to `~/.claude` archives and
-  indexes every transcript twice, under both profiles, a setup the project's
-  recipe skill expects; `~/.claude-claude` and a bare `~/.claude-` both name
-  to `claude`, sharing its archive keys, and `Current(".claudefoo")` names
-  one `Discover` never lists; a home holding `[` fails its `filepath.Glob`
-  (probed)
-- 2026-10-30, from audit-rest: `ele events` prints `dto.Event` as JSON, an
-  API at 1.0, and `TestRunEventsPrintsOneJSONObjectPerLine` decodes the
-  output back through the same tags, so renaming `json:"kind"` or dropping
-  an `omitempty` keeps it green. `dto.DecodeAttributes` returns the bare
-  `json.Unmarshal` error and decodes numbers to `float64`, losing integers
-  past 2^53
-- 2026-10-30, from audit-rest: `mining`'s `Digest` quotes a checkpoint
-  run's other tool calls as `json.Marshal(block.Input)` redacted, so an
-  assignment's quotes are `\"` and the value passes, the escaped-quote miss
-  of audit-index's redaction item by another path: `API_KEY="s3cr3tvalue123"`
-  in an MCP or `WebFetch` input reaches the digest and the classifier
-  subagent (probed); no test covers the branch
-- 2026-10-30, from audit-rest: `mining`'s `Take` stores each classifier
-  line checking only `session` and `timestamp`, and `lastPerUnit` decodes
-  every stored result into a typed struct, so one line with
-  `"is_checkpoint":"yes"` or a string `change.lines` fails
-  `ele mine --report` from then on, as does a `report_ts` that is not
-  RFC 3339 once a later cycle in that session is checked against it;
-  re-judging under
-  the same prompt hashes the same, so `Store` keeps the bad line and only a
-  hand edit of the cache repairs it
-- 2026-10-30, from audit-rest: mining file formats. `Load` fails the whole
-  cache on a blank line, where `Take` and `Named` skip them; `Store`
-  re-marshals every held judgment through `Judgment`, dropping keys it does
-  not declare; `loadWatermarks` decodes into `map[string]time.Time`, so a
-  `"version": 2` fails every `ele mine`. `design.md` says the cache and its
-  watermarks "ignore keys they do not know, so a later format adds a
-  `version` key", true of reading the cache alone
-- 2026-10-30, from audit-rest: `docs/data-and-privacy.md`'s Secrets says
-  text is redacted before it is indexed or printed, but not that
-  `ele mine --digests` writes redacted transcript excerpts, prior asks,
-  agent prompts, Bash commands and edit paths among them, into the session
-  scratchpad for `/ele:mine` to hand to model subagents, nor that the skill's
-  cleanup leaves the digest `.txt` files there
-- 2026-10-30, from audit-rest: mining questions. `writeDigests` stops the
-  whole listing at the first unit `Digest` cannot read, and that unit stays
-  pending, so every later listing stops there; `readTranscript` takes no
-  archive lock while `appendMember` appends in place. `Pending` can mine a
-  live session's still-open window, and that judgment is final. Inline-era
-  review cycles count under "Subagent era" and are timed. `upperQuartile`'s
-  p75 can exceed the slowest launch on two values, as its test pins. `Take`
-  takes `pending[0]` as the earliest, relying on its callers' sort.
-  `subagentPath` joins an unchecked `agentId`. `Judgment`, `Timing`,
-  `TimedUnit`, `UnitKey` and `Taken` cross into `cmd/ele` outside `dto`
-- 2026-10-30, from audit-rest: small. `highlight.Message` strips control
-  characters but not bidi overrides or U+2028, and its loops shadow the
-  types `rule` and `span`; `config.Options` is an exported mutable slice,
-  `Set` on a zero `Config` panics on its nil map, and `Load` names whichever
-  bad option map order meets first; `datadir`'s `syscall.Flock` rules out a
-  Windows build, which CONTRIBUTING says there is none of
-- 2026-10-30, from audit-rest: order and shape. Out of order: `mining`'s
-  `finding` fields `RereviewKind` and `ReraisesUserDecision`, `units.go`'s
-  exported functions, `cache.go`'s functions, `report.go`'s `checkpoint`
-  method among the types; `notes_test.go`'s `TestParseRejectsInvalidNotes`
-  and `TestEveryRoundTripsEachUnit` tables and `highlight_test.go`'s
-  `TestMessage`. `Take` names the cache directory `cache` where its
-  siblings say `directory`; `take.go` and `units.go`'s `Named` read JSON
-  Lines with the same loop and key, which `UnitKey` names; `report.go`'s
-  `cut` and `digest.go`'s `clip` truncate alike
-- 2026-10-30, from audit-tooling: the README's install and Update give
-  `go install …/cmd/ele@latest`, but `release-please-config.json` sets
-  `draft` and `force-tag-creation`, so a release's tag is on the remote
-  while it is still a draft: `@latest` installs a release left a draft for
-  a person, its merge having failed the check, and a GitHub pre-release with
-  a plain tag, neither of which `install.sh` or brew serves, and the module
-  proxy keeps the version for good. `task release:go` installs `@<tag>` of
-  the published release
-- 2026-10-30, from audit-tooling: `install.sh`. Its `trap 'rm -rf "$work"'
-  EXIT` does not fire on a signal under dash, the `/bin/sh` of Debian and
-  Ubuntu that `curl … | sh` runs, so Ctrl-C mid-download leaves the work
-  directory and its partial tarball (probed); `ELE_VERSION=0.12.0` without
-  its `v` fails as "could not download", with nothing saying a `v` is
-  needed; on Linux, GNU `install -m 0755` unlinks then writes, so a kill
-  between them leaves no `ele` on PATH and every hook fails, with 127 or
-  with 1 where `|| exit 1` wraps it, where macOS's renames a temp file into
-  place; `curl` takes no `--proto '=https'`
-- 2026-10-30, from audit-tooling: `task precommit` runs `format`, `check`,
-  then `lint-fix` (`gofmt -s -w`) and `fix` (`go fix`), so the tree it
-  leaves to commit is not the one `check` passed, and `lint`'s `gofmt -l`
-  without `-s` never sees those rewrites; CONTRIBUTING documents the order
-- 2026-10-30, from audit-tooling: no gate lints the workflows: actionlint
-  is in neither `task check` nor `ci.yml`, run by hand for release-dispatch
-  as its tick records, so a broken
-  `if:`, a bad `needs` output or shell in a `run:` block of `release.yml` or
-  `tap.yml` first fails during a release; `install.sh` is the only shell
-  `lint`'s shellcheck reads
-- 2026-10-30, from audit-tooling: `ci.yml` floats what its own rumdl
-  comment says must be pinned, since "the same commit passes today and fails
-  tomorrow": `setup-task` installs Task `3.x`, and shellcheck comes from the
-  runner image. Its Go build cache key is go.sum and go.mod alone, so after
-  the first run for a go.sum every run hits it exactly, never saves, and
-  rebuilds whatever changed since that first run
-- 2026-10-30, from audit-tooling: `tap.yml` by hand refuses neither a
-  pre-release nor a tag older than the latest, so either reaches every brew
-  user, where Release skips pre-releases; the Inbox's stale-draft item is
-  the same family on the Release side
-- 2026-10-30, from audit-tooling: questions and nits. Does `ele sync
-  --background` detach inside Claude Code's SessionEnd window? `test` with
-  `FORCE=0` still forces, since `{{if .FORCE}}` reads any value as set;
-  `release:check` word-splits `$(which -a ele)`, so a path with a space
-  breaks its listing; `bump-minor-pre-major` does nothing from 1.0.0; the
-  plugin's description is duplicated verbatim in `marketplace.json` and
-  `plugin.json`, which carries no `homepage`, `repository` or `license`
-- 2026-10-30, from skills-audit: checkpoint's §1 builds the change list from
-  `git status --porcelain`, which shows a new untracked directory as one
-  `?? dir/` line; `ele checkpoint freeze` refuses a directory ("is neither
-  tracked nor a file"), and `reference/errors.md` has no row for it, so a
-  change adding a package stops at §1 or loses its new files. Fix: use
-  `--untracked-files=all` there and for §9's `add` list
-- 2026-10-30, from skills-audit: two skills write an item's tick under
-  different gates. `/ele:plan` step 6 proposes the tick once its line "can be
-  written", naming no checkpoint; checkpoint's `references/PLAN.md` ticks
-  only after §6's gate and an unfixed-spec check, and has the line
-  re-reviewed; `docs/plans.md` says checkpoint proposes it. A plan session
-  can tick unreviewed work, and checkpoint's §7 has no branch for an item
-  already ticked
-- 2026-10-30, from skills-audit: `ticket-audit` §1 and §10, `plan-audit`'s
-  ticket-audit sections and `/ele:plan`'s review loop set `AUDIT=$(mktemp
-  -d)` or `BASE=$(mktemp -d)` and read `$AUDIT` or `$BASE` in later
-  commands, but Claude Code's Bash tool keeps no variable between calls, and
-  the assignment prints no path: `ledger rulings --manifest
-  "$AUDIT/manifest.json"` reads `/manifest.json` and fails, and the plan
-  loop's settled file and `diff -u` lose their directory. Fix: run `mktemp
-  -d` alone and write the printed path into later commands as a placeholder
-- 2026-10-30, from skills-audit: `plugin/commands/checkpoint-stats.md`'s
-  Duration bullet says a re-review frozen over two hours after the last
-  freeze, or a freeze with no session id, restarts the clock; in
-  `internal/checkpoint` `openRun` only `--start` or a missing `.started`
-  rewrites it, and with no session no clock starts. This adds the command
-  file to the item from audit-checkpoint on what `duration` measures, which
-  does not name it
-- 2026-10-30, from skills-audit: `/ele:plan`'s review loop step 5 runs `ele
-  plan check` on each draft, but `convert` splits drafts by repository and
-  the check refuses a path outside the working directory's checkout ("is
-  outside the project"), so the step, which does not say to run it from the
-  draft's repository, fails on a sibling repository's draft; `plan-audit`
-  says to run it from the plan's checkout
-- 2026-10-30, from skills-audit: `ticket-audit`'s `references/TRACKERS.md`
-  counts `OPEN` (gh) and `opened` (glab) as open, but its `gh api
-  …/dependencies/blocked_by` command prints the REST API's lowercase `open`,
-  so a literal match reads an open native blocker as closed and frees the
-  ticket it blocks
-- 2026-10-30, from skills-audit: checkpoint's §10 done-when wants a verdict
-  on every change-list file "from each reviewer that ran", while
-  `reviewers/spec.md` and §4 give spec a verdict per requirement, so a run
-  with a spec reviewer cannot meet it literally; `/ele:review` step 5 words
-  it right
-- 2026-10-30, from skills-audit: `/ele:review` step 12 says a failed publish
-  "leaves nothing half-sent behind, per the forge file", true of GitHub's one
-  POST but not of `references/GITLAB.md`, which publishes drafts one by one,
-  so a failure part-way leaves those already published live, against the
-  step's claim; only the report's "which findings reached the forge" says so
-- 2026-10-30, from skills-audit: `plan-audit`'s ticket-audit §0 recalls
-  earlier audits with `<topic>` set to every plan's file name plus `audit`,
-  but recall needs every word in one entry, so an audit over several plans
-  matches nothing and reports no earlier audit; `/ele:plan` pickup already
-  keeps recall to two or three words. Fix: one recall per plan
-- 2026-10-30, from skills-audit: evals. `recipe`'s Audit Command bullet
-  stops checking anything `command -v` prints that is not an absolute path,
-  which the relative `./tools/forge/bin/forge` is, so `recipe-audit`'s
-  `reports-script-holds` fails a run following it; `recipe-audit`'s
-  no-edit graders miss `sed -i` and `perl -pi` on a `SKILL.md`; and
-  `wrap-recipe`'s `proposes` wants the ask in the final reply, where its
-  siblings also accept one through a question tool, as wrap step 3 asks
-- 2026-10-30, from skills-audit: eval scaffolds disagree on git:
-  `plan-new-review`'s says git cannot run in the sandbox, while the four
-  wrap cases' scaffolds `git init` so git does not root at the sandbox
-  HOME, and `setup-maps` relies on it; recipe-audit, recipe-writes-dir and
-  plan-new-review also state undated claims about the sandbox's denials.
-  Which holds, as of a run?
-- 2026-10-30, from skills-audit: checkpoint and review questions and nits. In
-  branch scope §9's done-when counts committed-only paths only the uncommitted
-  part can commit; §8's fixes reach §11's record with no gate run since §6;
-  reviewers are given the gate log's path and never told to read it; §11's
-  re-freeze names "the change list", not §8's adjusted one;
-  `references/PLAN.md` runs `ele plan check` without the `cd` §2 uses;
-  `references/DELTA.md` does not say whether `0 changed` in one of two roots
-  stops both; §7's `ele plan list --project` failing on an owner ambiguity
-  skips the tick proposal, though `ele plan list` from the root works; this
-  adds that skip to the project-owner item; review step 6.2's "a line the
-  change does not touch" drops a spec reviewer's missing requirement, which
-  step 6.5 calls a blocker; review's `git archive` honours an author's
-  `export-ignore`; review never discards `bugs.md`'s Tests to mutate; the two
-  Errors tables and `LOG.md`'s `scope` and review's `outcome` lists are unsorted
-- 2026-10-30, from skills-audit: other skills' questions and nits. Skill and
-  agent front matter is not alphabetised while `ticket-claims.md` is; `setup`'s
-  first two steps and `remember`'s "Before writing" have no done when;
-  `.rumdl.toml`'s "the body opens … with no title" is untrue of every skill but
-  checkpoint, plan-audit and ticket-audit; `plan-audit`'s "Which plans" and
-  plan pickup step 4 list ele plan check's warnings and miss the ele-data and
-  inbox-at-close ones; `plan-practices.md` cites two sources its Sources lacks
-  and defines a Proposed state no entry uses; no row in `errors.md` itself says
-  not to rerun, only checkpoint's added ones; three of its rows describe hooks
-  the plugin does not ship, and `setup` keeps its own retry text; `flag` lacks
-  the deferred AskUserQuestion clause and does not say `--at` needs
-  `--session`; `checkpoint-stats.md` has no `allowed-tools` and passes
-  `$ARGUMENTS` unquoted; `setup` offers `--move` and `--move-to` where each
-  refusal names one; the mining prompts show a multi-line template, then ask
-  for one object per line; should wrap write a plan-candidate note unasked
-  under `auto_note_writes`; `handoff`'s "two groups" regroups a list ele prints
-  as one
-- 2026-10-30, from skills-audit: eval questions and nits. Grader regexes
-  are copied across cases, so a fix lands once per copy; `plan-new-review`'s
-  `reads-adr` counts only the Read tool, and can the installed plugin's arm
-  read `plan-practices.md` if the sandbox denies `CLAUDE_CONFIG_DIR`?
-  `reports-partial-help` wants `man git-log` where the skill prefers `git
-  help log`; `reports-findings` needs a Go newer than
-  1.21.0 and `reports-stale-flag` any Go, which CONTRIBUTING's Evals section
-  does not state; `writes` and `writes-once`
-  count Write calls only; `links` needs `.claude-a` literally in `ln -s`;
-  `flag-saves`'s `reports` wants a note id with no error alternative; the
-  forge fixture's comment describes npm
 
 ## Out of scope
 
@@ -1250,3 +1349,6 @@ keep.
   from the v1 list)
 - A review fix step handing picked findings to checkpoint: crosses a settled
   split between review and checkpoint (ruled 2026-10-29, from the v1 list)
+- `bashwork` tracks shell assignments flat, so a subshell's reassignment reads
+  as a write elsewhere: contrived, as the audit said (ruled 2026-10-31, from
+  audit-cmd)
