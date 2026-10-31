@@ -14,6 +14,7 @@ An LLM judge's verdict is not stable: in setup-maps a Haiku judge passed a reply
 1. Convert each `type: llm` grader under `plugin/evals` that checks a fact the trace holds to `tool_used`, and one that checks a literal the reply must or must not hold to `regex`
 2. Narrow the rest to one claim each
 3. Write the rule into CONTRIBUTING's eval section
+4. Fix recipe-audit's no-run graders so they neither count a mention as a run nor miss a run
 
 ## Context
 
@@ -23,7 +24,7 @@ An LLM judge's verdict is not stable: in setup-maps a Haiku judge passed a reply
 - As of 2026-10-29, from a probe on claude 2.1.308: AskUserQuestion does not load in the eval sandbox, so an ask is a claim in the reply, never a tool call
 - As of 2026-10-29, from the `claude plugin eval` docs: `regex` takes `pattern`, `flags`, `match` (`not_contains`, `count:N`) and `target` (`last_message` by default, `trace`, `files`, a workspace file); an `llm` grader passes on 2 of 3 judge votes, Haiku by default
 - As of 2026-10-29: CONTRIBUTING's Evals section says how a case is laid out and run, and nothing about which grader type to use; no spec under `.documentation/specs/` describes evals, so this plan has none
-- As of 2026-10-29: ele-followups' `grader-alternation` edits recipe-audit's `no-run-step`, `no-run-script` and `no-run-runner` graders, none of them `type: llm`; the two plans touch different files in that case
+- As of 2026-10-31: `grader-alternation` edits recipe-audit's `no-run-step`, `no-run-script` and `no-run-runner` graders, all `type: tool_used` with `max: 0`, none of them `type: llm`; it touches different files from `recipe-audit-graders` in that case
 
 ## Decisions
 
@@ -34,16 +35,25 @@ An LLM judge's verdict is not stable: in setup-maps a Haiku judge passed a reply
   - rejected: splitting out every claim, because each extra judge grader is another vote that can fail the case and adds 3 judge calls a run
   - rejected: keeping only each grader's main claim with no review of the rest, because it drops checks the case was written for unexamined
   - rejected: lowering `--threshold`, because it hides a real failure along with a flaky one
-- Each new `tool_used` or `regex` pattern is hand-probed in node, over a JSON-encoded tool input or reply text, matching the passing shape and seen red on a failing one; each grader item also runs `task eval -- ./plugin --case <case> --runs 3` once per case it changes, started only on the user's go, since it costs model calls; `--runs 3` because most cases run once, and a split verdict shows only across runs. With the go withheld, the item stays open with a dated `next:` line
+- Each new `tool_used` or `regex` pattern is hand-probed in node, over a JSON-encoded tool input or reply text, matching the passing shape and seen red on a failing one; each grader item also runs `task eval -- ./plugin --case <case> --runs 3` once per case it changes, started only on the user's go, since it costs model calls; `--runs 3` because most cases run once, and a split verdict shows only across runs. With the go withheld, the item stays open with a dated `next:` line. An item changing only a `tool_used` or `regex` pattern in a case a later item runs leaves the run to that item, which it blocks: one paid run then scores both
 - The rule is written before the conversions, so each conversion follows written text
 
 ## Actions
 
 - [ ] grader-rule: CONTRIBUTING's Evals section states which grader type checks what
-  - done when the section says: a fact the trace holds, a command run, a file written or a tool called, is graded with `tool_used`; a literal the reply must or must not hold with `regex` on `last_message`; an `llm` grader judges one claim neither can check, and only one the case exists to test, each with its reason; that AskUserQuestion does not load in the eval sandbox (as of 2026-10-29, claude 2.1.308), so an ask is graded on the reply and its behaviour is also checked in a real session; and `task format`, `task check FORCE=1` and `task audit` pass
+  - done when the section says: a fact the trace holds, a command run, a file written or a tool called, is graded with `tool_used`; a literal the reply must or must not hold with `regex` on `last_message`; an `llm` grader judges one claim neither can check, and only one the case exists to test, each with its reason; that AskUserQuestion does not load in the eval sandbox (as of 2026-10-29, claude 2.1.308), so an ask is graded on the reply and its behaviour is also checked in a real session; that a `max: 0` `tool_used` pattern must not match a command named inside a quoted argument, and must match it however it is invoked; and `task format`, `task check FORCE=1` and `task audit` pass
+- [ ] grader-alternation: recipe-audit's `no-run-step`, `no-run-script` and `no-run-runner` graders do not count a quoted regex alternation naming what they guard as a run
+  - done when no grader matches a quoted `grep -E` alternation holding its target after the `|`, double- or single-quoted: `deploy-dev` or `bin/deploy-dev` for `no-run-step`, `forge`, `bin/forge` or `cli.js` for `no-run-script`, `npx @acme/sbom` for `no-run-runner`; and every command each grader matches or misses today, outside an open quote, it still matches or misses, a pipe such as `ls | forge` included; each seen red, by hand probe
+  - as of 2026-10-29, by hand probe in node over a JSON-encoded Bash input: `no-run-step` matches `grep -E "forge|deploy-dev" SKILL.md`, the `|` taken as a separator; `no-run-script` matches `grep -E "deploy-dev|forge" SKILL.md` and `grep -E "x|cli.js" f`; `no-run-runner` matches `grep -E "x|npx @acme/sbom" SKILL.md`; neither of the first two matches `cat bin/deploy-dev`; `no-run-script` matches `ls | forge`. A `|` inside an open quote is an alternation and one outside a pipe, and no pattern tracks quotes, so that is the discriminator to build
+  - as of 2026-10-31, by hand probe in node: still as above; `no-run-script` already misses the single-quoted `grep -E 'deploy-dev|forge' SKILL.md`, while `no-run-step` and `no-run-runner` match theirs
+  - missed runs, `bash -c 'forge'` and a quoted runner path, are quoted-runs
+- [ ] quoted-runs: recipe-audit's `no-run-script` matches a single-quoted run and `no-run-runner` a quoted path to the runner
+  - blocked: grader-alternation; its patterns are the baseline this item keeps
+  - done when `no-run-script` matches `bash -c 'forge'` and `no-run-runner` matches `"/usr/bin/npx" @acme/sbom`, and every other command each grader matches or misses after grader-alternation it still matches or misses, a single- or double-quoted `grep -E` alternation holding its target still missed; each seen red, by hand probe
+  - as of 2026-10-31, by hand probe in node over a JSON-encoded Bash input: `no-run-script` misses `bash -c 'forge'`, its lookahead after `forge` excluding `'`; `no-run-runner` misses `"/usr/bin/npx" @acme/sbom`
 - [ ] recipe-audit-graders: recipe-audit's 10 `type: llm` graders follow the rule
-  - blocked: grader-rule; the conversions follow the rule as written
-  - as of 2026-10-29: the eval run also scores `no-run-step`, `no-run-script` and `no-run-runner`, which ele-followups/grader-alternation finds matching a quoted `grep -E` alternation as a run; such a failure is traced to that grader, not this item's
+  - blocked: grader-rule, grader-alternation, quoted-runs; the conversions follow the rule as written, and this item's eval run scores the fixed no-run graders
+  - the eval run also scores `no-run-step`, `no-run-script` and `no-run-runner`, fixed by grader-alternation and quoted-runs before it and never run by them; a failure of one here reopens the item that changed it, fixed and run again under this one
   - done when each of `reports-audit-mode`, `reports-findings`, `reports-no-false`, `reports-not-checked`, `reports-partial-help`, `reports-path`, `reports-runners`, `reports-script`, `reports-script-holds` and `reports-stale-flag` is a `tool_used` or `regex` grader or one-claim `llm` graders, no remaining `llm` grader judging a claim a `tool_used` or `regex` grader could check, or one the case does not exist to test, per the rule grader-rule wrote; each dropped claim listed under this item with its reason, each new pattern seen red by hand probe; `task format`, `task check FORCE=1` and `task audit` pass; and recipe-audit's eval run, as the Decisions set it, on the user's go, has its per-grader results written under this item, naming any grader whose verdict split across a case's runs; each failed or split verdict traced to the reply or the grader, a grader at fault fixed and its case run again, a reply at fault written down as the model's failure with its reason
 - [ ] remember-graders: the `type: llm` graders of flag-saves, handoff-list, remember-auto-off, remember-auto-on, remember-many and remember-reminder follow the rule
   - blocked: grader-rule; the conversions follow the rule as written
@@ -52,6 +62,7 @@ An LLM judge's verdict is not stable: in setup-maps a Haiku judge passed a reply
   - blocked: grader-rule; the conversions follow the rule as written
   - done when each of `recipe-asks/asks`, `recipe-writes/reports`, `recipe-writes-dir/reports`, `wrap-asks/asks`, `wrap-deferred/open-work`, `wrap-recipe/proposes` and `wrap-recipe-off/no-recipe` is a `tool_used` or `regex` grader or one-claim `llm` graders, no remaining `llm` grader judging a claim a `tool_used` or `regex` grader could check, or one the case does not exist to test, per the rule grader-rule wrote; each dropped claim listed under this item with its reason, each new pattern seen red by hand probe; `task format`, `task check FORCE=1` and `task audit` pass; and each of those seven cases' eval runs, as the Decisions set them, on the user's go, has its per-grader results written under this item, naming any grader whose verdict split across a case's runs; each failed or split verdict traced to the reply or the grader, a grader at fault fixed and its case run again, a reply at fault written down as the model's failure with its reason
 - [ ] Fold each Decision through `/ele:plan-audit close .documentation/plans/eval-graders-off-judges.md`, propose each out-of-scope line as a `decision` through `/ele:remember`, run `ele plan done .documentation/plans/eval-graders-off-judges.md`, and delete this plan
+  - next: forget the ele `decision` note saying converting `type: llm` graders is planned in this file, a second copy of this plan's approach that the CONTRIBUTING rule replaces
 
 ## Inbox
 
