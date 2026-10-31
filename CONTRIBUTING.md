@@ -80,6 +80,27 @@ sandbox first. `task eval` grants Bash and Write, which a case gets only when
 its own tools list them. Each run is a real session on your account and costs
 model calls, so no gate runs it.
 
+A grader is deterministic wherever the trace or the reply allows: a judge's
+verdict can flip between runs on the same reply, and `task eval`'s default
+threshold of 1.0 fails a case on one failed grader in one run.
+
+- A fact the trace holds, a command run, a file written or a tool called, is a
+  `tool_used` grader: the trace records it, so nothing needs judging
+- A literal the reply must or must not hold, such as a path or a command name,
+  is a `regex` grader on `last_message`: a literal needs no judge
+- An `llm` grader judges one claim neither can check, and only a claim the case
+  exists to test: each judge grader is another vote that can fail the case. A
+  secondary claim, one a deterministic grader already makes unlikely to fail,
+  is dropped
+- AskUserQuestion does not load in the eval sandbox (as of 2026-10-29, claude
+  2.1.308), so an ask is graded on the reply, and its behaviour is also checked
+  in a real session, the only place the tool is called
+- A `max: 0` `tool_used` pattern must not match the command it guards where a
+  quoted argument names it, such as `forge` in `grep -E "x|forge"`, or a case
+  that only reads the command fails; and it must match the command however
+  it is invoked, by path, through `env` or `sh -c`, or after a pipe, or a run
+  slips past
+
 ## Repository layout
 
 | Path                 | Holds                                                                                                                             |
