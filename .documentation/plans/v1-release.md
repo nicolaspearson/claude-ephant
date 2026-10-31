@@ -312,11 +312,42 @@ keep.
     `version`, `backup`, `status`, `plan check`, `plan done`, `reminder list`
     and `reopen`, `handoff reopen`, `stop-check --replay` and the owner
     commands among them, now follow `--help`; `task lint-docs` passes
-- [ ] skills-audit: Audit the skills, agents, commands, reference files and
+- [x] skills-audit: Audit the skills, agents, commands, reference files and
   evals under `plugin/` against their specs, the CLI and each other
   - done when the files read are listed under this item with a dated count
     matching `plugin/`'s, each finding is in the Inbox, and every command or
     flag a skill names exists in `--help`
+  - asserted in the commit carrying this tick: the three groups below are
+    `find plugin -type f`, 143 files, split with nothing left over; each
+    reader reports every file of its group read whole; each finding of the
+    five reports, counted against the Inbox, is in an item dated 2026-10-30
+    "from skills-audit"; against a clone build's help, each of the 159 `ele`
+    mentions under `plugin/` outside `plugin/evals/` names a command that
+    exists or is prose, and each flag on the 38 that pass flags is one that
+    command's usage lists
+  - as of 2026-10-30: 143 files, 4541 lines, all read whole; the list
+    below matches `find plugin -type f`. Group A, 14 files, by a bugs and a
+    conventions-prose reader: under `plugin/skills/checkpoint/`, `SKILL.md`,
+    `references/` `BRANCH.md`, `DELTA.md`, `HEAD-EXPORT.md`, `LOG.md` and
+    `PLAN.md`, `reviewers/` `bugs.md`, `conventions-prose.md` and `spec.md`;
+    under `plugin/skills/review/`, `SKILL.md` and `references/` `GITHUB.md`
+    and `GITLAB.md`; `plugin/agents/` `checkpoint-reviewer.md` and
+    `review-reader.md`. Group B, 24 files, by a bugs and a conventions-prose
+    reader: the `SKILL.md` of flag, handoff, mine, plan, plan-audit, recall,
+    recipe, remember, setup, ticket-audit and wrap; mine's `references/`
+    `classify-checkpoint-runs.md` and `classify-review-cycles.md`, plan's
+    `references/template.md` and `reviewers/plan.md`, ticket-audit's
+    `references/TRACKERS.md`; `plugin/agents/plan-reviewer.md`;
+    `plugin/commands/` `checkpoint-stats.md` and `ticket-claims.md`;
+    `plugin/reference/` `errors.md`, `plan-practices.md` and
+    `review-voice.md`; `plugin/hooks/hooks.json`;
+    `plugin/.claude-plugin/plugin.json`. Group C, 105 files, by one reader
+    under both reviewer files: every file of the 17 cases under
+    `plugin/evals/`, flag-saves, handoff-list, plan-new-review, recall,
+    recipe-asks, recipe-audit, recipe-writes, recipe-writes-dir,
+    remember-auto-off, remember-auto-on, remember-many, remember-reminder,
+    setup-maps, wrap-asks, wrap-deferred, wrap-recipe and wrap-recipe-off
+    - 14 items in the Inbox, several bundling a list of like findings
 - [x] audit-cmd: Audit `cmd/ele`
   - done when the files read are listed under this item with a dated count
     and each finding is in the Inbox
@@ -1097,6 +1128,115 @@ keep.
   breaks its listing; `bump-minor-pre-major` does nothing from 1.0.0; the
   plugin's description is duplicated verbatim in `marketplace.json` and
   `plugin.json`, which carries no `homepage`, `repository` or `license`
+- 2026-10-30, from skills-audit: checkpoint's §1 builds the change list from
+  `git status --porcelain`, which shows a new untracked directory as one
+  `?? dir/` line; `ele checkpoint freeze` refuses a directory ("is neither
+  tracked nor a file"), and `reference/errors.md` has no row for it, so a
+  change adding a package stops at §1 or loses its new files. Fix: use
+  `--untracked-files=all` there and for §9's `add` list
+- 2026-10-30, from skills-audit: two skills write an item's tick under
+  different gates. `/ele:plan` step 6 proposes the tick once its line "can be
+  written", naming no checkpoint; checkpoint's `references/PLAN.md` ticks
+  only after §6's gate and an unfixed-spec check, and has the line
+  re-reviewed; `docs/plans.md` says checkpoint proposes it. A plan session
+  can tick unreviewed work, and checkpoint's §7 has no branch for an item
+  already ticked
+- 2026-10-30, from skills-audit: `ticket-audit` §1 and §10, `plan-audit`'s
+  ticket-audit sections and `/ele:plan`'s review loop set `AUDIT=$(mktemp
+  -d)` or `BASE=$(mktemp -d)` and read `$AUDIT` or `$BASE` in later
+  commands, but Claude Code's Bash tool keeps no variable between calls, and
+  the assignment prints no path: `ledger rulings --manifest
+  "$AUDIT/manifest.json"` reads `/manifest.json` and fails, and the plan
+  loop's settled file and `diff -u` lose their directory. Fix: run `mktemp
+  -d` alone and write the printed path into later commands as a placeholder
+- 2026-10-30, from skills-audit: `plugin/commands/checkpoint-stats.md`'s
+  Duration bullet says a re-review frozen over two hours after the last
+  freeze, or a freeze with no session id, restarts the clock; in
+  `internal/checkpoint` `openRun` only `--start` or a missing `.started`
+  rewrites it, and with no session no clock starts. This adds the command
+  file to the item from audit-checkpoint on what `duration` measures, which
+  does not name it
+- 2026-10-30, from skills-audit: `/ele:plan`'s review loop step 5 runs `ele
+  plan check` on each draft, but `convert` splits drafts by repository and
+  the check refuses a path outside the working directory's checkout ("is
+  outside the project"), so the step, which does not say to run it from the
+  draft's repository, fails on a sibling repository's draft; `plan-audit`
+  says to run it from the plan's checkout
+- 2026-10-30, from skills-audit: `ticket-audit`'s `references/TRACKERS.md`
+  counts `OPEN` (gh) and `opened` (glab) as open, but its `gh api
+  …/dependencies/blocked_by` command prints the REST API's lowercase `open`,
+  so a literal match reads an open native blocker as closed and frees the
+  ticket it blocks
+- 2026-10-30, from skills-audit: checkpoint's §10 done-when wants a verdict
+  on every change-list file "from each reviewer that ran", while
+  `reviewers/spec.md` and §4 give spec a verdict per requirement, so a run
+  with a spec reviewer cannot meet it literally; `/ele:review` step 5 words
+  it right
+- 2026-10-30, from skills-audit: `/ele:review` step 12 says a failed publish
+  "leaves nothing half-sent behind, per the forge file", true of GitHub's one
+  POST but not of `references/GITLAB.md`, which publishes drafts one by one,
+  so a failure part-way leaves those already published live, against the
+  step's claim; only the report's "which findings reached the forge" says so
+- 2026-10-30, from skills-audit: `plan-audit`'s ticket-audit §0 recalls
+  earlier audits with `<topic>` set to every plan's file name plus `audit`,
+  but recall needs every word in one entry, so an audit over several plans
+  matches nothing and reports no earlier audit; `/ele:plan` pickup already
+  keeps recall to two or three words. Fix: one recall per plan
+- 2026-10-30, from skills-audit: evals. `recipe`'s Audit Command bullet
+  stops checking anything `command -v` prints that is not an absolute path,
+  which the relative `./tools/forge/bin/forge` is, so `recipe-audit`'s
+  `reports-script-holds` fails a run following it; `recipe-audit`'s
+  no-edit graders miss `sed -i` and `perl -pi` on a `SKILL.md`; and
+  `wrap-recipe`'s `proposes` wants the ask in the final reply, where its
+  siblings also accept one through a question tool, as wrap step 3 asks
+- 2026-10-30, from skills-audit: eval scaffolds disagree on git:
+  `plan-new-review`'s says git cannot run in the sandbox, while the four
+  wrap cases' scaffolds `git init` so git does not root at the sandbox
+  HOME, and `setup-maps` relies on it; recipe-audit, recipe-writes-dir and
+  plan-new-review also state undated claims about the sandbox's denials.
+  Which holds, as of a run?
+- 2026-10-30, from skills-audit: checkpoint and review questions and nits. In
+  branch scope §9's done-when counts committed-only paths only the uncommitted
+  part can commit; §8's fixes reach §11's record with no gate run since §6;
+  reviewers are given the gate log's path and never told to read it; §11's
+  re-freeze names "the change list", not §8's adjusted one;
+  `references/PLAN.md` runs `ele plan check` without the `cd` §2 uses;
+  `references/DELTA.md` does not say whether `0 changed` in one of two roots
+  stops both; §7's `ele plan list --project` failing on an owner ambiguity
+  skips the tick proposal, though `ele plan list` from the root works; this
+  adds that skip to the project-owner item; review step 6.2's "a line the
+  change does not touch" drops a spec reviewer's missing requirement, which
+  step 6.5 calls a blocker; review's `git archive` honours an author's
+  `export-ignore`; review never discards `bugs.md`'s Tests to mutate; the two
+  Errors tables and `LOG.md`'s `scope` and review's `outcome` lists are unsorted
+- 2026-10-30, from skills-audit: other skills' questions and nits. Skill and
+  agent front matter is not alphabetised while `ticket-claims.md` is; `setup`'s
+  first two steps and `remember`'s "Before writing" have no done when;
+  `.rumdl.toml`'s "the body opens … with no title" is untrue of every skill but
+  checkpoint, plan-audit and ticket-audit; `plan-audit`'s "Which plans" and
+  plan pickup step 4 list ele plan check's warnings and miss the ele-data and
+  inbox-at-close ones; `plan-practices.md` cites two sources its Sources lacks
+  and defines a Proposed state no entry uses; no row in `errors.md` itself says
+  not to rerun, only checkpoint's added ones; three of its rows describe hooks
+  the plugin does not ship, and `setup` keeps its own retry text; `flag` lacks
+  the deferred AskUserQuestion clause and does not say `--at` needs
+  `--session`; `checkpoint-stats.md` has no `allowed-tools` and passes
+  `$ARGUMENTS` unquoted; `setup` offers `--move` and `--move-to` where each
+  refusal names one; the mining prompts show a multi-line template, then ask
+  for one object per line; should wrap write a plan-candidate note unasked
+  under `auto_note_writes`; `handoff`'s "two groups" regroups a list ele prints
+  as one
+- 2026-10-30, from skills-audit: eval questions and nits. Grader regexes
+  are copied across cases, so a fix lands once per copy; `plan-new-review`'s
+  `reads-adr` counts only the Read tool, and can the installed plugin's arm
+  read `plan-practices.md` if the sandbox denies `CLAUDE_CONFIG_DIR`?
+  `reports-partial-help` wants `man git-log` where the skill prefers `git
+  help log`; `reports-findings` needs a Go newer than
+  1.21.0 and `reports-stale-flag` any Go, which CONTRIBUTING's Evals section
+  does not state; `writes` and `writes-once`
+  count Write calls only; `links` needs `.claude-a` literally in `ln -s`;
+  `flag-saves`'s `reports` wants a note id with no error alternative; the
+  forge fixture's comment describes npm
 
 ## Out of scope
 
