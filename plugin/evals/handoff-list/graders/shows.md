@@ -1,5 +1,5 @@
 ---
-type: llm
+type: regex
+pattern: '^(?=(?:(?!\n[-#*\s]*closed\b)[\s\S])*?pydantic)(?=(?:(?!\n[-#*\s]*closed\b)[\s\S])*?retr)(?:(?!\n[-#*\s]*closed\b|cert)[\s\S])*\n[-#*\s]*closed\b[\s\S]*cert'
+flags: i
 ---
-
-The final reply shows the handoffs to pin pydantic below 2.14 and to add retries to the upload client as pending, and the one to rotate the staging certificate as closed, keeping the two groups apart. It does not claim any handoff was closed or reopened; offering the close or reopen command is not such a claim.
