@@ -83,4 +83,14 @@ remote. A JSON body goes in a file under `<scratch>`, passed with
      saying `body` is required: send it once more with `body` listing each
      anchored finding's `file:line`, the only text it adds
 
-   A review is created whole or not at all, so a failure leaves nothing behind
+   Keep the response's `id`. A review is created whole or not at all, so a
+   failure leaves nothing behind.
+   A `422` naming a comment's line or position refuses the review whole without
+   saying which, so each anchored finding in it logs its anchor `refused`, an
+   over-count for all but the one at fault
+3. Read each published finding's anchor back, since a review that is created
+   does not say where its comments landed:
+   `gh api --paginate "repos/{owner}/{repo}/pulls/<n>/comments" --jq '.[] | select(.pull_request_review_id == <review id>) | {body, line, path, side, start_line, start_side}'`,
+   each matched to its finding by body, the review's own comments endpoint
+   giving null lines. `path`, `line`, `side` and, for a range, `start_line` and
+   `start_side` the same as sent: `kept`; otherwise `moved`

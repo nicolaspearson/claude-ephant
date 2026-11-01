@@ -81,4 +81,13 @@ through the shell.
 4. A failure after any draft was created: delete each draft this run created and
    did not publish,
    `glab api --method DELETE "projects/:id/merge_requests/<iid>/draft_notes/<id>"`,
-   so none waits on the forge under the user's name
+   so none waits on the forge under the user's name. A draft refused for its
+   `position` logs its anchor `refused`; a publish refused over a position
+   without saying which logs every anchored draft in it `refused`, an
+   over-count for all but the one at fault
+5. Read each published finding's anchor back, since a call that succeeds does
+   not say where the note landed:
+   `glab api --paginate "projects/:id/merge_requests/<iid>/discussions"`, the
+   user's notes this run published matched by body. Its `position` paths and
+   lines, and `line_range` for a range, the same as sent: `kept`; otherwise
+   `moved`

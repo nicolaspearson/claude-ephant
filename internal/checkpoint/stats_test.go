@@ -123,6 +123,39 @@ func TestWriteStatsReportsReviewsApartWithTheSkipRateAndDroppedCounts(t *testing
 	require.NotContains(t, checkpoints, "spec", "review findings stay out of the checkpoint tables")
 }
 
+func TestWriteStatsCountsReviewAnchorsByForgeKindAndAnswer(t *testing.T) {
+	anchored := func(outcome string, anchor string) string {
+		return strings.Replace(statsReviewFinding("bugs", "confirmed", outcome), `{`, `{"anchor":`+anchor+`,`, 1)
+	}
+	gitlab := []string{
+		anchored("published", `{"answer":"kept","kind":"range"}`),
+		anchored("published", `{"answer":"moved","kind":"range"}`),
+		anchored("discarded", `{"answer":"refused","kind":"range"}`),
+		anchored("published", `{"kind":"none"}`),
+		statsReviewFinding("bugs", "confirmed", "raw"),
+	}
+	github := []string{anchored("published", `{"answer":"kept","kind":"line"}`)}
+	forge := func(name string, findings []string) string {
+		return strings.Replace(statsReview("mr", `{"excluded":0,"minor":0,"raised":0}`, "["+strings.Join(findings, ",")+"]"), `"mode"`, `"forge":"`+name+`","mode"`, 1)
+	}
+	logPath := writeStatsLog(t, forge("gitlab", gitlab), forge("github", github), statsReview("mr", `{"excluded":0,"minor":0,"raised":0}`, "["+statsReviewFinding("bugs", "confirmed", "published")+"]"))
+
+	output := writeStats(t, logPath, 30)
+
+	row := func(cells ...any) string { return fmt.Sprintf("%-8s %-6s %5d %5d %6d %8d", cells...) }
+	for _, line := range []string{
+		"Anchors sent, by forge and kind, with the forge's answer",
+		fmt.Sprintf("%-8s %-6s %5s %5s %6s %8s", "forge", "kind", "sent", "kept", "moved", "refused"),
+		row("github", "line", 1, 1, 0, 0),
+		row("gitlab", "none", 1, 0, 0, 0),
+		row("gitlab", "range", 3, 1, 1, 1),
+	} {
+		require.Contains(t, strings.Split(output, "\n"), line, output)
+	}
+	_, anchors, _ := strings.Cut(output, "Anchors sent")
+	require.Equal(t, 5, strings.Count(anchors, "\n"), "the title, a header and three rows: unsent findings and lines logged before anchors stay out\n"+output)
+}
+
 func TestWriteStatsSaysWhenNoRunIsTimed(t *testing.T) {
 	output := writeStats(t, writeStatsLog(t, statsRecord(``, "[]", "full")), 30)
 

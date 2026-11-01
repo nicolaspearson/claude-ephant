@@ -71,4 +71,5 @@ sound different; see [Options](data-and-privacy.md#options).
 Each run is logged with the checkpoints once you say you want nothing more
 from it, so follow-ups count too, and `/ele:checkpoint-stats` reports
 reviews in their own section: how often you skipped each reviewer's findings,
-and how many the filter dropped.
+how many the filter dropped, and how many anchored comments each forge kept,
+moved or refused.

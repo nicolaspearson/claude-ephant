@@ -26,6 +26,14 @@ themselves.
 
 - A separate `ele:review` skill, not a checkpoint mode, decided 2026-10-26 by the user: checkpoint fixes, commits and records; review only reports
 - Targets are an MR or PR through glab or gh, a local branch, and a commit, decided 2026-10-26 by the user
+- A sent finding logs `anchor`, an object of `kind` (`line`, `range` or `none`) and, unless `none`, the forge's `answer`, decided 2026-11-01 by the user: one object keeps the answer beside the anchor it answers
+  - rejected: two flat fields, because an answer then reads as valid without its kind
+- The answer is `kept` when the position read back after publishing matches the one sent, `moved` when the forge stored another line or collapsed a range, and `refused` when the call failed on the anchor, decided 2026-11-01 by the user: only the read-back shows a range GitLab took but stored as one line
+  - rejected: `kept` and `refused` from the call alone, because a call that succeeds says nothing of where the comment landed
+- `anchor` is required on a `published` finding and allowed on a `discarded` one only as `refused`, decided 2026-11-01 by the user: a refused range fails the whole call and logs as `discarded`, so without it stats never see the refusal
+  - rejected: published findings only, because the refusal the item exists to measure would never be counted
+- An `mr` review logs `forge`, `gitlab` or `github`, and stats count anchors by forge, kind and answer, decided 2026-11-01 by the user: the open question is GitLab's ranges
+  - rejected: the forge read from `target`, because a URL target needs parsing and `!` or `#` is a convention, not a field
 - Reviewers read an archive of the head tree extracted into the scratchpad, from git when the SHA is local, else the forge, decided 2026-10-26 by the user: the bugs reviewer greps for callers, which a forge's file API cannot
 - A local branch with uncommitted work is reviewed, the work left out and said so, decided 2026-10-26 by the user: the archive of HEAD already shows what an MR would
 - A closed or merged MR is refused unless the user says otherwise; a draft is reviewed; state and head are re-read before publishing, decided 2026-10-26 by the user
@@ -94,6 +102,9 @@ themselves.
   - done when a published finding's log line carries its anchor and the forge's answer, `ele checkpoint log` validates it and refuses a malformed one, and stats count anchors by kind and result, each tested and seen red
   - from the inbox, 2026-10-26: the review log carries no anchor per finding, and no GitLab review has sent `line_range`
   - as of 2026-10-27: on GitHub, `GET pulls/<n>/reviews/<id>/comments` returned `start_line` and `line` as null for a published review's comments, while `GET pulls/<n>/comments` gave 21 to 23 and 11; the anchor log reads them from the latter
+  - as of 2026-11-01, premise check, before this item's change: `findingProblems` in `internal/checkpoint` takes no anchor field, and a review finding's `outcome` is one of `discarded`, `published`, `raw`, `skipped` or `unanswered`; `ReportReviews` counts only verdict and outcome per source; a record names no forge, only `target` (`!123`, `#123` or a URL); on either forge a refused anchor fails the whole call, after which GitLab's drafts are deleted and GitHub's review never exists, so such findings log as `discarded`, never `published`; GitLab's `bulk_publish` returns no positions, so reading an anchor back takes a discussions GET; the review spec's Log section and the checkpoint-and-ticket-audit spec's Log line list the fields
+  - as of 2026-11-01: built, to the Decisions: in `internal/checkpoint`, `anchorProblems` validates `anchor` and `Problems` validates `forge`, and `ReportReviews` prints sent anchors by forge and kind with kept, moved and refused, each tested and seen red; the review skill reads each published anchor back per forge file and logs it; both specs, `docs/review.md`, `docs/checkpoint-and-ticket-audit.md` and the stats command describe it. No review run has yet logged an anchor
+  - next: a review run that publishes, on either forge, whose log line carries `forge` and each published finding's `anchor` with the read-back answer, and `ele checkpoint stats` counting it
 - [ ] Fold each Decision through `/ele:plan-audit close .documentation/plans/mr-review.md`, then what this plan built and its out-of-scope lines as `Not doing:` into `.documentation/specs/review.md`, run `ele plan done .documentation/plans/mr-review.md`, and delete this plan
 
 ## Inbox

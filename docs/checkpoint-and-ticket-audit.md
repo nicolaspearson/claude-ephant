@@ -54,7 +54,8 @@ The copies of reviewed files stay under `~/.claude/cache/`, whatever
 much was refuted, what the re-review and the checks caught, and how long runs
 took. Use it to tune the skill, not to judge the code. Reviews of a merge
 request or branch are logged there too and reported in a section of their own,
-with how often you skipped what the reviewers found.
+with how often you skipped what the reviewers found and how many anchored
+comments each forge kept, moved or refused.
 
 ## Ticket-audit
 

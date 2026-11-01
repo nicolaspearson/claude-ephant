@@ -49,6 +49,12 @@ Report what each section says about the skill, not the code:
   confirms rather than offering it. A source with a high skip rate reports what users do not
   want said; name it. High dropped counts say the filter, not the user, is
   doing the work; `already raised` counts findings a discussion had made first.
+  Anchors count each sent comment by forge and kind: `moved` or `refused`
+  ranges on GitLab say its `line_range` is not kept as sent, and a kind with
+  no sends yet is unsettled, not working. A call refused without naming the
+  anchor at fault counts every anchor in it as refused, so read a `refused`
+  count as calls refused, not anchors. Reviews logged before anchors carry
+  none.
 
 A finding the user raised after a report is logged with the next checkpoint, so
 it carries that run's mode. Say how many checkpoints the window holds. Under ten, call every pattern a

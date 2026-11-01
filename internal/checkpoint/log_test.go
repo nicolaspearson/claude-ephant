@@ -16,7 +16,7 @@ import (
 
 const (
 	valid       = `{"change":{"files":3,"lines":40},"findings":[{"category":"stale-comment","origin":"fix","severity":"quality","source":"prose","stage":"rereview","summary":"Comment names the old flag.","verdict":"fixed"}],"mode":"full","mutations":{"failed":4,"inconclusive":1,"run":5},"notes":{"approved":0,"proposed":1},"rereview":"ran","scope":"delta"}`
-	validReview = `{"change":{"files":2,"lines":30},"dropped":{"excluded":3,"minor":5,"raised":1},"findings":[{"category":"nil-dereference","origin":"change","outcome":"published","severity":"defect","source":"bugs","stage":"review","summary":"Load dereferences a nil config.","verdict":"confirmed"}],"mode":"full","notes":{"approved":0,"proposed":0},"reviewed":"0123456789abcdef0123456789abcdef01234567","scope":"mr","target":"!12"}`
+	validReview = `{"change":{"files":2,"lines":30},"dropped":{"excluded":3,"minor":5,"raised":1},"findings":[{"anchor":{"answer":"kept","kind":"line"},"category":"nil-dereference","origin":"change","outcome":"published","severity":"defect","source":"bugs","stage":"review","summary":"Load dereferences a nil config.","verdict":"confirmed"}],"forge":"gitlab","mode":"full","notes":{"approved":0,"proposed":0},"reviewed":"0123456789abcdef0123456789abcdef01234567","scope":"mr","target":"!12"}`
 )
 
 func TestAppendAddsDateHeadRepositoryAndKeepsTheRecord(t *testing.T) {
@@ -148,14 +148,35 @@ func TestProblemsAcceptsAValidRecord(t *testing.T) {
 		"empty findings":                    with(t, func(record map[string]any) { record["findings"] = []any{} }),
 		"no notes":                          with(t, func(record map[string]any) { delete(record, "notes") }),
 		"notes from an older skill":         with(t, func(record map[string]any) { record["notes"] = "x" }),
-		"review with no notes":              withReview(t, func(record map[string]any) { delete(record, "notes") }),
 		"review":                            validReview,
-		"review on a local branch":          withReview(t, func(record map[string]any) { record["scope"] = "local-branch"; record["target"] = "feature/x" }),
+		"review on a local branch": withReview(t, func(record map[string]any) {
+			record["scope"], record["target"] = "local-branch", "feature/x"
+			delete(record, "forge")
+			finding(record)["outcome"] = "raw"
+			delete(finding(record), "anchor")
+		}),
+		"review on github": withReview(t, func(record map[string]any) { record["forge"] = "github" }),
+		"review with a declined finding": withReview(t, func(record map[string]any) {
+			finding(record)["outcome"] = "discarded"
+			delete(finding(record), "anchor")
+		}),
+		"review with a moved range": withReview(t, func(record map[string]any) {
+			finding(record)["anchor"] = map[string]any{"answer": "moved", "kind": "range"}
+		}),
+		"review with a refused range": withReview(t, func(record map[string]any) {
+			finding(record)["outcome"] = "discarded"
+			finding(record)["anchor"] = map[string]any{"answer": "refused", "kind": "range"}
+		}),
 		"review with a refuted finding": withReview(t, func(record map[string]any) {
 			finding(record)["verdict"] = "refuted"
+			delete(finding(record), "anchor")
 			delete(finding(record), "outcome")
 		}),
-		"valid": valid,
+		"review with an unanchored finding": withReview(t, func(record map[string]any) {
+			finding(record)["anchor"] = map[string]any{"kind": "none"}
+		}),
+		"review with no notes": withReview(t, func(record map[string]any) { delete(record, "notes") }),
+		"valid":                valid,
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, problems, err := Problems(strings.NewReader(record))
@@ -180,6 +201,8 @@ func TestProblemsRefusesARecordTheStatsWouldMisread(t *testing.T) {
 		{"category with a trailing newline", with(t, func(record map[string]any) { finding(record)["category"] = "stale-comment\n" }), `findings[0].category "stale-comment\n" is not kebab-case`},
 		{"change missing", with(t, func(record map[string]any) { delete(record, "change") }), "change.files is not a whole number"},
 		{"checkpoint with a confirmed verdict", with(t, func(record map[string]any) { finding(record)["verdict"] = "confirmed" }), `findings[0].verdict "confirmed" is not one of deliberate, fixed, open, refuted`},
+		{"checkpoint with a forge", with(t, func(record map[string]any) { record["forge"] = "gitlab" }), "forge belongs to a review scope; leave it out"},
+		{"checkpoint with an anchor", with(t, func(record map[string]any) { finding(record)["anchor"] = map[string]any{"kind": "none"} }), "findings[0].anchor belongs to a finding sent to the forge; leave it out"},
 		{"checkpoint with an outcome", with(t, func(record map[string]any) { finding(record)["outcome"] = "published" }), "findings[0].outcome belongs to a review scope; leave it out"},
 		{"checkpoint with dropped", with(t, func(record map[string]any) { record["dropped"] = map[string]any{"excluded": 1} }), "dropped belongs to a review scope; leave it out"},
 		{"checkpoint with reviewed", with(t, func(record map[string]any) { record["reviewed"] = "0123456789abcdef0123456789abcdef01234567" }), "reviewed belongs to a review scope; leave it out"},
@@ -192,14 +215,21 @@ func TestProblemsRefusesARecordTheStatsWouldMisread(t *testing.T) {
 		{"finding without summary", with(t, func(record map[string]any) { delete(finding(record), "summary") }), "findings[0] has no summary"},
 		{"findings not a list", with(t, func(record map[string]any) { record["findings"] = "x" }), "findings is not a list"},
 		{"fractional count", with(t, func(record map[string]any) { record["change"].(map[string]any)["lines"] = 1.5 }), "change.lines is not a whole number"},
+		{"local-branch review with a forge", withReview(t, func(record map[string]any) {
+			record["scope"], record["target"] = "local-branch", "feature/x"
+			finding(record)["outcome"] = "raw"
+			delete(finding(record), "anchor")
+		}), "forge belongs to an mr review; leave it out"},
 		{"more mutations failed than run", with(t, func(record map[string]any) { record["mutations"].(map[string]any)["failed"] = 9 }), "mutations.failed plus mutations.inconclusive exceeds mutations.run"},
+		{"mr review missing forge", withReview(t, func(record map[string]any) { delete(record, "forge") }), "forge null is not one of github, gitlab"},
+		{"mr review with an unknown forge", withReview(t, func(record map[string]any) { record["forge"] = "bitbucket" }), `forge "bitbucket" is not one of github, gitlab`},
 		{"mutations not an object", with(t, func(record map[string]any) { record["mutations"] = "x" }), "mutations.failed is not a whole number"},
 		{"mutations one over run", with(t, func(record map[string]any) { record["mutations"].(map[string]any)["failed"] = 5 }), "mutations.failed plus mutations.inconclusive exceeds mutations.run"},
 		{"negative count", with(t, func(record map[string]any) { record["mutations"].(map[string]any)["run"] = -1 }), "mutations.run is not a whole number"},
 		{"not an object", "[]", "the record is not an object"},
 		{"rereview missing", with(t, func(record map[string]any) { delete(record, "rereview") }), "rereview null is not one of ran, skipped"},
-		{"review missing dropped", withReview(t, func(record map[string]any) { delete(record, "dropped") }), "dropped.excluded is not a whole number"},
 		{"review in small mode", withReview(t, func(record map[string]any) { record["mode"] = "small" }), `mode "small" is not one of full`},
+		{"review missing dropped", withReview(t, func(record map[string]any) { delete(record, "dropped") }), "dropped.excluded is not a whole number"},
 		{"review missing outcome on a confirmed finding", withReview(t, func(record map[string]any) { delete(finding(record), "outcome") }), "findings[0].outcome null is not one of discarded, published, raw, skipped, unanswered"},
 		{"review missing outcome on an open finding", withReview(t, func(record map[string]any) {
 			finding(record)["verdict"] = "open"
@@ -208,9 +238,29 @@ func TestProblemsRefusesARecordTheStatsWouldMisread(t *testing.T) {
 		{"review missing target", withReview(t, func(record map[string]any) { delete(record, "target") }), "a review has no target"},
 		{"review with a fix origin", withReview(t, func(record map[string]any) { finding(record)["origin"] = "fix" }), `findings[0].origin "fix" is not one of change`},
 		{"review with a fixed verdict", withReview(t, func(record map[string]any) { finding(record)["verdict"] = "fixed" }), `findings[0].verdict "fixed" is not one of confirmed, open, refuted`},
+		{"review with a kept anchor on a discarded finding", withReview(t, func(record map[string]any) { finding(record)["outcome"] = "discarded" }), `findings[0].anchor.answer "kept" is not one of refused`},
+		{"review with a published finding and no anchor", withReview(t, func(record map[string]any) { delete(finding(record), "anchor") }), "findings[0].anchor is required on a published finding"},
+		{"review with a refused anchor on a published finding", withReview(t, func(record map[string]any) {
+			finding(record)["anchor"] = map[string]any{"answer": "refused", "kind": "line"}
+		}), `findings[0].anchor.answer "refused" is not one of kept, moved`},
 		{"review with a rereview stage", withReview(t, func(record map[string]any) { finding(record)["stage"] = "rereview" }), `findings[0].stage "rereview" is not one of review`},
 		{"review with a short reviewed SHA", withReview(t, func(record map[string]any) { record["reviewed"] = "0123456" }), `reviewed "0123456" is not a full commit SHA`},
+		{"review with an anchor missing its answer", withReview(t, func(record map[string]any) {
+			finding(record)["anchor"] = map[string]any{"kind": "range"}
+		}), "findings[0].anchor.answer null is not one of kept, moved"},
+		{"review with an anchor on a raw finding", withReview(t, func(record map[string]any) { finding(record)["outcome"] = "raw" }), "findings[0].anchor belongs to a finding sent to the forge; leave it out"},
+		{"review with an anchor that is not an object", withReview(t, func(record map[string]any) { finding(record)["anchor"] = "line" }), "findings[0].anchor is not an object"},
+		{"review with an answer on an unanchored finding", withReview(t, func(record map[string]any) {
+			finding(record)["anchor"] = map[string]any{"answer": "kept", "kind": "none"}
+		}), "findings[0].anchor.answer is absent on an unanchored finding; leave it out"},
 		{"review with an outcome on a refuted finding", withReview(t, func(record map[string]any) { finding(record)["verdict"] = "refuted" }), "findings[0].outcome is absent on a refuted finding, which is never shown; leave it out"},
+		{"review with an unanchored discarded finding", withReview(t, func(record map[string]any) {
+			finding(record)["outcome"] = "discarded"
+			finding(record)["anchor"] = map[string]any{"kind": "none"}
+		}), `findings[0].anchor.kind "none" is not one of line, range`},
+		{"review with an unknown anchor kind", withReview(t, func(record map[string]any) {
+			finding(record)["anchor"] = map[string]any{"answer": "kept", "kind": "file"}
+		}), `findings[0].anchor.kind "file" is not one of line, none, range`},
 		{"review with an unknown outcome", withReview(t, func(record map[string]any) { finding(record)["outcome"] = "posted" }), `findings[0].outcome "posted" is not one of discarded, published, raw, skipped, unanswered`},
 		{"review with mutations", withReview(t, func(record map[string]any) {
 			record["mutations"] = map[string]any{"failed": 0, "inconclusive": 0, "run": 0}

@@ -373,7 +373,8 @@ On yes, read the MR's state and head again first:
 
 Then publish per the forge file, every anchor computed against the head read
 now. No approval or request-changes state is set. A failed call leaves nothing
-half-sent behind, per the forge file.
+half-sent behind, per the forge file. Then read each published anchored
+finding's position back, per the forge file, for step 13's `anchor`.
 
 The outcome opens step 13's question: each finding sent, at its line or
 unanchored, and that the head moved where it did; a failed call's error quoted,
@@ -409,10 +410,12 @@ before then has reviewed nothing and logs nothing; say so.
 ele checkpoint log <root> <<'EOF'
 {"change": {"files": 3, "lines": 120},
  "dropped": {"excluded": 4, "minor": 6, "raised": 1},
- "findings": [{"category": "nil-dereference", "origin": "change",
+ "findings": [{"anchor": {"answer": "kept", "kind": "line"},
+   "category": "nil-dereference", "origin": "change",
    "outcome": "published", "severity": "defect", "source": "bugs",
    "stage": "review", "summary": "Load dereferences a nil config.",
    "verdict": "confirmed"}],
+ "forge": "gitlab",
  "mode": "full",
  "notes": {"approved": 0, "proposed": 0},
  "reviewed": "<full head SHA the reviewers read>",
@@ -435,6 +438,13 @@ EOF
 - `outcome`, on confirmed and open findings: `published`, `raw`, `skipped`,
   `discarded` (added, then not sent), or `unanswered` (the user said that is
   all, or the run stopped, before answering it)
+- `anchor`, on a `published` finding: `kind` `line`, `range` or `none`
+  (unanchored), and unless `none`, `answer` from step 12's read-back: `kept`
+  when the position read back is the one sent, `moved` when the forge stored
+  another path, line or side, or collapsed a range. On a `discarded` finding
+  only where the forge refused the call over an anchor, per the forge file:
+  `kind` `line` or `range`, `answer` `refused`
+- `forge`, on an `mr` run: `gitlab` or `github`
 
 `log` refuses a record the stats would misread and names the field.
 

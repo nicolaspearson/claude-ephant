@@ -360,8 +360,22 @@ stopping before reviewed nothing and logs nothing:
     `unanswered` (the run ended first). The skip rate is the reviewers' precision on real
     changes, which checkpoint cannot measure, since there every confirmed
     finding is fixed
+  - `anchor`, on a `published` finding, one object so an answer never reads
+    as valid without its kind: `kind`, `line`, `range` or `none`
+    (unanchored), and unless `none` the forge's `answer`: `kept` when the
+    position read back after publishing is the one sent, `moved` when the
+    forge stored another path, line or side, or collapsed a range. A call that
+    succeeds says nothing of where a comment landed, so only the read-back
+    shows a range stored as one line. On a `discarded` finding only where the
+    forge refused the call over an anchor, `answer` `refused`: a refused anchor
+    fails the whole call, so without it the refusal would never be counted.
+    Where the forge does not say which anchor it refused, as GitHub's `422`
+    does not, every anchored finding in the call logs `refused`, an over-count
+- `forge`, `gitlab` or `github`, on an `mr` run, so stats can answer per forge;
+  `!` or `#` in `target` is a convention, and a URL target would need parsing
 - Stats report review scopes apart from checkpoint's, since review's severity
-  definitions are wider
+  definitions are wider, and count sent anchors by forge, kind and answer, which
+  settles whether GitLab keeps a `line_range` from the runs that send one
 
 ## In the plugin
 

@@ -19,6 +19,8 @@ import (
 
 type Finding struct {
 	AlsoRaisedBy []string
+	AnchorAnswer string
+	AnchorKind   string
 	Category     string
 	Origin       string
 	Outcome      string
@@ -42,6 +44,7 @@ type Run struct {
 	Dropped       map[string]float64
 	Duration      int64
 	Findings      []Finding
+	Forge         string
 	Mode          string
 	Mutations     map[string]float64
 	Notes         map[string]float64
@@ -298,6 +301,34 @@ func ReportReviews(w io.Writer, runs []Run) {
 		return
 	}
 	row("total", total)
+
+	type place struct{ forge, kind string }
+	anchors := map[place]map[string]int{}
+	for _, run := range runs {
+		for _, finding := range run.Findings {
+			if finding.AnchorKind == "" {
+				continue
+			}
+			key := place{run.Forge, finding.AnchorKind}
+			if anchors[key] == nil {
+				anchors[key] = map[string]int{}
+			}
+			anchors[key]["sent"]++
+			anchors[key][finding.AnchorAnswer]++
+		}
+	}
+	fmt.Fprintln(w, "\nAnchors sent, by forge and kind, with the forge's answer")
+	fmt.Fprintf(w, "%-8s %-6s %5s %5s %6s %8s\n", "forge", "kind", "sent", "kept", "moved", "refused")
+	places := slices.SortedFunc(maps.Keys(anchors), func(a, b place) int {
+		return cmp.Or(cmp.Compare(a.forge, b.forge), cmp.Compare(a.kind, b.kind))
+	})
+	for _, key := range places {
+		counts := anchors[key]
+		fmt.Fprintf(w, "%-8s %-6s %5d %5d %6d %8d\n", key.forge, key.kind, counts["sent"], counts["kept"], counts["moved"], counts["refused"])
+	}
+	if len(places) == 0 {
+		fmt.Fprintln(w, "  nothing")
+	}
 }
 
 func WriteMostCommon[K comparable](w io.Writer, keys []K, format func(K) string) {
@@ -400,6 +431,10 @@ func parseFinding(value any) (Finding, bool) {
 		}
 	}
 	finding.Outcome, _ = object["outcome"].(string)
+	if anchor, ok := object["anchor"].(map[string]any); ok {
+		finding.AnchorAnswer, _ = anchor["answer"].(string)
+		finding.AnchorKind, _ = anchor["kind"].(string)
+	}
 	finding.Severity = "unrated"
 	if severity, present := object["severity"]; present {
 		finding.Severity, _ = severity.(string)
@@ -462,6 +497,7 @@ func parseRun(line string) (Run, time.Time, bool) {
 	}
 	run.ChangeUnknown, _ = object["change_unknown"].(bool)
 	run.Duration, run.Timed = integral(object["duration"])
+	run.Forge, _ = object["forge"].(string)
 	run.Scope = "uncommitted"
 	if scope, present := object["scope"]; present {
 		run.Scope, _ = scope.(string)

@@ -132,10 +132,15 @@ func Problems(input io.Reader) (map[string]any, []string, error) {
 		if reviewed, _ := record["reviewed"].(string); !fullSHA.MatchString(reviewed) {
 			problems = append(problems, fmt.Sprintf("reviewed %s is not a full commit SHA", toJSON(record["reviewed"])))
 		}
+		if _, present := record["forge"]; record["scope"] == "mr" {
+			problems = append(problems, notOneOf("forge", record["forge"], "github", "gitlab")...)
+		} else if present {
+			problems = append(problems, "forge belongs to an mr review; leave it out")
+		}
 	} else {
 		counts = append(counts, []string{"mutations", "failed"}, []string{"mutations", "inconclusive"}, []string{"mutations", "run"})
 		problems = append(problems, notOneOf("rereview", valueAt(record, "rereview"), "ran", "skipped")...)
-		for _, name := range []string{"dropped", "reviewed", "target"} {
+		for _, name := range []string{"dropped", "forge", "reviewed", "target"} {
 			if _, present := record[name]; present {
 				problems = append(problems, name+" belongs to a review scope; leave it out")
 			}
@@ -165,6 +170,38 @@ func Problems(input io.Reader) (map[string]any, []string, error) {
 		problems = append(problems, findingProblems(index, finding, review)...)
 	}
 	return record, problems, nil
+}
+
+// A refused anchor fails the whole call: its finding logs discarded, never published.
+func anchorProblems(name string, finding map[string]any) []string {
+	value, present := finding["anchor"]
+	outcome, _ := finding["outcome"].(string)
+	answers := map[string][]string{"discarded": {"refused"}, "published": {"kept", "moved"}}[outcome]
+	switch {
+	case !present && outcome == "published":
+		return []string{name + ".anchor is required on a published finding"}
+	case !present:
+		return nil
+	case answers == nil:
+		return []string{name + ".anchor belongs to a finding sent to the forge; leave it out"}
+	}
+	anchor, ok := value.(map[string]any)
+	if !ok {
+		return []string{name + ".anchor is not an object"}
+	}
+	kinds := []string{"line", "none", "range"}
+	if outcome == "discarded" {
+		kinds = []string{"line", "range"}
+	}
+	problems := notOneOf(name+".anchor.kind", anchor["kind"], kinds...)
+	answer, answered := anchor["answer"]
+	if anchor["kind"] == "none" {
+		if answered && outcome == "published" {
+			problems = append(problems, name+".anchor.answer is absent on an unanchored finding; leave it out")
+		}
+		return problems
+	}
+	return append(problems, notOneOf(name+".anchor.answer", answer, answers...)...)
 }
 
 func findingProblems(index int, finding map[string]any, review bool) []string {
@@ -200,12 +237,16 @@ func findingProblems(index int, finding map[string]any, review bool) []string {
 		case verdict == "confirmed" || verdict == "open":
 			problems = append(problems, notOneOf(name+".outcome", outcome, "discarded", "published", "raw", "skipped", "unanswered")...)
 		}
+		problems = append(problems, anchorProblems(name, finding)...)
 	} else {
 		problems = append(problems, notOneOf(name+".origin", finding["origin"], "change", "earlier", "fix")...)
 		problems = append(problems, notOneOf(name+".stage", finding["stage"], "gate", "mutation", "rereview", "review", "user")...)
 		problems = append(problems, notOneOf(name+".verdict", finding["verdict"], "deliberate", "fixed", "open", "refuted")...)
 		if _, present := finding["outcome"]; present {
 			problems = append(problems, name+".outcome belongs to a review scope; leave it out")
+		}
+		if _, present := finding["anchor"]; present {
+			problems = append(problems, name+".anchor belongs to a finding sent to the forge; leave it out")
 		}
 	}
 	if category, ok := finding["category"].(string); !ok || !kebab.MatchString(category) {
