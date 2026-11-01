@@ -355,11 +355,12 @@ question's text.
 ## 12. Publish
 
 Only when anything was added: one question to publish, listing each held body
-with its `file:line`, options **Publish** and **Don't publish**. On GitHub,
-read the user's pending review again first, per the forge file: one still held,
-the question still lists the held bodies and says so, and that Check again is
-for after they submit or delete it, and its options are **Check again**, which reads it again and asks again,
-and **Don't publish**, since publishing could only stop. Declined, nothing is
+whole, never cut short, with its `file:line`, options **Publish** and **Don't
+publish**. On GitHub, read the user's pending review again first, per the forge
+file: one still held, the question still lists the held bodies whole and says
+so, and that Check again is for after they submit or delete it, and its options
+are **Check again**, which reads it again and asks again, and **Don't
+publish**, since publishing could only stop. Declined, nothing is
 sent.
 
 On yes, read the MR's state and head again first:

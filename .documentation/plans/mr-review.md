@@ -105,11 +105,14 @@ themselves.
   - as of 2026-11-01, premise check, before this item's change: `findingProblems` in `internal/checkpoint` takes no anchor field, and a review finding's `outcome` is one of `discarded`, `published`, `raw`, `skipped` or `unanswered`; `ReportReviews` counts only verdict and outcome per source; a record names no forge, only `target` (`!123`, `#123` or a URL); on either forge a refused anchor fails the whole call, after which GitLab's drafts are deleted and GitHub's review never exists, so such findings log as `discarded`, never `published`; GitLab's `bulk_publish` returns no positions, so reading an anchor back takes a discussions GET; the review spec's Log section and the checkpoint-and-ticket-audit spec's Log line list the fields
   - as of 2026-11-01: built, to the Decisions: in `internal/checkpoint`, `anchorProblems` validates `anchor` and `Problems` validates `forge`, and `ReportReviews` prints sent anchors by forge and kind with kept, moved and refused, each tested and seen red; the review skill reads each published anchor back per forge file and logs it; both specs, `docs/review.md`, `docs/checkpoint-and-ticket-audit.md` and the stats command describe it. No review run has yet logged an anchor
   - next: a review run that publishes, on either forge, whose log line carries `forge` and each published finding's `anchor` with the read-back answer, and `ele checkpoint stats` counting it
+- [ ] publish-bodies-whole: Step 12's publish question lists each held body whole, never cut short
+  - done when `plugin/skills/review/SKILL.md` step 12 says each held body is listed whole, and a real publish question shows every body whole
+  - from the inbox, 2026-10-31, after a by-hand review of GitLab MR !10: the publish question cut each body short with "…" while saying they were the bodies approved above; step 12 already said "listing each held body", not whole
+  - as of 2026-11-01: step 12 now lists each held body "whole, never cut short", and the review spec's publish line says each body is listed whole, with why
+  - next: a real publish question showing every body whole
 - [ ] Fold each Decision through `/ele:plan-audit close .documentation/plans/mr-review.md`, then what this plan built and its out-of-scope lines as `Not doing:` into `.documentation/specs/review.md`, run `ele plan done .documentation/plans/mr-review.md`, and delete this plan
 
 ## Inbox
-
-- 2026-10-31, from a by-hand review of GitLab MR !10: the publish question cut each body short with "…" while saying they were the bodies approved above; show each in full, or reword the line
 
 ## Out of scope
 

@@ -214,7 +214,8 @@ to.
   review, with each finding whose file changed. A local run has none, said
   there instead
 - Last, when anything was added: one question to publish the review, listing
-  what it holds, options to publish or not. Nothing reaches the forge before
+  each body it holds whole, since it is the last look before they go out under
+  the user's name, options to publish or not. Nothing reaches the forge before
   that answer. What was sent, or the failure, or that nothing was, opens the
   next question's text
 - Then a question whether anything else is wanted; asking for something else

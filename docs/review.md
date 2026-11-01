@@ -44,13 +44,13 @@ name.
    that hold are shown in a table and asked like the others. Last, for a merge
    request, the merge state: failing jobs, discussions blocking the merge, and
    whether the head moved since the review
-5. **Publishes** once, at the end, after one last question listing what the
-   review holds. On GitHub it is one review, and a pending review you already
-   hold there blocks it: the summary says so up front, and while you hold it
-   the last question offers **Check again**, for after you submit or delete
-   it, instead of Publish; on GitLab, draft notes
-   published together, or one by one when you hold drafts of your own there,
-   which stay drafts. It sets no approval: do that on the forge. Ask for more afterwards
+5. **Publishes** once, at the end, after one last question listing in full
+   what the review holds. On GitHub it is one review, and a pending review you
+   already hold there blocks it: the summary says so up front, and while you
+   hold it the last question offers **Check again**, for after you submit or
+   delete it, instead of Publish; on GitLab, draft notes published together,
+   or one by one when you hold drafts of your own there, which stay drafts. It
+   sets no approval: do that on the forge. Ask for more afterwards
    and anything you add then is published separately
 
 On your own branch, or a commit, Add is offered only when an open MR's head is
