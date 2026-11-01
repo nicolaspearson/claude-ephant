@@ -156,6 +156,41 @@ func TestWriteStatsCountsReviewAnchorsByForgeKindAndAnswer(t *testing.T) {
 	require.Equal(t, 5, strings.Count(anchors, "\n"), "the title, a header and three rows: unsent findings and lines logged before anchors stay out\n"+output)
 }
 
+func TestWriteStatsCountsAReplacedReviewOnceAtItsLatestOutcomes(t *testing.T) {
+	const moved = "1123456789abcdef0123456789abcdef01234567"
+	review := func(source string, repository string, target string, reviewed string, outcome string, replaces bool) string {
+		line := statsReview("mr", `{"excluded":0,"minor":0,"raised":0}`, "["+statsReviewFinding(source, "confirmed", outcome)+"]")
+		line = strings.Replace(line, `"target":"!1"`, `"target":"`+target+`"`, 1)
+		line = strings.Replace(line, `"reviewed":"0123456789abcdef0123456789abcdef01234567"`, `"reviewed":"`+reviewed+`"`, 1)
+		fields := `"repository":"` + repository + `",`
+		if replaces {
+			fields += `"replaces":true,`
+		}
+		return strings.Replace(line, `"reviewed"`, fields+`"reviewed"`, 1)
+	}
+	head := "0123456789abcdef0123456789abcdef01234567"
+	logPath := writeStatsLog(t,
+		review("replaced", "/a", "!1", head, "raw", false),
+		review("other-head", "/a", "!1", moved, "raw", false),
+		review("other-target", "/a", "!2", head, "raw", false),
+		review("other-repository", "/b", "!1", head, "raw", false),
+		review("replacement", "/a", "!1", head, "skipped", true),
+	)
+
+	output := writeStats(t, logPath, 30)
+
+	require.Contains(t, output, "Since 2026-09-20: 0 checkpoints and 4 reviews logged.", output)
+	lines := strings.Split(output, "\n")
+	row := func(source string, raw int, skipped int, rate string) string {
+		return fmt.Sprintf("%-14s %9d %5d %8d %9d %4d %9d %7d %10d %9s", source, 1, 0, 0, 0, raw, 0, skipped, 0, rate)
+	}
+	for _, source := range []string{"other-head", "other-target", "other-repository"} {
+		require.Contains(t, lines, row(source, 1, 0, "0%"), "another head, target or repository stays\n"+output)
+	}
+	require.Contains(t, lines, row("replacement", 0, 1, "100%"), output)
+	require.NotContains(t, output, "replaced ", "only the line of the same repository, target and head drops")
+}
+
 func TestWriteStatsSaysWhenNoRunIsTimed(t *testing.T) {
 	output := writeStats(t, writeStatsLog(t, statsRecord(``, "[]", "full")), 30)
 

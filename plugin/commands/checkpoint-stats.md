@@ -53,7 +53,9 @@ Report what each section says about the skill, not the code:
   ranges on GitLab say its `line_range` is not kept as sent, and a kind with
   no sends yet is unsettled, not working. A call refused without naming the
   anchor at fault counts every anchor in it as refused, so read a `refused`
-  count as calls refused, not anchors. Reviews logged before anchors carry
+  count as calls refused, not anchors. A review logged again after a later
+  finding replaces its earlier line, so each finding counts once, at its latest
+  outcome. Reviews logged before anchors carry
   none.
 
 A finding the user raised after a report is logged with the next checkpoint, so

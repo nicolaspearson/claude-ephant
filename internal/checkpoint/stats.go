@@ -48,8 +48,12 @@ type Run struct {
 	Mode          string
 	Mutations     map[string]float64
 	Notes         map[string]float64
+	Replaces      bool
+	Repository    string
 	Rereview      string
+	Reviewed      string
 	Scope         string
+	Target        string
 	Timed         bool
 }
 
@@ -81,6 +85,9 @@ func Load(path string, since time.Time) (Loaded, error) {
 					loaded.First = run.Date[:10]
 				}
 				if !when.Before(since) {
+					if run.Replaces {
+						loaded.Runs = dropReplaced(loaded.Runs, run)
+					}
 					loaded.Runs = append(loaded.Runs, run)
 				}
 			}
@@ -394,6 +401,15 @@ func confirmed(finding Finding) bool {
 	return finding.Verdict == "deliberate" || finding.Verdict == "fixed"
 }
 
+func dropReplaced(runs []Run, replacement Run) []Run {
+	for index, earlier := range slices.Backward(runs) {
+		if earlier.Repository == replacement.Repository && earlier.Target == replacement.Target && earlier.Reviewed == replacement.Reviewed {
+			return slices.Delete(runs, index, index+1)
+		}
+	}
+	return runs
+}
+
 func integral(value any) (int64, bool) {
 	literal, ok := value.(json.Number)
 	if !ok {
@@ -498,6 +514,10 @@ func parseRun(line string) (Run, time.Time, bool) {
 	run.ChangeUnknown, _ = object["change_unknown"].(bool)
 	run.Duration, run.Timed = integral(object["duration"])
 	run.Forge, _ = object["forge"].(string)
+	run.Replaces, _ = object["replaces"].(bool)
+	run.Repository, _ = object["repository"].(string)
+	run.Reviewed, _ = object["reviewed"].(string)
+	run.Target, _ = object["target"].(string)
 	run.Scope = "uncommitted"
 	if scope, present := object["scope"]; present {
 		run.Scope, _ = scope.(string)

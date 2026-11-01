@@ -69,7 +69,8 @@ sound different; see [Options](data-and-privacy.md#options).
 ## What reviews found
 
 Each run is logged with the checkpoints once you say you want nothing more
-from it, so follow-ups count too, and `/ele:checkpoint-stats` reports
-reviews in their own section: how often you skipped each reviewer's findings,
-how many the filter dropped, and how many anchored comments each forge kept,
-moved or refused.
+from it, so follow-ups count too. Ask for more in a later message and the run
+is logged again; stats count each finding once, from the later line.
+`/ele:checkpoint-stats` reports reviews in their own section: how often you
+skipped each reviewer's findings, how many the filter dropped, and how many
+anchored comments each forge kept, moved or refused.

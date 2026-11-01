@@ -404,6 +404,14 @@ a second review on GitHub. When the user says that is all, log once, against
 the clone's root, then close with a short reply: what was published, what was
 given as Raw Markdown, and what was skipped.
 
+A finding asked after that line is written, in a later message, goes through
+the same steps. When the user is done again, log the whole run again against
+the same root, with the first line's `target` and `reviewed` unchanged, every
+finding at its latest outcome and anchor, and `"replaces": true`: stats drop
+the earlier line of the same repository, target and reviewed SHA, so each
+finding counts once. With the first line's record no longer in the session,
+log nothing and say so, since a partial run would replace a whole one.
+
 A run that stops after step 2 saved the diff logs what it has. One that stops
 before then has reviewed nothing and logs nothing; say so.
 
@@ -446,6 +454,8 @@ EOF
   only where the forge refused the call over an anchor, per the forge file:
   `kind` `line` or `range`, `answer` `refused`
 - `forge`, on an `mr` run: `gitlab` or `github`
+- `replaces`: `true` only on a run logged again after a later finding, as
+  above
 
 `log` refuses a record the stats would misread and names the field.
 

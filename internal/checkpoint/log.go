@@ -137,10 +137,13 @@ func Problems(input io.Reader) (map[string]any, []string, error) {
 		} else if present {
 			problems = append(problems, "forge belongs to an mr review; leave it out")
 		}
+		if replaces, present := record["replaces"]; present && replaces != true {
+			problems = append(problems, "replaces is true or absent")
+		}
 	} else {
 		counts = append(counts, []string{"mutations", "failed"}, []string{"mutations", "inconclusive"}, []string{"mutations", "run"})
 		problems = append(problems, notOneOf("rereview", valueAt(record, "rereview"), "ran", "skipped")...)
-		for _, name := range []string{"dropped", "forge", "reviewed", "target"} {
+		for _, name := range []string{"dropped", "forge", "replaces", "reviewed", "target"} {
 			if _, present := record[name]; present {
 				problems = append(problems, name+" belongs to a review scope; leave it out")
 			}

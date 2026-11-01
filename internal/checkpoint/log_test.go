@@ -155,7 +155,8 @@ func TestProblemsAcceptsAValidRecord(t *testing.T) {
 			finding(record)["outcome"] = "raw"
 			delete(finding(record), "anchor")
 		}),
-		"review on github": withReview(t, func(record map[string]any) { record["forge"] = "github" }),
+		"review on github":                  withReview(t, func(record map[string]any) { record["forge"] = "github" }),
+		"review replacing its earlier line": withReview(t, func(record map[string]any) { record["replaces"] = true }),
 		"review with a declined finding": withReview(t, func(record map[string]any) {
 			finding(record)["outcome"] = "discarded"
 			delete(finding(record), "anchor")
@@ -205,6 +206,7 @@ func TestProblemsRefusesARecordTheStatsWouldMisread(t *testing.T) {
 		{"checkpoint with an anchor", with(t, func(record map[string]any) { finding(record)["anchor"] = map[string]any{"kind": "none"} }), "findings[0].anchor belongs to a finding sent to the forge; leave it out"},
 		{"checkpoint with an outcome", with(t, func(record map[string]any) { finding(record)["outcome"] = "published" }), "findings[0].outcome belongs to a review scope; leave it out"},
 		{"checkpoint with dropped", with(t, func(record map[string]any) { record["dropped"] = map[string]any{"excluded": 1} }), "dropped belongs to a review scope; leave it out"},
+		{"checkpoint with replaces", with(t, func(record map[string]any) { record["replaces"] = true }), "replaces belongs to a review scope; leave it out"},
 		{"checkpoint with reviewed", with(t, func(record map[string]any) { record["reviewed"] = "0123456789abcdef0123456789abcdef01234567" }), "reviewed belongs to a review scope; leave it out"},
 		{"checkpoint with target", with(t, func(record map[string]any) { record["target"] = "!12" }), "target belongs to a review scope; leave it out"},
 		{"checkpoint without mutations", with(t, func(record map[string]any) { delete(record, "mutations") }), "mutations.run is not a whole number"},
@@ -265,6 +267,7 @@ func TestProblemsRefusesARecordTheStatsWouldMisread(t *testing.T) {
 		{"review with mutations", withReview(t, func(record map[string]any) {
 			record["mutations"] = map[string]any{"failed": 0, "inconclusive": 0, "run": 0}
 		}), "mutations is absent on a review, since none runs; leave it out"},
+		{"review with replaces false", withReview(t, func(record map[string]any) { record["replaces"] = false }), "replaces is true or absent"},
 		{"review with rereview", withReview(t, func(record map[string]any) { record["rereview"] = "ran" }), "rereview is absent on a review, since none runs; leave it out"},
 		{"scope missing", with(t, func(record map[string]any) { delete(record, "scope") }), "scope null is not one of branch, delta, local-branch, mr, uncommitted"},
 		{"severity missing", with(t, func(record map[string]any) { delete(finding(record), "severity") }), "findings[0].severity null is not one of blocker, defect, nit, quality"},

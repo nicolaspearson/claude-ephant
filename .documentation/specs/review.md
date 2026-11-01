@@ -335,7 +335,15 @@ that holds the user's forge credentials:
 `ele checkpoint log`, so `/ele:checkpoint-stats` reads review runs too, once
 per run that saved its diff. The line is written when the user says nothing
 more is wanted from the review, not after the walk-through, so findings taken
-up in follow-ups are logged too. A run that stops after saving its diff logs what it has; one
+up in follow-ups are logged too. A finding taken up in a later message, after
+that line is written, logs the whole run again, with the same root, target and
+reviewed SHA, each finding's latest outcome and `replaces: true`, and stats
+drop the earlier line of the same repository, target and reviewed SHA: each
+finding counts once, at its latest outcome, with no matching of findings
+across lines, which carry no id. With the first line's record gone from the
+session, nothing is logged again, since a partial run would replace a whole
+one.
+A run that stops after saving its diff logs what it has; one
 stopping before reviewed nothing and logs nothing:
 
 - Scopes `local-branch` and `mr` beside `branch`, `delta` and `uncommitted`; a
