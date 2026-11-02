@@ -778,6 +778,12 @@ keep.
     out
   - ruled 2026-11-02: the four `cli-lock` rulings in `## Decisions`; the
     bare-number and `notes` findings moved to `rename-cutover`
+  - as of 2026-11-02: part 1 built and checkpointed: `--version`, `-v` and
+    `ele help <command>`; `ele events`' nine keys pinned by literal lines;
+    `DecodeAttributes` keeps integers past 2^53 and names its event. next: the
+    dates ruling (local typed dates, a note's `Date` and `Time`,
+    `newestOfKind`), then the plan front-matter warnings and the docs
+    findings (UTC `after:` form, the ledger key)
   - 2026-10-30, from audit-cmd: `ele help <command>`, `ele --version` and
     `ele -v` exit 2 with "unknown command"; accept them, or record their
     absence as part of the frozen CLI?

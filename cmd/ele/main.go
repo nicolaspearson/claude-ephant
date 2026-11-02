@@ -156,6 +156,16 @@ func run(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer)
 	if len(args) == 0 || (len(args) == 1 && (args[0] == "help" || isHelpFlag(args[0]))) {
 		return writeOverview(stdout)
 	}
+	// ele help help, --help or -v names no command, so it reads as asking for help.
+	if args[0] == "help" && (args[1] == "help" || strings.HasPrefix(args[1], "-")) {
+		return writeOverview(stdout)
+	}
+	switch args[0] {
+	case "--version", "-v":
+		args = append([]string{"version"}, args[1:]...)
+	case "help":
+		args = append(slices.Clone(args[1:]), "--help")
+	}
 	if command, ok := commands[args[0]]; ok {
 		if notice := datadir.Migrate(); notice != "" {
 			fmt.Fprintln(stderr, notice)

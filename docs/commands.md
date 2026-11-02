@@ -1,7 +1,8 @@
 # Command reference
 
-`ele --help` lists every command with its flags; `ele <command> --help` says
-what each flag does, though not always its default. A misused command prints
+`ele --help` lists every command with its flags; `ele <command> --help`, or
+`ele help <command>`, says what each flag does, though not always its default.
+`ele --version` and `ele -v` are `ele version`. A misused command prints
 its own help and exits 2.
 
 Where a command resolves an owner or project, it takes them from the working

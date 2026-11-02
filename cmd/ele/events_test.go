@@ -3,14 +3,12 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/nicolaspearson/claude-ephant/internal/dto"
 	"github.com/nicolaspearson/claude-ephant/internal/index"
 )
 
@@ -28,10 +26,15 @@ func TestRunEventsPrintsOneJSONObjectPerLine(t *testing.T) {
 	require.Equal(t, 0, run(context.Background(), []string{"events", "--kind", "skill"}, &stdout, &stderr), stderr.String())
 	lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
 	require.Len(t, lines, 2)
-	var first dto.Event
-	require.NoError(t, json.Unmarshal([]byte(lines[0]), &first))
-	require.Equal(t, dto.Event{Kind: "skill", Name: "checkpoint", Owner: "corp", Profile: "claude", Project: "gateway", Session: "ev1", Timestamp: "2026-10-15T11:00:00Z"}, first)
+	// Literal, not decoded back through dto.Event's tags: the keys are an API at 1.0, and a renamed tag would read itself back.
+	require.Equal(t, `{"kind":"skill","name":"checkpoint","owner":"corp","profile":"claude","project":"gateway","session":"ev1","timestamp":"2026-10-15T11:00:00Z"}`, lines[0])
 	require.Empty(t, stderr.String())
+
+	writeFile(t, filepath.Join(home, ".claude", "projects", "-gateway", "ev1", "subagents", "agent-a1.jsonl"),
+		line("02", `"isSidechain":true,"type":"assistant","message":{"id":"msg1","model":"claude-test","usage":{"input_tokens":9007199254740993,"output_tokens":1},"content":[{"type":"text","text":"done"}]}`))
+	stdout.Reset()
+	require.Equal(t, 0, run(context.Background(), []string{"events", "--kind", "tokens"}, &stdout, &stderr), stderr.String())
+	require.Equal(t, `{"attributes":{"cacheRead":0,"cacheWrite":0,"input":9007199254740993,"output":1},"kind":"tokens","name":"claude-test","owner":"corp","profile":"claude","project":"gateway","session":"ev1","subagent":true,"timestamp":"2026-10-15T11:02:00Z"}`+"\n", stdout.String(), "an integer past 2^53 prints whole")
 
 	stdout.Reset()
 	require.Equal(t, 0, run(context.Background(), []string{"events", "--no-sync", "--kind", "skill", "--limit", "1"}, &stdout, &stderr))

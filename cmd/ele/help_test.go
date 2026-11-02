@@ -119,6 +119,31 @@ ele handoff reopen [--owner <name>] [--project <name>] <id>...
 	}
 }
 
+func TestRunReadsHelpAndVersionTheConventionalWays(t *testing.T) {
+	version, _, versionCode := runSplit(t, "version")
+	require.Equal(t, 0, versionCode)
+	for _, flag := range []string{"--version", "-v"} {
+		stdout, stderr, code := runSplit(t, flag)
+		require.Equal(t, 0, code, stderr)
+		require.Equal(t, version, stdout, flag)
+	}
+	for _, command := range [][]string{{"recall"}, {"checkpoint", "stats"}} {
+		want, _, _ := runSplit(t, append(slices.Clone(command), "--help")...)
+		stdout, stderr, code := runSplit(t, append([]string{"help"}, command...)...)
+		require.Equal(t, 0, code, stderr)
+		require.Equal(t, want, stdout, command)
+	}
+	overview, _, _ := runSplit(t, "help")
+	for _, asked := range []string{"--help", "-h", "-v", "help"} {
+		stdout, stderr, code := runSplit(t, "help", asked)
+		require.Equal(t, 0, code, stderr)
+		require.Equal(t, overview, stdout, asked)
+	}
+	_, stderr, unknownCode := runSplit(t, "help", "bogus")
+	require.Equal(t, 2, unknownCode)
+	require.Equal(t, "ele: unknown command \"bogus\"\n"+usage+"\n", stderr)
+}
+
 func TestRunRejectsAnUnknownCommandWithTheSynopsisList(t *testing.T) {
 	stdout, stderr, code := runSplit(t, "bogus")
 	require.Equal(t, 2, code)

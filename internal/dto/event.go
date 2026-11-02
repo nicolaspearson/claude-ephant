@@ -1,6 +1,10 @@
 package dto
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+)
 
 type Event struct {
 	Attributes map[string]any `json:"attributes,omitempty"`
@@ -15,10 +19,13 @@ type Event struct {
 	Timestamp  string         `json:"timestamp"`
 }
 
+// DecodeAttributes keeps a number as json.Number, so an integer past 2^53 prints whole.
 func (e *Event) DecodeAttributes(encoded string) error {
+	decoder := json.NewDecoder(strings.NewReader(encoded))
+	decoder.UseNumber()
 	var attributes map[string]any
-	if err := json.Unmarshal([]byte(encoded), &attributes); err != nil {
-		return err
+	if err := decoder.Decode(&attributes); err != nil {
+		return fmt.Errorf("attributes of the %s event in session %s at %s: %w", e.Kind, e.Session, e.Timestamp, err)
 	}
 	if len(attributes) > 0 {
 		e.Attributes = attributes

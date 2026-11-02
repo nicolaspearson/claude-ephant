@@ -43,7 +43,7 @@ Index
   reindex         rebuild the index from the archive and notes
   status          data directory, sync state, owner here, plugins
   stats           index counts and disk use
-  version         the release tag this binary was built from, the version Go stamped, or devel
+  version         the release tag this binary was built from, the version Go stamped, or devel; also --version and -v
   backup          copy the archive, notes, forgotten notes, mining runs, config, owner map, closed plans and index elsewhere
   owner           add an owner, or add or remove a path rule or project entry
 
