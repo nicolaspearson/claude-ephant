@@ -482,13 +482,17 @@ keep.
     the 17 new must and should actions, and `readme-guides`' the 8 musts and
     the 5 shoulds that edit `docs/`, each on one line so `ele plan` reads it
     as edges
-- [ ] interim-release: The user merges the release PR for a 0.x release
+- [x] interim-release: The user merges the release PR for a 0.x release
   carrying `linux-data-dir` and `cli-freeze`
   - done when that release is the latest with its four tarballs and
     `checksums.txt`, its tag written under this item
+  - tag: v0.13.0
+  - asserted on GitHub, 2026-11-02: release PR #14 merged as 145b9f3;
+    `v0.13.0` is Latest, not draft or pre-release, tagged at 145b9f3, with
+    the four tarballs and `checksums.txt`; the compare API puts it ahead of
+    abc8047 (linux-data-dir), 5e89a28 and 9e05ba9 (cli-freeze)
 - [ ] rename-cutover: Move skills and hooks to the names `cli-freeze`
   renamed, then remove the old names
-  - blocked: interim-release
   - done when no file under `plugin/` names an old command or flag or has a
     log record carry `notes`, `plugin/commands/checkpoint-stats.md` and
     `docs/checkpoint-and-ticket-audit.md` take `--since`, `checkpoint stats`
@@ -498,7 +502,6 @@ keep.
     under this item
 - [ ] clean-install: Install the interim release from clean through
   `install.sh` and `brew`, on macOS and Linux
-  - blocked: interim-release
   - done when, for the interim release's tag, each install's
     `ele version` prints its tag, the plugin's hooks run in a fresh session, and
     `ele status` names the platform's data directory
@@ -1325,7 +1328,7 @@ keep.
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: readme-guides, interim-release, rename-cutover, clean-install, gate-false-blocks, gate-data-dir, first-scan-timeout, block-as-error, config-dir, project-owner, redact-promise, index-private, ticket-clean, remote-secrets, notes-robust, sync-robust, cli-lock, release-safety, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
+  - blocked: readme-guides, rename-cutover, clean-install, gate-false-blocks, gate-data-dir, first-scan-timeout, block-as-error, config-dir, project-owner, redact-promise, index-private, ticket-clean, remote-secrets, notes-robust, sync-robust, cli-lock, release-safety, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`
