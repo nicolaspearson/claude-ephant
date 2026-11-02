@@ -1488,6 +1488,13 @@ keep.
 
 ## Inbox
 
+- 2026-11-02, from notes-robust's and sync-robust's checkpoints: three copies
+  of one helper pattern — cmd/ele's writeAtomically duplicates
+  internal/mining's, and internal/notes' lock duplicates internal/archive's;
+  the notes temp sweep covers notes/ but not forgotten/, where a killed
+  `ele owner` move leaves its .tmp. Share the helpers in one internal package
+  and sweep forgotten/ too?
+
 ## Out of scope
 
 - Self-audit of ele's own records: a feature, not a release gate (ruled
