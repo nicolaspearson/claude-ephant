@@ -103,6 +103,30 @@ keep.
 - Release workflow runs and installs from clean are the user's: the user
   triggers a dispatch, and a clean install runs in a container, VM or separate
   account, never on the PATH this machine's hooks call
+- `cli-lock`: `ele --version` and `ele -v` alias `ele version`, and
+  `ele help <command>` runs `<command> --help`, added before 1.0, since
+  `--version` is the first thing typed after an install (ruled 2026-11-02)
+  - rejected: adding them in a 1.x minor, because though semver allows it,
+    adding them now costs nothing
+- `cli-lock`: a date the user types, `YYYY-MM-DD` or `Nd`, is a local calendar
+  day, turned into UTC bounds before any comparison; stored stamps stay UTC,
+  and only a time written with `Z` is UTC input; a note keeps its local `Date`
+  and UTC `Time`, and `newestOfKind` sorts by `Time` alone; `docs/commands.md`
+  says so, since `remember --due` and a date-only `after:` are local already
+  and the note format is under the 1.0 promise (ruled 2026-11-02)
+  - rejected: UTC everywhere, documented, because a `--since` west or east of
+    UTC then takes in or drops hours of the day typed
+- `cli-lock`: `dto.DecodeAttributes` decodes with `UseNumber`, keeping an
+  integer past 2^53, and names the event in its error, since `ele events` is
+  an API at 1.0 and an integer past 2^53 would print rounded (ruled
+  2026-11-02)
+- `cli-lock`: a malformed `after:` or `created`, or an unknown front-matter
+  key, is an `ele plan check` warning naming its line, never an unparseable
+  plan: a bad `after:` holds its item, a bad `created` and an unknown key are
+  ignored; the docs give the UTC `HH:MMZ` form of `after:`, and the spec's
+  ledger key is `owner/repo#number`, as the code writes (ruled 2026-11-02)
+  - rejected: failing the whole plan, because 1.0 would lock in one typo
+    hiding every item
 
 ## Actions
 
@@ -497,9 +521,24 @@ keep.
     log record carry `notes`, `plugin/commands/checkpoint-stats.md` and
     `docs/checkpoint-and-ticket-audit.md` take `--since`, `checkpoint stats`
     refuses a bare `<days>`, the
-    binary rejects each old name, `docs/commands.md` names only the new ones,
-    and `task check FORCE=1` passes; or `cli-freeze` renamed nothing, said
-    under this item
+    binary rejects each old name, `docs/commands.md` names only the new ones
+    and its `/ele:checkpoint-stats` row drops "or the number given", `log`
+    drops a `notes` field before storing, `stats`' notes comment says what the
+    log holds, and `task check FORCE=1` passes; or `cli-freeze` renamed
+    nothing, said under this item
+  - 2026-10-30, from audit-cmd, moved from `cli-lock` on the user's ruling of
+    2026-11-02: the bare-number form of `checkpoint stats`, due to go at 1.0,
+    is what `plugin/commands/checkpoint-stats.md` passes,
+    `docs/commands.md`'s `/ele:checkpoint-stats` row describes ("or the number
+    given") and `docs/checkpoint-and-ticket-audit.md` shows as `[days]`;
+    removing it needs all three changed with it. The
+    two forms also differ: a bare `7` is now minus 7 days, `--since 7d` the UTC
+    start of that day
+  - 2026-10-30, from audit-checkpoint, moved from `cli-lock` on the user's
+    ruling of 2026-11-02: the skill's §12 still sends `notes`, and
+    `Append` stores it, where the spec says `log` "accepts and ignores one from
+    an older skill"; `stats`' comment "The log no longer records notes" is
+    untrue, since `parseRun` ignores what the log holds
 - [ ] clean-install: Install the interim release from clean through
   `install.sh` and `brew`, on macOS and Linux
   - done when, for the interim release's tag, each install's
@@ -513,6 +552,11 @@ keep.
     fails on the old patterns; `internal/index`'s `Version` is bumped so an
     existing index rebuilds; and the doc says what `ele mine --digests` writes,
     where, and that `/ele:mine`'s cleanup leaves the digest files
+  - ruled 2026-11-02: a quoted value spans newlines up to its closing quote,
+    capped near 4 KiB, and an unclosed one is redacted to its line's end, in
+    one pass before any cut; `transcript.Parse` redacts every kind, the
+    writer's pass kept as an idempotent re-run, and `[]string` attributes are
+    redacted in the same change
   - 2026-10-30, from redact-before-cut's checkpoint: a quoted secret assignment
     whose value spans a newline, `PASSWORD="abc` then `def…"` in a Bash heredoc,
     is not matched on the raw text, since the quoted value excludes newlines;
@@ -616,6 +660,10 @@ keep.
     or short archive file, or an unreadable note, archives and indexes the rest
     and names that file; a symlinked `projects/` is archived; and `last-sync`
     and the stop-check state are written through a temp file and a rename
+  - ruled 2026-11-02: a bad file is skipped and named in `sync.log`, `ele
+    status` counts the skipped, and `last-sync` is still written; `sync` exits
+    0, and the session-start block says "sync skipped N files; ele status
+    lists them" until a sync skips none
   - 2026-10-30, from audit-cmd: `last-sync` is written in place by `syncAll`
     and read without the lock by `writeSessionStart`, so a start racing a sync
     can print "sync stamp is malformed"; `writeStopState` writes the
@@ -639,16 +687,11 @@ keep.
     by a test asserting literal output; and `dto.DecodeAttributes` keeps
     integers past 2^53 and names its input in its error, or the user rules it
     out
+  - ruled 2026-11-02: the four `cli-lock` rulings in `## Decisions`; the
+    bare-number and `notes` findings moved to `rename-cutover`
   - 2026-10-30, from audit-cmd: `ele help <command>`, `ele --version` and
     `ele -v` exit 2 with "unknown command"; accept them, or record their
     absence as part of the frozen CLI?
-  - 2026-10-30, from audit-cmd: the bare-number form of `checkpoint stats`,
-    due to go at 1.0, is what `plugin/commands/checkpoint-stats.md` passes,
-    `docs/commands.md`'s `/ele:checkpoint-stats` row describes ("or the number
-    given") and `docs/checkpoint-and-ticket-audit.md` shows as `[days]`;
-    removing it needs all three changed with it. The
-    two forms also differ: a bare `7` is now minus 7 days, `--since 7d` the UTC
-    start of that day
   - 2026-10-30, from audit-cmd: dates. `--since` and stop-check `--replay`
     dates are UTC days, `remember --due` local, and `docs/commands.md` states
     neither; a note's `Date` is local while its `Time` is UTC, and
@@ -657,10 +700,6 @@ keep.
     typed, or `parseSince`'s UTC date for `Nd`, so at UTC+4
     `ele recall --since 2026-10-30` drops the first four local hours of the
     30th, and west of UTC it takes in hours of the 29th
-  - 2026-10-30, from audit-checkpoint: the skill's §12 still sends `notes`, and
-    `Append` stores it, where the spec says `log` "accepts and ignores one from
-    an older skill"; `stats`' comment "The log no longer records notes" is
-    untrue, since `parseRun` ignores what the log holds
   - 2026-10-30, from audit-plan: docs. `docs/plans.md` and
     `.documentation/specs/design.md` give `after: <date>` alone; the UTC
     `YYYY-MM-DD HH:MMZ` form is in the plan skill only, and a date-only
@@ -744,6 +783,10 @@ keep.
   - done when each defect below is fixed in its skill or command file, the plan
     and checkpoint skills agree on who proposes a tick, and `task check FORCE=1`
     passes
+  - ruled 2026-11-02: checkpoint proposes a tick; `/ele:plan` step 6 says to
+    run `ele:checkpoint` once the work is done and itself proposes a dated
+    progress line only; checkpoint's §7 gains a branch for an item already
+    ticked, re-reviewing its tick line and proposing none
   - 2026-10-30, from skills-audit: checkpoint's §1 builds the change list from
     `git status --porcelain`, which shows a new untracked directory as one
     `?? dir/` line; `ele checkpoint freeze` refuses a directory ("is neither
@@ -802,6 +845,11 @@ keep.
   reviewed
   - done when each defect below has a test that fails before its fix, or the
     user rules it out of scope
+  - ruled 2026-11-02: a freeze opening a new run after the two-hour window
+    restarts the clock; the skill forbids chaining the `--start` freeze with
+    `log`; `stats` keeps 0-second and negative durations out of the median and
+    counts them on a line of their own; the spec, `log --help` and the skill
+    say "the freeze that opened the run"
   - 2026-10-30, from cli-freeze's persisted-files survey: nothing removes a
     checkpoint run's leftovers. The session's `.optout` file under the temp
     dir's `claude-checkpoint/` is never deleted, and a run frozen but never
@@ -874,6 +922,12 @@ keep.
     check`, each by a test, a `blocked:` list wrapped over lines among them;
     `Next` never returns the closing action while another action is open; and
     `Previous` follows a rename and a revert, each by a test
+  - ruled 2026-11-02: `Blocked:` and `After:` match in any case, as `done
+    when` does; an empty or malformed `blocked:` list, a self-block or cycle,
+    a ticked item listing an open blocker, `* [ ]` items and `*`, `+` or
+    numbered Inbox lines, and a header merged onto the line before each draw a
+    warning naming the line; a fence indented four or more spaces is no
+    fence, as CommonMark has it
   - 2026-10-30, from audit-plan: `plan`'s `Next` returns the first open
     action not held, and the closing action carries no `blocked:`, so when
     every other open action is held, by a cycle, prose or an `after:` date
@@ -931,8 +985,14 @@ keep.
 - [ ] data-dir-edges: The data directory, owner map and profiles hold up to hand
   edits and symlinks
   - done when each defect below has a test that fails before its fix or the user
-    rules it out, and `docs/` and the spec say what stays, such as a relative
-    `ELE_HOME`
+    rules it out, and `docs/` and the spec say what stays and what is refused,
+    such as a relative `ELE_HOME`
+  - ruled 2026-11-02: `sync.log` rotates at 1 MiB to `sync.log.1`, one kept,
+    and `status` reads its tail; `backup` and `status` drop `claude-mem/`,
+    left on disk and named in the docs as safe to remove; `design.md`'s
+    "printed, never parsed" is fixed; `ELE_HOME` expands a leading `~/` and
+    any other relative value is refused with an error naming it, every hook
+    failing until fixed, the test pinning the relative form changing with it
   - 2026-10-30, from cli-freeze's persisted-files survey: `archive/claude-mem/`
     in the data dir is neither written nor read since its indexing was removed,
     yet `ele backup` copies it and `ele status` counts its size
