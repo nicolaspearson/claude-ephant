@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -145,6 +146,11 @@ func Move(directory string, note Note, owner string) error {
 	from := filepath.Join(directory, note.Owner, note.ID+".md")
 	to := filepath.Join(directory, owner, note.ID+".md")
 	failed := func(err error) error { return fmt.Errorf("move %s to %s: %w", from, owner, err) }
+	unlock, err := lock(directory)
+	if err != nil {
+		return failed(err)
+	}
+	defer unlock()
 	info, err := os.Stat(from)
 	if err != nil {
 		return failed(err)
@@ -154,6 +160,9 @@ func Move(directory string, note Note, owner string) error {
 		return failed(err)
 	}
 	lines := strings.SplitAfter(string(content), "\n")
+	if strings.TrimSpace(strings.TrimPrefix(lines[0], "\xef\xbb\xbf")) != "---" {
+		return fmt.Errorf("%w %s: no front matter to move", ErrInvalid, from)
+	}
 	ownerIndex := -1
 	for number := 1; number < len(lines) && strings.TrimSpace(lines[number]) != "---"; number++ {
 		if key, _, _ := strings.Cut(lines[number], ":"); strings.TrimSpace(key) == "owner" {
@@ -198,6 +207,11 @@ func Move(directory string, note Note, owner string) error {
 func Relocate(fromDirectory string, toDirectory string, note Note) error {
 	from := filepath.Join(fromDirectory, note.Owner, note.ID+".md")
 	to := filepath.Join(toDirectory, note.Owner, note.ID+".md")
+	unlock, err := lock(fromDirectory)
+	if err != nil {
+		return fmt.Errorf("relocate %s: %w", from, err)
+	}
+	defer unlock()
 	if err := os.MkdirAll(filepath.Dir(to), 0o700); err != nil {
 		return fmt.Errorf("relocate %s: %w", from, err)
 	}
@@ -226,6 +240,8 @@ func Parse(path string, content []byte) (Note, error) {
 	note := Note{ID: strings.TrimSuffix(filepath.Base(path), ".md")}
 	var every, supersedes string
 	scanner := bufio.NewScanner(bytes.NewReader(bytes.TrimPrefix(content, []byte("\xef\xbb\xbf"))))
+	// Write takes a line of any length; the default 64 KiB token would fail the owner's whole read.
+	scanner.Buffer(nil, len(content)+1)
 	if !scanner.Scan() || strings.TrimSpace(scanner.Text()) != "---" {
 		return invalid("first line is not ---")
 	}
@@ -360,6 +376,41 @@ func SetDue(directory string, note Note, due string) error {
 	return setKey(directory, note, "due", due)
 }
 
+// SweepTemporary removes the temporary files a write killed part way left, once older than age.
+func SweepTemporary(directory string, age time.Duration, now time.Time) error {
+	// Listed, not globbed: a [ or * in the data directory's path would be read as a pattern.
+	owners, err := os.ReadDir(directory)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	for _, owner := range owners {
+		if !owner.IsDir() {
+			continue
+		}
+		entries, readErr := os.ReadDir(filepath.Join(directory, owner.Name()))
+		if readErr != nil {
+			continue
+		}
+		for _, entry := range entries {
+			if !strings.Contains(entry.Name(), ".md.") || !strings.HasSuffix(entry.Name(), ".tmp") {
+				continue
+			}
+			path := filepath.Join(directory, owner.Name(), entry.Name())
+			info, statErr := os.Lstat(path)
+			if statErr != nil || now.Sub(info.ModTime()) < age {
+				continue
+			}
+			if err = os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // ValidDue checks the width too: Parse takes a one-digit hour, which compares wrongly as a string.
 func ValidDue(due string) bool {
 	layout := map[int]string{len(time.DateOnly): time.DateOnly, len(DueMinute): DueMinute}[len(due)]
@@ -396,15 +447,20 @@ func Write(directory string, note Note) (string, error) {
 		return "", fmt.Errorf("create %s: %w", folder, err)
 	}
 	path := filepath.Join(folder, note.ID+".md")
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	// Linked into place, so a reader never sees half a note and an existing one is never overwritten.
+	temporary, err := os.CreateTemp(folder, note.ID+".md.*.tmp")
 	if err != nil {
 		return "", fmt.Errorf("write %s: %w", path, err)
 	}
-	if _, err = file.Write(Format(note)); err != nil {
-		_ = file.Close()
-		return "", fmt.Errorf("write %s: %w", path, err)
+	defer os.Remove(temporary.Name())
+	_, err = temporary.Write(Format(note))
+	if closeErr := temporary.Close(); err == nil {
+		err = closeErr
 	}
-	if err = file.Close(); err != nil {
+	if err == nil {
+		err = os.Link(temporary.Name(), path)
+	}
+	if err != nil {
 		return "", fmt.Errorf("write %s: %w", path, err)
 	}
 	return path, nil
@@ -419,15 +475,49 @@ func clearKey(directory string, note Note, key string) error {
 	})
 }
 
+// Unlocked, a later rename drops the other rewrite's key, and a rewrite racing
+// a Move recreates the note under its old owner.
+func lock(directory string) (func(), error) {
+	directory = filepath.Clean(directory)
+	if err := os.MkdirAll(filepath.Dir(directory), 0o700); err != nil {
+		return nil, err
+	}
+	// Beside the tree, not in it: every reader of notes/ takes each entry for an owner's folder.
+	file, err := os.OpenFile(directory+".lock", os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, err
+	}
+	if err = syscall.Flock(int(file.Fd()), syscall.LOCK_EX); err != nil {
+		_ = file.Close()
+		return nil, err
+	}
+	return func() {
+		_ = syscall.Flock(int(file.Fd()), syscall.LOCK_UN)
+		_ = file.Close()
+	}, nil
+}
+
+func onePathElement(name string) bool {
+	return filepath.IsLocal(name) && name != "." && name == strings.TrimSpace(name) && !strings.ContainsAny(name, `/\`) && projectShape.MatchString(name)
+}
+
 func problem(note Note) string {
 	if _, err := time.Parse(time.DateOnly, note.Date); err != nil {
 		return fmt.Sprintf("date %q is not YYYY-MM-DD", note.Date)
 	}
 	switch {
-	case note.Body == "":
+	case strings.TrimSpace(note.Body) == "":
 		return "empty body"
 	case note.ID == "":
 		return "no id"
+	case !onePathElement(note.ID):
+		return fmt.Sprintf("id %q is not one file name", note.ID)
+	case note.Owner != "" && !onePathElement(note.Owner):
+		return fmt.Sprintf("owner %q is not one folder name", note.Owner)
+	case !projectShape.MatchString(note.Profile):
+		return fmt.Sprintf("profile %q holds a control character", note.Profile)
+	case slices.ContainsFunc(note.Supersedes, func(identifier string) bool { return !onePathElement(identifier) || strings.Contains(identifier, ",") }):
+		return fmt.Sprintf("supersedes %q holds an entry that is not one note id", strings.Join(note.Supersedes, ", "))
 	case !slices.Contains(Kinds, note.Kind):
 		return fmt.Sprintf("kind %q is not one of %s", note.Kind, strings.Join(Kinds, ", "))
 	case note.Owner == "":
@@ -499,6 +589,11 @@ func repeated(identifiers []string) string {
 func rewriteKey(directory string, note Note, key string, action string, change func(lines []string, closing int, keyIndex int) []string) error {
 	path := filepath.Join(directory, note.Owner, note.ID+".md")
 	failed := func(err error) error { return fmt.Errorf("%s %s %s: %w", action, path, key, err) }
+	unlock, err := lock(directory)
+	if err != nil {
+		return failed(err)
+	}
+	defer unlock()
 	info, err := os.Stat(path)
 	if err != nil {
 		return failed(err)

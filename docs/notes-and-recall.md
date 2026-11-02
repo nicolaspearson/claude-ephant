@@ -68,7 +68,9 @@ the index into `forgotten/`. `ele forget --restore <id>` brings it back.
 
 Notes are Markdown files under `notes/<owner>/` in the
 [data directory](data-and-privacy.md#storage), and can be edited by hand; the
-next sync picks up the change, and names any file it cannot read.
+next sync picks up the change, and names any file it cannot read; a line can be
+any length. A file named for a note id must stay one plain name, and so must
+each id in `supersedes`, or the note reads as invalid.
 
 ### Flags
 

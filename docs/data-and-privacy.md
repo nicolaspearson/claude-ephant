@@ -31,11 +31,13 @@ claude-ephant/
   config.json      options
   ele.db           the search index
   forgotten/       notes ele forget moved out
+  forgotten.lock   held while ele moves a forgotten note
   last-sync        when the last sync succeeded
   logs/            checkpoints.jsonl and ticket-audits.jsonl
   mining/          checkpoint mining judgments
   move-notice      the data directory and log moves' outcomes, until a session shows them
   notes/           notes, one Markdown file each, by owner
+  notes.lock       held while ele rewrites or moves a note
   owner-map.json   owners, path rules and project entries
   plans/           item names of closed plans
   stop-check/      the Stop hook's state per session

@@ -14,6 +14,7 @@ import (
 	"github.com/nicolaspearson/claude-ephant/internal/archive"
 	"github.com/nicolaspearson/claude-ephant/internal/datadir"
 	"github.com/nicolaspearson/claude-ephant/internal/index"
+	"github.com/nicolaspearson/claude-ephant/internal/notes"
 	"github.com/nicolaspearson/claude-ephant/internal/ownermap"
 	"github.com/nicolaspearson/claude-ephant/internal/profile"
 )
@@ -263,6 +264,7 @@ func syncAll(ctx context.Context, stdout io.Writer, wait bool, rebuild bool) err
 		return err
 	}
 	stateErr := removeStaleStopState(dataDirectory, time.Now())
+	sweepErr := notes.SweepTemporary(filepath.Join(dataDirectory, "notes"), notes.Day, time.Now())
 	skipped := slices.Concat(archived.Skipped, indexed.Skipped, noted.Skipped)
 	if err := writeSyncSkipped(dataDirectory, skipped); err != nil {
 		return fmt.Errorf("write %s: %w", syncSkippedFile, err)
@@ -305,6 +307,9 @@ func syncAll(ctx context.Context, stdout io.Writer, wait bool, rebuild bool) err
 	}
 	if stateErr != nil {
 		fmt.Fprintf(stdout, "Could not remove old stop-check state: %v\n", stateErr)
+	}
+	if sweepErr != nil {
+		fmt.Fprintf(stdout, "Could not remove an old temporary note file: %v\n", sweepErr)
 	}
 	return nil
 }

@@ -321,7 +321,7 @@ keep.
     it each say `/ele:review` is experimental
 - [ ] readme-guides: Sweep the README and every page under `docs/` against the
   code
-  - blocked: notes-robust, cli-lock, release-safety, help-text, data-dir-edges, bashwork-reads, plan-parser-warnings, ticket-robust
+  - blocked: cli-lock, release-safety, help-text, data-dir-edges, bashwork-reads, plan-parser-warnings, ticket-robust
   - done when each page's commands and flags are checked against `--help`,
     each behaviour it states is checked against the code or a run, and
     `task format`, `task lint` and `task lint-docs` pass
@@ -679,7 +679,7 @@ keep.
     token (seen red printing the remote whole), nor does a `://` inside the
     token or after it (seen red with the scheme check removed); `task check FORCE=1` and
     `task audit` pass
-- [ ] notes-robust: Notes survive what `Write` accepts and what a hand edit
+- [x] notes-robust: Notes survive what `Write` accepts and what a hand edit
   leaves
   - done when a test covers each case below: a body line over 64 KiB fails
     neither its owner nor session start; `Write` refuses what `Parse` rejects
@@ -712,6 +712,23 @@ keep.
     leaving it under both; a crash leaves `*.tmp`
     files nothing sweeps; `Move` never checks the opening `---`;
     `Relocate` has no test
+  - asserted in the commit carrying this tick: a body line over 64 KiB parses,
+    and its owner's notes read whole (`internal/notes`, seen red without the
+    scanner buffer); `Write` refuses a whitespace-only body and an id, owner or
+    `supersedes` entry that escapes its folder or breaks the front matter, `.`
+    and a padded owner included, and a profile with a control character, each
+    seen red with its check removed; `Write` links a temporary file into place,
+    leaving no `.tmp` (seen red), which on the user's ruling of 2026-11-02 means
+    a data directory without hard links takes no note, documented; `rewriteKey`,
+    `Move` and, on that day's ruling, `Relocate` hold the lock beside their
+    tree, `notes.lock` (each seen red without it, through a test that a rewrite
+    waits for the lock, the two-rewrites outcome asserted by that proxy; the
+    lock kept out of the tree, seen red inside it); `Move` refuses a file
+    without front matter (seen red); `SweepTemporary` removes temporary note
+    files under `notes/` a day old, keeping notes and newer ones, a `[` in the
+    path included (seen red on its age, its name filter and a glob), and sync
+    calls it, untested there; `Relocate` is tested; no test can tell link from
+    a direct write without a seam; `task check FORCE=1` and `task audit` pass
 - [x] sync-robust: One bad file stops no sync
   - done when a test covers each case below: a sync with an unreadable, vanished
     or short archive file, or an unreadable note, archives and indexes the rest
@@ -1460,7 +1477,7 @@ keep.
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: readme-guides, clean-install, gate-false-blocks, gate-data-dir, first-scan-timeout, block-as-error, config-dir, project-owner, notes-robust, cli-lock, release-safety, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
+  - blocked: readme-guides, clean-install, gate-false-blocks, gate-data-dir, first-scan-timeout, block-as-error, config-dir, project-owner, cli-lock, release-safety, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`

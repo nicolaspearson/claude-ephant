@@ -195,10 +195,9 @@ func TestUpdateNotesSkipsANoteItCannotReadAndIndexesTheRest(t *testing.T) {
 	summary, err := index.UpdateNotes(context.Background(), directory)
 
 	require.NoError(t, err)
-	require.Equal(t, 1, summary.Entries)
-	require.Len(t, summary.Skipped, 2)
+	require.Equal(t, 2, summary.Entries, "a line past bufio's default 64 KiB is indexed")
+	require.Len(t, summary.Skipped, 1)
 	require.Contains(t, summary.Skipped[0], "20261015-bbbbbb")
-	require.Contains(t, summary.Skipped[1], "20261015-cccccc", "a line past the scanner's buffer")
 }
 
 func TestUpdateNotesDropsTheIndexedCopyOfANoteItNowSkips(t *testing.T) {
@@ -212,7 +211,8 @@ func TestUpdateNotesDropsTheIndexedCopyOfANoteItNowSkips(t *testing.T) {
 	path := filepath.Join(directory, "corp", "20261015-aaaaaa.md")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(path, append(content, strings.Repeat("x", 70000)...), 0o600))
+	require.NoError(t, os.WriteFile(path, append(content, "edited\n"...), 0o600))
+	require.NoError(t, os.Chmod(path, 0o000))
 
 	summary, err := index.UpdateNotes(context.Background(), directory)
 

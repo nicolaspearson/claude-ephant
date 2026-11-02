@@ -98,6 +98,49 @@ func TestMarkClosedThenClearClosedRoundTrips(t *testing.T) {
 	require.Equal(t, reminder, reopened)
 }
 
+func TestMarkShownAndMoveWaitForTheNotesLock(t *testing.T) {
+	for name, rewrite := range map[string]func(root string, note Note) error{
+		"mark shown": func(root string, note Note) error { return MarkShown(root, note, time.Now()) },
+		"move":       func(root string, note Note) error { return Move(root, note, "corp") },
+		"relocate":   func(root string, note Note) error { return Relocate(root, root+"-forgotten", note) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			root := t.TempDir()
+			_, err := Write(root, valid)
+			require.NoError(t, err)
+			unlock, err := lock(root)
+			require.NoError(t, err)
+			done := make(chan error, 1)
+
+			go func() { done <- rewrite(root, valid) }()
+
+			select {
+			case err = <-done:
+				t.Fatalf("rewrote while another held the lock: %v", err)
+			case <-time.After(100 * time.Millisecond):
+			}
+			unlock()
+			require.NoError(t, <-done)
+			require.NoFileExists(t, filepath.Join(root, ".lock"), "a reader of the tree would take it for an owner's folder")
+			require.FileExists(t, root+".lock")
+		})
+	}
+}
+
+func TestMoveRefusesAFileWithoutFrontMatter(t *testing.T) {
+	root := t.TempDir()
+	from := filepath.Join(root, "corp", "20261017-a1b2c3.md")
+	require.NoError(t, os.MkdirAll(filepath.Dir(from), 0o700))
+	// Without the first-line check, the owner line before the --- would be rewritten and the file moved.
+	require.NoError(t, os.WriteFile(from, []byte("title\nowner: corp\n---\nbody\n"), 0o600))
+
+	err := Move(root, Note{ID: "20261017-a1b2c3", Owner: "corp"}, "personal")
+
+	require.ErrorIs(t, err, ErrInvalid)
+	require.FileExists(t, from)
+	require.NoFileExists(t, filepath.Join(root, "personal", "20261017-a1b2c3.md"))
+}
+
 func TestMoveRefusesToOverwriteANoteUnderTheNewOwner(t *testing.T) {
 	root := t.TempDir()
 	note := valid
@@ -309,12 +352,106 @@ func TestEveryRoundTripsEachUnit(t *testing.T) {
 	}
 }
 
+func TestParseAndReadOwnerTakeABodyLineOverSixtyFourKiB(t *testing.T) {
+	root := t.TempDir()
+	note := valid
+	note.Body = strings.Repeat("x", 70000)
+	path, err := Write(root, note)
+	require.NoError(t, err)
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+
+	parsed, err := Parse(path, content)
+	require.NoError(t, err)
+	require.Equal(t, note.Body, parsed.Body)
+	read, invalid, err := ReadOwner(root, "personal")
+	require.NoError(t, err, "one long line fails its owner's whole read")
+	require.Zero(t, invalid)
+	require.Len(t, read, 1)
+}
+
+func TestRelocateMovesANoteToAnotherDirectoryAndRefusesToOverwrite(t *testing.T) {
+	from, to := t.TempDir(), t.TempDir()
+	_, err := Write(from, valid)
+	require.NoError(t, err)
+
+	require.NoError(t, Relocate(from, to, valid))
+
+	require.NoFileExists(t, filepath.Join(from, "personal", valid.ID+".md"))
+	require.FileExists(t, filepath.Join(to, "personal", valid.ID+".md"))
+	_, err = Write(from, valid)
+	require.NoError(t, err)
+	require.ErrorContains(t, Relocate(from, to, valid), "already exists")
+	require.FileExists(t, filepath.Join(from, "personal", valid.ID+".md"))
+}
+
+func TestSweepTemporaryRemovesOnlyOldLeftovers(t *testing.T) {
+	// A [ in the path, as a home folder can hold, is no pattern to the sweep.
+	root := filepath.Join(t.TempDir(), "data[1]", "notes")
+	old := filepath.Join(root, "personal", "20261015-a1b2c3.md.123.tmp")
+	fresh := filepath.Join(root, "personal", "20261015-d4e5f6.md.456.tmp")
+	note := filepath.Join(root, "personal", "20261015-a1b2c3.md")
+	for _, path := range []string{fresh, note, old} {
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
+		require.NoError(t, os.WriteFile(path, []byte("---\nhalf"), 0o600))
+	}
+	now := time.Now()
+	for _, path := range []string{note, old} {
+		require.NoError(t, os.Chtimes(path, now.Add(-2*Day), now.Add(-2*Day)))
+	}
+
+	require.NoError(t, SweepTemporary(root, Day, now))
+
+	require.NoFileExists(t, old)
+	require.FileExists(t, fresh, "a write still in progress keeps its file")
+	require.FileExists(t, note, "an old note is no leftover")
+}
+
+func TestWriteLeavesNoTemporaryFile(t *testing.T) {
+	root := t.TempDir()
+	_, err := Write(root, valid)
+	require.NoError(t, err)
+	_, err = Write(root, valid)
+	require.Error(t, err)
+
+	leftovers, err := filepath.Glob(filepath.Join(root, "personal", "*.tmp"))
+	require.NoError(t, err)
+	require.Empty(t, leftovers)
+}
+
 func TestWriteRefusesANoteWithoutAnID(t *testing.T) {
 	note := valid
 	note.ID = ""
 	_, err := Write(t.TempDir(), note)
 	require.ErrorIs(t, err, ErrInvalid)
 	require.EqualError(t, err, "invalid note: no id")
+}
+
+func TestWriteRefusesWhatParseRejectsAndANameThatEscapes(t *testing.T) {
+	for name, change := range map[string]func(note *Note){
+		"id escaping the folder":     func(note *Note) { note.ID = "../../esc" },
+		"owner escaping the folder":  func(note *Note) { note.Owner = "../x" },
+		"owner of the folder itself": func(note *Note) { note.Owner = "." },
+		"owner with a leading space": func(note *Note) { note.Owner = " corp" },
+		"profile on two lines":       func(note *Note) { note.Profile = "a\nb" },
+		"supersedes holding a comma": func(note *Note) { note.Supersedes = []string{"a,b"} },
+		"supersedes holding a path":  func(note *Note) { note.Supersedes = []string{"../x"} },
+		"whitespace-only body":       func(note *Note) { note.Body = " \n\t" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			parent := t.TempDir()
+			root := filepath.Join(parent, "notes")
+			note := valid
+			change(&note)
+
+			_, err := Write(root, note)
+
+			require.ErrorIs(t, err, ErrInvalid)
+			written, globErr := filepath.Glob(filepath.Join(parent, "*", "*"))
+			require.NoError(t, globErr)
+			require.Empty(t, written)
+		})
+	}
 }
 
 func TestWriteThenParseRoundTrips(t *testing.T) {
