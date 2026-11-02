@@ -1,5 +1,5 @@
 ---
-type: llm
+type: regex
+pattern: '^(?=[\s\S]*agent-skills/renew-dev-cert/SKILL\.md)(?=[\s\S]*\blink)(?=[\s\S]*\.claude-a\b)[\s\S]*(?:\.claude-b\b[^\n]*\b(?:left alone|already|untouched|skipped|not (?:replaced|linked|touched|overwritten))|\b(?:left alone|already|untouched|skipped|not (?:replaced|linked|touched|overwritten))\b(?:(?!\blink)[^\n])*\.claude-b\b)'
+flags: i
 ---
-
-The final reply reports the recipe written once to a path ending in `agent-skills/renew-dev-cert/SKILL.md`, reports one or more profile `skills` folders linked to it, and names the `.claude-b` profile's existing `renew-dev-cert` as left alone, not replaced or linked. It does not ask the user whether to write or skip the recipe.

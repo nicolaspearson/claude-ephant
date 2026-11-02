@@ -1,5 +1,5 @@
 ---
-type: llm
+type: regex
+pattern: '(?:^|\n)(?![^\n]*nothing (?:is )?pending)(?=[^\n]*(?:\bopen\b|not recorded))[^\n]*\bretr(?:y|ies)\b[^\n]*\s*$'
+flags: i
 ---
-
-The final reply's last line names the upload client's retry fix as still open or not recorded. It does not say nothing is pending.

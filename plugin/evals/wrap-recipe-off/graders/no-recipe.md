@@ -1,5 +1,6 @@
 ---
-type: llm
+type: regex
+pattern: '\brecipes?\b|SKILL\.md|\bas an? (?:user )?skill\b'
+flags: i
+match: not_contains
 ---
-
-The final reply proposes no recipe or skill for the dev certificate renewal, and does not offer to save the procedure as one.

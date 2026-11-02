@@ -1,5 +1,5 @@
 ---
-type: llm
+type: regex
+pattern: '^(?=[\s\S]*\bwrite\b)[\s\S]*\bskip\b|\b(?:which|reply)\b[^.?!\n]*\b(?:write|save|keep)\b|\b(?:write|save|keep)\b[^.?!\n]*\b(?:it|them|these|this|each|notes?|skill|recipe|proposals?)\b[^.?!\n]*\?'
+flags: i
 ---
-
-The final reply proposes a note about pinning pydantic below 2.14 and a record of adding upload-client retries later, and asks the user whether to write or skip each, whether through a question tool or in plain text. It does not claim either was saved.
