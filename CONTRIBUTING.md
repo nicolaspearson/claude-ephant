@@ -209,3 +209,85 @@ gh secret set HOMEBREW_TAP_TOKEN
 ```
 
 If a release's Tap job already failed, run Tap by hand with that release's tag.
+
+### Installing from clean
+
+The [Tap job](#homebrew-tap) checks the tag `install.sh` installs on macOS and
+Linux and `brew` on macOS. A person checks the rest: `brew` on Linux, the
+plugin's hooks running in a fresh session against each install, and `ele
+status` naming the platform's data directory. Run it where ele has never been
+installed, never on the `PATH` your own hooks call: an install there replaces
+the binary every open session runs. Use a second Mac with its own Homebrew (a
+second account shares the first's prefix) and Docker for Linux. Each `version`
+line expects the latest release's tag.
+
+On the Mac, run the blocks below in one terminal, since each builds on the
+`PATH` the last set. First check nothing is left from an earlier install:
+
+```sh
+which -a ele                  # nothing
+test ! -e ~/Library/Application\ Support/claude-ephant && echo clean
+```
+
+Install both ways:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/nicolaspearson/claude-ephant/main/install.sh | sh
+~/.local/bin/ele version
+~/.local/bin/ele status       # ~/Library/Application Support/claude-ephant
+
+eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv)"
+brew install nicolaspearson/tap/ele
+"$(brew --prefix)/bin/ele" version
+"$(brew --prefix)/bin/ele" status
+```
+
+Then a session against each. The hooks run the first `ele` on the `PATH`
+`claude` starts with, so each `export` puts the install under test first:
+
+```sh
+export PATH="$HOME/.local/bin:$PATH"
+command -v claude || curl -fsSL https://claude.ai/install.sh | bash
+claude plugin marketplace add nicolaspearson/claude-ephant
+claude plugin install ele@claude-ephant
+
+which -a ele                  # ~/.local/bin/ele first
+claude                        # /login, then the start shows ele's block; exit
+ele status                    # a sync since the session started
+
+export PATH="$(brew --prefix)/bin:$PATH"
+which -a ele                  # brew's first
+claude                        # the start shows ele's block; exit
+ele status
+```
+
+On Linux, in Docker; on Apple Silicon this is arm64, and
+`--platform linux/amd64` runs the other. `install.sh`, then a session:
+
+```sh
+docker run --rm -it ubuntu:24.04 bash
+apt-get update && apt-get install -y curl ca-certificates git
+curl -fsSL https://raw.githubusercontent.com/nicolaspearson/claude-ephant/main/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+ele version
+ele status                    # /root/.local/share/claude-ephant
+curl -fsSL https://claude.ai/install.sh | bash
+claude plugin marketplace add nicolaspearson/claude-ephant
+claude plugin install ele@claude-ephant
+claude                        # /login, then the start shows ele's block; exit
+ele status
+```
+
+`brew`, then a session:
+
+```sh
+docker run --rm -it homebrew/brew:latest bash
+brew install nicolaspearson/tap/ele
+ele version
+ele status                    # /home/linuxbrew/.local/share/claude-ephant
+curl -fsSL https://claude.ai/install.sh | bash && export PATH="$HOME/.local/bin:$PATH"
+claude plugin marketplace add nicolaspearson/claude-ephant
+claude plugin install ele@claude-ephant
+claude                        # /login, then the start shows ele's block; exit
+ele status
+```
