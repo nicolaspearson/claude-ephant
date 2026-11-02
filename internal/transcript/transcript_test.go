@@ -34,6 +34,11 @@ func TestParse(t *testing.T) {
 			name:    "assistant text and tool call, thinking skipped",
 		},
 		{
+			entries: []Entry{entry(KindConversation, "Set API_KEY=[redacted:assignment] first.")},
+			line:    `{"type":"assistant",` + base + `,"message":{"content":[{"type":"text","text":"Set API_KEY=s3cr3tvalue first."}]}}`,
+			name:    "assistant text redacted",
+		},
+		{
 			entries: nil,
 			line:    `{"type":"user","isCompactSummary":true,` + base + `,"message":{"content":"This session is being continued"}}`,
 			name:    "compaction summary",
@@ -117,6 +122,11 @@ func TestParse(t *testing.T) {
 			entries: []Entry{entry(KindPrompt, "fix it")},
 			line:    `{"type":"user",` + base + `,"message":{"content":"fix it"}}`,
 			name:    "typed prompt",
+		},
+		{
+			entries: []Entry{entry(KindPrompt, "my password: [redacted:assignment]")},
+			line:    `{"type":"user",` + base + `,"message":{"content":"my password: hunter2"}}`,
+			name:    "typed prompt redacted",
 		},
 		{
 			entries: []Entry{entry(KindPrompt, "see this")},

@@ -321,7 +321,7 @@ keep.
     it each say `/ele:review` is experimental
 - [ ] readme-guides: Sweep the README and every page under `docs/` against the
   code
-  - blocked: redact-promise, notes-robust, sync-robust, cli-lock, release-safety, help-text, data-dir-edges, bashwork-reads, plan-parser-warnings, ticket-robust
+  - blocked: notes-robust, sync-robust, cli-lock, release-safety, help-text, data-dir-edges, bashwork-reads, plan-parser-warnings, ticket-robust
   - done when each page's commands and flags are checked against `--help`,
     each behaviour it states is checked against the code or a run, and
     `task format`, `task lint` and `task lint-docs` pass
@@ -558,7 +558,7 @@ keep.
   - done when, for the interim release's tag, each install's
     `ele version` prints its tag, the plugin's hooks run in a fresh session, and
     `ele status` names the platform's data directory
-- [ ] redact-promise: Redaction holds to what `docs/data-and-privacy.md`
+- [x] redact-promise: Redaction holds to what `docs/data-and-privacy.md`
   promises
   - done when the user rules on the two questions below, multiline quoted values
     and whether `transcript.Parse` redacts every kind; each shape the doc
@@ -606,6 +606,20 @@ keep.
     agent prompts, Bash commands and edit paths among them, into the session
     scratchpad for `/ele:mine` to hand to model subagents, nor that the skill's
     cleanup leaves the digest `.txt` files there
+  - asserted in the commit carrying this tick: redaction holds to
+    `docs/data-and-privacy.md`: escaped JSON keys, hyphenated keys such as
+    `X-Api-Key`, `:=` and `==`, a quoted value across lines within 4 KiB
+    and an unclosed one to its line's end, per the ruling, a quote escaped
+    inside a value, and the six other GitLab prefixes (`internal/redact`,
+    14 cases failing on the old patterns); an unquoted value keeps a
+    backslash (seen red stopping at it); `transcript.Parse` redacts every
+    entry kind, per the ruling (seen red without it), `Entry.Command` left raw
+    for stop-check; `writeEvent` redacts `[]string` attributes (seen red);
+    `mining`'s digest of another tool's input redacts its escaped quotes and
+    `&` (fails on the old patterns); `internal/index`'s `Version` is 14;
+    the doc says what `ele mine --digests` writes, where, and that
+    `/ele:mine`'s cleanup leaves the digests; `task check FORCE=1` and
+    `task audit` pass
 - [x] index-private: The index files are private whatever the data directory's
   mode
   - done when `ele.db`, `-wal` and `-shm` are 0600 under an `ELE_HOME` made
@@ -1431,7 +1445,7 @@ keep.
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: readme-guides, clean-install, gate-false-blocks, gate-data-dir, first-scan-timeout, block-as-error, config-dir, project-owner, redact-promise, notes-robust, sync-robust, cli-lock, release-safety, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
+  - blocked: readme-guides, clean-install, gate-false-blocks, gate-data-dir, first-scan-timeout, block-as-error, config-dir, project-owner, notes-robust, sync-robust, cli-lock, release-safety, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`

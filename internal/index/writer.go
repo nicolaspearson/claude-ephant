@@ -164,8 +164,15 @@ func (w *entryWriter) writeEvent(ctx context.Context, event dto.TranscriptEvent,
 		}
 	}
 	for key, value := range event.Attributes {
-		if text, ok := value.(string); ok {
-			value = redact.Redact(text)
+		switch typed := value.(type) {
+		case string:
+			value = redact.Redact(typed)
+		case []string:
+			redacted := make([]string, len(typed))
+			for position, text := range typed {
+				redacted[position] = redact.Redact(text)
+			}
+			value = redacted
 		}
 		attributes[key] = value
 	}

@@ -91,10 +91,11 @@ func TestUpdateKeepsNoFragmentOfASecretTheCutSplits(t *testing.T) {
 		return line("assistant", "/w", `[{"type":"tool_use","name":"`+name+`","input":{`+input+`}}]`)
 	}
 	for name, transcriptLine := range map[string]string{
-		"agent description":  toolLine("Agent", `"description":"`+straddling+`","subagent_type":"general-purpose"`),
-		"hook block reason":  strings.Replace(line("user", "/w", `"Stop hook feedback:\n`+straddling+`"`), `"cwd"`, `"isMeta":true,"cwd"`, 1),
-		"tool input":         toolLine("Bash", `"command":"`+straddling+`"`),
-		"tool input as JSON": toolLine("Mystery", `"payload":"`+straddling+`"`),
+		"agent description":        toolLine("Agent", `"description":"`+straddling+`","subagent_type":"general-purpose"`),
+		"hook block changed paths": strings.Replace(line("user", "/w", `"Stop hook feedback:\nreason\nChanged: a.go `+secret+`"`), `"cwd"`, `"isMeta":true,"cwd"`, 1),
+		"hook block reason":        strings.Replace(line("user", "/w", `"Stop hook feedback:\n`+straddling+`"`), `"cwd"`, `"isMeta":true,"cwd"`, 1),
+		"tool input":               toolLine("Bash", `"command":"`+straddling+`"`),
+		"tool input as JSON":       toolLine("Mystery", `"payload":"`+straddling+`"`),
 	} {
 		t.Run(name, func(t *testing.T) {
 			root := t.TempDir()
@@ -111,8 +112,14 @@ func TestUpdateKeepsNoFragmentOfASecretTheCutSplits(t *testing.T) {
 			require.NoError(t, err)
 			for _, event := range events {
 				for _, value := range event.Attributes {
-					if text, ok := value.(string); ok {
-						stored = append(stored, text)
+					switch typed := value.(type) {
+					case string:
+						stored = append(stored, typed)
+					case []any:
+						for _, element := range typed {
+							text, _ := element.(string)
+							stored = append(stored, text)
+						}
 					}
 				}
 			}

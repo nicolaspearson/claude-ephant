@@ -55,6 +55,7 @@ func TestDigestOfACheckpointRunLinksItsSubagentsAndStopsAtItsReport(t *testing.T
 		transcriptLine(t, "10:01:02", "assistant", toolUse("tu2", "Agent", map[string]any{"description": "Checkpoint prose review " + secret, "subagent_type": "checkpoint-reviewer"})),
 		transcriptLine(t, "10:01:03", "user", toolResult("tu2", "Agent type 'checkpoint-reviewer' not found", true)),
 		transcriptLine(t, "10:01:30", "assistant", toolUse("tu5", "Edit", map[string]any{"file_path": "/tmp/" + secret})),
+		transcriptLine(t, "10:01:40", "assistant", toolUse("tu6", "WebFetch", map[string]any{"prompt": `API_KEY="quotedvalue123" and TOKEN=plain&tailvalue`})),
 		transcriptLine(t, "10:02:00", "assistant", toolUse("tu3", "Bash", map[string]any{"command": "go test ./..."})),
 		transcriptLine(t, "10:05:00", "user", toolResult("tu3", "ok\ncovered: retries", false)),
 		transcriptLine(t, "10:06:00", "assistant", []map[string]any{{"text": report, "type": "text"}}),
@@ -97,6 +98,10 @@ func TestDigestOfACheckpointRunLinksItsSubagentsAndStopsAtItsReport(t *testing.T
 	require.Contains(t, digest, "=== NEXT HUMAN 2026-10-16T10:07:00Z\nlooks good, thanks\n")
 	require.NotContains(t, digest, "after the report", "the window ends at the report")
 	require.NotContains(t, digest, "glpat-", "a secret is redacted before its text is cut, and in descriptions and paths")
+	require.Contains(t, digest, "WebFetch", "another tool's input is in the digest")
+	for _, value := range []string{"quotedvalue123", "tailvalue"} {
+		require.NotContains(t, digest, value, "json.Marshal escapes the quotes and the & of another tool's input")
+	}
 }
 
 func TestDigestOfAReviewCycleCutsAtAReportOnlyOnceEveryReviewerHasHandedBack(t *testing.T) {

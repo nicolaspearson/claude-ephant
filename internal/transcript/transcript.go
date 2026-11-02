@@ -33,7 +33,7 @@ var harnessTags = []string{"<bash-stderr>", "<bash-stdout>", "<fork-boilerplate>
 var primaryInputs = []string{"command", "file_path", "path", "pattern", "query", "url", "skill", "description", "prompt"}
 
 type Entry struct {
-	// A Bash call's whole command: Text collapses whitespace and truncates it, which can hide a write.
+	// A Bash call's whole command, unredacted: Text collapses whitespace and truncates it, which can hide a write.
 	Command          string
 	Entrypoint       string
 	Kind             string
@@ -217,6 +217,6 @@ func Truncate(value string) string {
 
 func with(base Entry, kind string, text string) Entry {
 	base.Kind = kind
-	base.Text = text
+	base.Text = redact.Redact(text)
 	return base
 }

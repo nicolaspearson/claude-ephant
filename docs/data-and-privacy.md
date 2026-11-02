@@ -87,9 +87,21 @@ Text is redacted before it is indexed or printed, so neither recall nor the
 start block shows a secret:
 
 - Known token formats become `[redacted:<kind>]`: Anthropic and OpenAI keys,
-  GitHub and GitLab tokens, AWS access key IDs, JWTs and PEM private keys
-- The value of any `key=value` or `key: value` whose key looks secret, JSON keys
-  included, becomes `[redacted:assignment]`
+  GitHub tokens, GitLab tokens (`glpat-`, `glrt-`, `gldt-`, `glptt-`,
+  `glcbt-`, `glft-`, `gloas-`), AWS access key IDs, JWTs and PEM private keys
+- The value of any `key=value` or `key: value` whose key looks secret becomes
+  `[redacted:assignment]`: JSON keys, escaped JSON inside a quoted command
+  (`\"password\":\"…\"`) and hyphenated header names such as `X-Api-Key`
+  included. A quoted value runs to its closing quote up to 4 KiB away, across
+  lines; one never closed in that span is redacted to the end of its line
+
+`ele mine --digests` writes each unit's digest, an excerpt of its transcript
+redacted as above (prompts, earlier asks, subagent briefs, Bash commands, edited
+paths), as a `.txt` file in the directory it is given. `/ele:mine` gives it
+`<scratchpad>/mine/<analysis>` in the session scratchpad and hands the files to
+its classifier subagents. It deletes only the previous run's
+`<analysis>-*.out.jsonl` batch files, so the digests stay there, each rerun
+overwriting them, until the scratchpad goes.
 
 Redaction is pattern matching, so a secret in an unknown format gets through,
 notes included. Keep secrets out of notes.
