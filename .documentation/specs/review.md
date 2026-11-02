@@ -143,10 +143,14 @@ In order, before the user sees anything:
      second list
 
    A question is classified too, and set aside the same way when it is quality
-   or nit, staying a question if taken further; the log takes its severity.
-   What a reviewer reports under its Questions heading is a lead, not a
-   finding: neither classified nor verified, kept for the same list. The
-   questions step 4 makes are findings and are verified
+   or nit, staying a question if taken further; the log takes that class as its
+   severity, never `question`: a question is shown as one and recorded as
+   verdict `open`. The summary table shows a question's class beside the word
+   question, so the class is what reaches the log. What a reviewer reports
+   under its Questions heading is a lead, not a finding: neither classified
+   nor verified, kept for the same list, and classified like a finding if taken
+   further, before it is logged. The questions step 4 makes are findings and
+   are verified
 6. Verified by the parent against the tree, blockers, defects and questions
    only: the input traced through the code to the wrong output, by reading
    alone, never by running the tree. A refuted finding is never drafted, since a
@@ -164,7 +168,8 @@ such stop costs a typed reply; a question costs a click and says what it leads
 to.
 
 - First, one question holding the notices and one table: severity, kind (bug,
-  convention, security, spec, test), `file:line`, the claim in a line, then the
+  convention, security, spec, test), `file:line`, the claim in a line, a
+  question's severity shown as its class with the word question, then the
   excluded and raised counts and the number of findings refuted. With no
   finding left, it says so in the table's place. Options: walk through the
   findings, or go on when there are none, or stop here, which goes to the merge
@@ -216,8 +221,9 @@ to.
 - Last, when anything was added: one question to publish the review, listing
   each body it holds whole, since it is the last look before they go out under
   the user's name, options to publish or not. Nothing reaches the forge before
-  that answer. What was sent, or the failure, or that nothing was, opens the
-  next question's text
+  that answer, and it is asked even when the user's message asks to publish,
+  since that message names a finding but has not shown its body. What was
+  sent, or the failure, or that nothing was, opens the next question's text
 - Then a question whether anything else is wanted; asking for something else
   brings a question listing, numbered, what is left. A finding asked for now
   goes through the same verify, draft, question and publish, with no table,
@@ -336,13 +342,13 @@ that holds the user's forge credentials:
 per run that saved its diff. The line is written when the user says nothing
 more is wanted from the review, not after the walk-through, so findings taken
 up in follow-ups are logged too. A finding taken up in a later message, after
-that line is written, logs the whole run again, with the same root, target and
-reviewed SHA, each finding's latest outcome and `replaces: true`, and stats
-drop the earlier line of the same repository, target and reviewed SHA: each
-finding counts once, at its latest outcome, with no matching of findings
-across lines, which carry no id. With the first line's record gone from the
-session, nothing is logged again, since a partial run would replace a whole
-one.
+that line is written, once the user again says nothing more is wanted, logs
+the whole run again, with the same root, target and reviewed SHA, each
+finding's latest outcome and `replaces: true`, and stats drop the earlier line
+of the same repository, target and reviewed SHA: each finding counts once, at
+its latest outcome, with no matching of findings across lines, which carry no
+id. With the first line's record gone from the session, nothing is logged
+again, since a partial run would replace a whole one.
 A run that stops after saving its diff logs what it has; one
 stopping before reviewed nothing and logs nothing:
 

@@ -254,8 +254,9 @@ Done when every verified finding has a body that opens with its label.
 ## 8. Summary
 
 One question holding the notices, then one table: severity, kind, `file:line`,
-the claim in a line. Under it the counts excluded and raised, and the number
-refuted. No finding left: say so in place of the table. Options: **Walk through
+the claim in a line. A question's severity cell shows its class with the word
+question, `defect, question`. Under it the counts excluded and raised, and the
+number refuted. No finding left: say so in place of the table. Options: **Walk through
 findings**, or, with nothing to ask, **Go on**, to step 10; and **Stop here**,
 to step 11.
 
@@ -299,7 +300,7 @@ Raw Markdown, every time, a follow-up draft included:
 `````markdown
 - **File:** `<path>`
 - **Line:** <line>, or <start>–<end> for a range
-- **Kind:** <severity> · <kind>
+- **Kind:** <severity as step 8's table shows it> · <kind>
 - **Link:** <full-SHA permalink, per the forge file>
 
 ````markdown
@@ -361,7 +362,9 @@ file: one still held, the question still lists the held bodies whole and says
 so, and that Check again is for after they submit or delete it, and its options
 are **Check again**, which reads it again and asks again, and **Don't
 publish**, since publishing could only stop. Declined, nothing is
-sent.
+sent. The question runs even when the user's message already asks to publish:
+that message names the finding, but has not shown the body that goes out under
+their name.
 
 On yes, read the MR's state and head again first:
 
@@ -405,12 +408,14 @@ the clone's root, then close with a short reply: what was published, what was
 given as Raw Markdown, and what was skipped.
 
 A finding asked after that line is written, in a later message, goes through
-the same steps. When the user is done again, log the whole run again against
-the same root, with the first line's `target` and `reviewed` unchanged, every
-finding at its latest outcome and anchor, and `"replaces": true`: stats drop
-the earlier line of the same repository, target and reviewed SHA, so each
-finding counts once. With the first line's record no longer in the session,
-log nothing and say so, since a partial run would replace a whole one.
+the same steps, step 12's publish question and step 13's question whether
+anything else is wanted included. Only once the user answers that they are
+done, log the whole run again against the same root, with the first line's
+`target` and `reviewed` unchanged, every finding at its latest outcome and
+anchor, and `"replaces": true`: stats drop the earlier line of the same
+repository, target and reviewed SHA, so each finding counts once. With the
+first line's record no longer in the session, log nothing and say so, since a
+partial run would replace a whole one.
 
 A run that stops after step 2 saved the diff logs what it has. One that stops
 before then has reviewed nothing and logs nothing; say so.
@@ -437,11 +442,14 @@ EOF
 - `findings`: every finding verified or refuted, second-list ones taken further
   included, with its severity; `source` the reviewer, `bugs`, `conventions` or
   `spec`, with `also_raised_by` for a merge
+- `severity`: `blocker`, `defect`, `quality` or `nit`, the class step 6's
+  Classify gave it, never `question`: a question is shown as one and logged
+  `open`, and a lead taken further is classified as step 6 classifies before it
+  is logged
 - `dropped`: `excluded` and `raised` as counted; `minor`, the minor findings
   never taken further. A lead never taken further is not a finding and is not
   logged
-- `verdict` and `severity` of a second-list finding: as it verified, a question
-  `open` with the severity it classified at
+- `verdict` of a second-list finding: as it verified
 - `verdict`: `confirmed`, verified and shown; `open`, shown as a question;
   `refuted`
 - `outcome`, on confirmed and open findings: `published`, `raw`, `skipped`,
