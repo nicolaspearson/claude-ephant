@@ -22,7 +22,8 @@ is refused, naming that project's clone.
   merge-base with `origin/HEAD`, the default branch. Not `ele checkpoint base`:
   that takes the upstream, and a branch pushed for its MR has an upstream at
   its own tip, so the diff would be empty. Uncommitted work is left out, and the
-  report says so: it is checkpoint's
+  report says so: it is checkpoint's. The committed head is what an MR would
+  show
 - Commit: `git show <rev>`
 - Nothing matching, or two readings plausible: ask before running anything
 - A diff over about 2,000 lines: ask whether to review a subset before launching
@@ -146,11 +147,12 @@ In order, before the user sees anything:
    or nit, staying a question if taken further; the log takes that class as its
    severity, never `question`: a question is shown as one and recorded as
    verdict `open`. The summary table shows a question's class beside the word
-   question, so the class is what reaches the log. What a reviewer reports
-   under its Questions heading is a lead, not a finding: neither classified
-   nor verified, kept for the same list, and classified like a finding if taken
-   further, before it is logged. The questions step 4 makes are findings and
-   are verified
+   question, so the class is what reaches the log. Severity `question` would
+   lose that class and mix how a finding is shown with how severe it is. What
+   a reviewer reports under its Questions heading is a lead, not a finding:
+   neither classified nor verified, kept for the same list, and classified like
+   a finding if taken further, before it is logged. The questions step 4 makes
+   are findings and are verified
 6. Verified by the parent against the tree, blockers, defects and questions
    only: the input traced through the code to the wrong output, by reading
    alone, never by running the tree. A refuted finding is never drafted, since a
@@ -232,12 +234,15 @@ to.
   GitHub. Held bodies a declined or stopped publish did not send are listed
   too, to give as Raw Markdown
 - The parent drafts each body after verifying it, from the voice file; the
-  reviewers never see the voice
+  reviewers never see the voice, so the reviewer files stay shared with
+  checkpoint unchanged
 - A body opens with a [Conventional Comments](https://conventionalcomments.org/)
   label, the kind as a decoration: `issue (blocking, security):` for a blocker,
   `issue (non-blocking, test):` for a defect, `question:` for one shown as a
   question, `suggestion (non-blocking, …):` and `nitpick (non-blocking, …):`
-  for quality and nit findings taken from the second list
+  for quality and nit findings taken from the second list. The skill states
+  the labels as its own rule, so a `review_voice` file that leaves them out
+  cannot drop them
 - A suggested fix goes in a forge `suggestion` block only where applying it
   resolves the finding whole
 - A body never quotes a secret value
@@ -404,3 +409,13 @@ stopping before reviewed nothing and logs nothing:
   give the same separation
 - Not doing: a summary comment. The findings are the review; its body holds only
   findings no line anchors
+- Not doing: a review of uncommitted work. It is checkpoint's
+- Not doing: approving or requesting changes. The published review carries no
+  state, so the user sets it on the forge
+- Not doing: fetching specs from trackers other than the forge. The user passes
+  a path or URL
+- Not doing: running the tree's code to reproduce a finding. The tree is the MR
+  author's input
+- Not doing: an eval of a review on a local-branch fixture with a planted
+  defect. A session in the eval sandbox cannot run git, which the review needs
+  for the tree and the diff (as of 2026-10-31, claude 2.1.308)
