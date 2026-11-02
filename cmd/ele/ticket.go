@@ -67,7 +67,7 @@ func ticketClaims(ctx context.Context, args []string, stdout io.Writer, stderr i
 
 func ticketCorpus(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
 	flags := newFlagSet("ticket corpus", stderr)
-	clean := flags.Bool("clean", false, "empty --out first")
+	clean := flags.Bool("clean", false, "remove the files an earlier corpus's manifest in --out lists first; any other .md there is kept and refuses the run")
 	cli := flags.String("cli", "", "the `glab|gh` tracker CLI to use, over the one the remote names")
 	compare := flags.String("compare", "", "the ticket `number` to read back after a write")
 	expect := flags.String("expect", "", "with --compare: the `file` holding the text as written")

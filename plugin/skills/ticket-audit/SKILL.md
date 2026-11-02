@@ -52,7 +52,8 @@ belongs and re-run with it in `--tickets`. One "in this corpus" is reported.
 Read the list it prints: a tracker using another convention still comes back
 short, and `--tickets` takes an explicit set. It refuses a directory that
 already holds a corpus unless given `--clean`, because two maps in one directory
-read as one map contradicting itself. Exit 2 with `FAILED to fetch` means the
+read as one map contradicting itself; and one holding any other `.md`, which
+`--clean` keeps and still refuses. Exit 2 with `FAILED to fetch` means the
 corpus is partial and no method can run on it yet; exit 2 with an `ele:` line is
 a usage error; exit 1 is a refusal, such as a used directory.
 

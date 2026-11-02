@@ -185,18 +185,71 @@ func TestCorpusFetchesInParallelAndListsTicketsInTheOrderAsked(t *testing.T) {
 
 func TestCorpusRefusesADirectoryHoldingAnEarlierRunUnlessCleaned(t *testing.T) {
 	tracker := &fakeTracker{issues: map[int]fakeIssue{9: {title: "Nine"}}, remote: "git@github.com:owner/repo.git"}
-	for _, stale := range []string{"99.md", "raw/99.md", "manifest.json"} {
+	for stale, count := range map[string]int{"99.md": 2, "manifest alone": 1, "raw/99.md": 2} {
 		out := t.TempDir()
 		require.NoError(t, os.MkdirAll(filepath.Join(out, "raw"), 0o700))
-		require.NoError(t, os.WriteFile(filepath.Join(out, stale), []byte("# 99 [closed] a previous map\n"), 0o600))
+		require.NoError(t, os.WriteFile(filepath.Join(out, manifestName), []byte(`[{"file": "99.md"}]`), 0o600))
+		if stale != "manifest alone" {
+			require.NoError(t, os.WriteFile(filepath.Join(out, stale), []byte("# 99 [closed] a previous map\n"), 0o600))
+		}
 		var stderr bytes.Buffer
 
 		require.Equal(t, 1, Corpus(context.Background(), &bytes.Buffer{}, &stderr, tracker.commands(), CorpusOptions{Out: out, Tickets: []int{9}}), stale)
-		require.Equal(t, "ele: "+out+" already holds 1 corpus file(s) — pass --clean, or name an empty directory\n", stderr.String())
+		require.Equal(t, fmt.Sprintf("ele: %s already holds %d corpus file(s) — pass --clean, or name an empty directory\n", out, count), stderr.String())
 
 		require.Equal(t, 0, Corpus(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, tracker.commands(), CorpusOptions{Clean: true, Out: out, Tickets: []int{9}}), stale)
 		require.NoFileExists(t, filepath.Join(out, "99.md"))
 		require.NoFileExists(t, filepath.Join(out, "raw", "99.md"))
+	}
+}
+
+func TestCorpusCleanKeepsWhatNoCorpusManifestLists(t *testing.T) {
+	tracker := &fakeTracker{issues: map[int]fakeIssue{9: {title: "Nine"}}, remote: "git@github.com:owner/repo.git"}
+	for _, check := range []struct {
+		manifest bool
+		other    string
+	}{{manifest: false, other: "99.md"}, {manifest: true, other: "notes.md"}, {manifest: true, other: "raw/notes.md"}} {
+		other := check.other
+		out := t.TempDir()
+		require.NoError(t, os.MkdirAll(filepath.Join(out, "raw"), 0o700))
+		if check.manifest {
+			require.NoError(t, os.WriteFile(filepath.Join(out, manifestName), []byte(`[{"file": "99.md"}]`), 0o600))
+			require.NoError(t, os.WriteFile(filepath.Join(out, "99.md"), []byte("# 99 [closed] a previous map\n"), 0o600))
+		}
+		require.NoError(t, os.WriteFile(filepath.Join(out, other), []byte("mine\n"), 0o600))
+		var stderr bytes.Buffer
+
+		require.Equal(t, 1, Corpus(context.Background(), &bytes.Buffer{}, &stderr, tracker.commands(), CorpusOptions{Clean: true, Out: out, Tickets: []int{9}}), other)
+
+		require.Equal(t, "ele: "+out+" holds 1 .md file(s) no corpus manifest there lists, which --clean keeps — remove them or name an empty directory\n", stderr.String())
+		require.FileExists(t, filepath.Join(out, other))
+		require.FileExists(t, filepath.Join(out, "99.md"), "nothing is removed once the run is refused")
+	}
+}
+
+func TestCorpusCleanReplacesAnEarlierRunInTheSameDirectory(t *testing.T) {
+	out := t.TempDir()
+	first := &fakeTracker{issues: map[int]fakeIssue{8: {title: "Eight"}}, remote: "git@github.com:owner/repo.git"}
+	require.Equal(t, 0, Corpus(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, first.commands(), CorpusOptions{Out: out, Tickets: []int{8}}))
+	second := &fakeTracker{issues: map[int]fakeIssue{9: {title: "Nine"}}, remote: "git@github.com:owner/repo.git"}
+
+	require.Equal(t, 0, Corpus(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, second.commands(), CorpusOptions{Clean: true, Out: out, Tickets: []int{9}}))
+
+	require.NoFileExists(t, filepath.Join(out, "8.md"))
+	require.NoFileExists(t, filepath.Join(out, "raw", "8.md"))
+	require.FileExists(t, filepath.Join(out, "9.md"))
+}
+
+func TestCorpusRefusesAManifestListingAnythingButACorpusFileName(t *testing.T) {
+	tracker := &fakeTracker{issues: map[int]fakeIssue{9: {title: "Nine"}}, remote: "git@github.com:owner/repo.git"}
+	for _, listed := range []string{"../elsewhere.md", "x.txt"} {
+		out := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(out, manifestName), []byte(`[{"file": "`+listed+`"}]`), 0o600))
+		var stderr bytes.Buffer
+
+		require.Equal(t, 1, Corpus(context.Background(), &bytes.Buffer{}, &stderr, tracker.commands(), CorpusOptions{Clean: true, Out: out, Tickets: []int{9}}), listed)
+
+		require.Equal(t, "ele: "+filepath.Join(out, manifestName)+" lists \""+listed+"\", not a corpus file name\n", stderr.String())
 	}
 }
 
@@ -355,8 +408,16 @@ func TestDetectCLIPicksTheRemotesTrackerAndRefusesAGuess(t *testing.T) {
 		{installed: nil, remote: "https://example.com/x", want: "neither glab nor gh is on PATH"},
 		{installed: []string{"gh"}, remote: "git@gitlab.com:group/project.git", want: "remote is gitlab but glab is not on PATH"},
 		{installed: []string{"gh", "glab"}, remote: "", want: "remote 'unknown' names no tracker and both CLIs are installed — pass --cli glab|gh"},
+		{installed: []string{"gh", "glab"}, remote: "git@github.com-work:owner/repo.git", want: "gh"},
+		{installed: []string{"gh", "glab"}, remote: "git@github.com:owner/gitlab-tools.git", want: "gh"},
 		{installed: []string{"gh", "glab"}, remote: "git@gitlab.com:group/project.git", want: "glab"},
 		{installed: []string{"gh", "glab"}, remote: "https://GitHub.com/owner/repo", want: "gh"},
+		{installed: []string{"gh", "glab"}, remote: "https://user:p%zz@example.com/x", want: "remote 'https://example.com/x' names no tracker and both CLIs are installed — pass --cli glab|gh"},
+		{installed: []string{"gh", "glab"}, remote: "https://user:s3/cr3t@example.com/x", want: "remote 'https://example.com/x' names no tracker and both CLIs are installed — pass --cli glab|gh"},
+		{installed: []string{"gh", "glab"}, remote: "https://user:s3cr3t@example.com/x", want: "remote 'https://example.com/x' names no tracker and both CLIs are installed — pass --cli glab|gh"},
+		{installed: []string{"gh", "glab"}, remote: "user:s3://cr3t@example.com:x", want: "remote 'example.com:x' names no tracker and both CLIs are installed — pass --cli glab|gh"},
+		{installed: []string{"gh", "glab"}, remote: "user:s3cr3t@example.com:x", want: "remote 'example.com:x' names no tracker and both CLIs are installed — pass --cli glab|gh"},
+		{installed: []string{"gh", "glab"}, remote: "user:s3cr3t@example.com:x://y", want: "remote 'example.com:x://y' names no tracker and both CLIs are installed — pass --cli glab|gh"},
 		{installed: []string{"glab"}, remote: "https://example.com/x", want: "glab"},
 		{explicit: "glab", installed: []string{"gh"}, remote: "git@github.com:o/r", want: "glab is not on PATH"},
 	} {
@@ -421,6 +482,16 @@ func TestTrackerProjectReadsEitherRemoteForm(t *testing.T) {
 		require.NoError(t, err, remote)
 		require.Equal(t, want, project, remote)
 	}
+}
+
+func TestTrackerProjectPrintsNoCredentials(t *testing.T) {
+	commands := Commands{Run: func(context.Context, string, ...string) (string, error) {
+		return "https://user:s3cr3t@example.com\n", nil
+	}}
+
+	_, err := trackerProject(context.Background(), commands)
+
+	require.EqualError(t, err, "cannot read a project path from remote 'https://example.com'")
 }
 
 func (tracker *fakeTracker) commands() Commands {

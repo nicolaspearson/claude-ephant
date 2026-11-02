@@ -321,7 +321,7 @@ keep.
     it each say `/ele:review` is experimental
 - [ ] readme-guides: Sweep the README and every page under `docs/` against the
   code
-  - blocked: redact-promise, index-private, ticket-clean, remote-secrets, notes-robust, sync-robust, cli-lock, release-safety, help-text, data-dir-edges, bashwork-reads, plan-parser-warnings, ticket-robust
+  - blocked: redact-promise, index-private, notes-robust, sync-robust, cli-lock, release-safety, help-text, data-dir-edges, bashwork-reads, plan-parser-warnings, ticket-robust
   - done when each page's commands and flags are checked against `--help`,
     each behaviour it states is checked against the code or a run, and
     `task format`, `task lint` and `task lint-docs` pass
@@ -614,7 +614,7 @@ keep.
     `-shm` at SQLite's default mode, private only because ele makes the data
     directory 0700; an `ELE_HOME` already 0755 leaves the index, conversation
     text included, world-readable. The docs promise modes for the archive alone
-- [ ] ticket-clean: `ele ticket corpus --clean` removes only what a corpus
+- [x] ticket-clean: `ele ticket corpus --clean` removes only what a corpus
   writes
   - done when a test planting another `.md` in `--out` finds it kept, and the
     help says what `--clean` removes
@@ -622,7 +622,17 @@ keep.
     `*.md` in `--out` and `--out/raw`, not only corpus files (`ticket`'s
     `prepare`), so `--out docs --clean` deletes the docs; its help's "empty
     --out first" is untrue too, since other files stay
-- [ ] remote-secrets: Tracker detection reads the remote's host and never prints
+  - asserted in the commit carrying this tick: `ticket corpus --clean`
+    removes only the files `manifest.json` in `--out` lists and the manifest;
+    any other `.md` in `--out` or `--out/raw`, a manifest-less old file
+    included, refuses the run with or without `--clean` and is kept, since the
+    corpus hash covers every `.md` there (`internal/ticket` corpus tests, seen
+    red with the refusal removed); a real run then a `--clean` re-run into one
+    directory replaces it (seen red with the manifest's `file` key renamed); a
+    manifest listing anything but a bare `.md` name is refused; `--clean`'s
+    help, `docs/commands.md`, the ticket-audit skill and the spec say so;
+    `task check FORCE=1` and `task audit` pass
+- [x] remote-secrets: Tracker detection reads the remote's host and never prints
   its credentials
   - done when a remote holding `user:token@` appears in no error, by a test, and
     `detectCLI` and `hasTracker` match the remote's host, not its path, so a
@@ -636,6 +646,16 @@ keep.
     `user:token@` puts the token on stderr and into the transcript when it
     names neither tracker with both CLIs installed, or `remoteProject` cannot
     read a project path from it
+  - asserted in the commit carrying this tick: `detectCLI` and `hasTracker`
+    match the origin's host, so `git@github.com:owner/gitlab-tools.git` picks
+    `gh` and a gitlab.com remote whose path holds `github.com` has no GitHub
+    tracker, while `github.com-work` ssh aliases still count (`internal/ticket`
+    tests, seen red matching the whole remote); errors print a remote cut after
+    its last `@`, so `https://user:s3cr3t@…`, `user:s3cr3t@host:path` and a
+    credentialed URL `url.Parse` rejects (`%zz`, a `/` in the token) show no
+    token (seen red printing the remote whole), nor does a `://` inside the
+    token or after it (seen red with the scheme check removed); `task check FORCE=1` and
+    `task audit` pass
 - [ ] notes-robust: Notes survive what `Write` accepts and what a hand edit
   leaves
   - done when a test covers each case below: a body line over 64 KiB fails
@@ -1402,7 +1422,7 @@ keep.
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: readme-guides, clean-install, gate-false-blocks, gate-data-dir, first-scan-timeout, block-as-error, config-dir, project-owner, redact-promise, index-private, ticket-clean, remote-secrets, notes-robust, sync-robust, cli-lock, release-safety, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
+  - blocked: readme-guides, clean-install, gate-false-blocks, gate-data-dir, first-scan-timeout, block-as-error, config-dir, project-owner, redact-promise, index-private, notes-robust, sync-robust, cli-lock, release-safety, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`

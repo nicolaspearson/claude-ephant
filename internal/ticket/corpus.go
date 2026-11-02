@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -43,6 +44,7 @@ var (
 	planItem          = regexp.MustCompile(`^- (?:\[([ xX])\] )?(.*)$`)
 	reference         = regexp.MustCompile(`(?:[\w.-]+/[\w./-]+)?#\d+`)
 	remoteProject     = regexp.MustCompile(`^(?:[\p{L}\p{N}_]+://[^/]+/|[^@/]+@[^:]+:)(.+?)(?:\.git)?/?$`)
+	urlScheme         = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9+.-]*$`)
 )
 
 type Commands struct {
@@ -388,12 +390,13 @@ func detectCLI(ctx context.Context, commands Commands, explicit string) (string,
 	}
 	remote := ""
 	if output, err := commands.Run(ctx, "git", "remote", "get-url", "origin"); err == nil {
-		remote = strings.ToLower(trimWhitespace(output))
+		remote = trimWhitespace(output)
 	}
+	shown, host := readRemote(remote)
 	// Installed is not the same as correct: a GitLab CLI on PATH in a GitHub repo
 	// fetches nothing and reports every ticket as a failure.
 	for _, tracker := range [][2]string{{"gitlab", "glab"}, {"github", "gh"}} {
-		if strings.Contains(remote, tracker[0]) {
+		if strings.Contains(host, tracker[0]) {
 			if _, err := commands.LookPath(tracker[1]); err != nil {
 				return "", fmt.Errorf("remote is %s but %s is not on PATH", tracker[0], tracker[1])
 			}
@@ -412,10 +415,10 @@ func detectCLI(ctx context.Context, commands Commands, explicit string) (string,
 	case 1:
 		return available[0], nil
 	}
-	if remote == "" {
-		remote = "unknown"
+	if shown == "" {
+		shown = "unknown"
 	}
-	return "", fmt.Errorf("remote '%s' names no tracker and both CLIs are installed — pass --cli glab|gh", remote)
+	return "", fmt.Errorf("remote '%s' names no tracker and both CLIs are installed — pass --cli glab|gh", shown)
 }
 
 func fetch(ctx context.Context, commands Commands, cli string, number int) fetched {
@@ -675,19 +678,32 @@ func prepare(out string, clean bool) error {
 	if err := os.MkdirAll(filepath.Join(out, "raw"), 0o755); err != nil {
 		return fmt.Errorf("cannot write to %s: %w", out, err)
 	}
-	var stale []string
+	written, err := manifestFiles(out)
+	if err != nil {
+		return err
+	}
+	var foreign, stale []string
 	for _, directory := range []string{out, filepath.Join(out, "raw")} {
 		listed, err := os.ReadDir(directory)
 		if err != nil {
 			return fmt.Errorf("cannot write to %s: %w", out, err)
 		}
 		for _, entry := range listed {
-			if strings.HasSuffix(entry.Name(), ".md") {
+			if !strings.HasSuffix(entry.Name(), ".md") {
+				continue
+			}
+			if written[entry.Name()] {
 				stale = append(stale, filepath.Join(directory, entry.Name()))
+			} else {
+				foreign = append(foreign, filepath.Join(directory, entry.Name()))
 			}
 		}
 	}
-	if _, err := os.Lstat(filepath.Join(out, manifestName)); err == nil {
+	// Refused with or without --clean: the corpus hash is over <out>/*.md.
+	if len(foreign) > 0 {
+		return fmt.Errorf("%s holds %d .md file(s) no corpus manifest there lists, which --clean keeps — remove them or name an empty directory", out, len(foreign))
+	}
+	if written != nil {
 		stale = append(stale, filepath.Join(out, manifestName))
 	}
 	if len(stale) > 0 && !clean {
@@ -699,6 +715,31 @@ func prepare(out string, clean bool) error {
 		}
 	}
 	return nil
+}
+
+// nil, not empty, with no manifest: prepare tells them apart.
+func manifestFiles(out string) (map[string]bool, error) {
+	content, err := os.ReadFile(filepath.Join(out, manifestName))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("cannot read %s: %w", filepath.Join(out, manifestName), err)
+	}
+	var entries []struct {
+		File string `json:"file"`
+	}
+	if err := json.Unmarshal(content, &entries); err != nil {
+		return nil, fmt.Errorf("%s is not a corpus manifest: %w", filepath.Join(out, manifestName), err)
+	}
+	files := map[string]bool{}
+	for _, entry := range entries {
+		if filepath.Base(entry.File) != entry.File || !strings.HasSuffix(entry.File, ".md") {
+			return nil, fmt.Errorf("%s lists %q, not a corpus file name", filepath.Join(out, manifestName), entry.File)
+		}
+		files[entry.File] = true
+	}
+	return files, nil
 }
 
 // \r\n and a lone \r both read as \n; invalid UTF-8 is refused.
@@ -972,9 +1013,33 @@ func trackerProject(ctx context.Context, commands Commands) (string, error) {
 	remote := trimWhitespace(output)
 	match := remoteProject.FindStringSubmatch(remote)
 	if match == nil {
-		return "", fmt.Errorf("cannot read a project path from remote '%s'", remote)
+		shown, _ := readRemote(remote)
+		return "", fmt.Errorf("cannot read a project path from remote '%s'", shown)
 	}
 	return match[1], nil
+}
+
+// readRemote returns the remote cut after its last @, safe for an error to
+// print even where url.Parse fails, a path holding @ cut too, and its
+// lowercased host.
+func readRemote(remote string) (shown, host string) {
+	scheme, rest, hasScheme := strings.Cut(remote, "://")
+	// A token can hold ://, so only a URL scheme stays in front of the cut.
+	if hasScheme = hasScheme && urlScheme.MatchString(scheme); !hasScheme {
+		rest = remote
+	}
+	rest = rest[strings.LastIndex(rest, "@")+1:]
+	if !hasScheme {
+		head, _, found := strings.Cut(rest, ":")
+		if found && !strings.Contains(head, "/") {
+			host = head
+		}
+		return rest, strings.ToLower(host)
+	}
+	if parsed, err := url.Parse(remote); err == nil {
+		host = parsed.Hostname()
+	}
+	return scheme + "://" + rest, strings.ToLower(host)
 }
 
 func trimWhitespace(text string) string {

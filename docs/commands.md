@@ -288,10 +288,12 @@ reports what checkpoints found since `--since`, 30 days back by default.
 themselves execution and `wayfinder:task` tickets naming a source path, only the
 numbered ones when given; `--quiet` prints nothing when none is flagged.
 
-`ticket corpus` writes tickets into `--out`, `--clean` emptying it first: a
-map's children with `--map`, narrowed by `--tickets`; a list of tickets with
-`--tickets`, comma-separated; or each Actions and Inbox item of the `--plan`
-files. `--cli` picks `glab` or `gh` over the one the remote names. `--compare`
+`ticket corpus` writes tickets into `--out`: a map's children with `--map`,
+narrowed by `--tickets`; a list of tickets with `--tickets`, comma-separated; or
+each Actions and Inbox item of the `--plan` files. `--clean` first removes the
+files an earlier corpus's manifest there lists; any other `.md` in `--out` is
+kept and refuses the run, since the corpus hash covers every `.md` there.
+`--cli` picks `glab` or `gh` over the one the remote names. `--compare`
 reads a ticket back after a write against the text in `--expect`, its body or,
 with `--note`, a comment.
 

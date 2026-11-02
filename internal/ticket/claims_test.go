@@ -83,9 +83,15 @@ func TestWriteClaimsSaysWhyNothingWasChecked(t *testing.T) {
 	require.Empty(t, stdout)
 	require.Equal(t, "Warning: the ticket claim check did not run: HTTP 401: Bad credentials\n", stderr)
 
-	runGit(t, root, "remote", "set-url", "origin", "git@gitlab.com:x/y.git")
+	for _, remote := range []string{"git@gitlab.com:x/y.git", "https://gitlab.com/mirrors/github.com-y.git"} {
+		runGit(t, root, "remote", "set-url", "origin", remote)
+		stdout, stderr = writeClaims(t, root, nil, false)
+		require.Equal(t, "No GitHub remote here, so there are no tickets to check.\n", stdout+stderr, remote)
+	}
+	t.Setenv("GH_FAIL", "")
+	runGit(t, root, "remote", "set-url", "origin", "git@github.com-work:x/y.git")
 	stdout, stderr = writeClaims(t, root, nil, false)
-	require.Equal(t, "No GitHub remote here, so there are no tickets to check.\n", stdout+stderr)
+	require.Equal(t, "No open ticket is mistyped or grants itself execution.\n", stdout+stderr, "an ssh alias of github.com")
 
 	stdout, stderr = writeClaims(t, t.TempDir(), nil, true)
 	require.Empty(t, stdout)

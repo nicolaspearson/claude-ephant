@@ -145,7 +145,16 @@ func hasTracker(ctx context.Context, root string) bool {
 		return false
 	}
 	remotes, _ := run(ctx, root, "git", "remote", "-v")
-	return strings.Contains(remotes, "github.com")
+	for line := range strings.Lines(remotes) {
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		if _, host := readRemote(fields[1]); strings.Contains(host, "github") {
+			return true
+		}
+	}
+	return false
 }
 
 func openTickets(ctx context.Context, root string, numbers []int) ([]Ticket, error) {
