@@ -115,6 +115,10 @@ func copyDataDirectory(ctx context.Context, dataDirectory string, target string)
 		if _, vacuumErr := db.ExecContext(ctx, `VACUUM INTO ?`, copied); vacuumErr != nil {
 			return nil, fmt.Errorf("copy the index: %w", vacuumErr)
 		}
+		// VACUUM INTO creates the copy at the umask's mode.
+		if chmodErr := os.Chmod(copied, 0o600); chmodErr != nil {
+			return nil, chmodErr
+		}
 		info, err := os.Stat(copied)
 		if err != nil {
 			return nil, err

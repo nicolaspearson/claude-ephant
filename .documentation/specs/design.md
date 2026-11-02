@@ -112,6 +112,7 @@ Built from sections, each with its own budget; each handoff's is the three-line 
 ## Secrets
 
 - The archive is verbatim. Directory `0700`, files `0600`
+- The index holds conversation text, so `store.Open` creates `ele.db` `0600` and sets it and any `-wal` and `-shm` to `0600` on each open, whatever the data directory's mode: SQLite creates the `-wal` and `-shm` with the database's mode. A refused chmod is passed over, since failing it fails every hook; `ele backup` sets its index copy to `0600`, as `VACUUM INTO` creates it at the umask's mode
 - A redaction pass runs before text is indexed or printed: known token formats (Anthropic and OpenAI keys, GitHub and GitLab tokens, AWS access key IDs, JWTs, PEM private keys) become `[redacted:<kind>]`, and the value of any `key=value` or `key: value` whose key looks secret, JSON keys included, becomes `[redacted:assignment]`
 - Redaction runs before each cut of indexed transcript text, `transcript.Truncate`'s to 300 characters and the tool error's tail alike: a token the cut splits no longer matches a pattern. The cut can split a placeholder, never the token
 - Patterns live in one table with tests. A new pattern takes effect on `ele reindex`

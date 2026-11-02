@@ -49,6 +49,42 @@ func TestOpenAppliesPragmasToEveryPath(t *testing.T) {
 	}
 }
 
+func TestOpenKeepsTheIndexPrivateInAnOpenDirectory(t *testing.T) {
+	for _, existing := range []string{"none", "database", "open in WAL"} {
+		directory := filepath.Join(t.TempDir(), "ele")
+		require.NoError(t, os.Mkdir(directory, 0o755))
+		require.NoError(t, os.Chmod(directory, 0o755))
+		path := filepath.Join(directory, "ele.db")
+		switch existing {
+		case "database":
+			require.NoError(t, os.WriteFile(path, nil, 0o644))
+			require.NoError(t, os.Chmod(path, 0o644))
+		case "open in WAL":
+			// An older ele, still open, left all three at the umask's mode.
+			older, err := open(path, "_pragma=journal_mode(WAL)")
+			require.NoError(t, err)
+			_, err = older.Exec(`CREATE TABLE o (x); INSERT INTO o VALUES (1)`)
+			require.NoError(t, err)
+			t.Cleanup(func() { require.NoError(t, older.Close()) })
+			for _, suffix := range []string{"", "-shm", "-wal"} {
+				require.NoError(t, os.Chmod(path+suffix, 0o644))
+			}
+		}
+
+		db, err := Open(path)
+		require.NoError(t, err)
+		_, err = db.Exec(`CREATE TABLE t (x); INSERT INTO t VALUES (1)`)
+		require.NoError(t, err)
+
+		for _, suffix := range []string{"", "-shm", "-wal"} {
+			info, err := os.Stat(path + suffix)
+			require.NoError(t, err, suffix)
+			require.Equal(t, os.FileMode(0o600), info.Mode().Perm(), "ele.db%s, existing %v", suffix, existing)
+		}
+		require.NoError(t, db.Close())
+	}
+}
+
 func TestOpenReadOnlyNeverWrites(t *testing.T) {
 	directory := t.TempDir()
 	path := filepath.Join(directory, "snapshot.db")

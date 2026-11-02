@@ -78,7 +78,10 @@ ele stats     # what ele holds: entries, notes, sessions, disk use
 ## Secrets
 
 The archive is a verbatim copy, so it holds whatever the transcripts hold. Its
-directory is readable only by you (`0700`, files `0600`).
+directory is readable only by you (`0700`, files `0600`). The index, `ele.db`
+with its `-wal` and `-shm`, holds conversation text too and is `0600` whatever
+the data directory's mode, an `ELE_HOME` you made `0755` included. A file ele
+cannot change the mode of, such as one another user owns, is left as it is.
 
 Text is redacted before it is indexed or printed, so neither recall nor the
 start block shows a secret:
@@ -100,7 +103,8 @@ ele backup <dir>
 Copies the archive, notes, forgotten notes, the checkpoint log and ticket-audit
 ledger, mining data, config, owner map, closed plans' item names and a
 consistent copy of the index into `<dir>`, which must be empty or not exist. It
-refuses a directory inside the data directory or inside a git checkout.
+refuses a directory inside the data directory or inside a git checkout. The
+index copy is `0600`, as the index is.
 
 ## Options
 

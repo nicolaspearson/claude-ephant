@@ -62,6 +62,9 @@ func TestRunBackupCopiesTheDataDirectoryAndTheIndex(t *testing.T) {
 		require.NoFileExists(t, filepath.Join(target, path))
 	}
 
+	info, err := os.Stat(filepath.Join(target, "ele.db"))
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0o600), info.Mode().Perm(), "the copy holds conversation text")
 	db, err := store.OpenReadOnly(filepath.Join(target, "ele.db"))
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, db.Close()) })

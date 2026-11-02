@@ -321,7 +321,7 @@ keep.
     it each say `/ele:review` is experimental
 - [ ] readme-guides: Sweep the README and every page under `docs/` against the
   code
-  - blocked: redact-promise, index-private, notes-robust, sync-robust, cli-lock, release-safety, help-text, data-dir-edges, bashwork-reads, plan-parser-warnings, ticket-robust
+  - blocked: redact-promise, notes-robust, sync-robust, cli-lock, release-safety, help-text, data-dir-edges, bashwork-reads, plan-parser-warnings, ticket-robust
   - done when each page's commands and flags are checked against `--help`,
     each behaviour it states is checked against the code or a run, and
     `task format`, `task lint` and `task lint-docs` pass
@@ -606,7 +606,7 @@ keep.
     agent prompts, Bash commands and edit paths among them, into the session
     scratchpad for `/ele:mine` to hand to model subagents, nor that the skill's
     cleanup leaves the digest `.txt` files there
-- [ ] index-private: The index files are private whatever the data directory's
+- [x] index-private: The index files are private whatever the data directory's
   mode
   - done when `ele.db`, `-wal` and `-shm` are 0600 under an `ELE_HOME` made
     0755, by a test, and `docs/data-and-privacy.md` states their mode
@@ -614,6 +614,15 @@ keep.
     `-shm` at SQLite's default mode, private only because ele makes the data
     directory 0700; an `ELE_HOME` already 0755 leaves the index, conversation
     text included, world-readable. The docs promise modes for the archive alone
+  - asserted in the commit carrying this tick: `store.Open` creates
+    `ele.db` 0600 and sets it, `-wal` and `-shm` to 0600 on each open, so in
+    a 0755 directory all three are 0600, fresh, over a 0644 database, and
+    over an older connection's 0644 WAL files (`internal/store`, seen red
+    without the call, with 0644, and with the loop cut to the database); a
+    refused chmod is passed over, on the user's ruling of 2026-11-02, untested
+    since no test user can be refused; `ele backup`'s index copy is 0600
+    (seen red at 0644); `docs/data-and-privacy.md` and `design.md` state the
+    modes; `task check FORCE=1` and `task audit` pass
 - [x] ticket-clean: `ele ticket corpus --clean` removes only what a corpus
   writes
   - done when a test planting another `.md` in `--out` finds it kept, and the
@@ -1422,7 +1431,7 @@ keep.
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: readme-guides, clean-install, gate-false-blocks, gate-data-dir, first-scan-timeout, block-as-error, config-dir, project-owner, redact-promise, index-private, notes-robust, sync-robust, cli-lock, release-safety, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
+  - blocked: readme-guides, clean-install, gate-false-blocks, gate-data-dir, first-scan-timeout, block-as-error, config-dir, project-owner, redact-promise, notes-robust, sync-robust, cli-lock, release-safety, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`
