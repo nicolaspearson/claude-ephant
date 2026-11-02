@@ -13,7 +13,7 @@ works from any directory; see [Owners](owners.md).
 | Command                 | What it does                                                                                     |
 | ----------------------- | ------------------------------------------------------------------------------------------------ |
 | `/ele:checkpoint`       | Review a change in subagents before it is reported done; see [Checkpoint](checkpoint-and-ticket-audit.md#checkpoint) |
-| `/ele:checkpoint-stats` | What checkpoints found and which stage found it, then reviews apart, over the last 30 days or the number given |
+| `/ele:checkpoint-stats` | What checkpoints found and which stage found it, then reviews apart, over the last 30 days or since the date or `Nd` given |
 | `/ele:flag`             | Flag a moment of the session as good or bad with why, or `list` the project's flags; see [Flags](notes-and-recall.md#flags) |
 | `/ele:handoff`          | Write the handoff the next session opens with, or `list` pending and closed ones; see [Handoffs](handoffs-and-reminders.md#handoffs) |
 | `/ele:mine`             | Judge past checkpoint runs and review cycles, for tuning the checkpoint skill                    |
@@ -283,8 +283,7 @@ freeze's. `record` marks what the run froze as reviewed and ends the run;
 record, read on stdin. `optout` exempts paths matching each glob from the gate
 for the session. `density` measures the comment share of the diff since
 `--ref`. `gate` and `snapshot` read their hook's input on stdin. `stats`
-reports what checkpoints found since `--since`, 30 days back by default, and
-takes a bare number of days in its place until 1.0.
+reports what checkpoints found since `--since`, 30 days back by default.
 `ticket claims` flags open GitHub tickets labelled `wayfinder:map` that grant
 themselves execution and `wayfinder:task` tickets naming a source path, only the
 numbered ones when given; `--quiet` prints nothing when none is flagged.

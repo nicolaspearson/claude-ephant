@@ -431,7 +431,6 @@ ele checkpoint log <root> <<'EOF'
    "verdict": "confirmed"}],
  "forge": "gitlab",
  "mode": "full",
- "notes": {"approved": 0, "proposed": 0},
  "reviewed": "<full head SHA the reviewers read>",
  "scope": "mr",
  "target": "!123"}

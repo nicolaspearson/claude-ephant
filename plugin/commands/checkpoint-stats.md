@@ -3,13 +3,21 @@ description: What checkpoints found and which stage found it, to tune the ele:ch
 disable-model-invocation: true
 ---
 
-Run the measurement and read it back:
+Argument given: `$ARGUMENTS` (blank means none). Run the measurement and read
+it back. With none, the last 30 days:
 
 ```bash
-ele checkpoint stats $ARGUMENTS
+ele checkpoint stats
 ```
 
-Argument is a number of days; the default is 30. The checkpoints from before
+With one, a date `YYYY-MM-DD` or a number of days back `Nd`, a bare number `N`
+passed as `Nd`; any other form, ask the user for one of those:
+
+```bash
+ele checkpoint stats --since <argument>
+```
+
+The checkpoints from before
 the log starts are not in it: `ele mine --report` reports them, from the
 judgments `/ele:mine` stored.
 

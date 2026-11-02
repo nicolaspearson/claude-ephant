@@ -515,7 +515,7 @@ keep.
     `v0.13.0` is Latest, not draft or pre-release, tagged at 145b9f3, with
     the four tarballs and `checksums.txt`; the compare API puts it ahead of
     abc8047 (linux-data-dir), 5e89a28 and 9e05ba9 (cli-freeze)
-- [ ] rename-cutover: Move skills and hooks to the names `cli-freeze`
+- [x] rename-cutover: Move skills and hooks to the names `cli-freeze`
   renamed, then remove the old names
   - done when no file under `plugin/` names an old command or flag or has a
     log record carry `notes`, `plugin/commands/checkpoint-stats.md` and
@@ -539,6 +539,20 @@ keep.
     `Append` stores it, where the spec says `log` "accepts and ignores one from
     an older skill"; `stats`' comment "The log no longer records notes" is
     untrue, since `parseRun` ignores what the log holds
+  - asserted in the commit carrying this tick: `cli-freeze` renamed only the
+    bare `<days>` and dropped only `notes`; `ele checkpoint stats 7` and
+    `--since 7d 7` exit 2 with the synopsis, and `--since 7d` windows from 7
+    days back (`cmd/ele` checkpoint tests, the refusal seen red with the check
+    removed); `checkpoint.Append` drops `notes` from a clone of the record,
+    leaving the caller's (`TestAppendDropsNotesFromAnOlderSkill`, seen red with
+    the delete removed and with the clone removed), and `stats`' comment says
+    only mined runs carry notes; no log example or field
+    under `plugin/` carries `notes`, `/ele:checkpoint-stats` runs `--since`
+    with an argument and none without, and `docs/commands.md`, its
+    `/ele:checkpoint-stats` row no longer saying "or the number given",
+    `docs/checkpoint-and-ticket-audit.md` and the spec name only `--since`;
+    `task check FORCE=1` and `task audit` pass. `/ele:checkpoint-stats` not
+    yet run in a session
 - [ ] clean-install: Install the interim release from clean through
   `install.sh` and `brew`, on macOS and Linux
   - done when, for the interim release's tag, each install's
@@ -1388,7 +1402,7 @@ keep.
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: readme-guides, rename-cutover, clean-install, gate-false-blocks, gate-data-dir, first-scan-timeout, block-as-error, config-dir, project-owner, redact-promise, index-private, ticket-clean, remote-secrets, notes-robust, sync-robust, cli-lock, release-safety, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
+  - blocked: readme-guides, clean-install, gate-false-blocks, gate-data-dir, first-scan-timeout, block-as-error, config-dir, project-owner, redact-promise, index-private, ticket-clean, remote-secrets, notes-robust, sync-robust, cli-lock, release-safety, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`

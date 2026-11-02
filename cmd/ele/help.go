@@ -94,7 +94,7 @@ var purposes = map[string]string{
 	"checkpoint optout":    "Exempt the paths matching each glob from the checkpoint gate for this session; refuses a glob matching any path, such as * or **.",
 	"checkpoint record":    "Mark what this session's open run froze as reviewed and end the run; refuses with no open run.",
 	"checkpoint snapshot":  "The UserPromptSubmit hook: save the working tree's state at the turn's first prompt, the baseline the gate compares against.",
-	"checkpoint stats":     "What the log's checkpoints found and which stage found it since --since, 30 days back by default; then review runs apart, with how often the user skipped their findings and what the filter dropped. A bare number of days still works in place of --since until 1.0.",
+	"checkpoint stats":     "What the log's checkpoints found and which stage found it since --since, 30 days back by default; then review runs apart, with how often the user skipped their findings and what the filter dropped.",
 	"config get":           "One option's value: the owner's override, else the global value, else the default. A config.json that does not parse, or holds a known option of the wrong kind, reads as defaults, said on stderr.",
 	"config list":          "Each option's value, where it comes from and what it does, and any stored key no option takes.",
 	"config set":           "Store an option's value in config.json, globally or for --owner. Refuses inside a Claude Code session.",

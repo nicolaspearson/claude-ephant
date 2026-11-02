@@ -436,7 +436,6 @@ ele checkpoint log <root> <<'EOF'
    "summary": "Comment still names the old flag.", "verdict": "fixed"}],
  "mode": "full",
  "mutations": {"failed": 6, "inconclusive": 1, "run": 7},
- "notes": {"approved": 0, "proposed": 0},
  "rereview": "ran",
  "scope": "uncommitted"}
 EOF

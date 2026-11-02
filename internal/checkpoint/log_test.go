@@ -39,6 +39,19 @@ func TestAppendAddsDateHeadRepositoryAndKeepsTheRecord(t *testing.T) {
 	require.NotContains(t, lines[0], "duration", "no duration without a freeze time")
 }
 
+func TestAppendDropsNotesFromAnOlderSkill(t *testing.T) {
+	root, logPath := repository(t)
+	record, problems, err := Problems(strings.NewReader(valid))
+	require.NoError(t, err)
+	require.Empty(t, problems)
+	require.Contains(t, record, "notes")
+
+	require.NoError(t, Append(context.Background(), root, record, logPath, time.Now()))
+
+	require.NotContains(t, logLines(t, logPath)[0], "notes")
+	require.Contains(t, record, "notes", "the caller's record is left as it was")
+}
+
 func TestAppendKeepsTheFreezeTimeWhenTheLineIsNotWritten(t *testing.T) {
 	root, _ := repository(t)
 	marker, err := ReviewedFile(context.Background(), root)

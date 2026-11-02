@@ -50,9 +50,9 @@ Each run is logged to `logs/checkpoints.jsonl` in the
 [data directory](data-and-privacy.md#storage), next to the ticket-audit ledger.
 The copies of reviewed files stay under `~/.claude/cache/`, whatever
 `CLAUDE_CONFIG_DIR` says.
-`/ele:checkpoint-stats [days]` reports from it: which reviewer found what, how
-much was refuted, what the re-review and the checks caught, and how long runs
-took. Use it to tune the skill, not to judge the code. Reviews of a merge
+`/ele:checkpoint-stats [YYYY-MM-DD|Nd]` reports from it: which reviewer found
+what, how much was refuted, what the re-review and the checks caught, and how
+long runs took. Use it to tune the skill, not to judge the code. Reviews of a merge
 request or branch are logged there too and reported in a section of their own,
 with how often you skipped what the reviewers found and how many anchored
 comments each forge kept, moved or refused. A review logged again after a

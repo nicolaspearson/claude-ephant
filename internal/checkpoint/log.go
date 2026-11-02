@@ -30,6 +30,8 @@ var reviewScopes = []string{"local-branch", "mr"}
 
 func Append(ctx context.Context, root string, record map[string]any, logPath string, now time.Time) error {
 	line := maps.Clone(record)
+	// An older skill still sends notes.
+	delete(line, "notes")
 	head, _ := git(ctx, root, "rev-parse", "--verify", "--quiet", "HEAD")
 	line["date"] = now.UTC().Format("2006-01-02T15:04:05Z")
 	line["head"] = strings.TrimSpace(head)

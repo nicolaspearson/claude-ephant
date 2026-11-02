@@ -9,7 +9,6 @@ The values each field of `ele checkpoint log`'s record takes.
 - `mutations`: `run`; `failed` for the reason stated; `inconclusive`, a mutation
   that did not compile or did not land. One that landed and did not bite is a
   finding, stage `mutation`, not a count.
-- `notes`: both 0; ele's Stop hook proposes notes outside the checkpoint.
 - `origin`: `change`, `earlier` (code older than the change), `fix` (introduced
   by a fix in this run).
 - `rereview`: `ran`, `skipped` (§8 found the fingerprint unmoved).

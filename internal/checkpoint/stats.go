@@ -241,7 +241,7 @@ func Report(w io.Writer, runs []Run) {
 		}
 	}
 	fmt.Fprintf(w, "\nMutations: %s run, %s failed as meant, %s did not compile or did not land (%s)\n", whole(mutations["run"]), whole(mutations["failed"]), whole(mutations["inconclusive"]), percent(mutations["inconclusive"], mutations["run"]))
-	// The log no longer records notes; only mined runs carry them.
+	// Only mined runs carry notes; parseRun reads none from the log.
 	if len(notes) > 0 {
 		fmt.Fprintf(w, "Notes: %s proposed, %s approved\n", whole(notes["proposed"]), whole(notes["approved"]))
 	}
