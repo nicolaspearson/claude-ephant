@@ -91,14 +91,14 @@ func replayStamp(at time.Time) string {
 	return at.UTC().Format("2006-01-02T15:04:05.000Z")
 }
 
-func replayTime(value string, empty time.Time) (time.Time, error) {
+func replayTime(value string, empty time.Time, location *time.Location) (time.Time, error) {
 	if value == "" {
 		return empty, nil
 	}
 	if at, err := time.Parse(time.RFC3339, value); err == nil {
 		return at, nil
 	}
-	at, err := time.Parse(time.DateOnly, value)
+	at, err := time.ParseInLocation(time.DateOnly, value, location)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("takes YYYY-MM-DD or an RFC 3339 time like 2026-10-20T04:42:00Z, not %q", value)
 	}

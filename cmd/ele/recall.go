@@ -214,21 +214,23 @@ func parseInterspersed(flags *flag.FlagSet, args []string) ([]string, error) {
 	return positional, nil
 }
 
-func parseSince(value string, now time.Time) (string, error) {
+func parseSince(value string, now time.Time) (time.Time, error) {
 	if value == "" {
-		return "", nil
+		return time.Time{}, nil
 	}
 	if match := relativeDays.FindStringSubmatch(value); match != nil {
 		days, err := strconv.Atoi(match[1])
 		if err != nil {
-			return "", err
+			return time.Time{}, err
 		}
-		return now.AddDate(0, 0, -days).UTC().Format(time.DateOnly), nil
+		year, month, day := now.AddDate(0, 0, -days).Date()
+		return time.Date(year, month, day, 0, 0, 0, 0, now.Location()), nil
 	}
-	if _, err := time.Parse(time.DateOnly, value); err != nil {
-		return "", fmt.Errorf("--since takes YYYY-MM-DD or a number of days like 7d, not %q", value)
+	since, err := time.ParseInLocation(time.DateOnly, value, now.Location())
+	if err != nil {
+		return time.Time{}, fmt.Errorf("--since takes YYYY-MM-DD or a number of days like 7d, not %q", value)
 	}
-	return value, nil
+	return since, nil
 }
 
 func plural(count int, one string, many string) string {
@@ -256,7 +258,7 @@ func recall(ctx context.Context, args []string, stdout io.Writer, stderr io.Writ
 	noSync := flags.Bool("no-sync", false, "search without syncing first")
 	owner := flags.String("owner", "", "search this owner instead of the project's or the current directory's")
 	project := flags.String("project", "", "only this project, searched under its owner unless --owner or --all")
-	since := flags.String("since", "", "only entries from this date (YYYY-MM-DD) or this many days back (7d)")
+	since := flags.String("since", "", "only entries from this local day (YYYY-MM-DD) or this many days back (7d)")
 	words, err := parseInterspersed(flags, args)
 	if err != nil {
 		return rejectCall(flags, err, stdout, stderr)

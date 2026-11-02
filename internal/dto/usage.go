@@ -1,5 +1,7 @@
 package dto
 
+import "time"
+
 type Usage struct {
 	Injections      []UsageCount
 	MainTokens      UsageTokens
@@ -26,9 +28,9 @@ type UsageTokens struct {
 	Output     int
 }
 
-// UsageQuery matches everything where a field is empty.
+// UsageQuery matches everything where a field is empty or zero.
 type UsageQuery struct {
 	Owner   string
 	Project string
-	Since   string
+	Since   time.Time
 }

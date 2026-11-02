@@ -216,7 +216,7 @@ func newestOfKind(all []notes.Note, kind string, project string) []notes.Note {
 		}
 	}
 	slices.SortFunc(matched, func(a, b notes.Note) int {
-		return cmp.Or(cmp.Compare(b.Date, a.Date), cmp.Compare(b.Time, a.Time), cmp.Compare(b.ID, a.ID))
+		return cmp.Or(cmp.Compare(b.Time, a.Time), cmp.Compare(b.ID, a.ID))
 	})
 	return matched
 }

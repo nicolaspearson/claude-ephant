@@ -365,18 +365,18 @@ func sizeHint(tokens int, threshold int, hinted int, midTask bool, focus string)
 func stopCheck(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) int {
 	flags := newFlagSet("stop-check", stderr)
 	replay := flags.Bool("replay", false, "replay the hook as built over each Stop of the archived main transcripts with a line in the window, one JSON line per stop")
-	since := flags.String("since", "", "with --replay, the window's start: YYYY-MM-DD or an RFC 3339 time")
-	until := flags.String("until", "", "with --replay, the window's end, exclusive: YYYY-MM-DD or an RFC 3339 time; default now")
+	since := flags.String("since", "", "with --replay, the window's start: YYYY-MM-DD, from local midnight, or an RFC 3339 time")
+	until := flags.String("until", "", "with --replay, the window's end, exclusive: YYYY-MM-DD, from local midnight, or an RFC 3339 time; default now")
 	if err := flags.Parse(args); err != nil || flags.NArg() > 0 || *replay != (*since != "") || (*until != "" && !*replay) {
 		return rejectCall(flags, err, stdout, stderr)
 	}
 	if *replay {
-		from, err := replayTime(*since, time.Time{})
+		from, err := replayTime(*since, time.Time{}, time.Local)
 		if err != nil {
 			fmt.Fprintf(stderr, "ele: --since: %v\n", err)
 			return 2
 		}
-		to, err := replayTime(*until, time.Now())
+		to, err := replayTime(*until, time.Now(), time.Local)
 		if err != nil {
 			fmt.Fprintf(stderr, "ele: --until: %v\n", err)
 			return 2

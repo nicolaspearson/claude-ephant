@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -45,7 +46,7 @@ func TestSearchRanksKindsThenRelevanceWithinFilters(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, results, 4)
 
-	results, err = index.Search(context.Background(), Query{Owner: "corp", Since: "2026-10-01", Text: "pydantic"})
+	results, err = index.Search(context.Background(), Query{Owner: "corp", Since: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), Text: "pydantic"})
 	require.NoError(t, err)
 	require.Equal(t, []string{"prompt", "conversation"}, kinds(results))
 

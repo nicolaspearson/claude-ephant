@@ -3,6 +3,7 @@ package plan
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"errors"
 	"fmt"
 	"regexp"
@@ -69,18 +70,19 @@ type Edge struct {
 }
 
 type Item struct {
-	After    time.Time
-	Blocked  []string
-	Body     []string
-	Done     bool
-	DoneWhen bool
-	Edges    []Edge
-	Flags    []string
-	Held     bool
-	Line     int
-	Name     string
-	Prose    []string
-	Title    string
+	After        time.Time
+	AfterInvalid bool
+	Blocked      []string
+	Body         []string
+	Done         bool
+	DoneWhen     bool
+	Edges        []Edge
+	Flags        []string
+	Held         bool
+	Line         int
+	Name         string
+	Prose        []string
+	Title        string
 }
 
 type Lookup func(edge Edge) Blocker
@@ -91,6 +93,7 @@ type Plan struct {
 	Claims    []Dated
 	Created   string
 	Inbox     []Dated
+	Malformed []Warning
 	Spec      string
 }
 
@@ -126,7 +129,7 @@ func Parse(content []byte) (Plan, error) {
 	fields := map[string]*string{"created": &plan.Created, "kind": &kind, "spec": &plan.Spec}
 	seen := map[string]bool{}
 	closed := false
-	number := 1
+	number, createdLine := 1, 0
 	for scanner.Scan() {
 		number++
 		line := scanner.Text()
@@ -141,13 +144,17 @@ func Parse(content []byte) (Plan, error) {
 		key = strings.TrimSpace(key)
 		field, known := fields[key]
 		if !known {
-			return invalid("unknown front matter key %q", key)
+			plan.Malformed = append(plan.Malformed, Warning{Line: number, Text: fmt.Sprintf("unknown front matter key %q; ignored", key)})
+			continue
 		}
 		if seen[key] {
 			return invalid("front matter key %q appears twice", key)
 		}
 		seen[key] = true
 		*field = strings.TrimSpace(value)
+		if key == "created" {
+			createdLine = number
+		}
 	}
 	switch {
 	case !closed:
@@ -156,7 +163,8 @@ func Parse(content []byte) (Plan, error) {
 		return invalid("kind %q is not plan", kind)
 	}
 	if _, err := time.Parse(time.DateOnly, plan.Created); plan.Created != "" && err != nil {
-		return invalid("created %q is not YYYY-MM-DD", plan.Created)
+		plan.Malformed = append(plan.Malformed, Warning{Line: createdLine, Text: fmt.Sprintf("created %q is not YYYY-MM-DD; ignored", plan.Created)})
+		plan.Created = ""
 	}
 
 	section, fence, actions := "", "", false
@@ -252,18 +260,21 @@ func Parse(content []byte) (Plan, error) {
 			}
 			if value, ok := strings.CutPrefix(trimmed, "after:"); ok {
 				number := action.Line + offset + 1
-				if !action.After.IsZero() {
+				if !action.After.IsZero() || action.AfterInvalid {
 					return invalid("a second after: on line %d", number)
 				}
 				after, err := parseAfter(strings.TrimSpace(value))
 				if err != nil {
-					return invalid("after %q on line %d is neither YYYY-MM-DD nor YYYY-MM-DD HH:MMZ", strings.TrimSpace(value), number)
+					label := cmp.Or(action.Name, "action")
+					plan.Malformed = append(plan.Malformed, Warning{Line: number, Text: fmt.Sprintf("%s: after %q is neither YYYY-MM-DD nor YYYY-MM-DD HH:MMZ; it holds an open item until fixed", label, strings.TrimSpace(value))})
+					action.AfterInvalid = true
+					continue
 				}
 				action.After = after
 			}
 		}
 		// Unresolved until Resolve: every edge and date still holds the item back.
-		action.Held = !action.Done && (len(action.Blocked) > 0 || !action.After.IsZero())
+		action.Held = !action.Done && (len(action.Blocked) > 0 || !action.After.IsZero() || action.AfterInvalid)
 	}
 	return plan, nil
 }
@@ -284,7 +295,7 @@ func Name(title string) string {
 
 // Check runs on a resolved plan: it reports the plan's flags beside its own warnings.
 func (p Plan) Check(now time.Time) []Warning {
-	var warnings []Warning
+	warnings := slices.Clone(p.Malformed)
 	last := len(p.Actions) - 1
 	for at, action := range p.Actions {
 		label := action.Name
@@ -379,7 +390,7 @@ func (p Plan) Resolve(now time.Time, lookup Lookup) Plan {
 		if action.Done {
 			continue
 		}
-		action.Held = len(action.Prose) > 0 || now.Before(action.After)
+		action.Held = len(action.Prose) > 0 || now.Before(action.After) || action.AfterInvalid
 		if !action.After.IsZero() && !now.Before(action.After) {
 			action.Flags = append(action.Flags, fmt.Sprintf("after: %s has passed; drop it", action.After.Local().Format("2006-01-02 15:04 -07:00")))
 		}

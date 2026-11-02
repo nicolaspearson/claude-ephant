@@ -9,6 +9,15 @@ Where a command resolves an owner or project, it takes them from the working
 directory. `--owner <name>` and `--project <name>` name others, so the command
 works from any directory; see [Owners](owners.md).
 
+A `YYYY-MM-DD` you type to `--since`, `--until` or `--due`, or write in a
+plan's `after:`, is a day on your clock, from its local midnight, as is a
+number of days back such as `7d`, which `--since` alone takes; ele stores times
+in UTC and turns the day into UTC before comparing. `--due`'s time is local
+too; `--until`'s RFC 3339 time and `after:`'s `HH:MMZ` carry their offset.
+`ele show --at` takes a stored stamp as printed, in UTC. A note keeps both: its
+`date` is the local day it was written, its `time` the UTC moment, and
+handoffs, flags and plans listed newest first are ordered by `time`.
+
 ## Skills and slash commands
 
 | Command                 | What it does                                                                                     |
@@ -123,8 +132,8 @@ ele recall [--all | --owner <name>] [--kind <k,k>] [--project <name>] [--since <
 Search past sessions and notes; every word must appear. `--owner` searches that
 owner, `--all` every owner, and `--project` only that project, under its own
 owner unless `--owner` or `--all` is given. `--kind` takes `note`, `prompt`,
-`heads-up`, `conversation` and `tool`, comma-separated. `--since` takes a date
-or a number of days back, as `7d`. `--limit` caps the matches, 20 by default.
+`heads-up`, `conversation` and `tool`, comma-separated. `--since` takes a local
+day or a number of days back, as `7d`. `--limit` caps the matches, 20 by default.
 `--no-sync` searches without syncing first.
 
 ```text
@@ -170,7 +179,7 @@ built would ask (`asks`), and the work that set it pending (`trigger`) or why
 not (`whyNot`: `hook-active`, `checkpoint`, `review`, `proposal`,
 `nothing-pending` or `stretch`). `stop` is `recorded` where Claude Code wrote
 the stop down and `placed`, approximately, where an older transcript leaves it
-to be inferred. The window is `[--since, --until)`, each a date or RFC 3339
+to be inferred. The window is `[--since, --until)`, each a local date or RFC 3339
 time as `2026-10-20T04:42:00Z`; `--until` defaults to now. Syncs first.
 
 ## Index

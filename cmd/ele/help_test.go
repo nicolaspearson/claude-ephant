@@ -81,7 +81,7 @@ func TestRunListsEachRecallFlagInItsHelp(t *testing.T) {
 		`--no-sync {17}search without syncing first`,
 		`--owner <name> {12}search this owner`,
 		`--project <name> {10}only this project`,
-		`--since <YYYY-MM-DD\|Nd>   only entries from this date`,
+		`--since <YYYY-MM-DD\|Nd>   only entries from this local day`,
 	} {
 		require.Regexp(t, `(?m)^  `+line, stdout)
 	}

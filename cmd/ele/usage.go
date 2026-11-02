@@ -39,7 +39,7 @@ func usageReport(ctx context.Context, args []string, stdout io.Writer, stderr io
 	noSync := flags.Bool("no-sync", false, "read without syncing first")
 	owner := flags.String("owner", "", "only this owner")
 	project := flags.String("project", "", "only this project")
-	since := flags.String("since", "", "only from this date (YYYY-MM-DD) or this many days back (7d)")
+	since := flags.String("since", "", "only from this local day (YYYY-MM-DD) or this many days back (7d)")
 	if err := flags.Parse(args); err != nil || flags.NArg() > 0 {
 		return rejectCall(flags, err, stdout, stderr)
 	}
@@ -78,7 +78,7 @@ func usageReport(ctx context.Context, args []string, stdout io.Writer, stderr io
 	return 0
 }
 
-func writeUsage(stdout io.Writer, report dto.Usage, owner string, project string, since string) {
+func writeUsage(stdout io.Writer, report dto.Usage, owner string, project string, since time.Time) {
 	scope := ""
 	if owner != "" {
 		scope += " for " + owner
@@ -86,8 +86,8 @@ func writeUsage(stdout io.Writer, report dto.Usage, owner string, project string
 	if project != "" {
 		scope += " in " + project
 	}
-	if since != "" {
-		scope += " since " + since
+	if !since.IsZero() {
+		scope += " since " + since.Format(time.DateOnly)
 	}
 	fmt.Fprintf(stdout, "%s, %s%s.\n", plural(report.Sessions, "session", "sessions"), plural(report.Prompts, "prompt", "prompts"), scope)
 	if report.Sessions == 0 {

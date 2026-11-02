@@ -91,7 +91,9 @@ created: 2026-10-23
 ```
 
 - **Front matter** holds `kind: plan`, `created`, and `spec` when the plan
-  implements a spec in the same repository
+  implements a spec in the same repository. An unknown key, or a `created`
+  that is not `YYYY-MM-DD`, is ignored and drawn as an `ele plan check`
+  warning naming its line, so one typo hides no item
 - **`## Requirements`**, optional, lists what the plan must deliver, numbered,
   in your words; the review loop checks the items against it and never edits
   it
@@ -104,7 +106,9 @@ created: 2026-10-23
   `done when` line saying what will be observable once it is done
 - **`blocked:`** names the items an item waits on, in this plan or
   `<plan>/<name>` in another; a reason may follow a `;`. **`after: <date>`**
-  holds an item until then
+  holds an item until then: `YYYY-MM-DD` is local midnight, and
+  `YYYY-MM-DD HH:MMZ` a UTC time. An `after:` in neither form holds its item
+  and draws an `ele plan check` warning until fixed
 - **Progress** goes in the item's body as dated lines, `as of <date>: …` or
   `next: …`, so a session stopping mid-item needs no handoff. A tick carries
   one line saying what was checked, and at which commit
@@ -140,7 +144,7 @@ approval.
 ```sh
 ele plan show               # the active plan: counts, previous item, blocked items, next item
 ele plan list               # every active plan of the project
-ele plan check              # warnings: stale dates, done blockers, old inbox items, missing name or done-when, ele data cited, closing ticked early
+ele plan check              # warnings: stale dates, done blockers, old inbox items, missing name or done-when, ele data cited, closing ticked early, lines it cannot read
 ```
 
 ## Auditing plans

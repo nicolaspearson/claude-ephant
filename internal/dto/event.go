@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 )
 
 type Event struct {
@@ -33,7 +34,7 @@ func (e *Event) DecodeAttributes(encoded string) error {
 	return nil
 }
 
-// EventQuery matches everything where a field is empty, and returns every match where Limit is 0.
+// EventQuery matches everything where a field is empty or zero, and returns every match where Limit is 0.
 type EventQuery struct {
 	During  string // a skill or command name: only events inside one of its runs
 	Kind    string
@@ -42,7 +43,7 @@ type EventQuery struct {
 	Owner   string
 	Project string
 	Session string
-	Since   string
+	Since   time.Time
 }
 
 type TranscriptEvent struct {

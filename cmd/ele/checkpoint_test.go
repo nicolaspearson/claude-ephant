@@ -312,7 +312,7 @@ func TestRunCheckpointStatsRefusesBadArguments(t *testing.T) {
 
 func TestRunCheckpointStatsWindowsBySince(t *testing.T) {
 	t.Setenv("CHECKPOINT_LOG", filepath.Join(t.TempDir(), "checkpoints.jsonl"))
-	today := time.Now().UTC()
+	today := time.Now()
 
 	output, code := runCheckpointStats(t, "--since", "7d")
 	require.Equal(t, 0, code, output)

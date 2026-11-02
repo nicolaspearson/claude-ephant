@@ -95,9 +95,10 @@ func (x *Index) Events(ctx context.Context, query dto.EventQuery) ([]dto.Event, 
 			arguments = append(arguments, filter.value)
 		}
 	}
-	if query.Since != "" {
-		conditions = append(conditions, "timestamp >= ?")
-		arguments = append(arguments, query.Since)
+	if !query.Since.IsZero() {
+		condition, sinceArguments := sinceCondition("timestamp", query.Since)
+		conditions = append(conditions, condition)
+		arguments = append(arguments, sinceArguments...)
 	}
 	if query.During != "" {
 		condition, duringArguments := duringCondition(query.During)

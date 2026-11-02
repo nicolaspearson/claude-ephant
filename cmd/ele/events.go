@@ -30,7 +30,7 @@ func events(ctx context.Context, args []string, stdout io.Writer, stderr io.Writ
 	owner := flags.String("owner", "", "only this owner")
 	project := flags.String("project", "", "only this project")
 	session := flags.String("session", "", "only this session")
-	since := flags.String("since", "", "only events from this date (YYYY-MM-DD) or this many days back (7d)")
+	since := flags.String("since", "", "only events from this local day (YYYY-MM-DD) or this many days back (7d)")
 	if err := flags.Parse(args); err != nil || flags.NArg() > 0 || *limit < 0 {
 		return rejectCall(flags, err, stdout, stderr)
 	}

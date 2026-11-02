@@ -378,7 +378,7 @@ func WriteStats(w io.Writer, logPath string, since time.Time) error {
 	if len(reviews) > 0 {
 		runs += fmt.Sprintf(" and %d review%s", len(reviews), plural(len(reviews)))
 	}
-	fmt.Fprintf(w, "Since %s: %s logged. %s\n\n", since.UTC().Format("2006-01-02"), runs, starts)
+	fmt.Fprintf(w, "Since %s: %s logged. %s\n\n", since.Format(time.DateOnly), runs, starts)
 	if logged.Unreadable > 0 {
 		fmt.Fprintf(w, "%d log line%s unreadable or missing a field the report reads; skipped.\n\n", logged.Unreadable, plural(logged.Unreadable))
 	}

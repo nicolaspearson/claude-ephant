@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/nicolaspearson/claude-ephant/internal/notes"
 	"github.com/nicolaspearson/claude-ephant/internal/transcript"
@@ -34,8 +35,14 @@ type Query struct {
 	Limit   int
 	Owner   string
 	Project string
-	Since   string
+	Since   time.Time
 	Text    string
+}
+
+// A note's row carries its local date alone, so it is compared as a date; every other row's stamp is UTC.
+func sinceCondition(column string, since time.Time) (string, []any) {
+	return fmt.Sprintf("(length(%[1]s) = 10 AND %[1]s >= ? OR length(%[1]s) > 10 AND %[1]s >= ?)", column),
+		[]any{since.Format(time.DateOnly), since.UTC().Format("2006-01-02T15:04:05.000Z")}
 }
 
 type Result struct {
@@ -84,9 +91,10 @@ func (x *Index) Search(ctx context.Context, query Query) ([]Result, error) {
 		conditions = append(conditions, "e.project = ?")
 		arguments = append(arguments, query.Project)
 	}
-	if query.Since != "" {
-		conditions = append(conditions, "e.timestamp >= ?")
-		arguments = append(arguments, query.Since)
+	if !query.Since.IsZero() {
+		condition, sinceArguments := sinceCondition("e.timestamp", query.Since)
+		conditions = append(conditions, condition)
+		arguments = append(arguments, sinceArguments...)
 	}
 	if len(query.Kinds) > 0 {
 		conditions = append(conditions, "e.kind IN ("+strings.TrimSuffix(strings.Repeat("?, ", len(query.Kinds)), ", ")+")")

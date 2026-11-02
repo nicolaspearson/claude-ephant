@@ -118,7 +118,7 @@ ele recall --since 30d --kind note,prompt migration
 - It searches the current directory's owner. `--project <name>` narrows to one
   project, `--owner <name>` searches another owner, `--all` every owner
 - `--kind` takes `note`, `prompt`, `heads-up`, `conversation` and `tool`;
-  `--since` a date or a number of days back, as `7d`; `--limit` caps the
+  `--since` a local day or a number of days back, as `7d`; `--limit` caps the
   matches, 20 by default
 
 Recall syncs first, so the session you are in is searchable. `--no-sync` skips

@@ -288,6 +288,20 @@ func TestParseReadsTheKebabNameAnItemLeadsWith(t *testing.T) {
 	require.Equal(t, "judge-blocks: sort the blocks", plan.Actions[0].Title, "the title keeps its name")
 }
 
+func TestCheckWarnsOnWhatItCannotReadAndHoldsALooseAfter(t *testing.T) {
+	plan, err := Parse([]byte("---\nkind: plan\ncreated: 17 Oct\nstatus: open\n---\n## Actions\n- [ ] a: A\n  - done when x\n  after: soon\n- [ ] b: B\n  - done when y\n- [ ] Close\n"))
+	require.NoError(t, err)
+	require.Empty(t, plan.Created)
+	resolved := plan.Resolve(time.Now(), nil)
+	require.True(t, resolved.Actions[0].Held)
+	require.False(t, resolved.Actions[1].Held)
+	require.Equal(t, []Warning{
+		{Line: 3, Text: `created "17 Oct" is not YYYY-MM-DD; ignored`},
+		{Line: 4, Text: `unknown front matter key "status"; ignored`},
+		{Line: 9, Text: `a: after "soon" is neither YYYY-MM-DD nor YYYY-MM-DD HH:MMZ; it holds an open item until fixed`},
+	}, resolved.Check(time.Now()))
+}
+
 func TestParseRejectsInvalidPlans(t *testing.T) {
 	tests := []struct {
 		content string
@@ -296,14 +310,11 @@ func TestParseRejectsInvalidPlans(t *testing.T) {
 	}{
 		{content: "---\nkind: plan\n---\n## Actions\n- [ ] a: A\n  after: 2026-10-22\n  after: 2026-10-23\n", message: "a second after: on line 7", name: "after twice"},
 		{content: "---\nkind: plan\n## Actions\n", message: "is not key: value", name: "front matter never closes"},
-		{content: "---\nkind: plan\n---\n## Actions\n- [ ] a: A\n  after: soon\n", message: `after "soon" on line 6 is neither YYYY-MM-DD nor YYYY-MM-DD HH:MMZ`, name: "loose after"},
-		{content: "---\nkind: plan\ncreated: 17 Oct\n---\n## Actions\n", message: `created "17 Oct" is not YYYY-MM-DD`, name: "loose created"},
 		{content: "---\nkind: plan\n---\n## Actions\n- [ ] edges: one\n- [x] other: two\n- [ ] edges: three\n", message: `item name "edges" on lines 5 and 7`, name: "name twice"},
 		{content: "---\nkind: plan\n---\n## Tasks\n- [ ] x\n", message: "no ## Actions section", name: "no actions section"},
 		{content: "# Plan\n", message: "first line is not ---", name: "no front matter"},
 		{content: "---\nkind: spec\n---\n## Actions\n", message: `kind "spec" is not plan`, name: "not a plan"},
 		{content: "---\nkind: plan\nkind: plan\n---\n## Actions\n", message: `front matter key "kind" appears twice`, name: "repeated key"},
-		{content: "---\nkind: plan\nstatus: open\n---\n## Actions\n", message: `unknown front matter key "status"`, name: "unknown key"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

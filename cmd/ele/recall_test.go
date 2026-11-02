@@ -90,15 +90,16 @@ func TestDistinctiveWords(t *testing.T) {
 }
 
 func TestParseSince(t *testing.T) {
-	now := time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC)
+	zone := time.FixedZone("UTC+4", 4*60*60)
+	now := time.Date(2026, 10, 15, 2, 0, 0, 0, zone)
 	tests := []struct {
 		name  string
-		since string
+		since time.Time
 		value string
 	}{
-		{name: "date", since: "2026-10-01", value: "2026-10-01"},
-		{name: "days back", since: "2026-10-08", value: "7d"},
-		{name: "empty", since: "", value: ""},
+		{name: "date", since: time.Date(2026, 10, 1, 0, 0, 0, 0, zone), value: "2026-10-01"},
+		{name: "days back from the local day", since: time.Date(2026, 10, 8, 0, 0, 0, 0, zone), value: "7d"},
+		{name: "empty", value: ""},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

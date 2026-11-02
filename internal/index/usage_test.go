@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -44,7 +45,7 @@ func TestUsageCountsEachMessagesTokensOnce(t *testing.T) {
 	require.Equal(t, dto.UsageTokens{CacheRead: 2100, CacheWrite: 110, Input: 4, Output: 67}, usage.MainTokens, "m1 split over two lines, the copy and the fork's, count once, at the fork's larger output")
 	require.Equal(t, dto.UsageTokens{CacheWrite: 500, Input: 2, Output: 20}, usage.SubagentTokens, "a streamed message's last, largest output count")
 
-	usage, err = index.Usage(context.Background(), dto.UsageQuery{Since: "2026-10-16"})
+	usage, err = index.Usage(context.Background(), dto.UsageQuery{Since: time.Date(2026, 10, 16, 0, 0, 0, 0, time.UTC)})
 	require.NoError(t, err)
 	require.Equal(t, dto.Usage{}, usage)
 }
@@ -95,10 +96,10 @@ func TestUsageCountsPromptsToolsInjectionsAndReplies(t *testing.T) {
 	require.Equal(t, 2, usage.Sessions)
 	require.Equal(t, []dto.UsageCount{{Main: 2, Name: "Bash", Subagent: 1}, {Main: 1, Name: "Read"}, {Main: 1, Name: "WebSearch"}}, usage.Tools, "ties broken by name")
 
-	usage, err = index.Usage(context.Background(), dto.UsageQuery{Project: "notes", Since: "2026-10-16"})
+	usage, err = index.Usage(context.Background(), dto.UsageQuery{Project: "notes", Since: time.Date(2026, 10, 16, 0, 0, 0, 0, time.UTC)})
 	require.NoError(t, err)
 	require.Equal(t, dto.Usage{Prompts: 1, Sessions: 1, Tools: []dto.UsageCount{{Main: 1, Name: "WebSearch"}}}, usage)
-	usage, err = index.Usage(context.Background(), dto.UsageQuery{Since: "2026-10-17"})
+	usage, err = index.Usage(context.Background(), dto.UsageQuery{Since: time.Date(2026, 10, 17, 0, 0, 0, 0, time.UTC)})
 	require.NoError(t, err)
 	require.Equal(t, dto.Usage{}, usage)
 }

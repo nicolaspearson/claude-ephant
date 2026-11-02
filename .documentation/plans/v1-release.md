@@ -321,7 +321,7 @@ keep.
     it each say `/ele:review` is experimental
 - [ ] readme-guides: Sweep the README and every page under `docs/` against the
   code
-  - blocked: cli-lock, release-safety, help-text, data-dir-edges, bashwork-reads, plan-parser-warnings, ticket-robust
+  - blocked: release-safety, help-text, data-dir-edges, bashwork-reads, plan-parser-warnings, ticket-robust
   - done when each page's commands and flags are checked against `--help`,
     each behaviour it states is checked against the code or a run, and
     `task format`, `task lint` and `task lint-docs` pass
@@ -769,7 +769,18 @@ keep.
     written in place); a transcript vanishing mid-walk takes the unreadable
     file's path, untested since it cannot be staged; `task check FORCE=1` and
     `task audit` pass
-- [ ] cli-lock: Rule on each CLI question 1.0 freezes
+- [x] cli-lock: Rule on each CLI question 1.0 freezes
+  - asserted in the cli-lock commit: `--since` on recall, events, usage and
+    checkpoint stats and `--replay`'s date bounds read a typed day from local
+    midnight, by tests at `parseSince` and `replayTime` in a fixed zone,
+    `index`'s `Search` at UTC+4 and UTC-5 bounds and `Events` at UTC+4;
+    `newestOfKind` orders by `Time` alone; a bad `after:`, a bad `created` and
+    an unknown front-matter key are `ele plan check` warnings naming their
+    line, a bad `after:` holding its item, by a `plan.Parse`, `Resolve` and
+    `Check` test; docs and specs carry the rulings; `task check FORCE=1` and
+    `task audit` pass. Not run: `ele recall --since` against a live index at a
+    non-UTC clock; `checkpoint stats`' own test reads the machine's zone, so
+    it fails only where the local and UTC dates differ
   - done when each question below has the user's ruling in `## Decisions`; each
     ruling and each defect below is carried into the code and into whichever of
     `--help`, `docs/` and the spec state it; `ele events`' JSON keys are pinned
@@ -784,6 +795,16 @@ keep.
     dates ruling (local typed dates, a note's `Date` and `Time`,
     `newestOfKind`), then the plan front-matter warnings and the docs
     findings (UTC `after:` form, the ledger key)
+  - 2026-11-02, premise check for part 2, the code before it: `parseSince`
+    returned `Nd` as a UTC date and `YYYY-MM-DD` as typed, which `index`'s
+    `Search`, `Events` and `Usage` compared as strings against UTC
+    `timestamp`; `checkpoint stats` and stop-check `--replay` parsed a date as
+    UTC midnight; `remember` wrote `Date` from local `now` and `Time` as UTC;
+    `newestOfKind` sorted by `Date`, then `Time`; `plan.Parse` returned
+    `ErrInvalid` on an unknown front-matter key, a bad `created` and a bad
+    `after:`; `parseAfter` read a date alone as local midnight; `docs/plans.md`
+    and the design spec gave `after: <date>` only; the
+    checkpoint-and-ticket-audit spec's ledger key said `repo#number`
   - 2026-10-30, from audit-cmd: `ele help <command>`, `ele --version` and
     `ele -v` exit 2 with "unknown command"; accept them, or record their
     absence as part of the frozen CLI?
@@ -1478,12 +1499,21 @@ keep.
     count Write calls only; `links` needs `.claude-a` literally in `ln -s`;
     `flag-saves`'s `reports` wants a note id with no error alternative; the
     forge fixture's comment describes npm
+- [ ] atomic-helpers: One internal package holds the atomic write and the file
+  lock, and the notes temp sweep covers `forgotten/`
+  - done when `cmd/ele`'s `writeAtomically` and `internal/mining`'s copy, and
+    `internal/notes`' lock and `internal/archive`'s, are each one function in
+    one package with the old copies deleted, and a test shows a `.tmp` left in
+    `forgotten/` by a killed `ele owner` move is swept
+  - 2026-11-02, from notes-robust's and sync-robust's checkpoints: three
+    copies of one helper pattern; the sweep covers `notes/` only (not checked
+    beyond the checkpoint findings)
 
 ### Release
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: readme-guides, clean-install, gate-false-blocks, gate-data-dir, first-scan-timeout, block-as-error, config-dir, project-owner, cli-lock, release-safety, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
+  - blocked: readme-guides, clean-install, gate-false-blocks, gate-data-dir, first-scan-timeout, block-as-error, config-dir, project-owner, release-safety, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`
@@ -1493,13 +1523,6 @@ keep.
   .documentation/plans/v1-release.md`, and delete this plan
 
 ## Inbox
-
-- 2026-11-02, from notes-robust's and sync-robust's checkpoints: three copies
-  of one helper pattern — cmd/ele's writeAtomically duplicates
-  internal/mining's, and internal/notes' lock duplicates internal/archive's;
-  the notes temp sweep covers notes/ but not forgotten/, where a killed
-  `ele owner` move leaves its .tmp. Share the helpers in one internal package
-  and sweep forgotten/ too?
 
 ## Out of scope
 

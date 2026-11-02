@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -63,7 +64,7 @@ func TestUpdateIndexesEventsThatEntriesLack(t *testing.T) {
 		{Kind: "command", Name: "[redacted:github]", Owner: "corp", Profile: "claude", Project: "gateway", Session: "s1", Source: "claude/-gateway/s1.jsonl.gz", Timestamp: "2026-10-15T10:05:00Z"},
 	}, events)
 
-	events, total, err = index.Events(context.Background(), dto.EventQuery{Kind: "skill", Name: "checkpoint", Since: "2026-10-15"})
+	events, total, err = index.Events(context.Background(), dto.EventQuery{Kind: "skill", Name: "checkpoint", Since: time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC)})
 	require.NoError(t, err)
 	require.Equal(t, 1, total)
 	require.Len(t, events, 1)
@@ -71,10 +72,13 @@ func TestUpdateIndexesEventsThatEntriesLack(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 5, total)
 	require.Equal(t, []string{"compaction", "command"}, []string{events[0].Kind, events[1].Kind}, "the newest two, oldest first")
-	events, _, err = index.Events(context.Background(), dto.EventQuery{Since: "2026-10-15T10:05:00Z"})
+	events, _, err = index.Events(context.Background(), dto.EventQuery{Since: time.Date(2026, 10, 15, 10, 5, 0, 0, time.UTC)})
 	require.NoError(t, err)
 	require.Len(t, events, 1)
-	events, _, err = index.Events(context.Background(), dto.EventQuery{Since: "2026-10-16"})
+	events, _, err = index.Events(context.Background(), dto.EventQuery{Since: time.Date(2026, 10, 15, 14, 4, 30, 0, time.FixedZone("UTC+4", 4*60*60))})
+	require.NoError(t, err)
+	require.Len(t, events, 1, "14:04:30 at UTC+4 is 10:04:30Z")
+	events, _, err = index.Events(context.Background(), dto.EventQuery{Since: time.Date(2026, 10, 16, 0, 0, 0, 0, time.UTC)})
 	require.NoError(t, err)
 	require.Empty(t, events)
 

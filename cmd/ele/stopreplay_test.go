@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -198,6 +199,16 @@ func TestStopCheckRejectsAReplayWindowItCannotRead(t *testing.T) {
 	output, code := runCommand(t, "stop-check", "--replay", "--since", "last week")
 	require.Equal(t, 2, code)
 	require.Contains(t, output, `--since: takes YYYY-MM-DD or an RFC 3339 time like 2026-10-20T04:42:00Z, not "last week"`)
+}
+
+func TestReplayTimeReadsADateAsLocalMidnightAndATimeAsWritten(t *testing.T) {
+	zone := time.FixedZone("UTC+4", 4*60*60)
+	at, err := replayTime("2026-10-20", time.Time{}, zone)
+	require.NoError(t, err)
+	require.True(t, time.Date(2026, 10, 19, 20, 0, 0, 0, time.UTC).Equal(at), at)
+	at, err = replayTime("2026-10-20T04:42:00Z", time.Time{}, zone)
+	require.NoError(t, err)
+	require.True(t, time.Date(2026, 10, 20, 4, 42, 0, 0, time.UTC).Equal(at), at)
 }
 
 func TestReadArchivedReadsAGzippedTranscript(t *testing.T) {

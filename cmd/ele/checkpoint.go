@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"flag"
@@ -293,24 +294,14 @@ func checkpointSnapshot(ctx context.Context, args []string, stdin io.Reader, std
 
 func checkpointStats(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) int {
 	flags := newFlagSet("checkpoint stats", stderr)
-	since := flags.String("since", "", "only checkpoints from this date (YYYY-MM-DD) or this many days back (7d); 30d by default")
+	since := flags.String("since", "", "only checkpoints from this local day (YYYY-MM-DD) or this many days back (7d); 30d by default")
 	if err := flags.Parse(args); err != nil || flags.NArg() > 0 {
 		return rejectCall(flags, err, stdout, stderr)
 	}
-	now := time.Now().UTC()
-	var from time.Time
-	switch {
-	case *since != "":
-		date, sinceErr := parseSince(*since, now)
-		if sinceErr == nil {
-			from, sinceErr = time.Parse(time.DateOnly, date)
-		}
-		if sinceErr != nil {
-			fmt.Fprintf(stderr, "ele: %v\n", sinceErr)
-			return 2
-		}
-	default:
-		from = now.AddDate(0, 0, -30)
+	from, err := parseSince(cmp.Or(*since, "30d"), time.Now())
+	if err != nil {
+		fmt.Fprintf(stderr, "ele: %v\n", err)
+		return 2
 	}
 	logPath, err := checkpoint.LogPath()
 	if err == nil {

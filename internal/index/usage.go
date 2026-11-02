@@ -20,9 +20,10 @@ func (x *Index) Usage(ctx context.Context, query dto.UsageQuery) (dto.Usage, err
 		conditions = append(conditions, "project = ?")
 		arguments = append(arguments, query.Project)
 	}
-	if query.Since != "" {
-		conditions = append(conditions, "timestamp >= ?")
-		arguments = append(arguments, query.Since)
+	if !query.Since.IsZero() {
+		condition, sinceArguments := sinceCondition("timestamp", query.Since)
+		conditions = append(conditions, condition)
+		arguments = append(arguments, sinceArguments...)
 	}
 	whereKind := func(kind string) string {
 		return " WHERE " + strings.Join(append([]string{kind}, conditions...), " AND ")
