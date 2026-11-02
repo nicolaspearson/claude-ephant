@@ -39,6 +39,7 @@ claude-ephant/
   owner-map.json   owners, path rules and project entries
   plans/           item names of closed plans
   stop-check/      the Stop hook's state per session
+  sync-skipped     files the last sync could not archive or index, until it skips none
   sync.log         output of background syncs
 ```
 

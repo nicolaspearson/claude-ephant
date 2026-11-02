@@ -471,12 +471,9 @@ func subagentDirectory(transcriptPath string) string {
 }
 
 func writeStopState(path string, state stopState) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
-	}
 	content, err := json.Marshal(state)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, content, 0o600)
+	return writeAtomically(path, content)
 }

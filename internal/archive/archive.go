@@ -40,6 +40,7 @@ type Summary struct {
 	Bytes       int64
 	Files       int
 	Generations int
+	Skipped     []string
 }
 
 func LoadManifest(directory string) (Manifest, error) {
@@ -106,21 +107,29 @@ func Sync(sources []Source, directory string) (Summary, error) {
 
 	var summary Summary
 	for _, source := range sources {
-		err := filepath.WalkDir(source.Directory, func(path string, entry fs.DirEntry, err error) error {
+		// WalkDir does not descend a symlinked root.
+		root, err := filepath.EvalSymlinks(source.Directory)
+		if err != nil {
+			summary.Skipped = append(summary.Skipped, err.Error())
+			continue
+		}
+		err = filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
 			if err != nil {
-				return err
+				summary.Skipped = append(summary.Skipped, err.Error())
+				return nil
 			}
 			if !entry.Type().IsRegular() || filepath.Ext(path) != ".jsonl" {
 				return nil
 			}
-			relative, err := filepath.Rel(source.Directory, path)
+			relative, err := filepath.Rel(root, path)
 			if err != nil {
 				return err
 			}
 			key := source.Profile + "/" + filepath.ToSlash(relative)
 			state, copied, err := syncFile(directory, key, path, manifest[key])
 			if err != nil {
-				return fmt.Errorf("archive %s: %w", path, err)
+				summary.Skipped = append(summary.Skipped, fmt.Sprintf("archive %s: %v", path, err))
+				return nil
 			}
 			if copied == 0 {
 				return nil

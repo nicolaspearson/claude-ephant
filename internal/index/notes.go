@@ -23,7 +23,7 @@ type noteFile struct {
 
 // UpdateNotes drops notes whose files are gone before indexing changed ones, so a note moved between folders is not mistaken for a duplicate.
 func (x *Index) UpdateNotes(ctx context.Context, directory string) (Summary, error) {
-	files, err := noteFiles(directory)
+	files, skipped, err := noteFiles(directory)
 	if err != nil {
 		return Summary{}, fmt.Errorf("index notes: %w", err)
 	}
@@ -44,17 +44,28 @@ func (x *Index) UpdateNotes(ctx context.Context, directory string) (Summary, err
 		sources = append(sources, source)
 	}
 	sort.Strings(sources)
-	var summary Summary
+	summary := Summary{Skipped: skipped}
 	for _, source := range sources {
+		if err = ctx.Err(); err != nil {
+			return summary, err
+		}
 		file := files[source]
 		if recorded[source] == file.fingerprint {
 			continue
 		}
-		content, readErr := os.ReadFile(file.path)
-		if readErr != nil {
-			return summary, fmt.Errorf("index %s: %w", source, readErr)
+		content, parseErr := os.ReadFile(file.path)
+		var note notes.Note
+		if parseErr == nil {
+			note, parseErr = notes.Parse(source, content)
 		}
-		note, parseErr := notes.Parse(source, content)
+		// Dropped as an invalid note is, so search shows no copy older than the file.
+		if parseErr != nil && !errors.Is(parseErr, notes.ErrInvalid) {
+			summary.Skipped = append(summary.Skipped, fmt.Sprintf("index %s: %v", source, parseErr))
+			if err = x.dropNote(ctx, source); err != nil {
+				return summary, err
+			}
+			continue
+		}
 		if parseErr == nil {
 			parseErr = x.indexNote(ctx, note, source, file.fingerprint)
 		}
@@ -186,18 +197,23 @@ func fingerprint(path string) (string, error) {
 }
 
 // WalkDir does not descend a symlinked root, so the root is resolved first. A symlinked note file is skipped: an editor's lock file is a dangling one.
-func noteFiles(directory string) (map[string]noteFile, error) {
+func noteFiles(directory string) (map[string]noteFile, []string, error) {
 	files := map[string]noteFile{}
 	root, err := filepath.EvalSymlinks(directory)
 	if errors.Is(err, fs.ErrNotExist) {
-		return files, nil
+		return files, nil, nil
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+	var skipped []string
 	err = filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
-			return walkErr
+			if path == root {
+				return walkErr
+			}
+			skipped = append(skipped, fmt.Sprintf("index %s: %v", path, walkErr))
+			return nil
 		}
 		if !entry.Type().IsRegular() || filepath.Ext(path) != ".md" {
 			return nil
@@ -208,10 +224,11 @@ func noteFiles(directory string) (map[string]noteFile, error) {
 		}
 		current, statErr := fingerprint(path)
 		if statErr != nil {
-			return statErr
+			skipped = append(skipped, fmt.Sprintf("index %s: %v", path, statErr))
+			return nil
 		}
 		files["notes/"+filepath.ToSlash(relative)] = noteFile{fingerprint: current, path: path}
 		return nil
 	})
-	return files, err
+	return files, skipped, err
 }

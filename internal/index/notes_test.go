@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -175,6 +176,72 @@ func TestUpdateNotesReadsASupersedesListAnOlderEleIndexed(t *testing.T) {
 	for _, result := range results {
 		require.Equal(t, "20261016-cccccc", result.SupersededBy, "an older ele indexed the front matter value as written, space included")
 	}
+}
+
+func TestUpdateNotesSkipsANoteItCannotReadAndIndexesTheRest(t *testing.T) {
+	index := open(t, filepath.Join(t.TempDir(), "ele.db"))
+	directory := filepath.Join(t.TempDir(), "notes")
+	note := notes.Note{Body: "Pin pydantic below 2.14.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal}
+	_, err := notes.Write(directory, note)
+	require.NoError(t, err)
+	note.ID, note.Body = "20261015-bbbbbb", "unreadable"
+	unreadable, err := notes.Write(directory, note)
+	require.NoError(t, err)
+	require.NoError(t, os.Chmod(unreadable, 0o000))
+	note.ID, note.Body = "20261015-cccccc", strings.Repeat("x", 70000)
+	_, err = notes.Write(directory, note)
+	require.NoError(t, err)
+
+	summary, err := index.UpdateNotes(context.Background(), directory)
+
+	require.NoError(t, err)
+	require.Equal(t, 1, summary.Entries)
+	require.Len(t, summary.Skipped, 2)
+	require.Contains(t, summary.Skipped[0], "20261015-bbbbbb")
+	require.Contains(t, summary.Skipped[1], "20261015-cccccc", "a line past the scanner's buffer")
+}
+
+func TestUpdateNotesDropsTheIndexedCopyOfANoteItNowSkips(t *testing.T) {
+	index := open(t, filepath.Join(t.TempDir(), "ele.db"))
+	directory := filepath.Join(t.TempDir(), "notes")
+	note := notes.Note{Body: "Pin pydantic below 2.14.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal}
+	_, err := notes.Write(directory, note)
+	require.NoError(t, err)
+	_, err = index.UpdateNotes(context.Background(), directory)
+	require.NoError(t, err)
+	path := filepath.Join(directory, "corp", "20261015-aaaaaa.md")
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, append(content, strings.Repeat("x", 70000)...), 0o600))
+
+	summary, err := index.UpdateNotes(context.Background(), directory)
+
+	require.NoError(t, err)
+	require.Len(t, summary.Skipped, 1)
+	results, err := index.Search(context.Background(), Query{Owner: "corp", Text: "pydantic"})
+	require.NoError(t, err)
+	require.Empty(t, results, "the copy from before the file broke is not searchable")
+}
+
+func TestUpdateNotesSkipsAFolderItCannotList(t *testing.T) {
+	index := open(t, filepath.Join(t.TempDir(), "ele.db"))
+	directory := filepath.Join(t.TempDir(), "notes")
+	note := notes.Note{Body: "Pin pydantic below 2.14.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal}
+	_, err := notes.Write(directory, note)
+	require.NoError(t, err)
+	note.Owner = "closed"
+	_, err = notes.Write(directory, note)
+	require.NoError(t, err)
+	closed := filepath.Join(directory, "closed")
+	require.NoError(t, os.Chmod(closed, 0o000))
+	t.Cleanup(func() { _ = os.Chmod(closed, 0o700) })
+
+	summary, err := index.UpdateNotes(context.Background(), directory)
+
+	require.NoError(t, err)
+	require.Equal(t, 1, summary.Entries)
+	require.Len(t, summary.Skipped, 1)
+	require.Contains(t, summary.Skipped[0], "closed")
 }
 
 func TestUpdateNotesSkipsSymlinkedNoteFiles(t *testing.T) {

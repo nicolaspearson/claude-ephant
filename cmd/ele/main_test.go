@@ -71,6 +71,94 @@ func TestRunSyncArchivesAndIndexesEveryProfile(t *testing.T) {
 	require.Equal(t, "Archived 0 B from 0 transcripts; indexed 0 entries from 0 files.\n", stdout.String())
 }
 
+func TestRunSyncSkipsAFileItCannotReadAndSaysSoUntilASyncSkipsNone(t *testing.T) {
+	home := recallFixture(t)
+	dataDirectory := filepath.Join(home, "data")
+	unreadable := filepath.Join(home, ".claude", "projects", "-gateway", "zzz9.jsonl")
+	writeFile(t, unreadable, `{"type":"user","cwd":"/w","sessionId":"zzz9","message":{"content":"hidden"}}`+"\n")
+	require.NoError(t, os.Chmod(unreadable, 0o000))
+	// Sync names a file under projects/ as it resolves.
+	resolved, err := filepath.EvalSymlinks(filepath.Dir(unreadable))
+	require.NoError(t, err)
+	named := filepath.Join(resolved, "zzz9.jsonl")
+
+	output, code := runCommand(t, "sync")
+
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "Skipped: archive "+named)
+	require.FileExists(t, filepath.Join(dataDirectory, "last-sync"))
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	output, code = runCommand(t, "session-start", "--no-sync")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "ele's sync skipped 1 file; ele status lists them.\n")
+	output, code = runCommand(t, "status")
+	require.Equal(t, 0, code, output)
+	require.Regexp(t, `\nSync skipped +1 file, listed below\n`, output)
+	require.Contains(t, output, "\nSkipped by the last sync:\n  archive "+named)
+
+	require.NoError(t, os.Chmod(unreadable, 0o600))
+	output, code = runCommand(t, "sync")
+	require.Equal(t, 0, code, output)
+	require.NoFileExists(t, filepath.Join(dataDirectory, syncSkippedFile))
+	output, _ = runCommand(t, "session-start", "--no-sync")
+	require.NotContains(t, output, "skipped")
+}
+
+func TestLastSyncAndStopStateAreReplacedRatherThanWrittenInto(t *testing.T) {
+	home := recallFixture(t)
+	stamp := filepath.Join(home, "data", "last-sync")
+	held := filepath.Join(t.TempDir(), "held-stamp")
+	require.NoError(t, os.Link(stamp, held))
+	before, err := os.ReadFile(stamp)
+	require.NoError(t, err)
+	skippedList := filepath.Join(home, "data", syncSkippedFile)
+	writeFile(t, skippedList, "old\n")
+	heldList := filepath.Join(t.TempDir(), "held-list")
+	require.NoError(t, os.Link(skippedList, heldList))
+	unreadable := filepath.Join(home, ".claude", "projects", "-gateway", "zzz9.jsonl")
+	writeFile(t, unreadable, "{}\n")
+	require.NoError(t, os.Chmod(unreadable, 0o000))
+
+	output, code := runCommand(t, "sync")
+	require.Equal(t, 0, code, output)
+
+	kept, err := os.ReadFile(held)
+	require.NoError(t, err)
+	require.Equal(t, string(before), string(kept), "last-sync written in place")
+	keptList, err := os.ReadFile(heldList)
+	require.NoError(t, err)
+	require.Equal(t, "old\n", string(keptList), "sync-skipped written in place")
+
+	state := filepath.Join(t.TempDir(), "s1.json")
+	require.NoError(t, writeStopState(state, stopState{}))
+	heldState := filepath.Join(t.TempDir(), "held-state")
+	require.NoError(t, os.Link(state, heldState))
+	require.NoError(t, writeStopState(state, stopState{Offset: 42}))
+	keptState, err := os.ReadFile(heldState)
+	require.NoError(t, err)
+	require.NotContains(t, string(keptState), "42", "stop-check state written in place")
+}
+
+func TestWriteAtomicallyReplacesTheFileRatherThanWritingIntoIt(t *testing.T) {
+	directory := t.TempDir()
+	path := filepath.Join(directory, "last-sync")
+	writeFile(t, path, "old\n")
+	// A reader holding the old file, as a session start racing a sync does.
+	require.NoError(t, os.Link(path, filepath.Join(directory, "held")))
+
+	require.NoError(t, writeAtomically(path, []byte("new\n")))
+
+	held, err := os.ReadFile(filepath.Join(directory, "held"))
+	require.NoError(t, err)
+	require.Equal(t, "old\n", string(held), "written in place, the holder would read the new or half of it")
+	written, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, "new\n", string(written))
+	leftovers, err := filepath.Glob(filepath.Join(directory, "*.tmp"))
+	require.NoError(t, err)
+	require.Empty(t, leftovers)
+}
+
 func TestRunSyncBuildsANewIndexWithoutRebuilding(t *testing.T) {
 	dataDirectory := filepath.Join(t.TempDir(), "data")
 	t.Setenv("ELE_HOME", dataDirectory)

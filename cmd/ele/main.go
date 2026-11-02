@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -262,8 +263,12 @@ func syncAll(ctx context.Context, stdout io.Writer, wait bool, rebuild bool) err
 		return err
 	}
 	stateErr := removeStaleStopState(dataDirectory, time.Now())
+	skipped := slices.Concat(archived.Skipped, indexed.Skipped, noted.Skipped)
+	if err := writeSyncSkipped(dataDirectory, skipped); err != nil {
+		return fmt.Errorf("write %s: %w", syncSkippedFile, err)
+	}
 	stamp := filepath.Join(dataDirectory, "last-sync")
-	if err := os.WriteFile(stamp, []byte(time.Now().UTC().Format(time.RFC3339Nano)+"\n"), 0o600); err != nil {
+	if err := writeAtomically(stamp, []byte(time.Now().UTC().Format(time.RFC3339Nano)+"\n")); err != nil {
 		return fmt.Errorf("write %s: %w", stamp, err)
 	}
 
@@ -294,6 +299,9 @@ func syncAll(ctx context.Context, stdout io.Writer, wait bool, rebuild bool) err
 	fmt.Fprintln(stdout, ".")
 	for _, problem := range noted.Problems {
 		fmt.Fprintf(stdout, "Skipped a note: %v\n", problem)
+	}
+	for _, file := range skipped {
+		fmt.Fprintf(stdout, "Skipped: %s\n", file)
 	}
 	if stateErr != nil {
 		fmt.Fprintf(stdout, "Could not remove old stop-check state: %v\n", stateErr)

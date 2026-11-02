@@ -102,6 +102,7 @@ type Summary struct {
 	Files     int
 	Malformed int
 	Problems  []string
+	Skipped   []string
 }
 
 func NewProjects(ownerMap ownermap.OwnerMap) *Projects {
@@ -166,7 +167,11 @@ func (x *Index) Update(ctx context.Context, directory string, projects *Projects
 	var summary Summary
 	err := filepath.WalkDir(directory, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
-			return err
+			if path == directory {
+				return err
+			}
+			summary.Skipped = append(summary.Skipped, err.Error())
+			return nil
 		}
 		if !entry.Type().IsRegular() || filepath.Ext(path) != ".gz" {
 			return nil
@@ -176,8 +181,13 @@ func (x *Index) Update(ctx context.Context, directory string, projects *Projects
 			return err
 		}
 		file, err := x.updateFile(ctx, path, filepath.ToSlash(relative), projects)
+		// A cancelled run would skip every file left; it stops instead.
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
 		if err != nil {
-			return fmt.Errorf("index %s: %w", relative, err)
+			summary.Skipped = append(summary.Skipped, fmt.Sprintf("index %s: %v", relative, err))
+			return nil
 		}
 		if file.Files > 0 {
 			summary.Automated += file.Automated
@@ -211,7 +221,7 @@ func (x *Index) updateFile(ctx context.Context, path string, relative string, pr
 	}
 	defer reader.Close()
 	if _, err = io.CopyN(io.Discard, reader, indexed); err != nil {
-		return Summary{}, fmt.Errorf("skip %d indexed bytes: %w", indexed, err)
+		return Summary{}, fmt.Errorf("shorter than the %d bytes already indexed, as a copy from an older backup is; ele reindex rebuilds from the archive: %w", indexed, err)
 	}
 
 	tx, err := x.db.BeginTx(ctx, nil)

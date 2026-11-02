@@ -362,6 +362,13 @@ func writeStatus(stdout io.Writer, now time.Time) error {
 	default:
 		fmt.Fprintf(table, "Last sync\t%s (%s ago)\n", last.Format(time.RFC3339), age(now.Sub(last)))
 	}
+	skipped, skippedErr := readSyncSkipped(dataDirectory)
+	switch {
+	case skippedErr != nil:
+		fmt.Fprintf(table, "Sync skipped\t%v\n", skippedErr)
+	case len(skipped) > 0:
+		fmt.Fprintf(table, "Sync skipped\t%s, listed below\n", plural(len(skipped), "file", "files"))
+	}
 	fmt.Fprintf(table, "Sync running\t%s\n", syncRunning(filepath.Join(dataDirectory, "archive", "transcripts")))
 	fmt.Fprintf(table, "Here\t%s\n", where(dataDirectory))
 	fmt.Fprintf(table, "Config\t%s\n", configState(dataDirectory))
@@ -373,6 +380,12 @@ func writeStatus(stdout io.Writer, now time.Time) error {
 	}
 	if err = table.Flush(); err != nil {
 		return err
+	}
+	if len(skipped) > 0 {
+		fmt.Fprintln(stdout, "\nSkipped by the last sync:")
+		for _, file := range skipped {
+			fmt.Fprintf(stdout, "  %s\n", file)
+		}
 	}
 
 	log, err := os.ReadFile(filepath.Join(dataDirectory, "sync.log"))

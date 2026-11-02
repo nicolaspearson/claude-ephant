@@ -84,6 +84,41 @@ func TestSyncStartsNewGenerationWhenSourceShrinks(t *testing.T) {
 	require.Equal(t, "c\n", read(t, Path(directory, "claude/-repo/session.jsonl", 2)))
 }
 
+func TestSyncArchivesASymlinkedProjectsDirectory(t *testing.T) {
+	projects, directory := setup(t)
+	real := filepath.Join(t.TempDir(), "real-projects")
+	write(t, filepath.Join(real, "-repo", "session.jsonl"), "a\n")
+	require.NoError(t, os.Symlink(real, projects))
+
+	summary := sync(t, projects, directory)
+
+	require.Equal(t, Summary{Bytes: 2, Files: 1}, summary)
+	require.Equal(t, "a\n", read(t, Path(directory, "claude/-repo/session.jsonl", 1)))
+}
+
+func TestSyncSkipsWhatItCannotReadAndArchivesTheRest(t *testing.T) {
+	projects, directory := setup(t)
+	write(t, filepath.Join(projects, "-good", "session.jsonl"), "a\n")
+	unreadable := filepath.Join(projects, "-bad", "session.jsonl")
+	write(t, unreadable, "b\n")
+	require.NoError(t, os.Chmod(unreadable, 0o000))
+	closed := filepath.Join(projects, "-closed")
+	write(t, filepath.Join(closed, "session.jsonl"), "c\n")
+	require.NoError(t, os.Chmod(closed, 0o000))
+	t.Cleanup(func() { _ = os.Chmod(closed, 0o700) })
+
+	summary := sync(t, projects, directory)
+
+	require.Equal(t, 1, summary.Files)
+	require.Equal(t, "a\n", read(t, Path(directory, "claude/-good/session.jsonl", 1)))
+	require.Len(t, summary.Skipped, 2)
+	require.Contains(t, summary.Skipped[0], filepath.Join("-bad", "session.jsonl"), "a file it cannot open")
+	require.Contains(t, summary.Skipped[1], "-closed", "a directory it cannot list")
+	manifest, err := LoadManifest(directory)
+	require.NoError(t, err)
+	require.Contains(t, manifest, "claude/-good/session.jsonl", "the manifest is saved past a skipped file")
+}
+
 func TestTryLockReportsAHeldLock(t *testing.T) {
 	directory := t.TempDir()
 	unlock, err := Lock(directory)

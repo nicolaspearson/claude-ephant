@@ -321,7 +321,7 @@ keep.
     it each say `/ele:review` is experimental
 - [ ] readme-guides: Sweep the README and every page under `docs/` against the
   code
-  - blocked: notes-robust, sync-robust, cli-lock, release-safety, help-text, data-dir-edges, bashwork-reads, plan-parser-warnings, ticket-robust
+  - blocked: notes-robust, cli-lock, release-safety, help-text, data-dir-edges, bashwork-reads, plan-parser-warnings, ticket-robust
   - done when each page's commands and flags are checked against `--help`,
     each behaviour it states is checked against the code or a run, and
     `task format`, `task lint` and `task lint-docs` pass
@@ -712,7 +712,7 @@ keep.
     leaving it under both; a crash leaves `*.tmp`
     files nothing sweeps; `Move` never checks the opening `---`;
     `Relocate` has no test
-- [ ] sync-robust: One bad file stops no sync
+- [x] sync-robust: One bad file stops no sync
   - done when a test covers each case below: a sync with an unreadable, vanished
     or short archive file, or an unreadable note, archives and indexes the rest
     and names that file; a symlinked `projects/` is archived; and `last-sync`
@@ -737,6 +737,21 @@ keep.
     indexed bytes: EOF" on an archive file shorter than `indexed_bytes`, as from
     an older backup, or on a corrupt `.gz`; `UpdateNotes` returns on the first
     unreadable note, so `last-sync` is never written. Skip and report instead?
+  - asserted in the commit carrying this tick: a sync with an unreadable
+    transcript or folder, a corrupt or too-short archive file, an unreadable
+    notes folder, or an unreadable or unparseable note skips it, names it as
+    `Skipped:` in its output and in `sync-skipped`, archives and indexes the
+    rest, writes `last-sync` and exits 0, per the ruling; the start block says
+    "ele's sync skipped N files; ele status lists them." and `ele status` lists
+    them until a sync skips none (`internal/archive`, `internal/index` and
+    `cmd/ele` tests, each seen red with its skip turned back into a failure);
+    a cancelled index run stops rather than skipping the rest (seen red); a
+    skipped note's indexed copy is dropped (seen red); a symlinked `projects/`
+    is archived (seen red walking the unresolved path); `last-sync`,
+    `sync-skipped` and the stop-check state are replaced by a rename (seen red
+    written in place); a transcript vanishing mid-walk takes the unreadable
+    file's path, untested since it cannot be staged; `task check FORCE=1` and
+    `task audit` pass
 - [ ] cli-lock: Rule on each CLI question 1.0 freezes
   - done when each question below has the user's ruling in `## Decisions`; each
     ruling and each defect below is carried into the code and into whichever of
@@ -1445,7 +1460,7 @@ keep.
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: readme-guides, clean-install, gate-false-blocks, gate-data-dir, first-scan-timeout, block-as-error, config-dir, project-owner, notes-robust, sync-robust, cli-lock, release-safety, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
+  - blocked: readme-guides, clean-install, gate-false-blocks, gate-data-dir, first-scan-timeout, block-as-error, config-dir, project-owner, notes-robust, cli-lock, release-safety, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`
