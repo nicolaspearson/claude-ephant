@@ -54,7 +54,9 @@ only those:
 - Nothing but `command -v`, help and version commands and `man` is run, `man`
   in the C locale so a flag's hyphens print as plain `-`. A shell function or
   alias has nothing run, a script is read rather than run (with the files it
-  loads, when it defines no commands of its own), and a subcommand's help is
+  loads, when it defines no commands of its own; a name not quoted in their
+  folder is listed as not checked, since a script may add names from plugins
+  or config it reads at run time), and a subcommand's help is
   asked for only when the tool's own help shows it takes one, since a tool
   that ignores an unknown flag would run the step. A compiled tool that
   ignores its flags still runs once
