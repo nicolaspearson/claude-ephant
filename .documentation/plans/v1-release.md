@@ -75,8 +75,7 @@ keep.
   what counts as a finding, with the area's files standing for the change
   list, and it runs one session per area
 - No other plan's item blocks this one: if `mr-review`'s `review-skill` is
-  unticked at release, `/ele:review`'s docs mark it experimental;
-  `grader-alternation` and the eval-graders plan do not gate the release
+  unticked at release, `/ele:review`'s docs mark it experimental
 - On Linux the data directory is `$XDG_DATA_HOME/claude-ephant`, else
   `~/.local/share/claude-ephant`; on first use, with it absent and the old path
   present, ele renames the old one once and says so. macOS is unchanged;

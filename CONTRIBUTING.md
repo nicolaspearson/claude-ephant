@@ -82,7 +82,8 @@ model calls, so no gate runs it.
 
 A grader is deterministic wherever the trace or the reply allows: a judge's
 verdict can flip between runs on the same reply, and `task eval`'s default
-threshold of 1.0 fails a case on one failed grader in one run.
+threshold of 1.0 fails a case on one failed grader in one run. Lowering the
+threshold hides a real failure along with a flaky one.
 
 - A fact the trace holds, a command run, a file written or a tool called, is a
   `tool_used` grader: the trace records it, so nothing needs judging
@@ -91,7 +92,8 @@ threshold of 1.0 fails a case on one failed grader in one run.
 - An `llm` grader judges one claim neither can check, and only a claim the case
   exists to test: each judge grader is another vote that can fail the case. A
   secondary claim, one a deterministic grader already makes unlikely to fail,
-  is dropped
+  is dropped, each claim of a grader reviewed first: trimming to the main claim
+  unread drops checks the case was written for
 - AskUserQuestion does not load in the eval sandbox (as of 2026-10-29, claude
   2.1.308), so an ask is graded on the reply, and its behaviour is also checked
   in a real session, the only place the tool is called
