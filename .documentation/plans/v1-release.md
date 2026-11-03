@@ -347,7 +347,7 @@ keep.
     it each say `/ele:review` is experimental
 - [ ] readme-guides: Sweep the README and every page under `docs/` against the
   code
-  - blocked: release-safety, help-text, data-dir-edges, bashwork-reads, plan-parser-warnings, ticket-robust
+  - blocked: help-text, data-dir-edges, bashwork-reads, plan-parser-warnings, ticket-robust
   - done when each page's commands and flags are checked against `--help`,
     each behaviour it states is checked against the code or a run, and
     `task format`, `task lint` and `task lint-docs` pass
@@ -855,7 +855,15 @@ keep.
     an `omitempty` keeps it green. `dto.DecodeAttributes` returns the bare
     `json.Unmarshal` error and decodes numbers to `float64`, losing integers
     past 2^53
-- [ ] release-safety: No release path ships an old or pre-release build to users
+- [x] release-safety: No release path ships an old or pre-release build to users
+  - asserted in the release-safety tick commit, work in 4c9a912, at the
+    workflows on `main`: Release run 41569001135 of the non-pre-release draft
+    `v0.0.0-old` failed at Find the draft with "v0.0.0-old sorts below the
+    latest release, v0.13.0; it stays a draft", leaving it a draft with no
+    assets; Tap run 41569006313 of v0.12.0 failed at Refuse all but the latest
+    with "v0.12.0 is not the latest release, v0.13.0" before the tap checkout;
+    the README's install and Update give `@<tag>`. Not yet seen: Tap called
+    from Release right after a real publish, at the next release
   - done when publish refuses a draft, not a pre-release, whose tag sorts
     below the latest, and `tap.yml` refuses any tag but the latest release's,
     each shown by a run the user dispatches, and the README's install and
@@ -871,10 +879,7 @@ keep.
     latest, or with a pre-release suffix, and `tap.yml` refuses all but the
     latest release, both before any upload or tap checkout; the README gives
     `@<tag>`; CONTRIBUTING documents the refusal runs; actionlint passes and
-    `sort -V` checked on GNU coreutils 9.4. next: the user runs
-    CONTRIBUTING's refusal block and the throwaway pre-release dispatch, which
-    also shows whether Tap called from Release sees the just-published release
-    as latest
+    `sort -V` checked on GNU coreutils 9.4
   - 2026-10-30, from release-dispatch's checkpoint: a hand-published
     non-pre-release draft is marked latest and tapped even when a newer release
     exists, so `install.sh` and brew would move users back to it. Should
@@ -1555,7 +1560,7 @@ keep.
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: readme-guides, clean-install, gate-false-blocks, gate-data-dir, first-scan-timeout, block-as-error, config-dir, project-owner, release-safety, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
+  - blocked: readme-guides, clean-install, gate-false-blocks, gate-data-dir, first-scan-timeout, block-as-error, config-dir, project-owner, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`
