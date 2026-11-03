@@ -13,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/nicolaspearson/claude-ephant/internal/datadir"
 	"github.com/nicolaspearson/claude-ephant/internal/dto"
 	"github.com/nicolaspearson/claude-ephant/internal/transcript"
 )
@@ -845,17 +846,46 @@ func TestScanSubagentsCountsFileChangesOnly(t *testing.T) {
 	require.Equal(t, stopState{MidTask: true, Pending: true, Subagents: map[string]int64{"agent-a1.jsonl": int64(len(edit))}}, state, "a shorter file is read again from the start")
 }
 
+func TestRunStopCheckResumesAScanCutByItsBudget(t *testing.T) {
+	run := newStopCheckRun(t)
+	budget := scanBudget
+	scanBudget = 0
+	t.Cleanup(func() { scanBudget = budget })
+	writeFile(t, filepath.Join(subagentDirectory(run.transcriptPath), "agent-a1.jsonl"), `{"type":"assistant","message":{"content":[`+stopCheckEdit+`]}}`+"\n")
+	dataDirectory, err := datadir.Path()
+	require.NoError(t, err)
+	statePath := filepath.Join(dataDirectory, "stop-check", run.session+".json")
+
+	run.respond(1000, stopCheckEdit)
+	first := len(run.lines.String())
+	run.respond(1000, stopCheckText)
+	second := len(run.lines.String())
+	run.respond(1000, stopCheckText)
+
+	for _, offset := range []int{first, second} {
+		raw, _ := run.stop(run.gateway, false)
+		require.Empty(t, raw, "no notes ask while the scan is behind")
+		state, readErr := readStopState(statePath)
+		require.NoError(t, readErr)
+		require.Equal(t, int64(offset), state.Offset, "one line a stop at a zero budget")
+		require.Nil(t, state.Subagents, "subagent files wait for the scan to catch up")
+	}
+	_, output := run.stop(run.gateway, false)
+	require.Equal(t, stopOutput{Decision: "block", Reason: rememberReason}, output, "caught up, the first line's edit is asked about")
+}
+
 func TestScanTranscriptConsumesWholeLinesOnly(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "s.jsonl")
 	edit := `{"type":"assistant","message":{"id":"m1","content":[` + stopCheckEdit + `]}}` + "\n"
 	writeFile(t, path, edit+`{"type":"assistant","message":{"id":"m2","content":[{"type":"tool_use","name":"Skill","input":{"skill":"ele:remember"}}]}}`)
 
-	state, err := scanTranscript(path, stopState{Band: noBand})
+	state, behind, err := scanTranscript(path, stopState{Band: noBand}, time.Time{})
 	require.NoError(t, err)
+	require.False(t, behind)
 	require.Equal(t, stopState{Band: noBand, MidTask: true, Offset: int64(len(edit)), Pending: true}, state, "the unterminated line waits")
 
 	writeFile(t, path, "{}\n")
-	state, err = scanTranscript(path, stopState{Band: 2, Offset: 500, StretchBlocked: true})
+	state, _, err = scanTranscript(path, stopState{Band: 2, Offset: 500, StretchBlocked: true}, time.Time{})
 	require.NoError(t, err)
 	require.Equal(t, stopState{Band: 2, Offset: 3}, state, "a shorter transcript is read again from the start, keeping the band")
 }

@@ -55,6 +55,12 @@ start tells you. With `ELE_HOME` set, ele does not move them; each session
 start names the old file until you move it to `logs/` yourself. `CHECKPOINT_LOG`
 skips the checkpoint log's move.
 
+The Stop hook reads each session's transcript from where it last stopped, kept
+in `stop-check/`. It stops reading after about 10 seconds a stop, a third of
+the hook's 30-second timeout, so a long transcript it has no state for is read
+over several stops. Until it catches up, it does not ask for notes and does not
+read subagent transcripts; the context size hint still shows.
+
 Outside the data directory, and outside `ele backup`: the hook log,
 `~/.claude/logs/hooks-<month>.log`, shared with your own hooks, and the copies
 of reviewed files in `~/.claude/cache/checkpoint-reviewed/`. A checkpoint run's

@@ -41,6 +41,8 @@ const (
 var (
 	checkpointNames = []string{"checkpoint", "ele:checkpoint"}
 	proposalNames   = []string{"ele:handoff", "ele:remember", "ele:wrap"}
+	// A third of the Stop hook's 30s timeout: a scan killed by the timeout saves no offset, so every later stop would start it over.
+	scanBudget = 10 * time.Second
 	// Not Bash: research and review subagents run it to read.
 	subagentWorkTools = []string{"Edit", "NotebookEdit", "Write"}
 	// Bash unless it is a read: a command can change files, and /clear mid-task loses more than /compact between tasks.
@@ -132,18 +134,24 @@ func subagentWorks(entry transcript.Entry) bool {
 }
 
 // Only whole lines are consumed: a live transcript's last line can be half written.
-func consumeLines(file *os.File, offset int64, consume func(line []byte)) (int64, error) {
+// At least one line whatever the deadline, so each stop advances.
+func consumeLines(file *os.File, offset int64, deadline time.Time, consume func(line []byte)) (int64, bool, error) {
 	if _, err := file.Seek(offset, io.SeekStart); err != nil {
-		return offset, fmt.Errorf("read %s: %w", file.Name(), err)
+		return offset, false, fmt.Errorf("read %s: %w", file.Name(), err)
 	}
 	lines := bufio.NewReaderSize(file, 1<<20)
-	for {
+	for read := false; ; read = true {
+		if read && !deadline.IsZero() && time.Now().After(deadline) {
+			if _, err := lines.Peek(1); err == nil {
+				return offset, true, nil
+			}
+		}
 		line, err := lines.ReadBytes('\n')
 		if errors.Is(err, io.EOF) {
-			return offset, nil
+			return offset, false, nil
 		}
 		if err != nil {
-			return offset, fmt.Errorf("read %s: %w", file.Name(), err)
+			return offset, false, fmt.Errorf("read %s: %w", file.Name(), err)
 		}
 		offset += int64(len(line))
 		consume(line)
@@ -225,8 +233,8 @@ func readStopState(path string) (stopState, error) {
 }
 
 // Not mid-checkpoint or mid-review: either's turn can end while reviewers run.
-func rememberBlock(state stopState, stopHookActive bool) (bool, stopState) {
-	if !state.Pending || state.InCheckpoint || state.InReview || state.StretchBlocked || stopHookActive {
+func rememberBlock(state stopState, held bool) (bool, stopState) {
+	if !state.Pending || state.InCheckpoint || state.InReview || state.StretchBlocked || held {
 		return false, state
 	}
 	state.Pending, state.Proposing, state.StretchBlocked = false, true, true
@@ -300,7 +308,7 @@ func scanSubagents(directory string, state stopState) (stopState, error) {
 		if openErr != nil {
 			return state, openErr
 		}
-		offset, err = consumeLines(file, offset, func(line []byte) {
+		offset, _, err = consumeLines(file, offset, time.Time{}, func(line []byte) {
 			entries, _, parseErr := transcript.Parse(line)
 			if parseErr != nil {
 				return
@@ -321,26 +329,26 @@ func scanSubagents(directory string, state stopState) (stopState, error) {
 }
 
 // A transcript shorter than the offset was replaced, so it is read again from the start.
-func scanTranscript(path string, state stopState) (stopState, error) {
+func scanTranscript(path string, state stopState, deadline time.Time) (stopState, bool, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return state, err
+		return state, false, err
 	}
 	defer file.Close()
 	info, err := file.Stat()
 	if err != nil {
-		return state, err
+		return state, false, err
 	}
 	if info.Size() < state.Offset {
 		state = stopState{Band: state.Band}
 	}
-	offset, err := consumeLines(file, state.Offset, func(line []byte) {
+	offset, behind, err := consumeLines(file, state.Offset, deadline, func(line []byte) {
 		if entries, events, parseErr := transcript.Parse(line); parseErr == nil {
 			state = advance(state, entries, events)
 		}
 	})
 	state.Offset = offset
-	return state, err
+	return state, behind, err
 }
 
 // Reset below the threshold: a compacted session that regrows is hinted again.
@@ -418,13 +426,17 @@ func stopCheck(ctx context.Context, args []string, stdin io.Reader, stdout io.Wr
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return 1
 	}
-	if state, err = scanTranscript(hook.TranscriptPath, state); err != nil {
+	state, behind, err := scanTranscript(hook.TranscriptPath, state, time.Now().Add(scanBudget))
+	if err != nil {
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return 1
 	}
-	if state, err = scanSubagents(subagentDirectory(hook.TranscriptPath), state); err != nil {
-		fmt.Fprintf(stderr, "ele: %v\n", err)
-		return 1
+	// Edits are placed against the parent's state, partial while behind.
+	if !behind {
+		if state, err = scanSubagents(subagentDirectory(hook.TranscriptPath), state); err != nil {
+			fmt.Fprintf(stderr, "ele: %v\n", err)
+			return 1
+		}
 	}
 	settings := loadConfig(dataDirectory, stderr)
 	var output stopOutput
@@ -442,7 +454,8 @@ func stopCheck(ctx context.Context, args []string, stdin io.Reader, stdout io.Wr
 		state.Pending = false
 	}
 	var block bool
-	if block, state = rememberBlock(state, hook.StopHookActive); block {
+	// Behind, a proposal not yet read may have cleared the pending work.
+	if block, state = rememberBlock(state, hook.StopHookActive || behind); block {
 		output.Decision, output.Reason = "block", rememberReason
 		if value, valueErr := settings.Value("auto_note_writes", owner); valueErr == nil && value.Value == true {
 			output.Reason = rememberWriteReason

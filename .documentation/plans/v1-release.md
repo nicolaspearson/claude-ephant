@@ -153,6 +153,19 @@ keep.
   ledger key is `owner/repo#number`, as the code writes (ruled 2026-11-02)
   - rejected: failing the whole plan, because 1.0 would lock in one typo
     hiding every item
+- `first-scan-timeout`: a stop's transcript scan stops at a line boundary
+  after 10 seconds, a third of stop-check's 30-second hook timeout, and saves
+  its offset, since a killed hook saves nothing (ruled 2026-11-03)
+  - rejected: a 64 MB byte budget, because it ignores machine speed, slow cold
+    and needlessly slow warm
+  - rejected: both bounds, because it has more to explain and test for no case
+    either misses
+- `first-scan-timeout`: while the scan is behind, the notes block is held
+  pending and subagent transcripts are not read, the size hint still firing,
+  since a proposal not yet read may have cleared the work (ruled 2026-11-03)
+  - rejected: judging as usual, because it can ask for notes already proposed
+  - rejected: suppressing the size hint too, because its count comes from the
+    tail and a long session is when it matters
 
 ## Actions
 
@@ -996,12 +1009,34 @@ keep.
     The spec's gate bullets and `docs/checkpoint-and-ticket-audit.md` say so;
     `task check FORCE=1` and `task audit` pass. Not yet observed in a real
     session
-- [ ] first-scan-timeout: Bound stop-check's first scan of a transcript with
+- [x] first-scan-timeout: Bound stop-check's first scan of a transcript with
   no usable state, so a large one advances within the Stop hook's timeout
   - done when the timeout is stated under this item, a scan of a transcript
     past 400 MB saves an offset within it, a test shows the offset advancing
     across stops, and `.documentation/specs/stop-check.md` and
     `docs/data-and-privacy.md` say how the scan is bounded
+  - as of 2026-11-03: the timeout is 30 seconds, `ele stop-check`'s
+    `"timeout": 30` in `plugin/hooks/hooks.json`, and the scan's bound 10
+    seconds, `scanBudget` in cmd/ele; `scanTranscript` read to EOF
+    with no bound and `writeStopState` runs once, after it, so a scan the
+    timeout killed saved no offset; whether Claude Code runs the two Stop
+    hooks in parallel not checked, and the bound does not rest on it
+  - as of 2026-11-03: a clone build with a scratch `ELE_HOME`, on a synthetic
+    456 MB transcript of 2 KB assistant lines, saved offsets of 44, 86, 120
+    and 166 MB (10^6 bytes) over four stops of 11.2, 10.1, 10.1 and 10.1 s,
+    warm cache; about 4 MB/s, so it would catch up in about 11 stops. On
+    2026-10-19 a full parse of a 153 MB transcript took 1 s warm and 9–12 s
+    cold, the reason for a time bound over a byte one
+  - asserted in the first-scan-timeout commit:
+    `TestRunStopCheckResumesAScanCutByItsBudget` (cmd/ele) runs the hook at a
+    zero budget and sees the saved offset advance one line a stop, no notes
+    block and no subagent read while behind, then the block once caught up;
+    seen red by passing no deadline, dropping behind from the block, reading
+    subagents while behind, dropping the EOF peek, and allowing zero lines. A
+    clone build saved offsets within a 456 MB transcript at 10.1–11.2 s a stop
+    (above). The spec's State and Replay sections and
+    `docs/data-and-privacy.md` say how the scan is bounded; `task check
+    FORCE=1` and `task audit` pass. Not yet observed in a real session
 - [ ] block-as-error: Find whether Claude Code can deliver a Stop block reason
   without showing it as an error, and use it if so
   - done when the finding is written under this item, dated with the Claude
@@ -1644,7 +1679,7 @@ keep.
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: readme-guides, first-scan-timeout, block-as-error, config-dir, project-owner, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
+  - blocked: readme-guides, block-as-error, config-dir, project-owner, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`
