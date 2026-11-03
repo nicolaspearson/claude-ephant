@@ -64,6 +64,26 @@ func Close(ctx context.Context, root string, session string) error {
 	return endRun(ctx, root, session, ".frozen", ".open", ".started")
 }
 
+// Covered ignores dirt outside paths: another session's work does not hold a reviewed turn.
+func Covered(ctx context.Context, root string, now State, paths []string) bool {
+	file, err := ReviewedFile(ctx, root)
+	if err != nil {
+		return false
+	}
+	record, err := ReadState(file)
+	if err != nil {
+		return false
+	}
+	current := now.hashes()
+	held := record.hashes()
+	for _, path := range paths {
+		if hash, dirty := current[path]; dirty && held[path] != hash {
+			return false
+		}
+	}
+	return true
+}
+
 func DirtyPaths(ctx context.Context, root string) []string {
 	changed, _ := git(ctx, root, "diff", "HEAD", "--name-only", "--no-renames", "-z")
 	untracked, _ := git(ctx, root, "ls-files", "--others", "--exclude-standard", "-z")

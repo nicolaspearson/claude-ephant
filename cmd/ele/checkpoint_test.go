@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +19,7 @@ import (
 
 const (
 	doneClaim   = "Ready to commit:\n```sh\ngit commit -m \"x\"\n```"
+	editMain    = "EDIT:main.go"
 	hookSession = "checkpoint-test-session"
 	logRecord   = `{"change":{"files":1,"lines":2},"findings":[],"mode":"small","mutations":{"failed":0,"inconclusive":0,"run":0},"notes":{"approved":0,"proposed":0},"rereview":"skipped","scope":"uncommitted"}`
 )
@@ -54,22 +56,33 @@ func TestRunCheckpointGateBlocksADoneClaimOverThisTurnsEditsWithNoCheckpoint(t *
 		block      bool
 		transcript []string
 	}{
-		"bug-fix prose that only looks like labels":           {block: true, transcript: []string{"PROMPT:go", "Fixed the off-by-one bug — loop stops at len. Trimmed a stale comment — it named the old function. Ready to commit."}},
-		"bugs and prose reviewer labels":                      {transcript: []string{"PROMPT:go", "**Bugs reviewer:** two fixed. **Prose reviewer:** one comment cut. Ready to commit."}},
-		"checkpoint skill invoked in an earlier turn":         {block: true, transcript: []string{"PROMPT:earlier", "SKILL:checkpoint", "**Quality — ran.** **Prose — ran.**", "PROMPT:now", "Changed one more thing. Ready to commit."}},
-		"checkpoint skill invoked this turn":                  {transcript: []string{"PROMPT:go", "SKILL:checkpoint", "Done. Ready to commit."}},
-		"claimed done early, ended mid-task":                  {transcript: []string{"PROMPT:go", "Ready to commit.", "SKILL:none", "Found one more case; fixing it next turn."}},
-		"claimed done, nothing reported":                      {block: true, transcript: []string{"PROMPT:go", doneClaim}},
-		"diff hunk before the done claim":                     {block: true, transcript: []string{"PROMPT:go", "Here:\n```diff\n@@ -1 +1 @@\n-old\n+new\n```\nReady to commit."}},
-		"edit, ends on a question":                            {transcript: []string{"PROMPT:go", "Added the seed. Want me to add the second variant too?"}},
-		"ele:checkpoint skill invoked this turn":              {transcript: []string{"PROMPT:go", "SKILL:ele:checkpoint", "Done. Ready to commit."}},
-		"em-dash pass labels":                                 {transcript: []string{"PROMPT:go", "**Quality — ran now.** **Prose — ran now, two trims.** Ready to commit."}},
-		"prose named but no quality pass":                     {block: true, transcript: []string{"PROMPT:go", "**Prose — ran now, two trims.** Ready to commit."}},
-		"quality named but no prose pass":                     {block: true, transcript: []string{"PROMPT:go", "# Quality review of the diff. Ready to commit."}},
-		"quality review and comment audit":                    {transcript: []string{"PROMPT:go", "**Quality review — partial credit.** **Comment audit — stale.** Ready to commit."}},
-		"the prompt asked for the passes, the reply ran none": {block: true, transcript: []string{"PROMPT:please\ndo a quality review and a prose audit", "Edited the file. Ready to commit."}},
-		"user typed /checkpoint":                              {transcript: []string{"PROMPT:<command-message>checkpoint</command-message>\n<command-name>/checkpoint</command-name>", doneClaim}},
-		"user typed /ele:checkpoint":                          {transcript: []string{"PROMPT:/ele:checkpoint", doneClaim}},
+		"bug-fix prose that only looks like labels":           {block: true, transcript: []string{"PROMPT:go", editMain, "Fixed the off-by-one bug — loop stops at len. Trimmed a stale comment — it named the old function. Ready to commit."}},
+		"bugs and prose reviewer labels":                      {transcript: []string{"PROMPT:go", editMain, "**Bugs reviewer:** two fixed. **Prose reviewer:** one comment cut. Ready to commit."}},
+		"changes left in the working tree":                    {block: true, transcript: []string{"PROMPT:go", editMain, "Ready for review; changes left in the working tree."}},
+		"checkpoint skill invoked in an earlier turn":         {block: true, transcript: []string{"PROMPT:earlier", "SKILL:checkpoint", "**Quality — ran.** **Prose — ran.**", "PROMPT:now", editMain, "Changed one more thing. Ready to commit."}},
+		"checkpoint skill invoked this turn":                  {transcript: []string{"PROMPT:go", editMain, "SKILL:checkpoint", "Done. Ready to commit."}},
+		"claimed done early, ended mid-task":                  {transcript: []string{"PROMPT:go", editMain, "Ready to commit.", "SKILL:none", "Found one more case; fixing it next turn."}},
+		"claimed done, nothing reported":                      {block: true, transcript: []string{"PROMPT:go", editMain, doneClaim}},
+		"commit message naming what is left":                  {block: true, transcript: []string{"PROMPT:go", editMain, "Here:\n```sh\ngit commit -m \"parser: two steps are left\"\n```"}},
+		"commit offered after a step":                         {transcript: []string{"PROMPT:go", editMain, "After your run passes you can commit:\n```sh\ngit commit -m \"x\"\n```"}},
+		"commit offered for later":                            {transcript: []string{"PROMPT:go", editMain, "Once the suite passes, you can commit:\n```sh\ngit commit -m \"x\"\n```"}},
+		"commit offered now, mid-item":                        {block: true, transcript: []string{"PROMPT:go", editMain, "Still waiting on your run. To commit the progress lines now:\n```sh\ngit commit -m \"x\"\n```"}},
+		"commit offered when the review lands":                {transcript: []string{"PROMPT:go", editMain, "When the review lands, you can then commit:\n```sh\ngit commit -m \"x\"\n```"}},
+		"diff hunk before the done claim":                     {block: true, transcript: []string{"PROMPT:go", editMain, "Here:\n```diff\n@@ -1 +1 @@\n-old\n+new\n```\nReady to commit."}},
+		"edit, ends on a question":                            {transcript: []string{"PROMPT:go", editMain, "Added the seed. Want me to add the second variant too?"}},
+		"ele:checkpoint skill invoked this turn":              {transcript: []string{"PROMPT:go", editMain, "SKILL:ele:checkpoint", "Done. Ready to commit."}},
+		"em-dash pass labels":                                 {transcript: []string{"PROMPT:go", editMain, "**Quality — ran now.** **Prose — ran now, two trims.** Ready to commit."}},
+		"nothing left to do":                                  {block: true, transcript: []string{"PROMPT:go", editMain, "All done, nothing left to do."}},
+		"progress count":                                      {transcript: []string{"PROMPT:go", editMain, "The parser step is now done; two are left."}},
+		"progress count of what is still to do":               {transcript: []string{"PROMPT:go", editMain, "The parser step is now done, with the writer still to do."}},
+		"progress count of what remains":                      {transcript: []string{"PROMPT:go", editMain, "The parser step is now done; three more remain."}},
+		"progress phrase with nothing left":                   {block: true, transcript: []string{"PROMPT:go", editMain, "The parser step is now done."}},
+		"prose named but no quality pass":                     {block: true, transcript: []string{"PROMPT:go", editMain, "**Prose — ran now, two trims.** Ready to commit."}},
+		"quality named but no prose pass":                     {block: true, transcript: []string{"PROMPT:go", editMain, "# Quality review of the diff. Ready to commit."}},
+		"quality review and comment audit":                    {transcript: []string{"PROMPT:go", editMain, "**Quality review — partial credit.** **Comment audit — stale.** Ready to commit."}},
+		"the prompt asked for the passes, the reply ran none": {block: true, transcript: []string{"PROMPT:please\ndo a quality review and a prose audit", editMain, "Edited the file. Ready to commit."}},
+		"user typed /checkpoint":                              {transcript: []string{"PROMPT:<command-message>checkpoint</command-message>\n<command-name>/checkpoint</command-name>", editMain, doneClaim}},
+		"user typed /ele:checkpoint":                          {transcript: []string{"PROMPT:/ele:checkpoint", editMain, doneClaim}},
 		"work not claimed done":                               {transcript: nil},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -87,7 +100,7 @@ func TestRunCheckpointGateBlocksADoneClaimOverThisTurnsEditsWithNoCheckpoint(t *
 func TestRunCheckpointGateFollowsTheRunTheRecordAndTheOptout(t *testing.T) {
 	root := hookRepository(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", hookSession)
-	done := transcriptFile(t, "PROMPT:go", doneClaim)
+	done := transcriptFile(t, "PROMPT:go", editMain, "EDIT:deck/one.md", doneClaim)
 	turn := func(change func()) string {
 		snapshotHook(t)
 		change()
@@ -140,7 +153,7 @@ func TestRunCheckpointGateNamesWhatMovedAndLogsTheBlock(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(root, "coverage.out"), []byte("coverage\n"), 0o600))
 	dirty(t, root)
 
-	output := gateHook(t, transcriptFile(t, "PROMPT:go", doneClaim), false)
+	output := gateHook(t, transcriptFile(t, "PROMPT:go", "EDIT:coverage.out", editMain, doneClaim), false)
 
 	var block stopOutput
 	require.NoError(t, json.Unmarshal([]byte(output), &block), output)
@@ -158,7 +171,7 @@ func TestRunCheckpointGateOffClearsTheBaselineAndABrokenConfigKeepsItOn(t *testi
 	root := hookRepository(t)
 	stateFile, err := checkpoint.StateFile(hookSession, root)
 	require.NoError(t, err)
-	done := transcriptFile(t, "PROMPT:go", doneClaim)
+	done := transcriptFile(t, "PROMPT:go", editMain, doneClaim)
 
 	snapshotHook(t)
 	dirty(t, root)
@@ -206,13 +219,74 @@ func TestRunCheckpointGatePassesTurnsThatAreNotCheckpoints(t *testing.T) {
 			root := hookRepository(t)
 			stopHookActive := setup(t, root)
 
-			require.Empty(t, gateHook(t, transcriptFile(t, "PROMPT:go", doneClaim), stopHookActive))
+			require.Empty(t, gateHook(t, transcriptFile(t, "PROMPT:go", editMain, doneClaim), stopHookActive))
 		})
 	}
 	t.Run("outside a repository", func(t *testing.T) {
 		hookRepository(t)
 		t.Chdir(t.TempDir())
-		require.Empty(t, gateHook(t, transcriptFile(t, "PROMPT:go", doneClaim), false))
+		require.Empty(t, gateHook(t, transcriptFile(t, "PROMPT:go", editMain, doneClaim), false))
+	})
+}
+
+func TestRunCheckpointGateWeighsOnlyWhatThisTurnWrote(t *testing.T) {
+	for name, test := range map[string]struct {
+		block   string
+		entries []string
+	}{
+		"a Bash grep for a skill call is not one":                  {block: "Changed: main.go\n", entries: []string{"PROMPT:go", editMain, "BASH:grep -rn 'command-name>/ele:checkpoint' .", doneClaim}},
+		"another session's file, the turn edited a file not moved": {entries: []string{"PROMPT:go", "EDIT:other.go", doneClaim}},
+		"another session's file, the turn edited nothing":          {entries: []string{"PROMPT:go", doneClaim}},
+		"another session's file, the turn only read through Bash":  {entries: []string{"PROMPT:go", "BASH:git status --short; git diff", doneClaim}},
+		"the turn wrote through Bash beside an edit elsewhere":     {block: "Changed: main.go theirs.go\n", entries: []string{"PROMPT:go", "EDIT:/elsewhere/brief.md", "BASH:sed -i '' 's/a/b/' main.go", doneClaim}},
+		"the turn wrote through Bash, naming no path":              {block: "Changed: main.go theirs.go\n", entries: []string{"PROMPT:go", "BASH:sed -i '' 's/a/b/' main.go", doneClaim}},
+		"the turn's NotebookEdit beside another session's file":    {block: "Changed: main.go\n", entries: []string{"PROMPT:go", "NOTEBOOK:main.go", doneClaim}},
+		"the turn's Write beside another session's file":           {block: "Changed: main.go\n", entries: []string{"PROMPT:go", "WRITE:main.go", doneClaim}},
+		"the turn's edit beside another session's file":            {block: "Changed: main.go\n", entries: []string{"PROMPT:go", editMain, doneClaim}},
+		"the turn's start past the transcript's tail":              {block: "Changed: main.go theirs.go\n", entries: append(append([]string{"PROMPT:go", editMain}, slices.Repeat([]string{"Reading."}, 400)...), doneClaim)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			root := hookRepository(t)
+			snapshotHook(t)
+			dirty(t, root)
+			writeTestFile(t, root, "theirs.go", "package main\n")
+
+			output := gateHook(t, transcriptFile(t, test.entries...), false)
+
+			if test.block == "" {
+				require.Empty(t, output)
+				return
+			}
+			var block stopOutput
+			require.NoError(t, json.Unmarshal([]byte(output), &block), output)
+			require.Contains(t, block.Reason, test.block)
+		})
+	}
+	t.Run("the turn's own files recorded while another session's are dirty", func(t *testing.T) {
+		root := hookRepository(t)
+		t.Setenv("CLAUDE_CODE_SESSION_ID", hookSession)
+		snapshotHook(t)
+		dirty(t, root)
+		_, code := runCheckpoint(t, "freeze", root, t.TempDir(), "--", "main.go")
+		require.Equal(t, 0, code)
+		_, code = runCheckpoint(t, "record", root)
+		require.Equal(t, 0, code)
+		writeTestFile(t, root, "theirs.go", "package main\n")
+
+		require.Empty(t, gateHook(t, transcriptFile(t, "PROMPT:go", editMain, doneClaim), false))
+	})
+	t.Run("the turn reverted a recorded file", func(t *testing.T) {
+		root := hookRepository(t)
+		t.Setenv("CLAUDE_CODE_SESSION_ID", hookSession)
+		dirty(t, root)
+		_, code := runCheckpoint(t, "freeze", root, t.TempDir(), "--", "main.go")
+		require.Equal(t, 0, code)
+		_, code = runCheckpoint(t, "record", root)
+		require.Equal(t, 0, code)
+		snapshotHook(t)
+		runGit(t, root, "checkout", "-q", "--", "main.go")
+
+		require.Empty(t, gateHook(t, transcriptFile(t, "PROMPT:go", editMain, doneClaim), false))
 	})
 }
 
@@ -289,7 +363,7 @@ func TestRunCheckpointSnapshotKeepsTheBaselineOfATurnStillRunning(t *testing.T) 
 	dirty(t, root)
 	snapshotHook(t)
 
-	require.Contains(t, gateHook(t, transcriptFile(t, "PROMPT:go", doneClaim), false), "block")
+	require.Contains(t, gateHook(t, transcriptFile(t, "PROMPT:go", editMain, doneClaim), false), "block")
 }
 
 func TestRunCheckpointStatsRefusesBadArguments(t *testing.T) {
@@ -425,17 +499,34 @@ func snapshotHook(t *testing.T) {
 	require.Empty(t, stdout.String()+stderr.String())
 }
 
-// transcriptFile writes a turn: a typed prompt (PROMPT:), a skill call (SKILL:) or assistant text.
+// transcriptFile writes a turn: a typed prompt (PROMPT:), a Bash call (BASH:), an Edit, NotebookEdit or Write of a path
+// under the working directory (EDIT:, NOTEBOOK:, WRITE:), a skill call (SKILL:) or assistant text.
 func transcriptFile(t *testing.T, entries ...string) string {
 	t.Helper()
+	tool := func(name string, input map[string]any) map[string]any {
+		return map[string]any{"message": map[string]any{"content": []any{map[string]any{"input": input, "name": name, "type": "tool_use"}}, "role": "assistant"}, "type": "assistant"}
+	}
+	absolute := func(path string) string {
+		path, err := filepath.Abs(path)
+		require.NoError(t, err)
+		return path
+	}
 	var lines bytes.Buffer
 	for _, entry := range entries {
 		var line map[string]any
 		switch {
+		case strings.HasPrefix(entry, "BASH:"):
+			line = tool("Bash", map[string]any{"command": strings.TrimPrefix(entry, "BASH:")})
+		case strings.HasPrefix(entry, "EDIT:"):
+			line = tool("Edit", map[string]any{"file_path": absolute(strings.TrimPrefix(entry, "EDIT:"))})
+		case strings.HasPrefix(entry, "NOTEBOOK:"):
+			line = tool("NotebookEdit", map[string]any{"notebook_path": absolute(strings.TrimPrefix(entry, "NOTEBOOK:"))})
 		case strings.HasPrefix(entry, "PROMPT:"):
 			line = map[string]any{"isMeta": false, "message": map[string]any{"content": strings.TrimPrefix(entry, "PROMPT:"), "role": "user"}, "type": "user"}
 		case strings.HasPrefix(entry, "SKILL:"):
-			line = map[string]any{"message": map[string]any{"content": []any{map[string]any{"input": map[string]any{"skill": strings.TrimPrefix(entry, "SKILL:")}, "name": "Skill", "type": "tool_use"}}, "role": "assistant"}, "type": "assistant"}
+			line = tool("Skill", map[string]any{"skill": strings.TrimPrefix(entry, "SKILL:")})
+		case strings.HasPrefix(entry, "WRITE:"):
+			line = tool("Write", map[string]any{"file_path": absolute(strings.TrimPrefix(entry, "WRITE:"))})
 		default:
 			line = map[string]any{"message": map[string]any{"content": []any{map[string]any{"text": entry, "type": "text"}}, "role": "assistant"}, "type": "assistant"}
 		}

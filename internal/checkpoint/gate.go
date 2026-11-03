@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -19,15 +20,22 @@ const (
 )
 
 var (
+	commitCommand = regexp.MustCompile(`(?i)git commit`)
 	// Only a turn claiming done is a checkpoint, and only its last text block counts: a done claim followed by more work is not one. As of 2026-10-07, over 7 days: 21 of 384 disputed blocks would still block, and 495 of the other 701.
-	doneClaim = regexp.MustCompile(`(?i)git commit|ready (to|for) (commit|merge|review|ship)|(all|work is|that.s|now) done|is complete`)
+	doneClaim   = regexp.MustCompile(`(?i)git commit|ready (to|for) (commit|merge|review|ship)|(all|work is|that.s|now) done|is complete`)
+	laterCommit = regexp.MustCompile(`(?i)\b(once|after|when)\b[^.!?]*\byou can (then )?commit\b`)
+	nothingLeft = regexp.MustCompile(`(?i)\b(nothing|none|no|zero|0)\b[^.;,]*\b(left|remain|to go)\b`)
 	// A pass label, not a fixed sentence: demanding the literal "quality review" and "prose audit" blocked turns that had just run the checkpoint.
 	prosePass    = regexp.MustCompile(`(?i)(prose|comments?)[[:space:]]*(audit|pass|review|sweep|—|-|:)`)
 	qualityPass  = regexp.MustCompile(`(?i)quality[[:space:]]*(review|pass|—|-|:)|bugs[[:space:]]+review`)
 	skillInvoked = regexp.MustCompile(`(?i)\x1eTOOL Skill (ele:)?checkpoint|command-name>/?(ele:)?checkpoint|^\x1eTURN */(ele:)?checkpoint`)
+	// A count of what is left, "now done; two are left", reports a step; a bare "left" does not, as in "changes left in the working tree".
+	stillLeft = regexp.MustCompile(`(?i)\b(are|is) (still )?left\b|\bleft to (do|go)\b|\b(one|two|three|four|five|[0-9]+) (more )?(remain|to go)\b|\bstill to (do|go|come)\b`)
 )
 
 type GateInput struct {
+	// IsWork says whether a Bash command may write; nil counts every one as work.
+	IsWork         func(command string) bool
 	Root           string
 	Session        string
 	StopHookActive bool
@@ -50,11 +58,15 @@ func Gate(ctx context.Context, input GateInput, stateFile string) string {
 		return ""
 	}
 	moved := MovedPaths(baseline, now)
-	if len(moved) == 0 || Reviewed(ctx, input.Root) || Open(ctx, input.Root, input.Session) || OptedOut(ctx, input.Root, input.Session, moved) {
+	if len(moved) == 0 {
 		return ""
 	}
 	turn := lastTurn(input.TranscriptPath)
-	if !anyLine(doneClaim, finalText(turn)) || anyLine(skillInvoked, turn) {
+	moved = ownPaths(moved, turn, input.Root, input.IsWork)
+	if len(moved) == 0 || Covered(ctx, input.Root, now, moved) || Open(ctx, input.Root, input.Session) || OptedOut(ctx, input.Root, input.Session, moved) {
+		return ""
+	}
+	if !claimsDone(finalText(turn)) || anyLine(skillInvoked, withoutBash(turn)) {
 		return ""
 	}
 	// Both passes have to appear: naming one and skipping the other is the habit this exists to catch. What the prompt asked for does not count.
@@ -113,6 +125,20 @@ func anyLine(pattern *regexp.Regexp, text string) bool {
 	return false
 }
 
+func claimsDone(text string) bool {
+	commit := false
+	for line := range strings.SplitSeq(text, "\n") {
+		switch {
+		case !doneClaim.MatchString(line):
+		case commitCommand.MatchString(line):
+			commit = true
+		case !stillLeft.MatchString(line) || nothingLeft.MatchString(line):
+			return true
+		}
+	}
+	return commit && !anyLine(laterCommit, text)
+}
+
 func finalText(turn string) string {
 	var block []string
 	on := false
@@ -127,6 +153,12 @@ func finalText(turn string) string {
 		}
 	}
 	return strings.Join(block, "\n")
+}
+
+func inputString(raw json.RawMessage) string {
+	var text string
+	_ = json.Unmarshal(raw, &text)
+	return text
 }
 
 func lastTurn(path string) string {
@@ -173,10 +205,54 @@ func lastTurn(path string) string {
 	return strings.TrimRight(strings.Join(strings.Split(text, "\n")[turnStart:], "\n"), "\n")
 }
 
+// ownPaths is the moved paths this turn's repository edits named, since sessions share the tree; with none, every
+// moved path if a Bash command may have written, since Bash names no path, else none.
+func ownPaths(moved []string, turn string, root string, isWork func(string) bool) []string {
+	// The tail cut the turn's start, and with it edits this turn made.
+	if !strings.HasPrefix(turn, "\x1eTURN") {
+		return moved
+	}
+	edited := map[string]bool{}
+	bashWork := false
+	for line := range strings.SplitSeq(turn, "\n") {
+		call, ok := strings.CutPrefix(line, "\x1eTOOL ")
+		if !ok {
+			continue
+		}
+		name, argument, _ := strings.Cut(call, " ")
+		value, err := strconv.Unquote(argument)
+		switch name {
+		case "Bash":
+			bashWork = bashWork || err != nil || isWork == nil || isWork(value)
+		case "Edit", "MultiEdit", "NotebookEdit", "Write":
+			if path := repositoryPath(root, value); err == nil && value != "" && !filepath.IsAbs(path) && !strings.HasPrefix(path, "..") {
+				edited[path] = true
+			}
+		}
+	}
+	if len(edited) == 0 {
+		if bashWork {
+			return moved
+		}
+		return nil
+	}
+	var own []string
+	for _, path := range moved {
+		if edited[path] {
+			own = append(own, path)
+		}
+	}
+	return own
+}
+
 func renderAssistant(content json.RawMessage) string {
+	// Raw, not string: another tool's input of another type under one of these keys would fail the whole message.
 	var items []struct {
 		Input struct {
-			Skill json.RawMessage `json:"skill"`
+			Command      json.RawMessage `json:"command"`
+			FilePath     json.RawMessage `json:"file_path"`
+			NotebookPath json.RawMessage `json:"notebook_path"`
+			Skill        json.RawMessage `json:"skill"`
 		} `json:"input"`
 		Name string `json:"name"`
 		Text string `json:"text"`
@@ -191,10 +267,44 @@ func renderAssistant(content json.RawMessage) string {
 		case "text":
 			parts = append(parts, "\x1eTEXT\n"+item.Text)
 		case "tool_use":
-			parts = append(parts, "\x1eTOOL "+item.Name+" "+skillText(item.Input.Skill))
+			// Quoted: a command or path spans lines, and the turn is read line by line.
+			switch item.Name {
+			case "Bash":
+				parts = append(parts, "\x1eTOOL Bash "+strconv.Quote(inputString(item.Input.Command)))
+			case "Edit", "MultiEdit", "NotebookEdit", "Write":
+				path := item.Input.FilePath
+				if item.Name == "NotebookEdit" {
+					path = item.Input.NotebookPath
+				}
+				parts = append(parts, "\x1eTOOL "+item.Name+" "+strconv.Quote(inputString(path)))
+			default:
+				parts = append(parts, "\x1eTOOL "+item.Name+" "+skillText(item.Input.Skill))
+			}
 		}
 	}
 	return strings.Join(parts, "\n")
+}
+
+// repositoryPath is path relative to root, as git names it; a symlinked /tmp or checkout spells the same file another way.
+func repositoryPath(root string, path string) string {
+	if !filepath.IsAbs(path) {
+		return filepath.ToSlash(filepath.Clean(path))
+	}
+	if relative, err := filepath.Rel(root, path); err == nil && !strings.HasPrefix(relative, "..") {
+		return filepath.ToSlash(relative)
+	}
+	directory, err := filepath.EvalSymlinks(filepath.Dir(path))
+	if err != nil {
+		return path
+	}
+	physicalRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return path
+	}
+	if relative, err := filepath.Rel(physicalRoot, filepath.Join(directory, filepath.Base(path))); err == nil && !strings.HasPrefix(relative, "..") {
+		return filepath.ToSlash(relative)
+	}
+	return path
 }
 
 func shellQuote(text string) string {
@@ -227,4 +337,15 @@ func spokenText(turn string) string {
 		}
 	}
 	return strings.Join(said, "\n")
+}
+
+// withoutBash drops Bash lines: a command that greps transcripts for a skill call is not one.
+func withoutBash(turn string) string {
+	var kept []string
+	for line := range strings.SplitSeq(turn, "\n") {
+		if !strings.HasPrefix(line, "\x1eTOOL Bash ") {
+			kept = append(kept, line)
+		}
+	}
+	return strings.Join(kept, "\n")
 }

@@ -43,6 +43,12 @@ Checkpoint and ticket-audit ship in the ele plugin: `claude plugin eval` needs a
 
 - Prerequisites: in the [README](../../README.md). ele on `PATH` is a hard one, since the plugin's hooks call it
 - The checkpoint gate, the Stop hook's block and the prompt hook's snapshot, is ele's option `checkpoint_gate`, on by default; with it `false` both hooks only clear the session's baseline, so turning it back on starts from the next prompt, and a `config.json` that does not parse leaves the gate on. Claude Code cannot turn off one hook of a plugin
+- The gate weighs only what the turn's own calls wrote, since sessions share the working tree and another one's writes move paths too
+  - A turn that ran `Edit`, `MultiEdit`, `NotebookEdit` or `Write` on a file in the repository is judged on the moved paths those calls named, and `Changed:` lists only them
+  - A turn with no such call is judged on every moved path when a Bash command reads as work by the classifier stop-check uses, since a Bash write names no path, and passes otherwise; so is a turn whose start falls before the transcript tail the hook reads
+  - The paths weighed pass when the latest record holds each at its current bytes, whatever else is dirty
+  - The cost: a file a turn writes through Bash beside an edit in the repository goes unchecked, as does a subagent's edit
+- A done claim is the final text block's. A printed `git commit` is one, a ready-to-commit claim even mid-item, unless the text offers it for later: "once the suite passes, you can commit". A done phrase is not one on a line counting what is left: "now done; two are left"
 - The convention files in the brief are the user's `CLAUDE.md`, under `$CLAUDE_CONFIG_DIR` when set, else `~/.claude`, with what it imports or says to read, and the repository's; the prose reviewer's per-comment tests apply where those hold no comment rules
 - In the plugin: the `checkpoint` skill with its reviewer files, the `ticket-audit` skill, the `checkpoint-reviewer` agent, addressed as `ele:checkpoint-reviewer`, and `/ele:checkpoint-stats` and `/ele:ticket-claims` in `commands/`
 - Subcommands, grouped as `plan`, `owner` and `handoff` are: `ele checkpoint base|check|close|density|freeze|hash|log|optout|record|stats`, `ele checkpoint gate` (Stop) and `ele checkpoint snapshot` (UserPromptSubmit), and `ele ticket claims|corpus|ledger`; shared state and hook logging are code in `internal/checkpoint`

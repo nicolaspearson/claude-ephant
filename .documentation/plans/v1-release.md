@@ -925,13 +925,57 @@ keep.
 
 ### Should have
 
-- [ ] gate-false-blocks: Re-measure the stop gate's false blocks, then stop a
+- [x] gate-false-blocks: Re-measure the stop gate's false blocks, then stop a
   done claim matching a commit offered for later or a progress count, and
-  writes from outside the session blocking a turn that wrote nothing
+  another session's writes blocking a turn, whether it wrote nothing or its
+  own files are recorded
   - done when each pattern has a test seen red, the re-measured rate is
     written under this item, and
     `.documentation/specs/checkpoint-and-ticket-audit.md` and
     `docs/checkpoint-and-ticket-audit.md` say what the gate now passes
+  - as of 2026-11-03 (0acae64), re-measured from `ele events --kind
+    hook-block` over 2026-10-23 to 2026-11-03, every owner: 85 checkpoint
+    blocks, 57 followed by a checkpoint and 28 not. 53 of the 57 and 22 of the
+    28 matched `doneClaim` only on a printed `git commit`. By their replies the
+    28 are about 6 turns blocked on another session's files with none of their
+    own moved, about 6 whose own files a record already covered while another
+    session's were dirty, 13 offering a commit mid-item, 2 progress phrases and
+    1 fixture that wanted an optout. 51 of the 57 moved a path this turn's own
+    `Edit` or `Write` named; the other 6 moved paths only through Bash, each
+    read as work by `commandIsWork`, and one of those also wrote a temporary
+    test file it then removed
+  - ruled 2026-11-03: a turn that ran `Edit`, `Write` or `NotebookEdit`
+    (`MultiEdit` too) on a file in the repository is judged on the moved paths
+    those calls named, coverage by the latest record
+    included, and `Changed:` lists only them; a turn with none is judged on
+    every moved path when a Bash command reads as work, and passes otherwise.
+    A commit offered mid-item stays a block, being a ready-to-commit claim;
+    one offered for later, "once they pass, you can commit", passes, as does a
+    done phrase whose line says what is still left
+  - as of 2026-11-03, against the 28: the ruling passes about 9, the 6
+    covered-record turns, one that edited files none of which moved, and two
+    whose Bash `commandIsWork` reads as no work; three still block, two on
+    `ele checkpoint log` and scratchpad writes reading as work and one on an
+    edit of its own left unreviewed. The later-commit
+    and still-left patterns clear none of the 28: the two progress phrases
+    count nothing left on their line. Of the 57, one is lost: it removed a plan
+    file through Bash beside a `Write` of the temporary test file, the ruling's
+    cost of a Bash write beside an edit in the repository. The others each
+    moved an unreviewed edited path or moved paths only through Bash
+  - ruled 2026-11-03: no fallback to every moved path for a turn whose edits
+    moved nothing beside Bash work; it would restore that one but re-block a
+    turn whose edits moved nothing while another session's files did
+  - asserted in the commit carrying this tick, at the Stop hook's
+    `ele checkpoint gate` boundary in `cmd/ele` tests: a turn's edits in the
+    repository decide what it is judged on, coverage by the latest record
+    included, and `Changed:` names only those; with none, a Bash command
+    `commandIsWork` reads as work brings every moved path in, and a turn whose
+    start is past the transcript tail is judged on all; a commit offered for
+    later and a progress count pass, a commit offered now and "changes left in
+    the working tree" still block. Each rule's test was seen red with that
+    rule removed. The re-measure is above; the spec's gate bullets and
+    `docs/checkpoint-and-ticket-audit.md` say what passes; `task check
+    FORCE=1` and `task audit` pass. Not yet observed in a real session
 - [ ] gate-data-dir: The checkpoint gate leaves ele's own data directory out
   of a repository's changed paths
   - done when a test, seen red, has the gate pass a turn whose only change is
@@ -1586,7 +1630,7 @@ keep.
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: readme-guides, gate-false-blocks, gate-data-dir, first-scan-timeout, block-as-error, config-dir, project-owner, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
+  - blocked: readme-guides, gate-data-dir, first-scan-timeout, block-as-error, config-dir, project-owner, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`

@@ -152,7 +152,7 @@ func checkpointGate(ctx context.Context, args []string, stdin io.Reader, stdout 
 		return 0
 	}
 	stopHookActive := string(input.StopHookActive) == "true" || string(input.StopHookActive) == `"true"`
-	reason := checkpoint.Gate(ctx, checkpoint.GateInput{Root: root, Session: input.SessionID, StopHookActive: stopHookActive, TranscriptPath: input.TranscriptPath}, stateFile)
+	reason := checkpoint.Gate(ctx, checkpoint.GateInput{IsWork: commandIsWork, Root: root, Session: input.SessionID, StopHookActive: stopHookActive, TranscriptPath: input.TranscriptPath}, stateFile)
 	if reason == "" {
 		return 0
 	}
