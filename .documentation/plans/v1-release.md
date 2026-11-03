@@ -161,11 +161,23 @@ keep.
   - rejected: both bounds, because it has more to explain and test for no case
     either misses
 - `first-scan-timeout`: while the scan is behind, the notes block is held
-  pending and subagent transcripts are not read, the size hint still firing,
-  since a proposal not yet read may have cleared the work (ruled 2026-11-03)
+  pending, the size hint still firing, since a proposal not yet read may have
+  cleared the work (ruled 2026-11-03)
   - rejected: judging as usual, because it can ask for notes already proposed
   - rejected: suppressing the size hint too, because its count comes from the
     tail and a long session is when it matters
+- `first-scan-timeout`: while the scan is behind, subagent transcripts are not
+  read; the stop that catches up reads each from its saved offset, from the
+  start where it had none, outside the 10-second budget, so edits made during
+  the catch-up are asked about (ruled 2026-11-03)
+  - rejected: recording them unread on catch-up, because a subagent's edits
+    during a catch-up of about 11 stops would never be asked about
+  - rejected: reading them while behind, because their edits would be placed
+    against a partial parent state
+  - accepted risk: the catch-up read is unbounded, so a stop it pushes past
+    the 30-second timeout saves nothing and the next repeats it warm; as of
+    2026-11-03 the largest local subagent directory, 185 MB in 229 files,
+    read from the start in 2.6 s, likely warm
 
 ## Actions
 
@@ -1030,9 +1042,11 @@ keep.
   - asserted in the first-scan-timeout commit:
     `TestRunStopCheckResumesAScanCutByItsBudget` (cmd/ele) runs the hook at a
     zero budget and sees the saved offset advance one line a stop, no notes
-    block and no subagent read while behind, then the block once caught up;
-    seen red by passing no deadline, dropping behind from the block, reading
-    subagents while behind, dropping the EOF peek, and allowing zero lines. A
+    block and no subagent read while behind, then a block on a subagent's
+    edit once caught up; seen red by passing no deadline, dropping behind
+    from the block, reading subagents while behind, dropping the EOF peek,
+    allowing zero lines, recording subagents unread on catch-up, and
+    dropping the empty-map sentinel saved while behind. A
     clone build saved offsets within a 456 MB transcript at 10.1–11.2 s a stop
     (above). The spec's State and Replay sections and
     `docs/data-and-privacy.md` say how the scan is bounded; `task check

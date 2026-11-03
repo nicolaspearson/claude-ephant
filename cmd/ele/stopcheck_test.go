@@ -851,12 +851,13 @@ func TestRunStopCheckResumesAScanCutByItsBudget(t *testing.T) {
 	budget := scanBudget
 	scanBudget = 0
 	t.Cleanup(func() { scanBudget = budget })
-	writeFile(t, filepath.Join(subagentDirectory(run.transcriptPath), "agent-a1.jsonl"), `{"type":"assistant","message":{"content":[`+stopCheckEdit+`]}}`+"\n")
+	subagent := `{"type":"assistant","message":{"content":[` + stopCheckEdit + `]}}` + "\n"
+	writeFile(t, filepath.Join(subagentDirectory(run.transcriptPath), "agent-a1.jsonl"), subagent)
 	dataDirectory, err := datadir.Path()
 	require.NoError(t, err)
 	statePath := filepath.Join(dataDirectory, "stop-check", run.session+".json")
 
-	run.respond(1000, stopCheckEdit)
+	run.respond(1000, stopCheckText)
 	first := len(run.lines.String())
 	run.respond(1000, stopCheckText)
 	second := len(run.lines.String())
@@ -868,10 +869,13 @@ func TestRunStopCheckResumesAScanCutByItsBudget(t *testing.T) {
 		state, readErr := readStopState(statePath)
 		require.NoError(t, readErr)
 		require.Equal(t, int64(offset), state.Offset, "one line a stop at a zero budget")
-		require.Nil(t, state.Subagents, "subagent files wait for the scan to catch up")
+		require.Equal(t, map[string]int64{}, state.Subagents, "subagent files wait for the scan to catch up")
 	}
 	_, output := run.stop(run.gateway, false)
-	require.Equal(t, stopOutput{Decision: "block", Reason: rememberReason}, output, "caught up, the first line's edit is asked about")
+	require.Equal(t, stopOutput{Decision: "block", Reason: rememberReason}, output, "caught up, the subagent's edit is asked about")
+	state, err := readStopState(statePath)
+	require.NoError(t, err)
+	require.Equal(t, map[string]int64{"agent-a1.jsonl": int64(len(subagent))}, state.Subagents)
 }
 
 func TestScanTranscriptConsumesWholeLinesOnly(t *testing.T) {

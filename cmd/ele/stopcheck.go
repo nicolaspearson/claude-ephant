@@ -431,8 +431,10 @@ func stopCheck(ctx context.Context, args []string, stdin io.Reader, stdout io.Wr
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return 1
 	}
-	// Edits are placed against the parent's state, partial while behind.
-	if !behind {
+	// Edits are placed against the parent's state, partial while behind; an empty map has the caught-up stop read every file from its start.
+	if behind && state.Subagents == nil {
+		state.Subagents = map[string]int64{}
+	} else if !behind {
 		if state, err = scanSubagents(subagentDirectory(hook.TranscriptPath), state); err != nil {
 			fmt.Fprintf(stderr, "ele: %v\n", err)
 			return 1
