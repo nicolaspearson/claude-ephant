@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -262,6 +263,32 @@ func TestRunCheckpointGateWeighsOnlyWhatThisTurnWrote(t *testing.T) {
 			require.Contains(t, block.Reason, test.block)
 		})
 	}
+	t.Run("ele's data directory inside the repository", func(t *testing.T) {
+		root := hookRepository(t)
+		t.Setenv("ELE_HOME", filepath.Join(root, ".ele"))
+		snapshotHook(t)
+		writeTestFile(t, root, ".ele/notes/note.md", "kept\n")
+
+		require.Empty(t, gateHook(t, transcriptFile(t, "PROMPT:go", "BASH:ele remember --kind decision x", doneClaim), false))
+
+		snapshotHook(t)
+		dirty(t, root)
+		writeTestFile(t, root, ".ele/notes/other.md", "kept\n")
+		writeTestFile(t, root, ".ele-other/x.md", "theirs\n")
+		var block stopOutput
+		output := gateHook(t, transcriptFile(t, "PROMPT:go", "BASH:sed -i '' 's/a/b/' main.go", doneClaim), false)
+		require.NoError(t, json.Unmarshal([]byte(output), &block), output)
+		require.Contains(t, block.Reason, "Changed: .ele-other/x.md main.go\n")
+
+		for index := range 250 {
+			writeTestFile(t, root, ".ele/notes/"+strconv.Itoa(index)+".md", "kept\n")
+		}
+		snapshotHook(t)
+		dirty(t, root)
+		output = gateHook(t, transcriptFile(t, "PROMPT:go", editMain, doneClaim), false)
+		require.NoError(t, json.Unmarshal([]byte(output), &block), output)
+		require.Contains(t, block.Reason, "Changed: main.go\n")
+	})
 	t.Run("the turn's own files recorded while another session's are dirty", func(t *testing.T) {
 		root := hookRepository(t)
 		t.Setenv("CLAUDE_CODE_SESSION_ID", hookSession)

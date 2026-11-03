@@ -41,10 +41,11 @@ The gate weighs only what the turn itself wrote, so another session editing
 the same checkout does not block a turn that edited files. A turn that edited files is judged on
 those files alone, and passes once a checkpoint has recorded them as they
 stand. A turn that edited nothing is judged on everything that moved only when
-it ran a Bash command that may write. Offering a commit counts as saying the
-work is done, unless the commit is offered for later, as in "once the suite
-passes, you can commit". "Now done; two are left" reports progress, not done
-work.
+it ran a Bash command that may write. The gate never weighs ele's own data
+directory, even when `ELE_HOME` puts it inside the checkout. Offering a commit
+counts as saying the work is done, unless the commit is offered for later, as
+in "once the suite passes, you can commit". "Now done; two are left" reports
+progress, not done work.
 
 When you say a change needs no checkpoint, Claude exempts its paths for the
 session with `ele checkpoint optout`. To turn the gate off entirely:

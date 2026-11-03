@@ -46,6 +46,7 @@ Checkpoint and ticket-audit ship in the ele plugin: `claude plugin eval` needs a
 - The gate weighs only what the turn's own calls wrote, since sessions share the working tree and another one's writes move paths too
   - A turn that ran `Edit`, `MultiEdit`, `NotebookEdit` or `Write` on a file in the repository is judged on the moved paths those calls named, and `Changed:` lists only them
   - A turn with no such call is judged on every moved path when a Bash command reads as work by the classifier stop-check uses, since a Bash write names no path, and passes otherwise; so is a turn whose start falls before the transcript tail the hook reads
+  - The gate never weighs a path under ele's data directory, which the checkpoint state drops before its path cap: with `ELE_HOME` inside the checkout, every note, index and log write would move a path, and its files would push the repository's own past the cap
   - The paths weighed pass when the latest record holds each at its current bytes, whatever else is dirty
   - The cost: a file a turn writes through Bash beside an edit in the repository goes unchecked, as does a subagent's edit
 - A done claim is the final text block's. A printed `git commit` is one, a ready-to-commit claim even mid-item, unless the text offers it for later: "once the suite passes, you can commit". A done phrase is not one on a line counting what is left: "now done; two are left"

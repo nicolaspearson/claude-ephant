@@ -16,6 +16,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/nicolaspearson/claude-ephant/internal/datadir"
 )
 
 const (
@@ -95,6 +97,10 @@ func DirtyPaths(ctx context.Context, root string) []string {
 	}
 	slices.Sort(paths)
 	paths = slices.Compact(paths)
+	// Before the cap: ELE_HOME inside a checkout holds enough files to crowd out the repository's own.
+	if directory, err := datadir.Path(); err == nil {
+		paths = outside(paths, root, directory)
+	}
 	if len(paths) > pathCap {
 		paths = paths[:pathCap]
 	}
@@ -470,6 +476,16 @@ func gitInput(ctx context.Context, directory string, input string, args ...strin
 		return stdout.String(), fmt.Errorf("git %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
 	}
 	return stdout.String(), nil
+}
+
+func outside(paths []string, root string, directory string) []string {
+	prefix := repositoryPath(root, directory)
+	if filepath.IsAbs(prefix) || strings.HasPrefix(prefix, "..") {
+		return paths
+	}
+	return slices.DeleteFunc(paths, func(path string) bool {
+		return strings.HasPrefix(path, prefix+"/")
+	})
 }
 
 func parseState(content string) State {

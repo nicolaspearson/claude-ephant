@@ -976,12 +976,26 @@ keep.
     rule removed. The re-measure is above; the spec's gate bullets and
     `docs/checkpoint-and-ticket-audit.md` say what passes; `task check
     FORCE=1` and `task audit` pass. Not yet observed in a real session
-- [ ] gate-data-dir: The checkpoint gate leaves ele's own data directory out
+- [x] gate-data-dir: The checkpoint gate leaves ele's own data directory out
   of a repository's changed paths
   - done when a test, seen red, has the gate pass a turn whose only change is
     under the data directory inside the repository, and
     `.documentation/specs/checkpoint-and-ticket-audit.md` and
     `docs/checkpoint-and-ticket-audit.md` say so
+  - as of 2026-11-03: `checkpoint.Gate` takes `MovedPaths` from
+    `WriteState`'s `git diff HEAD` and untracked `ls-files`, with no data
+    directory filter; `datadir.Path` is `ELE_HOME` when set, which can sit
+    inside a checkout, as in the eval sandbox where it was seen; a Bash turn
+    then brings every moved path in through `ownPaths`
+  - asserted in the gate-data-dir commit: cmd/ele's gate hook test passes a
+    Bash turn whose only change is under an `ELE_HOME` inside the repository;
+    beside data-directory writes it names main.go and a shared-prefix
+    `.ele-other/` path only; with 250 data-directory files past the 200-path
+    cap it still blocks on main.go. Each part was seen red: no filter in
+    `DirtyPaths`, a prefix match without the slash, the filter after the cap.
+    The spec's gate bullets and `docs/checkpoint-and-ticket-audit.md` say so;
+    `task check FORCE=1` and `task audit` pass. Not yet observed in a real
+    session
 - [ ] first-scan-timeout: Bound stop-check's first scan of a transcript with
   no usable state, so a large one advances within the Stop hook's timeout
   - done when the timeout is stated under this item, a scan of a transcript
@@ -1630,7 +1644,7 @@ keep.
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: readme-guides, gate-data-dir, first-scan-timeout, block-as-error, config-dir, project-owner, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
+  - blocked: readme-guides, first-scan-timeout, block-as-error, config-dir, project-owner, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`
