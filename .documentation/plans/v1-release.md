@@ -584,6 +584,16 @@ keep.
   - done when, for the interim release's tag, each install's
     `ele version` prints its tag, the plugin's hooks run in a fresh session, and
     `ele status` names the platform's data directory
+  - as of 2026-11-03 (737eb70): v0.13.0 is the release marked Latest, neither
+    draft nor pre-release; since its tag `install.sh`, `internal/datadir` and
+    `plugin/hooks/hooks.json` are unchanged, so the hooks `main` ships call
+    only commands v0.13.0 has; `datadir`'s `resolve` gives
+    `~/Library/Application Support/claude-ephant` off Linux and
+    `$XDG_DATA_HOME` or `~/.local/share/claude-ephant` on Linux, the paths
+    CONTRIBUTING.md's Installing from clean expects, and `ele status` prints
+    it on its `Data` line
+  - next: the user runs Installing from clean on the second Mac and in Docker
+    and pastes the output
 - [x] redact-promise: Redaction holds to what `docs/data-and-privacy.md`
   promises
   - done when the user rules on the two questions below, multiline quoted values
