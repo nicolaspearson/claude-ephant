@@ -579,7 +579,7 @@ keep.
     `docs/checkpoint-and-ticket-audit.md` and the spec name only `--since`;
     `task check FORCE=1` and `task audit` pass. `/ele:checkpoint-stats` not
     yet run in a session
-- [ ] clean-install: Install the interim release from clean through
+- [x] clean-install: Install the interim release from clean through
   `install.sh` and `brew`, on macOS and Linux
   - done when, for the interim release's tag, each install's
     `ele version` prints its tag, the plugin's hooks run in a fresh session, and
@@ -592,8 +592,24 @@ keep.
     `$XDG_DATA_HOME` or `~/.local/share/claude-ephant` on Linux, the paths
     CONTRIBUTING.md's Installing from clean expects, and `ele status` prints
     it on its `Data` line
-  - next: the user runs Installing from clean on the second Mac and in Docker
-    and pastes the output
+  - as of 2026-11-03, the user's run on the second Mac: for `install.sh` and
+    `brew` each, `ele version` printed v0.13.0, `ele status` named
+    `~/Library/Application Support/claude-ephant`, and `which -a ele` put the
+    install under test first; nothing showed the hooks ran, since the start
+    block reaches only the model, where Installing from clean expected it on
+    screen. Installing from clean now has the session quote ele's start
+    context and checks `Last sync` after it
+  - asserted in the commit carrying this tick, on the user's runs of
+    CONTRIBUTING.md's Installing from clean for v0.13.0, as revised in that
+    commit, the results confirmed by the user rather than pasted: on the
+    second Mac through `install.sh` and `brew`, and in arm64 Docker through
+    `install.sh` on `ubuntu:24.04` and `brew` on `homebrew/brew`, each `ele version` printed v0.13.0, each
+    `ele status` named the platform's data directory
+    (`~/Library/Application Support/claude-ephant`,
+    `/root/.local/share/claude-ephant`,
+    `/home/linuxbrew/.local/share/claude-ephant`), and in a fresh session
+    against each the model quoted ele's start context and `Last sync` fell
+    after the session's start. linux/amd64 not run
 - [x] redact-promise: Redaction holds to what `docs/data-and-privacy.md`
   promises
   - done when the user rules on the two questions below, multiline quoted values
@@ -1570,7 +1586,7 @@ keep.
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: readme-guides, clean-install, gate-false-blocks, gate-data-dir, first-scan-timeout, block-as-error, config-dir, project-owner, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
+  - blocked: readme-guides, gate-false-blocks, gate-data-dir, first-scan-timeout, block-as-error, config-dir, project-owner, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`

@@ -271,7 +271,15 @@ brew install nicolaspearson/tap/ele
 ```
 
 Then a session against each. The hooks run the first `ele` on the `PATH`
-`claude` starts with, so each `export` puts the install under test first:
+`claude` starts with, so each `export` puts the install under test first. The
+start block reaches only the model, so nothing on screen shows the hooks ran:
+in each session, ask Claude to quote ele's session-start context verbatim. In a
+directory no owner covers, it holds the line saying so, which names
+`/ele:setup`, after a line saying no sync is recorded yet in the first session on
+a new data directory; after setup, a new session's holds the notes header. The
+SessionStart and SessionEnd hooks each start a sync, so `ele status`'s `Last
+sync` after the session is later than its start; only the quote shows
+SessionStart ran:
 
 ```sh
 export PATH="$HOME/.local/bin:$PATH"
@@ -280,13 +288,13 @@ claude plugin marketplace add nicolaspearson/claude-ephant
 claude plugin install ele@claude-ephant
 
 which -a ele                  # ~/.local/bin/ele first
-claude                        # /login, then the start shows ele's block; exit
-ele status                    # a sync since the session started
+claude                        # /login, ask for ele's start context; exit
+ele status                    # Last sync after the session started
 
 export PATH="$(brew --prefix)/bin:$PATH"
 which -a ele                  # brew's first
-claude                        # the start shows ele's block; exit
-ele status
+claude                        # ask for ele's start context; exit
+ele status                    # Last sync after the session started
 ```
 
 On Linux, in Docker; on Apple Silicon this is arm64, and
@@ -302,8 +310,8 @@ ele status                    # /root/.local/share/claude-ephant
 curl -fsSL https://claude.ai/install.sh | bash
 claude plugin marketplace add nicolaspearson/claude-ephant
 claude plugin install ele@claude-ephant
-claude                        # /login, then the start shows ele's block; exit
-ele status
+claude                        # /login, ask for ele's start context; exit
+ele status                    # Last sync after the session started
 ```
 
 `brew`, then a session:
@@ -316,6 +324,6 @@ ele status                    # /home/linuxbrew/.local/share/claude-ephant
 curl -fsSL https://claude.ai/install.sh | bash && export PATH="$HOME/.local/bin:$PATH"
 claude plugin marketplace add nicolaspearson/claude-ephant
 claude plugin install ele@claude-ephant
-claude                        # /login, then the start shows ele's block; exit
-ele status
+claude                        # /login, ask for ele's start context; exit
+ele status                    # Last sync after the session started
 ```
