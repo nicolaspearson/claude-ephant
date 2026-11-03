@@ -63,11 +63,16 @@ The `ele` plugin adds the skills and hooks that use the binary:
    ```
 
    Or with Go, whose bin directory (`go env GOBIN`, else `bin` under the first
-   entry of `go env GOPATH`) must be on `PATH`:
+   entry of `go env GOPATH`) must be on `PATH`, `<tag>` being the tag of the
+   release marked Latest on the
+   [Releases page](https://github.com/nicolaspearson/claude-ephant/releases):
 
    ```sh
-   go install github.com/nicolaspearson/claude-ephant/cmd/ele@latest
+   go install github.com/nicolaspearson/claude-ephant/cmd/ele@<tag>
    ```
+
+   Not `@latest`: a release's tag is pushed while it is still a draft, so
+   `@latest` can install a draft.
 
 2. In Claude Code, add the marketplace and install the plugin:
 
@@ -118,7 +123,8 @@ each does.
 
 An `ele` older than the plugin answers the subcommands it lacks with its usage
 text, so update the binary first, the way it was installed: `brew upgrade ele`,
-the install script again, or `go install …/cmd/ele@latest`. Then:
+the install script again, or `go install …/cmd/ele@<tag>` with the latest
+release's tag. Then:
 
 ```text
 /plugin marketplace update claude-ephant

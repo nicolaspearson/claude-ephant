@@ -103,6 +103,32 @@ keep.
 - Release workflow runs and installs from clean are the user's: the user
   triggers a dispatch, and a clean install runs in a container, VM or separate
   account, never on the PATH this machine's hooks call
+- `release-safety`: publish keeps releasing a pre-release draft as a
+  pre-release, never latest and never tapped, since neither `install.sh` nor
+  brew serves one; only `tap.yml` refuses a pre-release (ruled 2026-11-03)
+  - rejected: publish refusing a pre-release, because the throwaway dispatch
+    in CONTRIBUTING is a pre-release and neither `install.sh` nor brew
+    serves one
+- `release-safety`: publish fails before uploading anything when a dispatched
+  draft that is not a pre-release sorts below the current latest, naming both
+  tags, and when its tag has a pre-release suffix such as `-rc.1`, which
+  `sort -V` puts above the bare version; the draft stays a draft (ruled
+  2026-11-03)
+  - rejected: publishing it as not latest, because a draft below the latest
+    is one a later release already superseded, and published, it would list
+    an outdated build beside the current one
+- `release-safety`: `tap.yml` renders only the current latest release, which
+  refuses a pre-release, a draft and an older tag in one check (ruled
+  2026-11-03)
+  - rejected: separate pre-release and age checks, because the latest release
+    is the one tag the formula may name
+- `release-safety`: the README gives `go install …/cmd/ele@<tag>` with the
+  tag of the release marked Latest on the Releases page, which never shows a
+  draft (ruled 2026-11-03)
+  - rejected: dropping `go install`, because it is the route needing no
+    script or Homebrew
+  - rejected: a version release-please bumps in the README, because the
+    release PR's merge names the tag while it is still a draft
 - `cli-lock`: `ele --version` and `ele -v` alias `ele version`, and
   `ele help <command>` runs `<command> --help`, added before 1.0, since
   `--version` is the first thing typed after an install (ruled 2026-11-02)
@@ -830,9 +856,25 @@ keep.
     `json.Unmarshal` error and decodes numbers to `float64`, losing integers
     past 2^53
 - [ ] release-safety: No release path ships an old or pre-release build to users
-  - done when publish and `tap.yml` refuse a pre-release and a tag below the
-    latest, shown by a run the user dispatches, and the README's install and
+  - done when publish refuses a draft, not a pre-release, whose tag sorts
+    below the latest, and `tap.yml` refuses any tag but the latest release's,
+    each shown by a run the user dispatches, and the README's install and
     Update name no `go install …@latest` a draft's tag can serve
+  - 2026-11-03, premise check: `release.yml`'s publish job publishes any
+    dispatched draft, a non-pre-release with `--latest` and then tapped, and
+    a pre-release with `--prerelease --latest=false` and untapped, with no
+    comparison to the current latest; `tap.yml` by hand checks neither
+    pre-release nor age; `README.md` gives `go install …/cmd/ele@latest` in
+    install and Update; `release-please-config.json` sets `draft` and
+    `force-tag-creation`
+  - as of 2026-11-03: publish refuses a non-pre-release draft below the
+    latest, or with a pre-release suffix, and `tap.yml` refuses all but the
+    latest release, both before any upload or tap checkout; the README gives
+    `@<tag>`; CONTRIBUTING documents the refusal runs; actionlint passes and
+    `sort -V` checked on GNU coreutils 9.4. next: the user runs
+    CONTRIBUTING's refusal block and the throwaway pre-release dispatch, which
+    also shows whether Tap called from Release sees the just-published release
+    as latest
   - 2026-10-30, from release-dispatch's checkpoint: a hand-published
     non-pre-release draft is marked latest and tapped even when a newer release
     exists, so `install.sh` and brew would move users back to it. Should

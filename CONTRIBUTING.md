@@ -149,11 +149,15 @@ and a `checksums.txt`, and publishes the release as latest, so
 commit stays a draft for a person. There is no GoReleaser and no Windows build.
 
 To publish such a draft, run Release by hand with its tag. The run checks the
-tag's commit, refuses a release that is not a draft, then builds, uploads and
-publishes it as a push would. A pre-release is never marked latest and never
-reaches the Tap job. `gh workflow run` runs the workflow as it is on `main`
-unless `--ref` names another branch. To try it without cutting a version, tag
-`main` with a throwaway tag, make a draft pre-release on it and run Release:
+tag's commit and refuses a release that is not a draft. It refuses a draft
+that is not a pre-release when its tag sorts below the latest release, since
+publishing it would move `install.sh` and brew users back, and when its tag
+has a pre-release suffix such as `-rc.1`, which `sort -V` places above the
+bare version. Then it builds, uploads and publishes it as a push would. A
+pre-release is never marked latest and never reaches the Tap job. `gh workflow
+run` runs the workflow as it is on `main` unless `--ref` names another branch.
+To try it without cutting a version, tag `main` with a throwaway tag, make a
+draft pre-release on it and run Release:
 
 ```sh
 git fetch origin && git tag v0.0.0-dispatch origin/main && git push origin v0.0.0-dispatch
@@ -178,6 +182,28 @@ gh release view v0.0.0-dispatch
 git ls-remote --tags origin v0.0.0-dispatch
 ```
 
+Run this only once the refusing workflows are on `main`, or pass `--ref` with
+a pushed branch that holds them: a Release without the check publishes
+`v0.0.0-old` as the latest and taps it, and a Tap without it moves brew back
+to an older release. To see the refusals, make the throwaway draft without
+`--prerelease`, so the age check applies to it, its tag sorting below the
+latest release, and run Release with it; then run Tap with a published release
+that is not the latest:
+
+```sh
+git fetch origin && git tag v0.0.0-old origin/main && git push origin v0.0.0-old
+gh release create v0.0.0-old --draft --verify-tag --title v0.0.0-old --notes "Throwaway"
+gh workflow run release.yml -f tag=v0.0.0-old
+gh workflow run tap.yml -f tag="$(gh release list --exclude-drafts --exclude-pre-releases --json tagName,isLatest --jq 'map(select(.isLatest | not))[0].tagName')"
+```
+
+Once both finish, Release's Build and publish job fails at Find the draft
+with `v0.0.0-old sorts below the latest release`, the release still a draft,
+and Tap's Update the formula job fails at Refuse all but the latest, before it
+checks out the tap. Then delete the throwaway as above, with `v0.0.0-old`.
+Should Release publish it instead, it is the latest and Tap pushes it to brew:
+delete it at once, then run Tap with the release that is latest again.
+
 The plugin has no version: the marketplace serves `plugin/` from `main`, so a
 plugin change reaches users at their next marketplace update after the push,
 and the binary it needs only at the next release.
@@ -196,8 +222,9 @@ The formula is a binary one: each release tarball with its sum from
 covers Linuxbrew. The Tap workflow, `tap.yml`, renders it and pushes it to
 `nicolaspearson/homebrew-tap`, then installs the release through `install.sh`
 on macOS and Linux and through `brew` on macOS, failing unless `ele version`
-prints the tag. Release calls it after publishing. Run it by hand with a tag,
-v0.3.0 or later, to re-render the formula for that release.
+prints the tag. Release calls it after publishing. Run it by hand with the
+latest release's tag to re-render the formula; it refuses any other tag, so a
+pre-release, a draft or an older release never reaches brew users.
 
 It pushes with the `HOMEBREW_TAP_TOKEN` secret, a fine-grained token with write
 access to that repository's contents alone. It expires 2027-10-21; after that
@@ -208,7 +235,8 @@ To renew it, create a token with the same scope and run:
 gh secret set HOMEBREW_TAP_TOKEN
 ```
 
-If a release's Tap job already failed, run Tap by hand with that release's tag.
+If a release's Tap job already failed, run Tap by hand with that release's tag,
+while it is still the latest.
 
 ### Installing from clean
 

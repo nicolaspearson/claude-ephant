@@ -67,6 +67,7 @@ jobs:
       tag: ${{ env.TAG }}
     steps:
       # Only a draft: a re-run on a published release would swap the binaries under its users.
+      # Nor a non-pre-release older than latest: published, it would move install.sh and brew users back.
       - name: Find the draft
         id: draft
         env:
@@ -75,6 +76,18 @@ jobs:
           set -eu
           state=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease --jq '"\(.isDraft) \(.isPrerelease)"')
           [ "${state% *}" = true ] || { echo "$TAG is not a draft release" >&2; exit 1; }
+          if [ "${state#* }" = false ]; then
+            latest=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)
+            if [ "$(printf '%s\n%s\n' "$latest" "$TAG" | sort -V | tail -n 1)" != "$TAG" ]; then
+              echo "$TAG sorts below the latest release, $latest; it stays a draft" >&2
+              exit 1
+            fi
+            # sort -V puts v1.0.0-rc.1 above v1.0.0, so a suffix would pass as newer.
+            case "$TAG" in *-*)
+              echo "$TAG has a pre-release suffix; mark the draft a pre-release" >&2
+              exit 1
+            esac
+          fi
           echo "prerelease=${state#* }" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

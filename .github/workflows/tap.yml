@@ -1,7 +1,7 @@
 name: Tap
 run-name: "Tap: ${{ inputs.tag }}"
 
-# Release calls this once a release is published; by hand it renders the formula for any published tag.
+# Release calls this once a release is published; by hand it re-renders the formula for the latest release.
 on:
   workflow_call:
     inputs:
@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "A published release's tag, v0.3.0 or later: earlier ones have no `ele version`"
+        description: "The latest release's tag: the formula names no other"
         required: true
         type: string
 
@@ -30,6 +30,15 @@ jobs:
     name: Update the formula
     runs-on: ubuntu-latest
     steps:
+      # A pre-release, a draft or an older tag would reach every brew user.
+      - name: Refuse all but the latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -eu
+          latest=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)
+          [ "$TAG" = "$latest" ] || { echo "$TAG is not the latest release, $latest" >&2; exit 1; }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: nicolaspearson/homebrew-tap
