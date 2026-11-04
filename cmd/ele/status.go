@@ -367,7 +367,7 @@ func writeStatus(stdout io.Writer, now time.Time) error {
 	case skippedErr != nil:
 		fmt.Fprintf(table, "Sync skipped\t%v\n", skippedErr)
 	case len(skipped) > 0:
-		fmt.Fprintf(table, "Sync skipped\t%s, listed below\n", plural(len(skipped), "file", "files"))
+		fmt.Fprintf(table, "Sync skipped\t%s, listed below\n", plural(len(skipped), "entry", "entries"))
 	}
 	fmt.Fprintf(table, "Sync running\t%s\n", syncRunning(filepath.Join(dataDirectory, "archive", "transcripts")))
 	fmt.Fprintf(table, "Here\t%s\n", where(dataDirectory))

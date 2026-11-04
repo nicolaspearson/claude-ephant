@@ -200,7 +200,7 @@ and `--background` starts it detached and returns. A file it cannot read is
 skipped and named, and the rest synced; the start block says how many until a
 sync skips none. `reindex` rebuilds the index from the archive and notes.
 `status` says whether ele is working here: the data directory, the sync state
-and any files the last sync skipped, the owner here, the plugin in each profile
+and anything the last sync skipped, the owner here, the plugin in each profile
 and the sync log. `stats` counts what the index holds and its disk use. `version` prints
 the release tag stamped at build, else the version Go stamped, or `devel`.
 `backup` copies the archive, notes, forgotten notes, mining runs, config, owner

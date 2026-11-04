@@ -349,7 +349,7 @@ func writeSessionStart(ctx context.Context, stdout io.Writer, dataDirectory stri
 	if skipped, skippedErr := readSyncSkipped(dataDirectory); skippedErr != nil {
 		fmt.Fprintf(stdout, "ele: %v\n", skippedErr)
 	} else if len(skipped) > 0 {
-		fmt.Fprintf(stdout, "ele's sync skipped %s; ele status lists them.\n", plural(len(skipped), "file", "files"))
+		fmt.Fprintf(stdout, "ele's sync skipped %s; ele status lists them.\n", plural(len(skipped), "entry", "entries"))
 	}
 
 	ownerMap, err := ownermap.Load(filepath.Join(dataDirectory, "owner-map.json"))

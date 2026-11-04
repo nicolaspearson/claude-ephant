@@ -19,6 +19,10 @@ func Current(configDirectory string) string {
 	if configDirectory == "" {
 		return "claude"
 	}
+	// Abs fails only without a working directory; the raw value still names it.
+	if directory, err := filepath.Abs(configDirectory); err == nil {
+		configDirectory = directory
+	}
 	return nameOf(configDirectory)
 }
 

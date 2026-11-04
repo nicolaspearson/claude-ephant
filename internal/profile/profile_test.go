@@ -14,6 +14,18 @@ func TestCurrentNamesTheProfileFromItsDirectory(t *testing.T) {
 	require.Equal(t, "corp", Current("/Users/me/.claude-corp/"))
 }
 
+func TestCurrentNamesARelativeProfileAsDiscoverDoes(t *testing.T) {
+	scratch := filepath.Join(t.TempDir(), "scratch")
+	require.NoError(t, os.MkdirAll(filepath.Join(scratch, "projects"), 0o700))
+	t.Chdir(scratch)
+
+	roots, _, err := Discover(t.TempDir(), ".")
+	require.NoError(t, err)
+	require.Len(t, roots, 1)
+	require.Equal(t, "scratch", roots[0].Name)
+	require.Equal(t, "scratch", Current("."))
+}
+
 func TestDiscoverNamesProfilesByDirectory(t *testing.T) {
 	home := t.TempDir()
 	for _, directory := range []string{".claude/projects", ".claude-corp/projects", ".claude-cache", ".claude-notes/projects-not"} {

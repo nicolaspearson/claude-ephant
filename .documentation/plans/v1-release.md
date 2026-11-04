@@ -1158,6 +1158,13 @@ keep.
     `transcripts/tmp.Xy12` and `ele status` showed it enabled; `design.md` and
     `docs/data-and-privacy.md` say so; `task check FORCE=1` and `task audit`
     pass
+  - asserted in the config-dir follow-up commit after c814608, as ruled by
+    the user: `profile.Current` names a relative `CLAUDE_CONFIG_DIR` by its
+    absolute path, as discovery does (test seen red), and a skip is counted
+    as an entry, not a file, in the start block and `ele status` (seen red by
+    mutation of each); `design.md` says the name check compares the profiles
+    present at sync, and the recipe skill and `design.md` no longer call the
+    two globs the profiles ele archives
 - [ ] project-owner: `--project` works on a project with entries under
   several owners, resolving the working directory's owner where it holds the
   project
