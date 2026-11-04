@@ -1069,12 +1069,12 @@ keep.
     (above). The spec's State and Replay sections and
     `docs/data-and-privacy.md` say how the scan is bounded; `task check
     FORCE=1` and `task audit` pass. Not yet observed in a real session
-- [ ] block-as-error: Find whether Claude Code can deliver a Stop block reason
+- [x] block-as-error: Find whether Claude Code can deliver a Stop block reason
   without showing it as an error, and use it if so
   - done when the finding is written under this item, dated with the Claude
     Code version, and `.documentation/specs/stop-check.md` and
     `docs/notes-and-recall.md` say what the user sees
-  - as of 2026-11-03, Claude Code 2.1.309: a `{"decision":"block","reason":…}`
+  - as of 2026-11-03, Claude Code 2.1.308: a `{"decision":"block","reason":…}`
     Stop output at exit 0 reaches the model twice, as `Stop hook feedback:`
     and as `Stop hook blocking error from command: "<command>": …`; the
     transcript records a meta user line `Stop hook feedback:\n<reason>`, a
@@ -1107,9 +1107,22 @@ keep.
     `hook-block` (`transcript.StopContext`), the index rebuilds at version 15,
     and the specs, docs, README floor and `hooks.json` say so; each new test
     seen red. Checkpointed; the clone build is installed
-  - next: see a notes ask and a gate block fire in an interactive session on
-    this build, note what the terminal shows and the transcript holds, and
-    whether two Stop hooks at one stop write one attachment each; then tick
+  - as of 2026-11-04, Claude Code 2.1.308, interactive, on the build of
+    462f54f: a notes ask showed in the terminal as `Ran 3 stop hooks` and,
+    under it, `Stop hook feedback: <reason>`, with no error label; the
+    transcript held a Stop `hook_additional_context` attachment and the
+    reason in `stop_hook_summary.hookAdditionalContext`, `hookErrors` empty,
+    no feedback line and no `hook_blocking_error`; the model got it once, as
+    `Stop hook additional context: …`. A gate block and two Stop hooks
+    continuing one stop not yet seen
+  - asserted in the block-as-error commit and the 2026-11-04 interactive stop
+    above: both Stop hooks send `additionalContext`; on 2.1.308 the terminal
+    showed the notes ask as `Stop hook feedback` with no error label and the
+    model got it once; the parser and mining read the Stop attachment as a
+    `hook-block` (tests seen red by removing the Stop case, SubagentStop,
+    string content and mining's call), the index rebuilds at 15, the specs
+    and docs say what the user sees and the README the 2.1.163 floor;
+    `task check FORCE=1` and `task audit` pass. A gate block not yet seen
 - [ ] config-dir: Honour `CLAUDE_CONFIG_DIR` in profile discovery, archiving a
   profile outside `~/.claude` and `~/.claude-*`
   - done when a test, seen red, archives a session from such a profile,
@@ -1747,7 +1760,7 @@ keep.
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: readme-guides, block-as-error, config-dir, project-owner, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
+  - blocked: readme-guides, config-dir, project-owner, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`
@@ -1757,6 +1770,12 @@ keep.
   .documentation/plans/v1-release.md`, and delete this plan
 
 ## Inbox
+
+- 2026-11-04, from block-as-error: when the checkpoint gate and the notes ask
+  both continue one stop, does Claude Code write one
+  `hook_additional_context` attachment per hook, or one holding both? With
+  one combined, the event's reason is the gate's first line, so the index's
+  notes-ask events and `--replay`'s `asked` miss the ask
 
 ## Out of scope
 
