@@ -1817,6 +1817,13 @@ keep.
 
 ## Inbox
 
+- 2026-11-04, from config-dir's follow-up checkpoint: when `CLAUDE_CONFIG_DIR`
+  is a symlink to a discovered profile, or a folder skipped for a taken name,
+  the archive files it under the discovered profile's name while
+  `profile.Current` gives notes the variable's own folder name (`link` vs
+  `hyve`); should `Current` resolve symlinks and name a skipped profile as
+  discovery does?
+
 ## Out of scope
 
 - Self-audit of ele's own records: a feature, not a release gate (ruled
