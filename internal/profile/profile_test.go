@@ -8,22 +8,59 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCurrentNamesTheProfileFromItsDirectory(t *testing.T) {
-	require.Equal(t, "claude", Current(""))
-	require.Equal(t, "claude", Current("/Users/me/.claude"))
-	require.Equal(t, "corp", Current("/Users/me/.claude-corp/"))
+func TestCurrentNamesAProfileWhoseNameIsTakenByItsPath(t *testing.T) {
+	home := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(home, ".claude-hyve", "projects"), 0o700))
+	skippedFolder := filepath.Join(t.TempDir(), ".claude-hyve")
+	require.NoError(t, os.MkdirAll(filepath.Join(skippedFolder, "projects"), 0o700))
+	emptyFolder := filepath.Join(t.TempDir(), ".claude-hyve")
+	require.NoError(t, os.MkdirAll(emptyFolder, 0o700))
+
+	_, skipped, err := Discover(home, skippedFolder)
+	require.NoError(t, err)
+	require.Len(t, skipped, 1)
+	require.Equal(t, skippedFolder, Current(home, skippedFolder))
+	_, skipped, err = Discover(home, emptyFolder)
+	require.NoError(t, err)
+	require.Empty(t, skipped)
+	require.Equal(t, emptyFolder, Current(home, emptyFolder))
 }
 
 func TestCurrentNamesARelativeProfileAsDiscoverDoes(t *testing.T) {
 	scratch := filepath.Join(t.TempDir(), "scratch")
 	require.NoError(t, os.MkdirAll(filepath.Join(scratch, "projects"), 0o700))
 	t.Chdir(scratch)
+	home := t.TempDir()
 
-	roots, _, err := Discover(t.TempDir(), ".")
+	roots, _, err := Discover(home, ".")
 	require.NoError(t, err)
 	require.Len(t, roots, 1)
 	require.Equal(t, "scratch", roots[0].Name)
-	require.Equal(t, "scratch", Current("."))
+	require.Equal(t, "scratch", Current(home, "."))
+}
+
+func TestCurrentNamesASymlinkedProfileAsDiscoverDoes(t *testing.T) {
+	home := t.TempDir()
+	store := filepath.Join(t.TempDir(), "claude-store")
+	require.NoError(t, os.MkdirAll(filepath.Join(store, "projects"), 0o700))
+	require.NoError(t, os.Symlink(store, filepath.Join(home, ".claude-hyve")))
+	link := filepath.Join(t.TempDir(), "link")
+	require.NoError(t, os.Symlink(filepath.Join(home, ".claude-hyve"), link))
+
+	for _, configDirectory := range []string{filepath.Join(home, ".claude-hyve"), link, store} {
+		roots, skipped, err := Discover(home, configDirectory)
+		require.NoError(t, err)
+		require.Empty(t, skipped, configDirectory)
+		require.Equal(t, []Root{{Directory: filepath.Join(home, ".claude-hyve"), Name: "hyve"}}, roots, configDirectory)
+		require.Equal(t, "hyve", Current(home, configDirectory), configDirectory)
+	}
+}
+
+func TestCurrentNamesTheProfileFromItsDirectory(t *testing.T) {
+	home := t.TempDir()
+	require.Equal(t, "claude", Current(home, ""))
+	require.Equal(t, "claude", Current(home, "/Users/me/.claude"))
+	require.Equal(t, "corp", Current(home, "/Users/me/.claude-corp/"))
 }
 
 func TestDiscoverNamesProfilesByDirectory(t *testing.T) {

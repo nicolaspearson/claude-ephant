@@ -165,6 +165,26 @@ func TestRunRememberHandsOffAgainOnceTheSameHandoffIsClosed(t *testing.T) {
 	require.Equal(t, 0, code, output)
 }
 
+func TestRunRememberNamesTheProfileAsSyncFilesIt(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	require.NoError(t, os.MkdirAll(filepath.Join(home, ".claude-corp", "projects"), 0o700))
+	link := filepath.Join(t.TempDir(), "link")
+	require.NoError(t, os.Symlink(filepath.Join(home, ".claude-corp"), link))
+	elsewhere := filepath.Join(t.TempDir(), ".claude-corp")
+	require.NoError(t, os.MkdirAll(filepath.Join(elsewhere, "projects"), 0o700))
+
+	t.Setenv("CLAUDE_CONFIG_DIR", link)
+	output, code := runCommand(t, "remember", "--kind", "fact", "From the link.")
+	require.Equal(t, 0, code, output)
+	require.Equal(t, "corp", readRemembered(t, output).Profile)
+
+	t.Setenv("CLAUDE_CONFIG_DIR", elsewhere)
+	output, code = runCommand(t, "remember", "--kind", "fact", "From a folder whose name corp holds.")
+	require.Equal(t, 0, code, output)
+	require.Equal(t, elsewhere, readRemembered(t, output).Profile)
+}
+
 func TestRunRememberRefusesALiveNoteSayingTheSame(t *testing.T) {
 	home := recallFixture(t)
 	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))

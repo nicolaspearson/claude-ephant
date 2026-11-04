@@ -22,6 +22,12 @@ import (
 
 const bodyLineLimit = 3
 
+func noteProfile() string {
+	// No home: Current skips discovery and names the folder.
+	home, _ := os.UserHomeDir()
+	return profile.Current(home, os.Getenv("CLAUDE_CONFIG_DIR"))
+}
+
 // The index's owners were resolved under the map it was synced with, and notes keep their folder's owner whether listed or not.
 func projectOwner(ctx context.Context, dataDirectory string, ownerMap ownermap.OwnerMap, project string) (string, error) {
 	if owner := ownerMap.ProjectOwner(project); owner != "" {
@@ -228,7 +234,7 @@ func remember(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 		ID:         id,
 		Kind:       *kind,
 		Owner:      *owner,
-		Profile:    profile.Current(os.Getenv("CLAUDE_CONFIG_DIR")),
+		Profile:    noteProfile(),
 		Project:    project,
 		Scope:      scope,
 		Session:    *session,

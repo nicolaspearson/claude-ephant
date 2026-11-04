@@ -15,7 +15,6 @@ import (
 	"github.com/nicolaspearson/claude-ephant/internal/index"
 	"github.com/nicolaspearson/claude-ephant/internal/notes"
 	"github.com/nicolaspearson/claude-ephant/internal/plan"
-	"github.com/nicolaspearson/claude-ephant/internal/profile"
 	"github.com/nicolaspearson/claude-ephant/internal/redact"
 )
 
@@ -509,7 +508,7 @@ func startPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.W
 		ID:      id,
 		Kind:    notes.KindPlan,
 		Owner:   scope.owner,
-		Profile: profile.Current(os.Getenv("CLAUDE_CONFIG_DIR")),
+		Profile: noteProfile(),
 		Project: scope.project,
 		Scope:   notes.ScopeProject,
 		Session: os.Getenv("CLAUDE_CODE_SESSION_ID"),

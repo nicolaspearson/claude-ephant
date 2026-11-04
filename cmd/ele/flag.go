@@ -13,7 +13,6 @@ import (
 	"github.com/nicolaspearson/claude-ephant/internal/datadir"
 	"github.com/nicolaspearson/claude-ephant/internal/index"
 	"github.com/nicolaspearson/claude-ephant/internal/notes"
-	"github.com/nicolaspearson/claude-ephant/internal/profile"
 	"github.com/nicolaspearson/claude-ephant/internal/redact"
 )
 
@@ -114,7 +113,7 @@ func saveFlag(ctx context.Context, verdict string, args []string, stdout io.Writ
 		ID:      id,
 		Kind:    notes.KindFlag,
 		Owner:   scope.owner,
-		Profile: profile.Current(os.Getenv("CLAUDE_CONFIG_DIR")),
+		Profile: noteProfile(),
 		Project: scope.project,
 		Scope:   notes.ScopeProject,
 		Session: flagged,

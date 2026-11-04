@@ -80,7 +80,11 @@ the syncs that run under it: its own sessions' hooks, or a shell exporting the
 variable. It is named after its folder, and `ele status` lists its plugin state
 there too. A sync without the variable leaves what was archived in place. One
 whose folder name another profile already has, such as `/elsewhere/.claude-work`
-beside `~/.claude-work`, is skipped, and `ele status` lists it.
+beside `~/.claude-work`, is skipped, and `ele status` lists it. A note written while
+`CLAUDE_CONFIG_DIR` names a folder whose name another profile has, skipped or
+not yet holding sessions, names its profile by the folder's full path, so it
+never reads as the other profile's; one written through a symlink to a profile
+names that profile.
 
 ### The index
 

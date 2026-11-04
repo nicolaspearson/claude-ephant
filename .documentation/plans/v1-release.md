@@ -1201,15 +1201,36 @@ keep.
     `usage` only filter on `--project`, resolving no owner, so are unaffected.
     `TestRunContextRefusesAsRememberDoes` pins the refusal from a directory no
     owner covers, which stays
-- [ ] config-dir-names: A `CLAUDE_CONFIG_DIR` that is a symlink to a
-  discovered profile, or a folder skipped for a taken name, gives notes the
-  profile name the archive files it under
+- [x] config-dir-names: A `CLAUDE_CONFIG_DIR` that is a symlink to a
+  discovered profile gives notes the profile name the archive files it under,
+  and one skipped for a taken name gives notes its absolute path
+  - asserted in the config-dir-names commit: `profile.Current` in
+    `internal/profile` names a `CLAUDE_CONFIG_DIR` as discovery does. Tests
+    at `Current` show a symlink to `~/.claude-hyve`, that profile's own real
+    folder, and the folder itself each giving `hyve`; a folder whose name
+    another profile holds giving its absolute path, both one sync skips and
+    one without `projects/`. `TestRunRememberNamesTheProfileAsSyncFilesIt` in
+    `cmd/ele` shows `ele remember` writing `corp` through a symlink and the
+    path for a taken name. Seen red with the real-path match dropped, with a
+    taken name returning the folder name, with the rule narrowed to skipped
+    folders, and with no home passed; the spec and
+    `docs/data-and-privacy.md` say so
   - as of 2026-11-04, from config-dir's follow-up checkpoint: the archive
     files such a folder under the discovered profile's name while
     `profile.Current` gives notes the variable's own folder name (`link` vs
-    `hyve`), not checked since
-  - done when a test, seen red, shows a symlinked and a skipped
-    `CLAUDE_CONFIG_DIR` each giving notes the name the archive uses
+    `hyve`)
+  - as of 2026-11-04: confirmed in `internal/profile`. `configRoot` matches a
+    `CLAUDE_CONFIG_DIR` to a discovered profile by real path, and skips one
+    whose folder name another profile holds, archiving it under no name;
+    `Current` takes the folder name of the absolute path, so a skipped one's
+    notes read as the profile holding the name. Callers: remember, flag and
+    plan in `cmd/ele`. The user ruled: the skipped folder's notes carry its
+    absolute path, as the `Skipped: profile <dir>` line names it; `Current`
+    matches by real path through discovery, as sync does, so a discovered
+    profile that is itself a symlink still names right
+  - done when a test, seen red, shows a symlinked `CLAUDE_CONFIG_DIR` giving
+    notes the name the archive uses and a skipped one giving its absolute
+    path, and the spec and `docs/` say so
 - [ ] skill-fixes: Fix the skill defects that fail a session or skip its review
   - done when each defect below is fixed in its skill or command file, the plan
     and checkpoint skills agree on who proposes a tick, and `task check FORCE=1`
@@ -1837,7 +1858,7 @@ keep.
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: readme-guides, config-dir-names, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
+  - blocked: readme-guides, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`

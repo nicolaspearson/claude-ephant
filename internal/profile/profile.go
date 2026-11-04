@@ -15,7 +15,7 @@ type Root struct {
 	Name      string
 }
 
-func Current(configDirectory string) string {
+func Current(home string, configDirectory string) string {
 	if configDirectory == "" {
 		return "claude"
 	}
@@ -23,7 +23,27 @@ func Current(configDirectory string) string {
 	if directory, err := filepath.Abs(configDirectory); err == nil {
 		configDirectory = directory
 	}
-	return nameOf(configDirectory)
+	name := nameOf(configDirectory)
+	if home == "" {
+		return name
+	}
+	roots, _, err := Discover(home, configDirectory)
+	if err != nil {
+		return name
+	}
+	resolved, resolveErr := filepath.EvalSymlinks(configDirectory)
+	for _, root := range roots {
+		if rootReal, err := filepath.EvalSymlinks(root.Directory); resolveErr == nil && err == nil && rootReal == resolved {
+			return root.Name
+		}
+	}
+	// Name held by another profile, skipped or not; the path tells them apart.
+	for _, root := range roots {
+		if root.Name == name {
+			return configDirectory
+		}
+	}
+	return name
 }
 
 func Discover(home string, configDirectory string) ([]Root, []string, error) {
