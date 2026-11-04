@@ -159,7 +159,7 @@ func checkpointGate(ctx context.Context, args []string, stdin io.Reader, stdout 
 	checkpoint.HookLog("block", "checkpoint", filepath.Base(root), time.Now())
 	encoder := json.NewEncoder(stdout)
 	encoder.SetEscapeHTML(false)
-	if err := encoder.Encode(stopOutput{Decision: "block", Reason: reason}); err != nil {
+	if err := encoder.Encode(stopOutput{HookSpecificOutput: continueWith(reason)}); err != nil {
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return 1
 	}

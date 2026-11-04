@@ -93,7 +93,7 @@ func TestRunCheckpointGateBlocksADoneClaimOverThisTurnsEditsWithNoCheckpoint(t *
 
 			output := gateHook(t, transcriptFile(t, test.transcript...), false)
 
-			require.Equal(t, test.block, strings.Contains(output, `"decision":"block"`), output)
+			require.Equal(t, test.block, strings.Contains(output, `"hookSpecificOutput"`), output)
 		})
 	}
 }
@@ -116,7 +116,7 @@ func TestRunCheckpointGateFollowsTheRunTheRecordAndTheOptout(t *testing.T) {
 	_, code := runCheckpoint(t, "record", root)
 	require.Equal(t, 0, code)
 	require.Empty(t, turn(func() {}), "reviewed state, skill call out of view")
-	require.Contains(t, turn(func() { dirty(t, root) }), "block", "record closed the run")
+	require.Contains(t, turn(func() { dirty(t, root) }), `"hookSpecificOutput"`, "record closed the run")
 
 	run, err := checkpoint.RunFile(context.Background(), root, hookSession)
 	require.NoError(t, err)
@@ -125,19 +125,19 @@ func TestRunCheckpointGateFollowsTheRunTheRecordAndTheOptout(t *testing.T) {
 		freeze()
 		old := time.Now().Add(-3 * time.Hour)
 		require.NoError(t, os.Chtimes(run+".open", old, old))
-	}), "block", "open marker abandoned hours ago")
+	}), `"hookSpecificOutput"`, "open marker abandoned hours ago")
 	require.Contains(t, turn(func() {
 		dirty(t, root)
 		freeze()
 		_, closed := runCheckpoint(t, "close", root)
 		require.Equal(t, 0, closed)
-	}), "block", "close ended the run")
+	}), `"hookSpecificOutput"`, "close ended the run")
 	require.Contains(t, turn(func() {
 		dirty(t, root)
 		t.Setenv("CLAUDE_CODE_SESSION_ID", "another-session")
 		freeze()
 		t.Setenv("CLAUDE_CODE_SESSION_ID", hookSession)
-	}), "block", "another session's run is open")
+	}), `"hookSpecificOutput"`, "another session's run is open")
 
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "deck"), 0o700))
 	output, code := runCheckpoint(t, "optout", root, "deck/*")
@@ -145,7 +145,7 @@ func TestRunCheckpointGateFollowsTheRunTheRecordAndTheOptout(t *testing.T) {
 	require.Equal(t, "opted out for this session: deck/*\n", output)
 	runGit(t, root, "checkout", "-q", "--", ".")
 	require.Empty(t, turn(func() { writeTestFile(t, root, "deck/one.md", "slide\n") }), "every moved path exempted")
-	require.Contains(t, turn(func() { writeTestFile(t, root, "deck/one.md", "slide 2\n"); dirty(t, root) }), "block", "a moved path outside the exemption")
+	require.Contains(t, turn(func() { writeTestFile(t, root, "deck/one.md", "slide 2\n"); dirty(t, root) }), `"hookSpecificOutput"`, "a moved path outside the exemption")
 }
 
 func TestRunCheckpointGateNamesWhatMovedAndLogsTheBlock(t *testing.T) {
@@ -158,10 +158,10 @@ func TestRunCheckpointGateNamesWhatMovedAndLogsTheBlock(t *testing.T) {
 
 	var block stopOutput
 	require.NoError(t, json.Unmarshal([]byte(output), &block), output)
-	require.Equal(t, "block", block.Decision)
-	require.Contains(t, block.Reason, "no checkpoint was reported.\n\nChanged: coverage.out main.go\n\n")
-	require.Contains(t, block.Reason, "Invoke the `ele:checkpoint` skill.")
-	require.Contains(t, block.Reason, "`ele checkpoint optout '"+root+"' \"<glob>\" ...`")
+	require.Equal(t, "Stop", block.HookSpecificOutput.HookEventName)
+	require.Contains(t, block.HookSpecificOutput.AdditionalContext, "no checkpoint was reported.\n\nChanged: coverage.out main.go\n\n")
+	require.Contains(t, block.HookSpecificOutput.AdditionalContext, "The `ele:checkpoint` skill reviews work before it is reported done.")
+	require.Contains(t, block.HookSpecificOutput.AdditionalContext, "`ele checkpoint optout '"+root+"' \"<glob>\" ...`")
 	logged, err := os.ReadFile(os.Getenv("HOOK_LOG"))
 	require.NoError(t, err)
 	fields := strings.Split(strings.TrimSuffix(string(logged), "\n"), "\t")
@@ -192,7 +192,7 @@ func TestRunCheckpointGateOffClearsTheBaselineAndABrokenConfigKeepsItOn(t *testi
 	require.NoError(t, os.WriteFile(filepath.Join(os.Getenv("ELE_HOME"), "config.json"), []byte(`{"checkpoint_gate": fals`), 0o600))
 	snapshotHook(t)
 	dirty(t, root)
-	require.Contains(t, gateHook(t, done, false), "block")
+	require.Contains(t, gateHook(t, done, false), `"hookSpecificOutput"`)
 }
 
 func TestRunCheckpointGatePassesTurnsThatAreNotCheckpoints(t *testing.T) {
@@ -260,7 +260,7 @@ func TestRunCheckpointGateWeighsOnlyWhatThisTurnWrote(t *testing.T) {
 			}
 			var block stopOutput
 			require.NoError(t, json.Unmarshal([]byte(output), &block), output)
-			require.Contains(t, block.Reason, test.block)
+			require.Contains(t, block.HookSpecificOutput.AdditionalContext, test.block)
 		})
 	}
 	t.Run("ele's data directory inside the repository", func(t *testing.T) {
@@ -278,7 +278,7 @@ func TestRunCheckpointGateWeighsOnlyWhatThisTurnWrote(t *testing.T) {
 		var block stopOutput
 		output := gateHook(t, transcriptFile(t, "PROMPT:go", "BASH:sed -i '' 's/a/b/' main.go", doneClaim), false)
 		require.NoError(t, json.Unmarshal([]byte(output), &block), output)
-		require.Contains(t, block.Reason, "Changed: .ele-other/x.md main.go\n")
+		require.Contains(t, block.HookSpecificOutput.AdditionalContext, "Changed: .ele-other/x.md main.go\n")
 
 		for index := range 250 {
 			writeTestFile(t, root, ".ele/notes/"+strconv.Itoa(index)+".md", "kept\n")
@@ -287,7 +287,7 @@ func TestRunCheckpointGateWeighsOnlyWhatThisTurnWrote(t *testing.T) {
 		dirty(t, root)
 		output = gateHook(t, transcriptFile(t, "PROMPT:go", editMain, doneClaim), false)
 		require.NoError(t, json.Unmarshal([]byte(output), &block), output)
-		require.Contains(t, block.Reason, "Changed: main.go\n")
+		require.Contains(t, block.HookSpecificOutput.AdditionalContext, "Changed: main.go\n")
 	})
 	t.Run("the turn's own files recorded while another session's are dirty", func(t *testing.T) {
 		root := hookRepository(t)
@@ -390,7 +390,7 @@ func TestRunCheckpointSnapshotKeepsTheBaselineOfATurnStillRunning(t *testing.T) 
 	dirty(t, root)
 	snapshotHook(t)
 
-	require.Contains(t, gateHook(t, transcriptFile(t, "PROMPT:go", editMain, doneClaim), false), "block")
+	require.Contains(t, gateHook(t, transcriptFile(t, "PROMPT:go", editMain, doneClaim), false), `"hookSpecificOutput"`)
 }
 
 func TestRunCheckpointStatsRefusesBadArguments(t *testing.T) {

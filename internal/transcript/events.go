@@ -23,9 +23,12 @@ const (
 	EventToolError  = "tool-error"
 )
 
-// Hook events whose plain stdout reaches the model; for the rest only JSON additionalContext does. As of 2026-10-16
-// no transcript records UserPromptSubmit plain stdout, only additional context.
-var plainContextHooks = []string{"SessionStart", "UserPromptSubmit"}
+var (
+	// Hook events whose plain stdout reaches the model; for the rest only JSON additionalContext does. As of 2026-10-16
+	// no transcript records UserPromptSubmit plain stdout, only additional context.
+	plainContextHooks = []string{"SessionStart", "UserPromptSubmit"}
+	stopHooks         = []string{"Stop", "SubagentStop"}
+)
 
 var (
 	// Older checkpoint blocks split the paths into "Tracked, dirty" and "Untracked, new", either alone.
@@ -43,6 +46,20 @@ func Reviewers(prompt string) []string {
 	}
 	slices.Sort(reviewers)
 	return slices.Compact(reviewers)
+}
+
+// StopContext is a Stop or SubagentStop hook's attachment context, which continues the turn as a block does.
+func StopContext(attachmentType string, hookEvent string, content json.RawMessage) (string, bool) {
+	if attachmentType != "hook_additional_context" || !slices.Contains(stopHooks, hookEvent) {
+		return "", false
+	}
+	var text string
+	if json.Unmarshal(content, &text) == nil {
+		return text, true
+	}
+	var parts []string
+	_ = json.Unmarshal(content, &parts)
+	return strings.Join(parts, "\n"), true
 }
 
 func agentAttributes(input map[string]any) map[string]any {
@@ -69,6 +86,19 @@ func agentType(input map[string]any) string {
 
 func attachmentEvents(parsed line) []dto.TranscriptEvent {
 	attachment := parsed.Attachment
+	// Before the injection cases: a Stop hook's context is a block.
+	if text, ok := StopContext(attachment.Type, attachment.HookEvent, attachment.Content); ok {
+		return []dto.TranscriptEvent{{
+			Attributes:       hookBlockAttributes(attachment.HookEvent + " hook feedback:\n" + text),
+			Entrypoint:       parsed.Entrypoint,
+			Kind:             EventHookBlock,
+			Name:             attachment.HookEvent,
+			SessionID:        parsed.SessionID,
+			Timestamp:        parsed.Timestamp,
+			UUID:             parsed.UUID,
+			WorkingDirectory: parsed.WorkingDirectory,
+		}}
+	}
 	var name string
 	switch {
 	case attachment.Type == "hook_additional_context":

@@ -144,7 +144,7 @@ block a session starts with names any option set away from its default.
 | Option             | Default | What it does                                                                                                                |
 | ------------------ | ------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `auto_note_writes` | `false` | On, notes ele proposes are written without asking, each reported with its id                                                 |
-| `checkpoint_gate`  | `true`  | Off, a turn that changed files and claims done is not blocked for `/ele:checkpoint`                                          |
+| `checkpoint_gate`  | `true`  | Off, a turn that changed files and claims done is not held for `/ele:checkpoint`                                          |
 | `colour`           | `true`  | Off, the messages ele shows you are plain text, for a client that does not render ANSI colour. `NO_COLOR` turns it off too |
 | `compact_hint_at`  | `150000` | Context tokens from which the Stop hook suggests `/compact` or a handoff, again every 100k past it; `0` turns the suggestion off |
 | `lone_handoff_pending` | `false` | On, a lone handoff stays pending until you pick or drop it, as several do, instead of showing once |

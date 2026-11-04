@@ -166,7 +166,9 @@ ele usage [--owner <name>] [--project <name>] [--since <YYYY-MM-DD|Nd>] [--no-sy
 ```
 
 Sessions, prompts, tool calls, bytes injected by hooks and the skill list, reply
-length and API tokens, main thread and subagents apart. `--owner`, `--project`
+length and API tokens, main thread and subagents apart. A Stop hook's context,
+which keeps the turn going, is not counted as injected bytes;
+`ele events --kind hook-block` lists it. `--owner`, `--project`
 and `--since` narrow it; `--no-sync` reads without syncing first.
 
 ```text

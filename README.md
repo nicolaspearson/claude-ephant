@@ -35,6 +35,8 @@ The `ele` plugin adds the skills and hooks that use the binary:
 
 ## Prerequisites
 
+- Claude Code 2.1.163 or later, the first to read the context the Stop hooks
+  keep a turn going with
 - `gh` or `glab`, for `/ele:ticket-audit`; `/ele:ticket-claims` needs `gh`.
   Log in with `gh auth login` or `glab auth login` first
 - `git`

@@ -86,7 +86,10 @@ type cycleHeader struct {
 
 type digestLine struct {
 	Attachment *struct {
-		Prompt json.RawMessage `json:"prompt"`
+		Content   json.RawMessage `json:"content"`
+		HookEvent string          `json:"hookEvent"`
+		Prompt    json.RawMessage `json:"prompt"`
+		Type      string          `json:"type"`
 	} `json:"attachment"`
 	Content          json.RawMessage `json:"content"`
 	IsCompactSummary bool            `json:"isCompactSummary"`
@@ -184,12 +187,12 @@ func collect(file transcriptFile, window []digestLine, how style) collected {
 		if line.isHuman() {
 			result.events = append(result.events, fmt.Sprintf("%s HUMAN %s", line.Timestamp, quote(line.textOf(), how.humanLimit)))
 		}
+		if strings.Contains(line.stopFeedback(), "no checkpoint was reported") {
+			result.hookBlocks++
+			result.events = append(result.events, line.Timestamp+" HOOK-BLOCK")
+		}
 		if line.Type == "user" {
 			said := line.textOf()
-			if strings.Contains(said, "Stop hook feedback") && strings.Contains(said, "no checkpoint was reported") {
-				result.hookBlocks++
-				result.events = append(result.events, line.Timestamp+" HOOK-BLOCK")
-			}
 			if match := coveredLine.FindStringSubmatch(said); match != nil && result.covered == nil {
 				covered := match[1] == ""
 				result.covered = &covered
@@ -504,7 +507,7 @@ func runDigest(file transcriptFile, opening int, unit dto.MiningUnit) (string, e
 	}
 	triggeredByHook := false
 	for _, line := range lines[max(0, opening-6) : opening+1] {
-		if line.Type == "user" && strings.Contains(line.textOf(), "Stop hook feedback") {
+		if line.stopFeedback() != "" {
 			triggeredByHook = true
 		}
 	}
@@ -750,6 +753,17 @@ func (l *digestLine) records() bool {
 		}
 	}
 	return false
+}
+
+func (l *digestLine) stopFeedback() string {
+	if l.Type == "user" && strings.Contains(l.textOf(), "Stop hook feedback") {
+		return l.textOf()
+	}
+	if l.Type != "attachment" || l.Attachment == nil {
+		return ""
+	}
+	text, _ := transcript.StopContext(l.Attachment.Type, l.Attachment.HookEvent, l.Attachment.Content)
+	return text
 }
 
 func (l *digestLine) textOf() string {

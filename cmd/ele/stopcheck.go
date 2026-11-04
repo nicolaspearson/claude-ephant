@@ -30,9 +30,10 @@ const (
 	hintBand = 100000
 	noBand   = -1
 	// Proposes a skill, not notes: work before it stays pending.
-	recipeSkill         = "ele:recipe"
-	rememberReason      = "Follow /ele:remember's Propose section now: one Write/Skip question per note, at most four per AskUserQuestion call and as many calls as it takes, then write each approved note yourself with ele remember. Never print the command for the user to run. If nothing is worth keeping, say so in one line."
-	rememberWriteReason = "Follow /ele:remember's Propose section now: auto_note_writes is on, so write each note yourself with ele remember without asking, then report each id with the note's words. Never print the command for the user to run. If nothing is worth keeping, say so in one line."
+	recipeSkill = "ele:recipe"
+	// Facts, not orders: context worded as a system command can read as a prompt injection.
+	rememberReason      = "This stretch's work has not been proposed as notes; /ele:remember's Propose section covers it: one Write/Skip question per note, at most four per AskUserQuestion call and as many calls as it takes, then each approved note written with ele remember, the command never printed for the user to run. With nothing worth keeping, one line says so."
+	rememberWriteReason = "This stretch's work has not been proposed as notes; /ele:remember's Propose section covers it: auto_note_writes is on, so each note is written with ele remember without asking and reported by id with its words, the command never printed for the user to run. With nothing worth keeping, one line says so."
 	reviewReader        = "ele:review-reader"
 	stopStateMaxAge     = 7 * 24 * time.Hour
 	tailWindow          = 1 << 20
@@ -63,10 +64,19 @@ type stopState struct {
 	Subagents         map[string]int64 `json:"subagents"`
 }
 
+// Not decision "block": that reaches the user labelled a hook error.
+type stopFeedback struct {
+	AdditionalContext string `json:"additionalContext"`
+	HookEventName     string `json:"hookEventName"`
+}
+
 type stopOutput struct {
-	Decision      string `json:"decision,omitempty"`
-	Reason        string `json:"reason,omitempty"`
-	SystemMessage string `json:"systemMessage,omitempty"`
+	HookSpecificOutput stopFeedback `json:"hookSpecificOutput,omitzero"`
+	SystemMessage      string       `json:"systemMessage,omitempty"`
+}
+
+func continueWith(additionalContext string) stopFeedback {
+	return stopFeedback{AdditionalContext: additionalContext, HookEventName: "Stop"}
 }
 
 // A checkpoint's own gate runs and fixes are not new work; the next prompt ends it. A checkpoint starts a stretch but
@@ -458,9 +468,9 @@ func stopCheck(ctx context.Context, args []string, stdin io.Reader, stdout io.Wr
 	var block bool
 	// Behind, a proposal not yet read may have cleared the pending work.
 	if block, state = rememberBlock(state, hook.StopHookActive || behind); block {
-		output.Decision, output.Reason = "block", rememberReason
+		output.HookSpecificOutput = continueWith(rememberReason)
 		if value, valueErr := settings.Value("auto_note_writes", owner); valueErr == nil && value.Value == true {
-			output.Reason = rememberWriteReason
+			output.HookSpecificOutput = continueWith(rememberWriteReason)
 		}
 	}
 	if err = writeStopState(statePath, state); err != nil {

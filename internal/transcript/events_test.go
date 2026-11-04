@@ -99,6 +99,12 @@ func TestParseEvents(t *testing.T) {
 		},
 		{
 			entries: 0,
+			events:  []dto.TranscriptEvent{event(EventHookBlock, "Stop", map[string]any{"changed": []string{"a.go"}, "reason": "Files changed this turn, and no checkpoint was reported."})},
+			line:    `{"type":"attachment",` + base + `,"attachment":{"type":"hook_additional_context","hookEvent":"Stop","hookName":"Stop","content":["Files changed this turn, and no checkpoint was reported.\n\nChanged: a.go"]}}`,
+			name:    "stop hook additional context",
+		},
+		{
+			entries: 0,
 			events:  []dto.TranscriptEvent{event(EventHookBlock, "Stop", map[string]any{"changed": []string{"a.go", "docs/b.md"}, "reason": "Files changed this turn, and no checkpoint was reported."})},
 			line:    `{"type":"user","isMeta":true,` + base + `,"message":{"content":"Stop hook feedback:\n\nFiles changed this turn, and no checkpoint was reported.\n\nChanged: a.go docs/b.md\n\nInvoke the checkpoint skill."}}`,
 			name:    "stop hook block",
@@ -120,6 +126,12 @@ func TestParseEvents(t *testing.T) {
 			events:  nil,
 			line:    `{"type":"assistant","isSidechain":true,` + base + `,"message":{"content":[{"type":"text","text":"subagent prose"}]}}`,
 			name:    "subagent prose in its parent's file is no reply",
+		},
+		{
+			entries: 0,
+			events:  []dto.TranscriptEvent{event(EventHookBlock, "SubagentStop", map[string]any{"reason": "The tests have not run."})},
+			line:    `{"type":"attachment",` + base + `,"attachment":{"type":"hook_additional_context","hookEvent":"SubagentStop","hookName":"SubagentStop","content":"The tests have not run."}}`,
+			name:    "subagent stop hook additional context as a string",
 		},
 		{
 			entries: 1,

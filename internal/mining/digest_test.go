@@ -104,6 +104,28 @@ func TestDigestOfACheckpointRunLinksItsSubagentsAndStopsAtItsReport(t *testing.T
 	}
 }
 
+func TestDigestOfACheckpointRunReadsAStopHooksAdditionalContextAsItsBlock(t *testing.T) {
+	archiveDirectory := t.TempDir()
+	stopContext := func(clock string) string {
+		return `{"type":"attachment","sessionId":"s1","timestamp":"2026-10-16T` + clock + `Z","attachment":{"type":"hook_additional_context","hookEvent":"Stop","hookName":"Stop","content":["Files changed this turn, the reply says the work is done, and no checkpoint was reported."]}}` + "\n"
+	}
+	writeArchived(t, filepath.Join(archiveDirectory, "claude", "-gateway", "t1.jsonl.gz"),
+		transcriptLine(t, "09:00:00", "user", "add retries to the client"),
+		stopContext("09:59:00"),
+		transcriptLine(t, "10:00:00", "assistant", toolUse("tu0", "Skill", map[string]any{"skill": "checkpoint"})),
+		stopContext("10:02:00"),
+		transcriptLine(t, "10:06:00", "assistant", []map[string]any{{"text": "Ready to commit.\n\n**Bugs reviewer:** no findings.\n**Prose reviewer:** none.", "type": "text"}}))
+
+	digest, err := Digest(archiveDirectory, "checkpoint-runs", dto.MiningUnit{Owner: "corp", Project: "gateway", Session: "s1", Source: "claude/-gateway/t1.jsonl.gz", Timestamp: "2026-10-16T10:00:00Z"})
+	require.NoError(t, err)
+
+	encoded, _, _ := strings.Cut(digest, "\n")
+	var header map[string]any
+	require.NoError(t, json.Unmarshal([]byte(encoded), &header))
+	require.Equal(t, 1.0, header["hookBlocks"], "a block inside the run")
+	require.Equal(t, true, header["triggeredByHook"], "a block just before the run")
+}
+
 func TestDigestOfAReviewCycleCutsAtAReportOnlyOnceEveryReviewerHasHandedBack(t *testing.T) {
 	archiveDirectory := t.TempDir()
 	progress := "**Bugs reviewer:** no findings. The prose reviewer is still out."

@@ -33,7 +33,9 @@ The conventions reviewer reads your `CLAUDE.md`, under `$CLAUDE_CONFIG_DIR` or
 ### The Stop hook gate
 
 When a turn changed files and claims the work is done, but no checkpoint was
-reported, ele's Stop hook blocks the turn once and asks for `/ele:checkpoint`.
+reported, ele's Stop hook keeps the turn going once and points Claude at
+`/ele:checkpoint`. Claude Code documents it as Stop hook feedback with no hook
+error.
 Mid-task work, an investigation or a turn waiting on you is not a checkpoint,
 and Claude says so rather than running one.
 

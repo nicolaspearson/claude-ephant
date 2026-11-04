@@ -212,7 +212,7 @@ func TestRemoveStaleStopStateKeepsAWeek(t *testing.T) {
 
 func TestRunStopCheckAsksForNotesOncePerStretch(t *testing.T) {
 	run := newStopCheckRun(t)
-	block := stopOutput{Decision: "block", Reason: rememberReason}
+	block := stopOutput{HookSpecificOutput: continueWith(rememberReason)}
 
 	run.respond(1000, `{"type":"tool_use","name":"Read","input":{"file_path":"main.go"}}`)
 	raw, _ := run.stop(run.gateway, false)
@@ -223,7 +223,7 @@ func TestRunStopCheckAsksForNotesOncePerStretch(t *testing.T) {
 	require.Empty(t, raw, "suppressed while a Stop hook is already continuing the turn")
 	raw, output := run.stop(run.gateway, false)
 	require.Equal(t, block, output, "the suppressed block waits for the next stop")
-	require.Equal(t, `{"decision":"block","reason":"Follow /ele:remember's Propose section now: one Write/Skip question per note, at most four per AskUserQuestion call and as many calls as it takes, then write each approved note yourself with ele remember. Never print the command for the user to run. If nothing is worth keeping, say so in one line."}`+"\n", raw)
+	require.Equal(t, `{"hookSpecificOutput":{"additionalContext":"This stretch's work has not been proposed as notes; /ele:remember's Propose section covers it: one Write/Skip question per note, at most four per AskUserQuestion call and as many calls as it takes, then each approved note written with ele remember, the command never printed for the user to run. With nothing worth keeping, one line says so.","hookEventName":"Stop"}}`+"\n", raw)
 	raw, _ = run.stop(run.gateway, false)
 	require.Empty(t, raw, "no new work since the block")
 
@@ -286,13 +286,13 @@ func TestRunStopCheckReasonFollowsAutoNoteWrites(t *testing.T) {
 			require.Equal(t, 0, stopCheck(context.Background(), nil, strings.NewReader(input), &stdout, &stderr), stderr.String())
 			var output stopOutput
 			require.NoError(t, json.Unmarshal(stdout.Bytes(), &output), stdout.String())
-			require.Equal(t, stopOutput{Decision: "block", Reason: test.want}, output)
+			require.Equal(t, stopOutput{HookSpecificOutput: continueWith(test.want)}, output)
 		})
 	}
 }
 
 func TestRunStopCheckAsksForNotesOnlyWithNotesAsk(t *testing.T) {
-	block := stopOutput{Decision: "block", Reason: rememberReason}
+	block := stopOutput{HookSpecificOutput: continueWith(rememberReason)}
 	tests := []struct {
 		config string
 		name   string
@@ -340,7 +340,7 @@ func TestRunStopCheckForgetsWorkDoneWhileNotesAskIsOff(t *testing.T) {
 	run.prompt()
 	run.respond(1000, stopCheckEdit)
 	_, output := run.stop(run.gateway, false)
-	require.Equal(t, stopOutput{Decision: "block", Reason: rememberReason}, output, "an edit made once on is")
+	require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason)}, output, "an edit made once on is")
 }
 
 func TestRunStopCheckHintsFromCompactHintAt(t *testing.T) {
@@ -440,7 +440,7 @@ func TestRunStopCheckCountsAQuestionForNotesOnly(t *testing.T) {
 
 	run.respond(150000, question)
 	_, output := run.stop(run.gateway, false)
-	require.Equal(t, stopOutput{Decision: "block", Reason: rememberReason, SystemMessage: "Context 150k. Write a handoff (/ele:handoff), then /clear"}, output, "a question asks for notes but is not mid-task")
+	require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason), SystemMessage: "Context 150k. Write a handoff (/ele:handoff), then /clear"}, output, "a question asks for notes but is not mid-task")
 
 	run.respond(1000, question)
 	run.command("checkpoint")
@@ -458,7 +458,7 @@ func TestRunStopCheckCountsAQuestionForNotesOnly(t *testing.T) {
 	run.prompt()
 	run.respond(1000, question)
 	_, output = run.stop(run.gateway, false)
-	require.Equal(t, "block", output.Decision, "after the next prompt, a question is work again")
+	require.Equal(t, continueWith(rememberReason), output.HookSpecificOutput, "after the next prompt, a question is work again")
 }
 
 func TestRunStopCheckCountsASubagentsEdits(t *testing.T) {
@@ -480,7 +480,7 @@ func TestRunStopCheckCountsASubagentsEdits(t *testing.T) {
 
 	writeFile(t, subagent, line(stopCheckGate)+line(stopCheckEdit))
 	_, output := run.stop(run.gateway, false)
-	require.Equal(t, stopOutput{Decision: "block", Reason: rememberReason}, output, "an edit by a subagent first seen after the first stop is work")
+	require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason)}, output, "an edit by a subagent first seen after the first stop is work")
 }
 
 func TestRunStopCheckKeepsASubagentsEditBeforeACheckpoint(t *testing.T) {
@@ -499,7 +499,7 @@ func TestRunStopCheckKeepsASubagentsEditBeforeACheckpoint(t *testing.T) {
 	run.prompt()
 	run.respond(1000, stopCheckText)
 	_, output := run.stop(run.gateway, false)
-	require.Equal(t, stopOutput{Decision: "block", Reason: rememberReason}, output, "a delegated edit made before the checkpoint, read only once it began, is kept")
+	require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason)}, output, "a delegated edit made before the checkpoint, read only once it began, is kept")
 }
 
 func TestRunStopCheckLetsAProposalClearASubagentsEarlierEdit(t *testing.T) {
@@ -538,7 +538,7 @@ func TestRunStopCheckLetsAProposalClearASubagentsEarlierEdit(t *testing.T) {
 
 			writeFile(t, subagent, `{"type":"assistant","isSidechain":true,"timestamp":"2026-10-20T10:00:00.000Z","message":{"id":"s1","content":[`+stopCheckEdit+`]}}`+"\n"+`{"type":"assistant","isSidechain":true,"timestamp":"2026-10-20T10:01:00.000Z","message":{"id":"s2","content":[`+stopCheckEdit+`]}}`+"\n")
 			_, output := run.stop(run.gateway, false)
-			require.Equal(t, stopOutput{Decision: "block", Reason: rememberReason}, output, "a subagent edit after the proposal is work")
+			require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason)}, output, "a subagent edit after the proposal is work")
 		})
 	}
 }
@@ -624,7 +624,7 @@ func TestRunStopCheckDecidesEveryCombination(t *testing.T) {
 
 										var want stopOutput
 										if owned && pending && !stopHookActive {
-											want.Decision, want.Reason = "block", rememberReason
+											want.HookSpecificOutput = continueWith(rememberReason)
 										}
 										if owned && size.tokens >= threshold && !hinted {
 											want.SystemMessage = fmt.Sprintf("Context %dk. %s", size.tokens/1000, task.advice)
@@ -663,7 +663,7 @@ func TestRunStopCheckHintsOncePerBandAndNamesTheLonePlan(t *testing.T) {
 	run.respond(250000, stopCheckEdit)
 	_, output = stop()
 	require.Equal(t, "Context 250k. At a pause: /compact", output.SystemMessage, "mid-task with no active plan")
-	require.Equal(t, "block", output.Decision, "the hint and the remember block go out together")
+	require.Equal(t, continueWith(rememberReason), output.HookSpecificOutput, "the hint and the remember block go out together")
 
 	writeFile(t, filepath.Join(run.gateway, "build.md"), "---\nkind: plan\n---\n\n## Actions\n\n- [x] Parser\n- [ ] Size hint token=abc123secret\n")
 	result, code := runCommand(t, "plan", "start", "build.md")
@@ -696,7 +696,7 @@ func TestRunStopCheckHintsOncePerBandAndNamesTheLonePlan(t *testing.T) {
 	run.prompt()
 	run.respond(40000, stopCheckGate)
 	_, output = stop()
-	require.Equal(t, stopOutput{Decision: "block", Reason: rememberReason}, output, "compacted under the threshold, no hint")
+	require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason)}, output, "compacted under the threshold, no hint")
 	statePath := filepath.Join(run.home, "data", "stop-check", stopCheckSession+".json")
 	state, err := readStopState(statePath)
 	require.NoError(t, err)
@@ -737,7 +737,7 @@ func TestRunStopCheckOnARecordedTranscript(t *testing.T) {
 		return stdout.String()
 	}
 
-	require.Equal(t, `{"decision":"block","reason":"`+rememberReason+`","systemMessage":"Context 63k. At a pause: /compact"}`+"\n", stop(88, false), "the first turn ran Bash and proposed nothing")
+	require.Equal(t, `{"hookSpecificOutput":{"additionalContext":"`+rememberReason+`","hookEventName":"Stop"},"systemMessage":"Context 63k. At a pause: /compact"}`+"\n", stop(88, false), "the first turn ran Bash and proposed nothing")
 	require.Empty(t, stop(len(lines), true), "the stop the block continued, in the same band")
 }
 
@@ -872,7 +872,7 @@ func TestRunStopCheckResumesAScanCutByItsBudget(t *testing.T) {
 		require.Equal(t, map[string]int64{}, state.Subagents, "subagent files wait for the scan to catch up")
 	}
 	_, output := run.stop(run.gateway, false)
-	require.Equal(t, stopOutput{Decision: "block", Reason: rememberReason}, output, "caught up, the subagent's edit is asked about")
+	require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason)}, output, "caught up, the subagent's edit is asked about")
 	state, err := readStopState(statePath)
 	require.NoError(t, err)
 	require.Equal(t, map[string]int64{"agent-a1.jsonl": int64(len(subagent))}, state.Subagents)

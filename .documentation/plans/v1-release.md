@@ -178,6 +178,24 @@ keep.
     the 30-second timeout saves nothing and the next repeats it warm; as of
     2026-11-03 the largest local subagent directory, 185 MB in 229 files,
     read from the start in 2.6 s, likely warm
+- `block-as-error`: both Stop blocks, the notes ask and the checkpoint gate,
+  continue the turn through `hookSpecificOutput.additionalContext` instead of
+  `decision: "block"`, since each is the hook working as designed, not an
+  error (ruled 2026-11-03)
+  - rejected: the notes ask only, because the gate's block is labelled an
+    error just the same
+- `block-as-error`: both reasons are worded as facts with the skill to
+  follow, keeping their rules as statements of how the skill works, since
+  the hooks reference warns that imperative system-command text can trip
+  prompt-injection defences (ruled 2026-11-03)
+  - rejected: keeping the imperative wording, because Claude may then surface
+    the text as a suspected injection instead of acting on it
+- `block-as-error`: the README states Claude Code 2.1.163 or later, the
+  first to read `additionalContext` from a Stop hook; below it both asks are
+  expected not to fire, not observed (ruled 2026-11-03)
+  - rejected: sending `decision: "block"` beside it for older builds,
+    because a newer build may still label the turn an error, unchecked, which
+    would defeat the change
 
 ## Actions
 
@@ -1056,6 +1074,42 @@ keep.
   - done when the finding is written under this item, dated with the Claude
     Code version, and `.documentation/specs/stop-check.md` and
     `docs/notes-and-recall.md` say what the user sees
+  - as of 2026-11-03, Claude Code 2.1.309: a `{"decision":"block","reason":…}`
+    Stop output at exit 0 reaches the model twice, as `Stop hook feedback:`
+    and as `Stop hook blocking error from command: "<command>": …`; the
+    transcript records a meta user line `Stop hook feedback:\n<reason>`, a
+    `hook_blocking_error` attachment, and the reason in `stop_hook_summary`'s
+    `hookErrors`
+  - as of 2026-11-03: the hooks reference, Stop decision control, documents
+    `hookSpecificOutput.additionalContext` with `hookEventName: "Stop"` as
+    "non-error feedback": the turn continues under the same loop guards
+    (`stop_hook_active`, the 8-continuation cap), the transcript labels it
+    `Stop hook feedback` and no hook error notification is shown; added in
+    2.1.163. Its "add context" section warns that text framed as an
+    imperative system command can trip prompt-injection defences
+  - as of 2026-11-03: the index's notes-ask events, `--replay`'s `asked` and
+    mining's hook-block counts all key on the `Stop hook feedback:` user
+    line (`transcript.hookFeedback`); how `additionalContext` is recorded,
+    that line, a `hook_additional_context` attachment, which the parser reads
+    as an injection, or `hookAdditionalContext` alone, then not checked;
+    the probe below found the attachment
+  - as of 2026-11-03, Claude Code 2.1.309: a headless `claude -p` probe in a
+    scratch directory, its Stop hook printing `additionalContext` once, kept
+    the turn going and the model acted on it; the transcript held a
+    `hook_additional_context` attachment (`hookEvent` and `hookName` `Stop`),
+    the text in `stop_hook_summary.hookAdditionalContext` with `hookErrors`
+    empty, and no `Stop hook feedback:` line; the model got it as
+    `<system-reminder>Stop hook additional context: …`. The terminal display
+    of an interactive session not yet seen
+  - as of 2026-11-03: built, uncommitted: both Stop hooks send
+    `additionalContext` with factual reasons; the parser and mining read a
+    Stop or SubagentStop `hook_additional_context` attachment as a
+    `hook-block` (`transcript.StopContext`), the index rebuilds at version 15,
+    and the specs, docs, README floor and `hooks.json` say so; each new test
+    seen red. Checkpointed; the clone build is installed
+  - next: see a notes ask and a gate block fire in an interactive session on
+    this build, note what the terminal shows and the transcript holds, and
+    whether two Stop hooks at one stop write one attachment each; then tick
 - [ ] config-dir: Honour `CLAUDE_CONFIG_DIR` in profile discovery, archiving a
   profile outside `~/.claude` and `~/.claude-*`
   - done when a test, seen red, archives a session from such a profile,

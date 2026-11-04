@@ -78,7 +78,7 @@ func Gate(ctx context.Context, input GateInput, stateFile string) string {
 		moved = moved[:blockedChanged]
 	}
 	return "Files changed this turn, the reply says the work is done, and no checkpoint was reported.\n\nChanged: " + strings.Join(moved, " ") +
-		"\n\nInvoke the `ele:checkpoint` skill.\n\nIf the work is not done — mid-task, waiting on the user, or an investigation — say it is not a checkpoint, what remains, and stop.\n\nIf the user said this work needs no checkpoint, exempt its paths for this session: `ele checkpoint optout " + shellQuote(input.Root) + " \"<glob>\" ...`"
+		"\n\nThe `ele:checkpoint` skill reviews work before it is reported done.\n\nWork not done — mid-task, waiting on the user, or an investigation — is not a checkpoint: the reply says so and what remains, and the turn ends.\n\nWork the user said needs no checkpoint has its paths exempted for this session with `ele checkpoint optout " + shellQuote(input.Root) + " \"<glob>\" ...`"
 }
 
 // HookLog appends to the machine-wide hook log; its tab-separated fields and their order are shared with the user's other hooks.

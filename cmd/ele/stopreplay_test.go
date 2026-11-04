@@ -33,6 +33,10 @@ func (l *replayLines) content() []byte {
 	return []byte(strings.Join(l.lines, "\n") + "\n")
 }
 
+func (l *replayLines) context(reason string) *replayLines {
+	return l.add(`"type":"attachment","attachment":{"type":"hook_additional_context","hookEvent":"Stop","hookName":"Stop","content":[%q]}`, reason)
+}
+
 func (l *replayLines) prompt() *replayLines {
 	return l.add(`"type":"user","message":{"content":"go on"}`)
 }
@@ -83,6 +87,16 @@ func TestReplayTranscriptJudgesEachRecordedStop(t *testing.T) {
 		{Stop: stopRecorded, Timestamp: checkpoint, WhyNot: "checkpoint"},
 		{Asks: true, Stop: stopRecorded, Timestamp: afterCheckpoint, Trigger: []string{"edit"}},
 	}, replayed(t, lines), "a block's feedback line is not a prompt, and a subagent's stop line is not the session's")
+
+	lines = &replayLines{}
+	lines.prompt().tool("Edit", `{"file_path":"a.go"}`).context(rememberReason).stop()
+	asked = lines.stamp()
+	lines.add(`"type":"assistant","message":{"id":"r","content":[{"type":"text","text":"Nothing to keep."}]}`).stop()
+	active = lines.stamp()
+	require.Equal(t, []replayStop{
+		{Asked: true, Asks: true, Stop: stopRecorded, Timestamp: asked, Trigger: []string{"edit"}},
+		{Stop: stopRecorded, Timestamp: active, WhyNot: "hook-active"},
+	}, replayed(t, lines), "an ask sent as additional context is an ask")
 
 	lines = &replayLines{}
 	lines.prompt().tool("Edit", `{"file_path":"a.go"}`).stop()
