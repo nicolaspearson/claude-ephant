@@ -89,7 +89,7 @@ func transcribed(session string) bool {
 	if err != nil {
 		return true
 	}
-	roots, err := profile.Discover(home)
+	roots, _, err := profile.Discover(home, os.Getenv("CLAUDE_CONFIG_DIR"))
 	if err != nil {
 		return true
 	}

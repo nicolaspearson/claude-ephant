@@ -135,7 +135,7 @@ func pluginState(root profile.Root) string {
 }
 
 func plugins(home string) string {
-	roots, err := profile.Discover(home)
+	roots, _, err := profile.Discover(home, os.Getenv("CLAUDE_CONFIG_DIR"))
 	if err != nil {
 		return err.Error()
 	}

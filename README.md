@@ -1,10 +1,10 @@
 # claude-ephant
 
 Cross-session memory for Claude Code. The `ele` binary archives the transcripts
-of every profile under `~/.claude` and `~/.claude-*` and indexes them, so a later
-session can search what earlier ones discussed. Decisions, open questions and
-dated facts are saved as notes, and each session starts with the ones for its
-project.
+of every profile under `~/.claude`, `~/.claude-*` and `CLAUDE_CONFIG_DIR` and
+indexes them, so a later session can search what earlier ones discussed.
+Decisions, open questions and dated facts are saved as notes, and each session
+starts with the ones for its project.
 
 No model runs in the background: the only model calls are made by skills, inside
 the session already running. See [Data and privacy](docs/data-and-privacy.md).

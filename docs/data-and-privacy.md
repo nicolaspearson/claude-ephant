@@ -70,9 +70,17 @@ state lives in `claude-checkpoint/` under the system temporary directory.
 ### The archive
 
 Claude Code deletes old transcripts after its `cleanupPeriodDays` setting. ele
-copies every profile's transcripts, under `~/.claude` and `~/.claude-*`, into
-`archive/` as they grow, so it keeps what Claude Code deletes. It syncs in the
-background when a session starts and ends, and before each recall.
+copies every profile's transcripts, under `~/.claude`, `~/.claude-*` and
+`CLAUDE_CONFIG_DIR`, into `archive/` as they grow, so it keeps what Claude Code
+deletes. It syncs in the background when a session starts and ends, and before
+each recall.
+
+A profile elsewhere, such as a temporary `CLAUDE_CONFIG_DIR`, is archived by
+the syncs that run under it: its own sessions' hooks, or a shell exporting the
+variable. It is named after its folder, and `ele status` lists its plugin state
+there too. A sync without the variable leaves what was archived in place. One
+whose folder name another profile already has, such as `/elsewhere/.claude-work`
+beside `~/.claude-work`, is skipped, and `ele status` lists it.
 
 ### The index
 

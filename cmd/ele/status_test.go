@@ -112,6 +112,18 @@ func TestRunStatusReportsSyncOwnerAndPlugin(t *testing.T) {
 	require.Regexp(t, `Sync running +yes\n`, output)
 }
 
+func TestRunStatusListsTheConfigDirectoryProfileOutsideHome(t *testing.T) {
+	recallFixture(t)
+	scratch := filepath.Join(t.TempDir(), "scratch")
+	t.Setenv("CLAUDE_CONFIG_DIR", scratch)
+	writeFile(t, filepath.Join(scratch, "projects", "-x", "s.jsonl"), "")
+	writeFile(t, filepath.Join(scratch, "settings.json"), `{"enabledPlugins": {"ele@claude-ephant": true}}`)
+
+	output, code := runCommand(t, "status")
+	require.Equal(t, 0, code, output)
+	require.Regexp(t, `Plugin ele@claude-ephant +claude no settings.json, scratch enabled\n`, output)
+}
+
 func TestWriteStatusKeepsEveryRowWhenTheOwnerMapIsBroken(t *testing.T) {
 	home := recallFixture(t)
 	writeFile(t, filepath.Join(home, "data", "owner-map.json"), "{bad")

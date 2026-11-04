@@ -24,6 +24,10 @@ func TestMain(m *testing.M) {
 	if err = os.Setenv("HOME", home); err == nil {
 		err = os.Setenv("ELE_HOME", filepath.Join(home, "data"))
 	}
+	// A profile the test's own shell runs under would join every discovery.
+	if err == nil {
+		err = os.Unsetenv("CLAUDE_CONFIG_DIR")
+	}
 	if err != nil {
 		panic(err)
 	}
@@ -69,6 +73,39 @@ func TestRunSyncArchivesAndIndexesEveryProfile(t *testing.T) {
 	stdout.Reset()
 	require.Equal(t, 0, run(context.Background(), []string{"sync"}, &stdout, &stderr), stderr.String())
 	require.Equal(t, "Archived 0 B from 0 transcripts; indexed 0 entries from 0 files.\n", stdout.String())
+}
+
+func TestRunSyncArchivesTheConfigDirectoryProfileOutsideHome(t *testing.T) {
+	home := t.TempDir()
+	dataDirectory := filepath.Join(home, "data")
+	scratch := filepath.Join(t.TempDir(), "scratch")
+	t.Setenv("HOME", home)
+	t.Setenv("ELE_HOME", dataDirectory)
+	t.Setenv("CLAUDE_CONFIG_DIR", scratch)
+	writeFile(t, filepath.Join(scratch, "projects", "-repo", "s.jsonl"), `{"type":"user","cwd":"/w/repo","sessionId":"s","message":{"content":"remember this"}}`+"\n")
+
+	output, code := runCommand(t, "sync")
+	require.Equal(t, 0, code, output)
+	require.Equal(t, "Archived 86 B from 1 transcripts; indexed 1 entries from 1 files.\n", output)
+	require.FileExists(t, filepath.Join(dataDirectory, "archive", "transcripts", "scratch", "-repo", "s.jsonl.gz"))
+}
+
+func TestRunSyncSkipsAConfigDirectoryProfileWhoseNameIsTaken(t *testing.T) {
+	home := t.TempDir()
+	dataDirectory := filepath.Join(home, "data")
+	elsewhere := filepath.Join(t.TempDir(), ".claude-corp")
+	t.Setenv("HOME", home)
+	t.Setenv("ELE_HOME", dataDirectory)
+	t.Setenv("CLAUDE_CONFIG_DIR", elsewhere)
+	for _, profile := range []string{filepath.Join(home, ".claude-corp"), elsewhere} {
+		writeFile(t, filepath.Join(profile, "projects", "-repo", "s.jsonl"), `{"type":"user","cwd":"/w/repo","sessionId":"s","message":{"content":"remember this"}}`+"\n")
+	}
+
+	output, code := runCommand(t, "sync")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "Archived 86 B from 1 transcripts")
+	require.Contains(t, output, "\nSkipped: profile "+elsewhere+": its name corp is taken by "+filepath.Join(home, ".claude-corp")+"\n")
+	require.FileExists(t, filepath.Join(dataDirectory, syncSkippedFile))
 }
 
 func TestRunSyncSkipsAFileItCannotReadAndSaysSoUntilASyncSkipsNone(t *testing.T) {

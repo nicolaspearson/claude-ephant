@@ -199,7 +199,7 @@ func syncAll(ctx context.Context, stdout io.Writer, wait bool, rebuild bool) err
 	if err != nil {
 		return err
 	}
-	roots, err := profile.Discover(home)
+	roots, profilesSkipped, err := profile.Discover(home, os.Getenv("CLAUDE_CONFIG_DIR"))
 	if err != nil {
 		return err
 	}
@@ -275,7 +275,7 @@ func syncAll(ctx context.Context, stdout io.Writer, wait bool, rebuild bool) err
 	}
 	stateErr := removeStaleStopState(dataDirectory, time.Now())
 	sweepErr := notes.SweepTemporary(filepath.Join(dataDirectory, "notes"), notes.Day, time.Now())
-	skipped := slices.Concat(archived.Skipped, indexed.Skipped, noted.Skipped)
+	skipped := slices.Concat(profilesSkipped, archived.Skipped, indexed.Skipped, noted.Skipped)
 	if err := writeSyncSkipped(dataDirectory, skipped); err != nil {
 		return fmt.Errorf("write %s: %w", syncSkippedFile, err)
 	}

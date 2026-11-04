@@ -1123,11 +1123,41 @@ keep.
     string content and mining's call), the index rebuilds at 15, the specs
     and docs say what the user sees and the README the 2.1.163 floor;
     `task check FORCE=1` and `task audit` pass. A gate block not yet seen
-- [ ] config-dir: Honour `CLAUDE_CONFIG_DIR` in profile discovery, archiving a
+- [x] config-dir: Honour `CLAUDE_CONFIG_DIR` in profile discovery, archiving a
   profile outside `~/.claude` and `~/.claude-*`
   - done when a test, seen red, archives a session from such a profile,
     `ele status` lists its plugin state, and `design.md` and
     `docs/data-and-privacy.md` say so
+  - as of 2026-11-04: `profile.Discover(home)` globs `~/.claude-*` and adds
+    `~/.claude`, keeping those holding `projects/`; it reads no
+    `CLAUDE_CONFIG_DIR`. Its callers: sync in `cmd/ele` `main.go`,
+    `contextSize`, `plugins` (status) and `transcribed` (planset).
+    `CLAUDE_CONFIG_DIR` is read only through `profile.Current`, by `flag`,
+    `plan` and `remember`, naming a profile by `nameOf` of its directory
+  - as of 2026-11-04: the archive keys a file `<profile>/<path within
+    projects/>` (`internal/archive`, `Source.Profile`), so a
+    `CLAUDE_CONFIG_DIR` profile named by `nameOf` alone, such as
+    `/elsewhere/.claude-hyve` beside `~/.claude-hyve`, shares one archive tree
+    and manifest keys with another directory; a hyve session sets
+    `CLAUDE_CONFIG_DIR=~/.claude-hyve`, already discovered, so the added root
+    is deduplicated by real path
+  - as of 2026-11-04: only a sync run under that `CLAUDE_CONFIG_DIR`, its own
+    sessions' hooks or a shell exporting it, sees the profile; a later sync
+    without it archives nothing new from it and keeps what was archived
+  - as of 2026-11-04: design, ruled by the user: the added profile is named
+    by `nameOf`, as `profile.Current` names it for notes; one whose name a
+    discovered profile at another real path holds is skipped as sync skips a
+    file, a `Skipped:` line and a `sync-skipped` entry
+  - asserted in the config-dir commit: `profile.Discover` adds
+    `CLAUDE_CONFIG_DIR` when it holds `projects/`, deduplicated by real path
+    and skipped with a `Skipped:` line and `sync-skipped` entry when its folder
+    name is taken (tests seen red by mutation: the added root, the name check,
+    the `projects/` check, sync's and status's variable, and the real-path
+    pass before names); a build of this tree, with a temporary `HOME`,
+    `ELE_HOME` and `CLAUDE_CONFIG_DIR`, archived its one transcript under
+    `transcripts/tmp.Xy12` and `ele status` showed it enabled; `design.md` and
+    `docs/data-and-privacy.md` say so; `task check FORCE=1` and `task audit`
+    pass
 - [ ] project-owner: `--project` works on a project with entries under
   several owners, resolving the working directory's owner where it holds the
   project
@@ -1755,12 +1785,21 @@ keep.
   - 2026-11-02, from notes-robust's and sync-robust's checkpoints: three
     copies of one helper pattern; the sweep covers `notes/` only (not checked
     beyond the checkpoint findings)
+- [ ] stop-attachments: Count the notes ask when the checkpoint gate and the
+  notes ask both continue one stop
+  - done when a `hook-output-probe` run with both Stop hooks continuing one
+    stop shows whether Claude Code writes one `hook_additional_context`
+    attachment per hook or one holding both, and, if one, the index's
+    notes-ask events and `--replay`'s `asked` count the ask, by a test seen
+    red
+  - 2026-11-04, from block-as-error: with one attachment, the event's reason
+    is the gate's first line, so both miss the ask
 
 ### Release
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: readme-guides, config-dir, project-owner, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
+  - blocked: readme-guides, project-owner, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`
@@ -1770,12 +1809,6 @@ keep.
   .documentation/plans/v1-release.md`, and delete this plan
 
 ## Inbox
-
-- 2026-11-04, from block-as-error: when the checkpoint gate and the notes ask
-  both continue one stop, does Claude Code write one
-  `hook_additional_context` attachment per hook, or one holding both? With
-  one combined, the event's reason is the gate's first line, so the index's
-  notes-ask events and `--replay`'s `asked` miss the ask
 
 ## Out of scope
 

@@ -29,7 +29,7 @@ func contextSize(stdout io.Writer, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return 1
 	}
-	roots, err := profile.Discover(home)
+	roots, _, err := profile.Discover(home, os.Getenv("CLAUDE_CONFIG_DIR"))
 	if err != nil {
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return 1
