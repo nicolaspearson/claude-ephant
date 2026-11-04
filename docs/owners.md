@@ -84,7 +84,10 @@ Nothing crosses owners unless you ask:
 - `/ele:recall` and `ele recall` search the current directory's owner.
   `--owner <name>` searches another, `--all` every owner
 - `--project <name>` on `recall`, `remember`, `context` and the list commands
-  works on that project under its own owner, from any directory
+  works on that project under its own owner, from any directory. Its owner is
+  its project entry, else the one owner with sessions or notes in it; where
+  several have, the working directory's owner if it is one of them, else pass
+  `--owner <name>`
 - The block a session starts with never shows another owner's notes
 - `ele config set --owner <name>` overrides an option for one owner's projects;
   see [Data and privacy](data-and-privacy.md#options)

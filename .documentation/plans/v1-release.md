@@ -1165,9 +1165,23 @@ keep.
     mutation of each); `design.md` says the name check compares the profiles
     present at sync, and the recipe skill and `design.md` no longer call the
     two globs the profiles ele archives
-- [ ] project-owner: `--project` works on a project with entries under
+- [x] project-owner: `--project` works on a project with entries under
   several owners, resolving the working directory's owner where it holds the
   project
+  - asserted in the project-owner commit:
+    `TestRunProjectTakesTheWorkingDirectorysOwnerWhereItHoldsTheProject` in
+    `cmd/ele` runs each of the 11 owner-resolving commands taking `--project`
+    (context, flag good and list, handoff close and list, plan done and list,
+    recall, remember, reminder close and list) as a subtest, at the run
+    boundary against a synced index: from a corp and a personal checkout each
+    resolves, remember and flag good filing under that owner's notes folder,
+    context and recall naming it; from an owner not holding the project each
+    refuses. All 11 went red with the fix removed, all 11 with the guard
+    widened to any owner, and the remember and flag good subtests and the
+    final context check with the first owner returned. A scratch build here ran `ele plan list --project
+    claude-ephant`, plan-audit's first call, exit 0, and `ele recall
+    --project`; the recall skill, `design.md`, `docs/commands.md` and
+    `docs/owners.md` say so
   - as of 2026-10-29: `ele plan list --project claude-ephant` fails with "has
     entries under owners hyve, personal; pass --owner <name>" while plain
     `ele plan list` works; `ele recall --project` fails the same way;
@@ -1179,6 +1193,23 @@ keep.
     the working directory's owner for a project it holds and still refuses
     one it does not; a plan audit here gets past its first call; and the
     recall skill's Project context, `design.md` and `docs/commands.md` say so
+  - as of 2026-11-04: still fails, `ele plan list --project claude-ephant`
+    and `ele recall --project claude-ephant` both refuse. One refusal,
+    `projectOwner` in `cmd/ele`, reached by `resolveOwner` (context, remember,
+    and through `projectNotes`/`projectOrEverywhereNotes` flag, handoff,
+    plan list and close, reminder list) and by recall directly. `events` and
+    `usage` only filter on `--project`, resolving no owner, so are unaffected.
+    `TestRunContextRefusesAsRememberDoes` pins the refusal from a directory no
+    owner covers, which stays
+- [ ] config-dir-names: A `CLAUDE_CONFIG_DIR` that is a symlink to a
+  discovered profile, or a folder skipped for a taken name, gives notes the
+  profile name the archive files it under
+  - as of 2026-11-04, from config-dir's follow-up checkpoint: the archive
+    files such a folder under the discovered profile's name while
+    `profile.Current` gives notes the variable's own folder name (`link` vs
+    `hyve`), not checked since
+  - done when a test, seen red, shows a symlinked and a skipped
+    `CLAUDE_CONFIG_DIR` each giving notes the name the archive uses
 - [ ] skill-fixes: Fix the skill defects that fail a session or skip its review
   - done when each defect below is fixed in its skill or command file, the plan
     and checkpoint skills agree on who proposes a tick, and `task check FORCE=1`
@@ -1806,7 +1837,7 @@ keep.
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: readme-guides, project-owner, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
+  - blocked: readme-guides, config-dir-names, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`
@@ -1816,13 +1847,6 @@ keep.
   .documentation/plans/v1-release.md`, and delete this plan
 
 ## Inbox
-
-- 2026-11-04, from config-dir's follow-up checkpoint: when `CLAUDE_CONFIG_DIR`
-  is a symlink to a discovered profile, or a folder skipped for a taken name,
-  the archive files it under the discovered profile's name while
-  `profile.Current` gives notes the variable's own folder name (`link` vs
-  `hyve`); should `Current` resolve symlinks and name a skipped profile as
-  discovery does?
 
 ## Out of scope
 

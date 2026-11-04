@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -98,6 +99,67 @@ func TestRunContextRefusesAsRememberDoes(t *testing.T) {
 	}
 	output, _ = runCommand(t, "context", "--project", "shared")
 	require.Contains(t, output, `project "shared" has entries under owners corp, personal; pass --owner <name>`)
+}
+
+func TestRunProjectTakesTheWorkingDirectorysOwnerWhereItHoldsTheProject(t *testing.T) {
+	home := recallFixture(t)
+	for _, owner := range []string{"corp", "personal"} {
+		repository := filepath.Join(home, "w", owner, "shared")
+		require.NoError(t, os.MkdirAll(filepath.Join(repository, ".git"), 0o700))
+		writeFile(t, filepath.Join(home, ".claude", "projects", "-shared-"+owner, "s-"+owner+".jsonl"),
+			`{"type":"user","cwd":"`+repository+`","sessionId":"s-`+owner+`","timestamp":"2026-10-15T09:00:00Z","uuid":"u-`+owner+`","message":{"content":"shared work"}}`+"\n")
+	}
+	solo := filepath.Join(home, "w", "solo", "tools")
+	require.NoError(t, os.MkdirAll(filepath.Join(solo, ".git"), 0o700))
+	writeFile(t, filepath.Join(home, "data", "owner-map.json"),
+		`{"owners": ["corp", "personal", "solo"], "paths": {"`+filepath.Join(home, "w", "corp")+`": "corp", "`+filepath.Join(home, "w", "personal")+`": "personal", "`+filepath.Join(home, "w", "solo")+`": "solo"}}`)
+	output, code := runCommand(t, "sync")
+	require.Equal(t, 0, code, output)
+
+	commands := [][]string{
+		{"context", "--project", "shared"},
+		{"flag", "good", "--project", "shared", "--session", "s-personal", "Shared work flagged."},
+		{"flag", "list", "--project", "shared"},
+		{"handoff", "close", "--project", "shared", "20261015-aaaaaa"},
+		{"handoff", "list", "--project", "shared"},
+		{"plan", "done", "--project", "shared", "missing.md"},
+		{"plan", "list", "--project", "shared"},
+		{"recall", "--no-sync", "--project", "shared", "shared"},
+		{"remember", "--kind", "fact", "--project", "shared", "Shared fact."},
+		{"reminder", "close", "--project", "shared", "20261015-aaaaaa"},
+		{"reminder", "list", "--project", "shared"},
+	}
+	directories := map[string]string{"corp": filepath.Join(home, "w", "corp", "gateway"), "personal": filepath.Join(home, "w", "personal", "notes")}
+	refusal := `project "shared" has entries under owners corp, personal; pass --owner <name>`
+	for _, args := range commands {
+		t.Run(strings.Join(args[:slices.Index(args, "--project")], " "), func(t *testing.T) {
+			for _, owner := range []string{"corp", "personal"} {
+				t.Chdir(directories[owner])
+				resolved, _ := runCommand(t, args...)
+				require.NotContains(t, resolved, "pass --owner", args)
+				if args[0] == "remember" || args[1] == "good" {
+					require.Contains(t, resolved, filepath.Join(home, "data", "notes", owner)+string(filepath.Separator), args)
+				}
+			}
+			t.Chdir(solo)
+			refused, refusedCode := runCommand(t, args...)
+			require.NotZero(t, refusedCode, args)
+			require.Contains(t, refused, refusal, args)
+		})
+	}
+
+	t.Chdir(filepath.Join(home, "w", "personal", "notes"))
+	output, code = runCommand(t, "context", "--project", "shared")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "personal · shared", output)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	output, code = runCommand(t, "context", "--project", "shared")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "corp · shared", output)
+	output, code = runCommand(t, "recall", "--no-sync", "--project", "shared", "shared")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "s-corp", output)
+	require.NotContains(t, output, "s-personal", output)
 }
 
 func TestRunContextSizeReadsTheNewestMainThreadResponse(t *testing.T) {

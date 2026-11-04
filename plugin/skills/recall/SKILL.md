@@ -28,7 +28,7 @@ ele recall --project <name> "<topic>"
 ele context --project <name>
 ```
 
-A project with no single owner fails both: say so rather than choosing an owner.
+A project with entries under several owners takes the working directory's owner where that owner is one of them; otherwise it fails both: say so rather than choosing an owner.
 
 ## Expand
 

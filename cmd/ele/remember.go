@@ -59,6 +59,11 @@ func projectOwner(ctx context.Context, dataDirectory string, ownerMap ownermap.O
 	case 1:
 		return owners[0], nil
 	}
+	if directory, err := os.Getwd(); err == nil {
+		if _, owner := index.NewProjects(ownerMap).Resolve(directory); slices.Contains(owners, owner) {
+			return owner, nil
+		}
+	}
 	return "", fmt.Errorf("project %q has entries under owners %s; pass --owner <name>", project, strings.Join(owners, ", "))
 }
 

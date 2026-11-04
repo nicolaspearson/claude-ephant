@@ -7,7 +7,9 @@ its own help and exits 2.
 
 Where a command resolves an owner or project, it takes them from the working
 directory. `--owner <name>` and `--project <name>` name others, so the command
-works from any directory; see [Owners](owners.md).
+works from any directory; see [Owners](owners.md). A `--project` with sessions
+or notes under several owners takes the working directory's owner where it is
+one of them, and otherwise needs `--owner`.
 
 A `YYYY-MM-DD` you type to `--since`, `--until` or `--due`, or write in a
 plan's `after:`, is a day on your clock, from its local midnight, as is a
