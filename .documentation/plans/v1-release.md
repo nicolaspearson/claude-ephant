@@ -1984,6 +1984,10 @@ keep.
   `freeze` as "Binary files differ", so reviewers read none of its bytes while
   `record` marks them reviewed. Should `freeze` pass `--text` for a path with no
   NUL byte?
+- 2026-11-05, from checkpoint-correctness group 2b's review: `freeze` accepts a
+  path under the repository's own `.git`, such as `.git/config`, as an
+  untracked file and diffs it whole, though git never lists one. Should
+  `freeze` refuse a path whose first segment is `.git`, in group 5 or later?
 
 ## Out of scope
 
