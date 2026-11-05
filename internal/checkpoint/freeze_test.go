@@ -134,6 +134,32 @@ func TestFreezeDiffsAPathReviewedAsDeletedFromNothing(t *testing.T) {
 	require.Contains(t, freeze(t, root, FreezeOptions{OutDir: out}, "other.go"), "1 changed since the last checkpoint, 0 lines")
 }
 
+func TestFreezeKeepsTheLastDiffWhenGitFails(t *testing.T) {
+	root := project(t)
+	writeFile(t, root, "other.go", "package other\n")
+	runGit(t, root, "add", "other.go")
+	runGit(t, root, "commit", "-qm", "other")
+	blob := strings.TrimSpace(gitOutput(t, root, "rev-parse", "HEAD:other.go"))
+	writeFile(t, root, "main.go", "package main // one\n")
+	writeFile(t, root, "other.go", "package other // one\n")
+	out := t.TempDir()
+	prefix := filepath.Join(out, "checkpoint-"+filepath.Base(root))
+	freeze(t, root, FreezeOptions{OutDir: out}, "main.go")
+	require.NoError(t, Record(context.Background(), root, session))
+	writeFile(t, root, "main.go", "package main // two\n")
+	freeze(t, root, FreezeOptions{OutDir: out}, "main.go")
+	diff, delta, hash := readFile(t, prefix+".diff"), readFile(t, prefix+".delta.diff"), readFile(t, prefix+".hash")
+	require.NoError(t, os.Remove(filepath.Join(root, ".git", "objects", blob[:2], blob[2:])))
+
+	for _, paths := range [][]string{{"other.go"}, {"main.go", "other.go"}} {
+		_, err := Freeze(context.Background(), FreezeOptions{Against: "HEAD", OutDir: out, Paths: paths, Root: root, Session: session})
+		require.ErrorContains(t, err, "git diff --no-ext-diff --no-color HEAD", "%v", paths)
+		require.Equal(t, diff, readFile(t, prefix+".diff"), "%v", paths)
+		require.Equal(t, delta, readFile(t, prefix+".delta.diff"), "%v", paths)
+		require.Equal(t, hash, readFile(t, prefix+".hash"), "%v", paths)
+	}
+}
+
 func TestFreezeKeepsTheRunsClockUnlessItStartsARun(t *testing.T) {
 	root := project(t)
 	writeFile(t, root, "main.go", "package main // one\n")
@@ -204,6 +230,68 @@ func TestFreezePairsAStagedRenameAndTakesAStagedDeletion(t *testing.T) {
 	require.Contains(t, freeze(t, root, FreezeOptions{}, "other.go"), "froze 1 paths, 1 lines")
 }
 
+func TestFreezeRefusesAnOutDirAnotherRootFroze(t *testing.T) {
+	var roots []string
+	for range 2 {
+		directory := filepath.Join(t.TempDir(), "same")
+		runGit(t, t.TempDir(), "init", "-q", directory)
+		runGit(t, directory, "commit", "-q", "--allow-empty", "-m", "first")
+		writeFile(t, directory, "main.go", "package main\n")
+		root, err := Root(context.Background(), directory)
+		require.NoError(t, err)
+		roots = append(roots, root)
+	}
+	t.Setenv("CHECKPOINT_REVIEWED_DIR", filepath.Join(t.TempDir(), "reviewed"))
+	out := t.TempDir()
+	freeze(t, roots[0], FreezeOptions{OutDir: out}, "main.go")
+	require.Equal(t, roots[0]+"\n", readFile(t, filepath.Join(out, "checkpoint-same.root")))
+	diff := readFile(t, filepath.Join(out, "checkpoint-same.diff"))
+
+	_, err := Freeze(context.Background(), FreezeOptions{Against: "HEAD", OutDir: out, Paths: []string{"main.go"}, Root: roots[1], Session: session})
+	require.ErrorContains(t, err, out+" holds the checkpoint files of "+roots[0]+"; freeze "+roots[1]+" into another directory")
+	require.Equal(t, diff, readFile(t, filepath.Join(out, "checkpoint-same.diff")))
+	freeze(t, roots[0], FreezeOptions{OutDir: out}, "main.go")
+}
+
+func TestFreezeRefusesDirectoriesAndPathsNotAsGitPrintsThem(t *testing.T) {
+	root := project(t)
+	writeFile(t, root, "pkg/a.go", "package pkg\n")
+	runGit(t, root, "add", "pkg/a.go")
+	runGit(t, root, "commit", "-qm", "pkg")
+	writeFile(t, root, "pkg/a.go", "package pkg // one\n")
+	writeFile(t, root, "main.go", "package main // one\n")
+	writeFile(t, root, "fresh/b.go", "package fresh\n")
+	writeFile(t, filepath.Dir(root), "outside.go", "outside\n")
+	for path, want := range map[string]string{
+		"../outside.go":   "../outside.go is not a path relative to " + root + " as git prints it",
+		"./main.go":       "./main.go is not a path relative to " + root + " as git prints it",
+		"fresh":           "fresh is a directory; name the files in it",
+		"main.go/":        "main.go/ is not a path relative to " + root + " as git prints it",
+		"pkg":             "pkg is a directory; name the files in it",
+		"pkg/../main.go":  "pkg/../main.go is not a path relative to " + root + " as git prints it",
+		"pkg//a.go":       "pkg//a.go is not a path relative to " + root + " as git prints it",
+		root + "/main.go": root + "/main.go is not a path relative to " + root + " as git prints it",
+	} {
+		_, err := Freeze(context.Background(), FreezeOptions{Against: "HEAD", OutDir: t.TempDir(), Paths: []string{"main.go", path}, Root: root, Session: session})
+		require.ErrorContains(t, err, want, path)
+	}
+
+	require.NoError(t, os.RemoveAll(filepath.Join(root, "pkg")))
+	_, err := Freeze(context.Background(), FreezeOptions{Against: "HEAD", OutDir: t.TempDir(), Paths: []string{"pkg"}, Root: root, Session: session})
+	require.ErrorContains(t, err, "pkg is a directory; name the files in it", "a tracked directory deleted from the working tree")
+
+	runGit(t, root, "update-index", "--add", "--cacheinfo", "160000,"+head(t, root)+",sub")
+	runGit(t, root, "commit", "-qm", "sub")
+	_, err = Freeze(context.Background(), FreezeOptions{Against: "HEAD", OutDir: t.TempDir(), Paths: []string{"sub"}, Root: root, Session: session})
+	require.ErrorContains(t, err, "sub is a directory; name the files in it", "a submodule with no directory")
+
+	writeFile(t, root, "staged/c.go", "package staged\n")
+	runGit(t, root, "add", "staged/c.go")
+	require.NoError(t, os.RemoveAll(filepath.Join(root, "staged")))
+	_, err = Freeze(context.Background(), FreezeOptions{Against: "HEAD", OutDir: t.TempDir(), Paths: []string{"staged"}, Root: root, Session: session})
+	require.ErrorContains(t, err, "staged is neither tracked nor a file", "a directory of staged files deleted from the working tree")
+}
+
 func TestFreezeRefusesPathsItCannotDiff(t *testing.T) {
 	root := project(t)
 	writeFile(t, root, "untouched.go", "")
@@ -222,6 +310,23 @@ func TestFreezeRefusesPathsItCannotDiff(t *testing.T) {
 	writeFile(t, plain, "f.md", "x\n")
 	_, err := Freeze(context.Background(), FreezeOptions{Against: "HEAD", OutDir: t.TempDir(), Paths: []string{"f.md"}, Root: plain, Session: session})
 	require.ErrorContains(t, err, "is not a git repository")
+}
+
+func TestFreezeTakesAPathLiterally(t *testing.T) {
+	root := project(t)
+	for _, path := range []string{"pages/[id].tsx", "pages/i.tsx"} {
+		writeFile(t, root, path, "page\n")
+		runGit(t, root, "add", path)
+	}
+	runGit(t, root, "commit", "-qm", "pages")
+	writeFile(t, root, "pages/i.tsx", "page // one\n")
+	_, err := Freeze(context.Background(), FreezeOptions{Against: "HEAD", OutDir: t.TempDir(), Paths: []string{"pages/[id].tsx"}, Root: root, Session: session})
+	require.ErrorContains(t, err, "pages/[id].tsx has no change against HEAD")
+
+	writeFile(t, root, "pages/[id].tsx", "page // one\n")
+	out := t.TempDir()
+	require.Contains(t, freeze(t, root, FreezeOptions{OutDir: out}, "pages/[id].tsx"), "froze 1 paths, 2 lines")
+	require.NotContains(t, readFile(t, filepath.Join(out, "checkpoint-"+filepath.Base(root)+".diff")), "pages/i.tsx")
 }
 
 func TestFreezeVouchesOnlyForPathsTheLastFreezeNamed(t *testing.T) {

@@ -1404,9 +1404,24 @@ keep.
     refuses one moved since the freeze, and a state past the 200-path cap
     covers nothing to `check` and the gate, each with a test that went red with
     its fix removed
-  - next: group 2, freeze's path handling and diff (literal pathspecs, `../`
-    and directory paths, basename clashes, truncation order, `appendGit`'s exit
-    status)
+  - as of 2026-11-05 (c862351): group 2's five defects re-derived in
+    `internal/checkpoint`: `gitInput` and `appendGit` pass paths as pathspecs;
+    `Freeze` accepts any regular file at `root/path`, `../x` included, and a
+    tracked directory through `known`; the out files are named by
+    `filepath.Base(root)` alone; the `.diff` is truncated before
+    `appendDiff`, the empty refusal and `WriteState`; `appendGit` drops every
+    git exit status
+  - ruled 2026-11-05: `freeze` writes `checkpoint-<repo>.root` and refuses an
+    out directory whose `.root` names another root; it refuses an absolute
+    path, one holding `..` or not in git's clean form, and a directory,
+    submodules included
+  - as of 2026-11-05: group 2 built: `freeze` takes paths literally and refuses
+    a directory, submodules included, a path not as git prints it and an out
+    directory another root of that basename froze into; it builds the diff and
+    delta aside, writes the fingerprint last and fails when git fails writing
+    the diff, each with a test that went red with its fix removed
+  - next: group 3, fingerprint edges (symlinks, non-regular paths, a newline in
+    a path, a repository with no commit)
 - [ ] plan-parser-warnings: `ele plan` parses or warns on every line form it now
   holds or drops in silence
   - done when each line form below is parsed or drawn as a warning by `ele plan

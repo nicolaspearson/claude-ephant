@@ -294,8 +294,11 @@ recorded, and 1 when anything changed since, none ran, nothing is changed, or
 over 200 paths are changed, past the fingerprint's cap.
 `freeze` writes each path's diff against `HEAD`, or `--base`, into `<dir>` with
 a fingerprint, says how many dirty paths past 200 went unfingerprinted, and
-opens or extends the session's run, `--start` restarting its clock. `hash`
-prints the fingerprint of the changed paths, for comparing with a freeze's.
+opens or extends the session's run, `--start` restarting its clock. It takes
+each path literally, never as a glob, and refuses a directory, a path not
+relative to the root as git prints it, and a `<dir>` holding another root's
+checkpoint files. `hash` prints the fingerprint of the changed paths, for
+comparing with a freeze's.
 `record` marks what the run froze as reviewed, as its last freeze saw it, and
 ends the run, refusing when a frozen path moved since that freeze;
 `close` ends it without a record. `log` appends a checkpoint's or review's

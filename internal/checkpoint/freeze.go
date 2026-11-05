@@ -63,6 +63,13 @@ func Freeze(ctx context.Context, options FreezeOptions) (string, error) {
 	}
 	sizes := measure{docs: true, tracked: true}
 	for _, path := range options.Paths {
+		// The run's frozen paths are matched against git's own names.
+		if !filepath.IsLocal(path) || filepath.Clean(path) != path {
+			return "", fmt.Errorf("%s is not a path relative to %s as git prints it; name it as `git status` does", path, root)
+		}
+		if isDirectory(ctx, root, against, path) {
+			return "", fmt.Errorf("%s is a directory; name the files in it", path)
+		}
 		// A staged rename or deletion has left the working tree.
 		if known(ctx, root, against, path) {
 			if _, err := git(ctx, root, "diff", against, "--quiet", "--", path); err == nil {
@@ -77,19 +84,32 @@ func Freeze(ctx context.Context, options FreezeOptions) (string, error) {
 	}
 	name := filepath.Base(root)
 	prefix := options.OutDir + "/checkpoint-" + name
-	diff, delta, staging, hash := prefix+".diff", prefix+".delta.diff", prefix+".delta", prefix+".hash"
-	if err := os.WriteFile(diff, nil, 0o600); err != nil {
+	diff, delta, staging, hash, owner := prefix+".diff", prefix+".delta.diff", prefix+".delta", prefix+".hash", prefix+".root"
+	switch held, err := os.ReadFile(owner); {
+	case errors.Is(err, os.ErrNotExist):
+	case err != nil:
+		return "", err
+	case string(held) != root+"\n":
+		return "", fmt.Errorf("%s holds the checkpoint files of %s; freeze %s into another directory", options.OutDir, strings.TrimSpace(string(held)), root)
+	}
+	// Built aside: a failed freeze leaves the last diff and delta beside their fingerprint.
+	building, buildingDelta := diff+".tmp", delta+".tmp"
+	defer func() {
+		_ = os.Remove(building)
+		_ = os.Remove(buildingDelta)
+	}()
+	if err := os.WriteFile(building, nil, 0o600); err != nil {
 		return "", err
 	}
-	for _, path := range []string{delta, staging} {
+	for _, path := range []string{buildingDelta, staging} {
 		if err := os.RemoveAll(path); err != nil {
 			return "", err
 		}
 	}
-	if err := appendDiff(ctx, root, against, diff, &sizes, options.Paths); err != nil {
+	if err := appendDiff(ctx, root, against, building, &sizes, options.Paths); err != nil {
 		return "", err
 	}
-	if info, err := os.Stat(diff); err != nil || info.Size() == 0 {
+	if info, err := os.Stat(building); err != nil || info.Size() == 0 {
 		return "", fmt.Errorf("the diff of %d paths is empty", len(options.Paths))
 	}
 	mode := sizes.mode()
@@ -100,7 +120,7 @@ func Freeze(ctx context.Context, options FreezeOptions) (string, error) {
 	reviewed, err := false, error(nil)
 	// A branch review covers commits, which no record's copies describe.
 	if against == "HEAD" {
-		if reviewed, mode, summary, err = freezeDelta(ctx, root, options.Paths, delta, staging, sizes, mode, summary); err != nil {
+		if reviewed, mode, summary, err = freezeDelta(ctx, root, options.Paths, buildingDelta, staging, sizes, mode, summary); err != nil {
 			return "", err
 		}
 	}
@@ -108,6 +128,21 @@ func Freeze(ctx context.Context, options FreezeOptions) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if err = os.WriteFile(owner, []byte(root+"\n"), 0o600); err != nil {
+		return "", err
+	}
+	if err = os.Rename(building, diff); err != nil {
+		return "", err
+	}
+	if reviewed {
+		err = os.Rename(buildingDelta, delta)
+	} else {
+		err = os.RemoveAll(delta)
+	}
+	if err != nil {
+		return "", err
+	}
+	// Last: a stale fingerprint sends the re-review check to review again, never past an unreviewed diff.
 	if err := os.WriteFile(hash, []byte(state.Fingerprint()+"\n"), 0o600); err != nil {
 		return "", err
 	}
@@ -134,7 +169,7 @@ func appendDiff(ctx context.Context, root string, against string, out string, si
 		}
 	}
 	if len(tracked) > 0 {
-		if err := appendGit(ctx, root, out, append([]string{"diff", against, "-M", "--"}, tracked...)...); err != nil {
+		if err := appendGit(ctx, root, out, append([]string{"diff", "--no-ext-diff", "--no-color", against, "-M", "--"}, tracked...)...); err != nil {
 			return err
 		}
 		numstat, _ := git(ctx, root, append([]string{"diff", against, "-M", "--numstat", "--"}, tracked...)...)
@@ -142,7 +177,7 @@ func appendDiff(ctx context.Context, root string, against string, out string, si
 	}
 	for _, path := range untracked {
 		sizes.tracked = false
-		if err := appendGit(ctx, root, out, "diff", "--no-index", "--", devNull, path); err != nil {
+		if err := appendGit(ctx, root, out, "diff", "--no-ext-diff", "--no-color", "--no-index", "--", devNull, path); err != nil {
 			return err
 		}
 		numstat, _ := git(ctx, root, "diff", "--no-index", "--numstat", "--", devNull, path)
@@ -152,18 +187,22 @@ func appendDiff(ctx context.Context, root string, against string, out string, si
 	return nil
 }
 
-// appendGit ignores git's exit status: a diff that finds changes exits 1.
+// Only `--no-index` exits 1 on finding changes.
 func appendGit(ctx context.Context, directory string, out string, args ...string) error {
 	file, err := os.OpenFile(out, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}
-	command := exec.CommandContext(ctx, "git", append([]string{"-C", directory}, args...)...)
-	command.Stdout = file
+	var stderr bytes.Buffer
+	command := exec.CommandContext(ctx, "git", append([]string{"-C", directory, "--literal-pathspecs"}, args...)...)
+	command.Stdout, command.Stderr = file, &stderr
 	var exitError *exec.ExitError
-	if err = command.Run(); err != nil && !errors.As(err, &exitError) {
+	if err = command.Run(); errors.As(err, &exitError) && exitError.ExitCode() == 1 && slices.Contains(args, "--no-index") {
+		err = nil
+	}
+	if err != nil {
 		_ = file.Close()
-		return err
+		return fmt.Errorf("git %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
 	}
 	return file.Close()
 }
@@ -208,7 +247,7 @@ func freezeDelta(ctx context.Context, root string, paths []string, delta string,
 				return false, "", "", err
 			}
 		}
-		if err = appendGit(ctx, staging, delta, "diff", "--no-index", "--no-prefix", "--", before, after); err != nil {
+		if err = appendGit(ctx, staging, delta, "diff", "--no-ext-diff", "--no-color", "--no-index", "--no-prefix", "--", before, after); err != nil {
 			return false, "", "", err
 		}
 		numstat, _ := git(ctx, staging, "diff", "--no-index", "--numstat", "--", before, after)
@@ -231,12 +270,23 @@ func freezeDelta(ctx context.Context, root string, paths []string, delta string,
 	return true, sizes.mode(), summary, nil
 }
 
+// The tree decides only for a path absent from the working tree; a submodule is a commit entry.
+func isDirectory(ctx context.Context, root string, against string, path string) bool {
+	if info, err := os.Lstat(filepath.Join(root, path)); err == nil {
+		return info.IsDir()
+	}
+	entry, err := git(ctx, root, "ls-tree", against, "--", path)
+	fields := strings.Fields(entry)
+	return err == nil && len(fields) > 1 && (fields[1] == "tree" || fields[1] == "commit")
+}
+
+// known matches the index entry exactly: a pathspec also matches a directory's files.
 func known(ctx context.Context, root string, against string, path string) bool {
 	if _, err := git(ctx, root, "cat-file", "-e", against+":"+path); err == nil {
 		return true
 	}
-	_, err := git(ctx, root, "ls-files", "--error-unmatch", "--", path)
-	return err == nil
+	listed, err := git(ctx, root, "ls-files", "-z", "--", path)
+	return err == nil && slices.Contains(strings.Split(listed, "\x00"), path)
 }
 
 func openRun(ctx context.Context, root string, options FreezeOptions) error {

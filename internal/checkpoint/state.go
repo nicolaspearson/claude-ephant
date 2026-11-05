@@ -494,7 +494,8 @@ func git(ctx context.Context, directory string, args ...string) (string, error) 
 
 func gitInput(ctx context.Context, directory string, input string, args ...string) (string, error) {
 	var stdout, stderr bytes.Buffer
-	command := exec.CommandContext(ctx, "git", append([]string{"-C", directory}, args...)...)
+	// A path is a name, never a glob: `pages/[id].tsx` is one file.
+	command := exec.CommandContext(ctx, "git", append([]string{"-C", directory, "--literal-pathspecs"}, args...)...)
 	command.Stdin = strings.NewReader(input)
 	command.Stdout, command.Stderr = &stdout, &stderr
 	if err := command.Run(); err != nil {
