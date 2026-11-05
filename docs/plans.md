@@ -137,9 +137,9 @@ next item is already done in the commits since the last tick, shows the item
 with related notes, and asks to start. Once you say yes, it re-checks what the
 item claims about the code before building on it, and triages the inbox.
 
-When a change completes an item, `/ele:checkpoint` proposes the tick with its
-evidence line; otherwise a dated progress line. Both are written only on your
-approval.
+Once the work is done, `/ele:plan` runs `/ele:checkpoint`. When the change
+completes the item, the checkpoint proposes the tick with its evidence line;
+otherwise a dated progress line. Both are written only on your approval.
 
 ```sh
 ele plan show               # the active plan: counts, previous item, blocked items, next item

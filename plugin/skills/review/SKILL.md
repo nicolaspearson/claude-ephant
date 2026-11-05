@@ -376,8 +376,9 @@ On yes, read the MR's state and head again first:
   `file:line` with its permalink
 
 Then publish per the forge file, every anchor computed against the head read
-now. No approval or request-changes state is set. A failed call leaves nothing
-half-sent behind, per the forge file. Then read each published anchored
+now. No approval or request-changes state is set. After a failed call, per the forge
+file: GitHub's one call has sent nothing; on GitLab, drafts not yet published
+are deleted, but any already published stay live. Then read each published anchored
 finding's position back, per the forge file, for step 13's `anchor`.
 
 The outcome opens step 13's question: each finding sent, at its line or

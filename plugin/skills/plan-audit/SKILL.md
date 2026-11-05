@@ -105,15 +105,19 @@ each, and each approved fold is written.
 
 ## Ticket-audit's sections, for plans
 
-- §0: `<topic>` is the plans' file names and `audit`. Also read the newest
+- §0: one recall per plan, `<topic>` being its file name and `audit`, since
+  recall matches only an entry holding every word. Also read the newest
   handoff, `ele handoff list --all --project <name>`, and keep `ele context`'s
   open question notes for Open questions below
 - §1: one corpus for every plan in scope:
 
   ```sh
-  AUDIT=$(mktemp -d)
-  ele ticket corpus --plan <path> --plan <path> ... --out "$AUDIT"
+  mktemp -d
+  ele ticket corpus --plan <path> --plan <path> ... --out <audit>
   ```
+
+  run as two calls, `<audit>` being the path `mktemp -d` prints, written into
+  each later command as ticket-audit §1 says
 
   Each Actions and Inbox item lands as `<plan>-<nn>.md` and `raw/<plan>-<nn>.md`,
   `<plan>` being the file name without `.md`, `<nn>` its position in the file.

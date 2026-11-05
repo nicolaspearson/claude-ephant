@@ -1,7 +1,7 @@
 # Tracker commands
 
-Run each in the repository the tracker belongs to. Count `OPEN` (gh) and
-`opened` (glab) as open.
+Run each in the repository the tracker belongs to. Count `OPEN` (`gh issue`),
+`open` (`gh api`) and `opened` (glab) as open.
 
 ## GitHub
 

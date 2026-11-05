@@ -47,9 +47,9 @@ Report what each section says about the skill, not the code:
   findings instead.
 - **Duration.** From the first freeze to the log line, so it includes the
   reviewers, the fixes, the re-review, and any wait for the user's reply before
-  the log line is written. A re-review frozen more than two hours after the
-  previous freeze, or any freeze with no session id, restarts the clock there. Full mode's median beside small's is the
-  cost to weigh against what the extra reviewers find. Runs logged before
+  the log line is written. A freeze given `--start`, or finding no clock for
+  its session, sets it; one with no session id sets none. Full mode's median
+  beside small's is the cost to weigh against what the extra reviewers find. Runs logged before
   duration existed, or with no freeze behind them, carry none; say how many.
 - **Reviews.** `/ele:review` runs, apart from the checkpoints above. The skip rate is the share of
   answered findings the user skipped: the reviewers' precision on other

@@ -38,8 +38,14 @@ before any matching. Run it in the repository the tracker belongs to — `glab` 
 `gh` both read the remote to know which project they are talking about:
 
 ```sh
-AUDIT=$(mktemp -d)
-ele ticket corpus --map <id> --out "$AUDIT"
+mktemp -d
+```
+
+It prints the corpus directory, `<audit>` below. Write that path into every
+later command: Claude Code's Bash tool keeps no variable between calls.
+
+```sh
+ele ticket corpus --map <id> --out <audit>
 ```
 
 It takes children from two places: GitHub's native sub-issues, and any ticket
@@ -70,7 +76,7 @@ title, body and comments as fetched. Then the user's earlier rulings on these
 tickets, read per Questions and rulings below:
 
 ```sh
-ele ticket ledger rulings --manifest "$AUDIT/manifest.json"
+ele ticket ledger rulings --manifest <audit>/manifest.json
 ```
 
 If the work came from a parent effort with its own map, fetch that too. A
@@ -335,7 +341,7 @@ mismatch is in the report.
 
 "Audited, no contradictions" has run one method and reported on six.
 
-Last, after §9's re-read, record the audit. Write `$AUDIT/records.json`, one
+Last, after §9's re-read, record the audit. Write `<audit>/records.json`, one
 record per ticket in scope, naming only the methods that reached that ticket and
 the user's rulings on its findings:
 
@@ -348,7 +354,7 @@ Methods are `premises`, `contradiction`, `artefacts`, `graph`, `decisions` and
 `status`, §3 to §8. Then:
 
 ```sh
-ele ticket ledger record --manifest "$AUDIT/manifest.json" --records "$AUDIT/records.json"
+ele ticket ledger record --manifest <audit>/manifest.json --records <audit>/records.json
 ```
 
 It stamps each line with the hash the audit read and refuses the whole set,

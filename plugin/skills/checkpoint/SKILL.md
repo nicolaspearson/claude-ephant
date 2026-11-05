@@ -28,7 +28,7 @@ ticket — or for a branch review, which the record never covers.
 Otherwise:
 
 ```sh
-git -C <root> status --porcelain
+git -C <root> status --porcelain --untracked-files=all
 git -C <root> diff HEAD --stat
 ```
 
@@ -53,9 +53,10 @@ offer: read `references/BRANCH.md` first; it changes what the sections
 below mean.
 
 Build the change list: every tracked file in the diff, every untracked file from
-`git status --porcelain`, every changed file outside git. `git diff HEAD` does not
-show untracked files, and a review given only the diff reviews none of them — the
-files a change adds usually carry its logic. Uncommitted work unrelated to this
+that status, every changed file outside git. `git diff HEAD` does not show
+untracked files, and a review given only the diff reviews none of them — the
+files a change adds usually carry its logic. Without `--untracked-files=all` a
+new directory is one `?? dir/` line, which the freeze refuses. Uncommitted work unrelated to this
 change stays off the list.
 
 Run the repository's formatter over the paths on the change list, so work off
@@ -313,12 +314,15 @@ change does not touch is out of scope: name it, write nothing.
 
 When the change worked on an active plan's item: read `references/PLAN.md`;
 it proposes the item's tick or progress line, writes it on approval, and
-makes the write a fix §8 re-reviews.
+makes the write a fix §8 re-reviews. An item already ticked gets no proposal;
+where this change holds its tick line, that is a held tick, and §8 re-reviews
+it the same way.
 
 §7 is done when each touched repository's plan state is reported — no active
-plan, no item worked on, or the item with a proposed tick or progress line — and
-any approved write is in the file, with `ele plan check` and any CI check
-reading `.documentation/` run since and no warning on its line left open.
+plan, no item worked on, the item with a proposed tick or progress line, or the
+item already ticked — and any approved write is in the file, with `ele plan
+check` and any CI check reading `.documentation/` run since and no warning on
+its line left open.
 
 ## 8. Re-review the fixes
 
@@ -329,10 +333,11 @@ saved:
 S=<scratchpad>; ele checkpoint hash <root> | cmp -s - "$S/checkpoint-<repo>.hash"; echo $?
 ```
 
-`0` in every repository, and no file outside git touched since §1: skip to §9.
-Anything else runs this step — a different fingerprint whatever moved it, a
-missing saved one, or an edit to a file outside git, which the fingerprint
-cannot see.
+`0` in every repository, no file outside git touched since §1, and no held tick
+from §7: skip to §9. Anything else runs this step — a different fingerprint
+whatever moved it, a missing saved one, an edit to a file outside git, which the
+fingerprint cannot see, or a held tick, which no fix moves. With no fix made,
+the second freeze below repeats the first and only the Spec bullet applies.
 
 Freeze again, into a second directory so the first freeze survives; git cannot
 diff the fixes alone without a stash or commit. Create the directory first. Name
@@ -341,23 +346,25 @@ HEAD and any untracked file it deleted — the freeze refuses a path with nothin
 to diff. Launch one fresh `ele:checkpoint-reviewer`, Bugs included on purpose,
 or `general-purpose` where that type is not listed, with both frozen diffs, the
 files the fixes touched, the findings they fixed, the brief's Settled, Report
-only and Errors fields and, when the spec reviewer ran or §7 wrote, the item
-quoted whole from the plan file, with what the change sets out to deliver and
-the brief's Observed field. It reads the reviewer files that apply, scoped to
+only and Errors fields and, when the spec reviewer ran, §7 wrote a line or held
+a tick, the item quoted whole from the plan file, with what the change sets out
+to deliver and the brief's Observed field; for a held tick, also the commits
+holding its work, where any are committed. It reads the reviewer files that apply, scoped to
 what the fixes changed:
 
 - **Bugs**, if any code changed: what did the fixes break or fail to close?
 - **Conventions**, if anything was renamed, moved or reordered, or a fix closed
   a Shape finding.
 - **Prose**, if any comment, string or doc changed.
-- **Spec**, if a fix closed a spec finding or touched what the item names, or §7
-  wrote: does each requirement it reached still hold? For §7's write: does each
-  claim the line makes hold against the item's done-when, the diff and the
-  Observed field?
+- **Spec**, if a fix closed a spec finding or touched what the item names, §7
+  wrote a line or held a tick: does each requirement it reached still hold? For
+  §7's line or held tick: does each claim it makes hold against the item's
+  done-when, the diff, those commits and the Observed field?
 
 One round: anything it finds is verified and then fixed or reported.
 
-§8 is done when every fingerprint matched, or the re-reviewer reported on each
+§8 is done when every fingerprint matched with no held tick, or the re-reviewer
+reported on each
 reviewer file that applied and each of its findings has a verdict.
 
 ## 9. Commit message
@@ -366,8 +373,9 @@ One line, subject only, in the repo's own style. More than one commit where the
 change splits cleanly, and say why it splits.
 
 Print the exact commands for the user to run. Per commit: an `add` of that
-commit's untracked paths, then a `commit` naming that commit's paths after `--`,
-a rename by both its old and new path. A commit given paths takes their
+commit's untracked paths, each file by name as §1's status lists it, unquoted,
+then a `commit` naming that commit's paths after `--`, a rename by both its old
+and new path. A commit given paths takes their
 working-tree copies and leaves anything else staged where it is, so the
 staged-differently paths from §1 ship as reviewed and work the user staged for
 another commit stays out.
@@ -384,15 +392,16 @@ and Prose ones when the skill call has scrolled out of its view.
 
 - The mode, small or full, the scope, and how many reviewers §4 launched.
 - Per reviewer: findings confirmed and fixed, refuted with reason, left open.
-- Which files each reviewer gave a verdict on. A file on the change list with no
-  verdict was not reviewed, and is named as such.
+- Which files each reviewer gave a verdict on, and spec's verdict per
+  requirement. A file on the change list with no verdict was not reviewed, and
+  is named as such.
 - Convention violations, naming the rule and the file it came from.
 - Any file marked denser than its peers whose comments were not swept.
 - Tests mutated, and whether each failed.
 - Tests whose assertions changed, each with the behaviour change it follows.
-- **Re-review:** what it found, or that the fingerprint had not moved.
-- **Plan:** §7's plan state, and any line it wrote, as it stands after §8's
-  re-review.
+- **Re-review:** what it found, or that it did not run.
+- **Plan:** §7's plan state, and any line it wrote or held, as it stands after
+  §8's re-review.
 - What was deliberately left, and why, linter findings off the change's lines
   included.
 - The gate result, per CI check, naming any that could not run here, any not run
@@ -400,14 +409,16 @@ and Prose ones when the skill call has scrolled out of its view.
   proven at HEAD; `ele plan check` warnings with no line, or off the change's
   lines.
 
-§10 is done when every file on the change list carries a verdict from each
-reviewer that ran, or is named unreviewed, and every entry on §5's running list
-appears in the report, under its reviewer's label where a reviewer raised it.
+§10 is done when every file on the change list carries a verdict from the bugs
+and conventions-prose reviewers, or is named unreviewed, every requirement the
+brief quotes carries one from the spec reviewer when it ran, and every entry on
+§5's running list appears in the report, under its reviewer's label where a reviewer raised it.
 
 ## 11. Record
 
 Once every check passes or counts as green under §6, §8 has run or found the
-fingerprint unmoved, and every finding is fixed or reported, per repository:
+fingerprint unmoved with no held tick, and every finding is fixed or reported,
+per repository:
 
 ```sh
 ele checkpoint record <root>
@@ -462,6 +473,7 @@ error here: §5, §6 and Stopping early handle it.
 | `not covered: <root> has changed…` from `check`, exit 1 | Expected answer, not a failure | Go on with §1's status; never rerun |
 | `Agent type '…checkpoint-reviewer' not found` | Plugin agent not loaded | Launch `general-purpose` with the same prompt |
 | `command not found: <tool>` in a §2 check | The check cannot run here | Report it unverified; no retry |
+| `<path> is neither tracked nor a file` from `freeze` | An untracked path that is no regular file: a directory, or one missing | Replace a directory with its files from §1's status; drop a missing one |
 
 ## Stopping early
 

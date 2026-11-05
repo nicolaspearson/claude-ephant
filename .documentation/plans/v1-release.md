@@ -1231,7 +1231,14 @@ keep.
   - done when a test, seen red, shows a symlinked `CLAUDE_CONFIG_DIR` giving
     notes the name the archive uses and a skipped one giving its absolute
     path, and the spec and `docs/` say so
-- [ ] skill-fixes: Fix the skill defects that fail a session or skip its review
+- [x] skill-fixes: Fix the skill defects that fail a session or skip its review
+  - asserted in the skill-fixes commit: each of the nine defects below fixed in
+    its skill, command, spec or docs file and checked by three checkpoint
+    reviewers against the code it describes (`openRun` in
+    `internal/checkpoint`, plan path resolution in `cmd/ele`, the forge and
+    tracker references); plan and checkpoint now agree that only the checkpoint
+    proposes a tick for work done in the session; `task check FORCE=1` and
+    `task audit` pass; no changed skill was run in a real session
   - done when each defect below is fixed in its skill or command file, the plan
     and checkpoint skills agree on who proposes a tick, and `task check FORCE=1`
     passes
@@ -1293,6 +1300,12 @@ keep.
     but recall needs every word in one entry, so an audit over several plans
     matches nothing and reports no earlier audit; `/ele:plan` pickup already
     keeps recall to two or three words. Fix: one recall per plan
+  - as of 2026-11-05 (ff01a60): each defect above re-derived and still present:
+    checkpoint `SKILL.md` §1 and §10, `references/PLAN.md`, `plan/SKILL.md`'s
+    review loop and step 6, `plan-audit` and `ticket-audit`'s `AUDIT=$(mktemp
+    -d)`, `checkpoint-stats.md`'s Duration bullet against `openRun` in
+    `internal/checkpoint`, `TRACKERS.md`'s open states, `review/SKILL.md` step
+    12 against `GITLAB.md` step 3, and plan-audit's §0 topic
 - [ ] checkpoint-correctness: `ele checkpoint` reports and records what was
   reviewed
   - done when each defect below has a test that fails before its fix, or the
@@ -1858,7 +1871,7 @@ keep.
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: readme-guides, skill-fixes, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
+  - blocked: readme-guides, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`
