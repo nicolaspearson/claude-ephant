@@ -1,12 +1,13 @@
 # Branch scope
 
-Every commit not yet pushed, plus the uncommitted work. Throughout `SKILL.md`,
+Every commit since the base, plus the uncommitted work. Throughout `SKILL.md`,
 HEAD, where it names what the change is compared against, reads the base: a
 path returned to the base leaves the change list, every freeze passes
 `--base <base>`, and `HEAD-EXPORT.md`'s export archives `<base>`, not `HEAD`.
 Where its sections differ further:
 
-- §1: the base comes from
+- §1: the base is the one the caller names, such as `/ele:plan` pickup's
+  commit that ticked the previous item; with none named, it comes from
 
   ```sh
   ele checkpoint base <root>

@@ -3,12 +3,11 @@
 The item is the one `SKILL.md` §7 read from the plan file; § numbers below are
 `SKILL.md`'s.
 
-An item already ticked, by `/ele:plan` pickup finding its work done or by an
-earlier change: propose no line. Where this change holds the tick, it is a held
-tick: §8 re-reviews it, even with every fingerprint unmoved, against the commits
-holding its work, named in its line, or this change's diff where none is
-committed. A tick already committed is outside the
-change: name it in §10's Plan entry.
+An item already ticked, by an earlier change or by hand: propose no line. Where
+this change holds the tick, it is a held tick: §8 re-reviews it, even with
+every fingerprint unmoved, against the commits holding its work, named in its
+line, or this change's diff where none is committed. A tick already committed
+is outside the change: name it in §10's Plan entry.
 
 Otherwise, judge the item against its own text, not the change's intent. Every
 requirement it names met, any real-session test among them, no spec finding confirmed under

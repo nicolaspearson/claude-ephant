@@ -1237,8 +1237,9 @@ keep.
     reviewers against the code it describes (`openRun` in
     `internal/checkpoint`, plan path resolution in `cmd/ele`, the forge and
     tracker references); plan and checkpoint now agree that only the checkpoint
-    proposes a tick for work done in the session; `task check FORCE=1` and
-    `task audit` pass; no changed skill was run in a real session
+    proposes a tick, pickup's already-done step running it in branch scope from
+    the previous tick's commit; `task check FORCE=1` and `task audit` pass; no
+    changed skill was run in a real session
   - done when each defect below is fixed in its skill or command file, the plan
     and checkpoint skills agree on who proposes a tick, and `task check FORCE=1`
     passes
@@ -1246,6 +1247,9 @@ keep.
     run `ele:checkpoint` once the work is done and itself proposes a dated
     progress line only; checkpoint's §7 gains a branch for an item already
     ticked, re-reviewing its tick line and proposing none
+  - ruled 2026-11-05: pickup step 2, finding an item's work already committed,
+    runs `ele:checkpoint` in branch scope from the commit that ticked the
+    previous item, which proposes the tick; step 2 proposes none
   - 2026-10-30, from skills-audit: checkpoint's §1 builds the change list from
     `git status --porcelain`, which shows a new untracked directory as one
     `?? dir/` line; `ele checkpoint freeze` refuses a directory ("is neither

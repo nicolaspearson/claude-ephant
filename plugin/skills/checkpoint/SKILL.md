@@ -44,12 +44,14 @@ List any rename by both its old and new path.
 
 Nothing uncommitted and nothing untracked: say so and stop, this is not a
 checkpoint — unless commits sit unpushed, in which case offer a branch review
-(below). A clean tree alone is not that — files outside git, in a symlinked or
-unversioned directory, hold work git will never report, reviewed against a saved
-copy of what they replaced, or against the file itself where there is none.
+(below), or the caller named a branch-scope base. A clean tree alone is not
+that — files outside git, in a symlinked or unversioned directory, hold work git
+will never report, reviewed against a saved copy of what they replaced, or
+against the file itself where there is none.
 
 **Branch scope**, when the user asks for a review of the branch or accepts the
-offer: read `references/BRANCH.md` first; it changes what the sections
+offer, or `/ele:plan` pickup runs it over work already committed with a base it
+names: read `references/BRANCH.md` first; it changes what the sections
 below mean.
 
 Build the change list: every tracked file in the diff, every untracked file from
