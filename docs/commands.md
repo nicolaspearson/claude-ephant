@@ -307,9 +307,12 @@ does, for comparing with a freeze's.
 ends the run, refusing when a frozen path moved since that freeze;
 `close` ends it without a record. `log` appends a checkpoint's or review's
 record, read on stdin. `optout` exempts paths matching each glob from the gate
-for the session. `density` measures the comment share of the diff since
-`--ref`. `gate` and `snapshot` read their hook's input on stdin. `stats`
-reports what checkpoints found since `--since`, 30 days back by default.
+for the session, refusing a glob that matches over half the repository's paths.
+Every freeze sweeps abandoned runs' files, crashed records' tmp files, and
+sessions' opt-outs and baselines, once untouched for 7 days; a record stays.
+`density` measures the comment share of the diff since `--ref`. `gate` and
+`snapshot` read their hook's input on stdin. `stats` reports what checkpoints
+found since `--since`, 30 days back by default.
 `ticket claims` flags open GitHub tickets labelled `wayfinder:map` that grant
 themselves execution and `wayfinder:task` tickets naming a source path, only the
 numbered ones when given; `--quiet` prints nothing when none is flagged.

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -423,6 +424,33 @@ func TestFreezeRefusesPathsItCannotDiff(t *testing.T) {
 	writeFile(t, plain, "f.md", "x\n")
 	_, err := Freeze(context.Background(), FreezeOptions{Against: "HEAD", OutDir: t.TempDir(), Paths: []string{"f.md"}, Root: plain, Session: session})
 	require.ErrorContains(t, err, "is not a git repository")
+}
+
+func TestFreezeSweepsFilesUntouchedForAWeek(t *testing.T) {
+	root := project(t)
+	reviewed := filepath.Dir(reviewedFile(t, root))
+	scratch := filepath.Join(os.TempDir(), "claude-checkpoint")
+	old := time.Now().Add(-8 * 24 * time.Hour)
+	record, fresh := filepath.Join(reviewed, strings.Repeat("a", 40)), filepath.Join(reviewed, strings.Repeat("f", 40))
+	stale := []string{record + ".def.started", record + ".def.open", record + ".def.frozen", record + ".def.state", record + ".tmp-1", filepath.Join(scratch, "abc.optout"), filepath.Join(scratch, "abc")}
+	kept := []string{record, record + ".paths", filepath.Join(record+".d", "main.go"), filepath.Join(reviewed, "not-ele.state"), fresh + ".def.started", filepath.Join(scratch, "fresh.optout")}
+	for _, path := range append(slices.Clone(stale), kept...) {
+		writeFile(t, filepath.Dir(path), filepath.Base(path), "x\n")
+		if !strings.HasPrefix(path, fresh) && !strings.HasSuffix(path, "fresh.optout") {
+			require.NoError(t, os.Chtimes(path, old, old))
+		}
+	}
+	require.NoError(t, os.Chtimes(record+".d", old, old))
+	writeFile(t, root, "main.go", "package main // one\n")
+
+	freeze(t, root, FreezeOptions{}, "main.go")
+
+	for _, path := range stale {
+		require.NoFileExists(t, path)
+	}
+	for _, path := range kept {
+		require.FileExists(t, path)
+	}
 }
 
 func TestFreezeTakesAPathLiterally(t *testing.T) {

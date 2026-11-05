@@ -57,6 +57,7 @@ func Freeze(ctx context.Context, options FreezeOptions) (string, error) {
 	if _, err := ReviewedFile(ctx, root); err != nil {
 		return "", fmt.Errorf("%s is not a git repository", root)
 	}
+	sweepStale(ctx, root)
 	against := options.Against
 	if against == "HEAD" && diffBase(ctx, root) != "HEAD" {
 		return "", fmt.Errorf("%s has no commit yet; commit once, then checkpoint", root)

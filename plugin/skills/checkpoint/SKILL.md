@@ -489,8 +489,8 @@ ele checkpoint close <root>
 ```
 
 When the user says this work needs no checkpoint, exempt its paths for the
-session. The command refuses a glob that matches an arbitrary path, such as `*`,
-`**` or `*.*`:
+session. It refuses a glob matching an arbitrary path, such as `*` or `**`, or
+over half the repository's paths:
 
 ```sh
 ele checkpoint optout <root> "<glob>" ...

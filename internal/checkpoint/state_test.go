@@ -143,6 +143,22 @@ func TestMovedPathsIgnoresTheUsersGitActionsAndSeesTheTurnsEdits(t *testing.T) {
 	}
 }
 
+func TestOpenHoldsTheRunForTheWholeWindow(t *testing.T) {
+	root := project(t)
+	writeFile(t, root, "main.go", "package main // one\n")
+	freeze(t, root, FreezeOptions{}, "main.go")
+	run, err := RunFile(context.Background(), root, session)
+	require.NoError(t, err)
+
+	inside := time.Now().Add(-119*time.Minute - 30*time.Second)
+	require.NoError(t, os.Chtimes(run+".open", inside, inside))
+	require.True(t, Open(context.Background(), root, session), "119.5 minutes into a 120-minute window")
+
+	past := time.Now().Add(-120 * time.Minute)
+	require.NoError(t, os.Chtimes(run+".open", past, past))
+	require.False(t, Open(context.Background(), root, session))
+}
+
 func TestOptedOutNeedsEveryMovedPathExempted(t *testing.T) {
 	root := project(t)
 	require.NoError(t, Optout(context.Background(), root, session, []string{"deck/*"}))
@@ -234,6 +250,25 @@ func TestRecordRefusesATreeThatMovedSinceTheFreeze(t *testing.T) {
 	require.NoError(t, Record(context.Background(), root, session), "a path off the change list moving is not this run's")
 }
 
+func TestRecordWritesThroughTmpNamesOfItsOwn(t *testing.T) {
+	root := project(t)
+	file := reviewedFile(t, root)
+	for _, stale := range []string{file + ".d.tmp", file + ".tmp", file + ".paths.tmp"} {
+		require.NoError(t, os.MkdirAll(stale, 0o700), "another record's leftover, in the way of a fixed name")
+	}
+	writeFile(t, root, "main.go", "package main // one\n")
+	freeze(t, root, FreezeOptions{}, "main.go")
+
+	require.NoError(t, Record(context.Background(), root, session))
+
+	require.True(t, Reviewed(context.Background(), root))
+	_, ok := ReviewedBytes(context.Background(), root, "main.go")
+	require.True(t, ok)
+	matches, err := filepath.Glob(file + "*tmp-*")
+	require.NoError(t, err)
+	require.Empty(t, matches, "nothing of this record's left behind")
+}
+
 func TestRunsOfTwoSessionsOnOneRepositoryKeepTheirOwnStateAndClock(t *testing.T) {
 	root := project(t)
 	writeFile(t, root, "main.go", "package main // one\n")
@@ -276,12 +311,41 @@ func TestStatePastThePathCapCoversNothing(t *testing.T) {
 	require.False(t, Covered(context.Background(), root, now, []string{"main.go"}))
 }
 
-func TestValidateOptoutRefusesGlobsThatMatchNothingOrEverything(t *testing.T) {
+func TestValidateOptoutRefusesAGlobMatchingOverHalfThePaths(t *testing.T) {
+	root := project(t)
+	writeFile(t, root, "deck/slides.txt", "slides\n")
+	writeFile(t, root, "notes.md", "notes\n")
+	writeFile(t, root, "plan.md", "plan\n")
+	require.NoError(t, ValidateOptout(context.Background(), root, "*.md"), "2 of 4 is half, not over")
+
+	writeFile(t, root, "readme.md", "readme\n")
+	err := ValidateOptout(context.Background(), root, "*.md")
+	require.ErrorContains(t, err, "'*.md' matches 3 of the repository's 5 paths, over half; name the paths")
+	require.ErrorContains(t, ValidateOptout(context.Background(), root, "*e*"), "over half")
+
+	conflicted := project(t)
+	writeFile(t, conflicted, "a.txt", "a\n")
+	writeFile(t, conflicted, "b.txt", "b\n")
+	writeFile(t, conflicted, "notes.md", "notes\n")
+	runGit(t, conflicted, "add", "a.txt", "b.txt", "notes.md")
+	blob, err := gitInput(context.Background(), conflicted, "x\n", "hash-object", "-w", "--stdin")
+	require.NoError(t, err)
+	var stages strings.Builder
+	for stage := 1; stage <= 3; stage++ {
+		fmt.Fprintf(&stages, "100644 %s %d\tx.md\n", strings.TrimSpace(blob), stage)
+	}
+	_, err = gitInput(context.Background(), conflicted, stages.String(), "update-index", "--index-info")
+	require.NoError(t, err)
+	require.NoError(t, ValidateOptout(context.Background(), conflicted, "*.md"), "an unmerged path counts once: 2 of 5")
+}
+
+func TestValidateOptoutRefusesAbsoluteDotSegmentAndArbitraryGlobs(t *testing.T) {
+	root := project(t)
 	for _, glob := range []string{"*", "**", "**/*", "*.*", "*/*", "?*", "[!q]*", "/repo/deck/*", "", "../deck/*", "./deck/*", "deck/", "deck/../x", "deck/./x", "deck//x"} {
-		require.Error(t, ValidateOptout(glob), glob)
+		require.Error(t, ValidateOptout(context.Background(), root, glob), glob)
 	}
 	for _, glob := range []string{"*.md", ".github/*", "deck/*"} {
-		require.NoError(t, ValidateOptout(glob), glob)
+		require.NoError(t, ValidateOptout(context.Background(), root, glob), glob)
 	}
 }
 

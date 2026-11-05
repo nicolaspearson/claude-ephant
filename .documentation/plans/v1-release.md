@@ -1457,9 +1457,27 @@ keep.
     commit and an untracked symlink to a directory, and fails when `--no-index`
     reports an error, which also closes the vanished-path race 2b left; each
     with a test that went red with its fix removed
-  - next: group 4, `ValidateOptout` and leftovers (a glob matching more than
-    half the paths, the `.optout` and `.started` sweeps, `Record`'s fixed tmp
-    names and separate renames, `Open`'s rounding)
+  - as of 2026-11-05 (afad02a): group 4's defects re-derived in
+    `internal/checkpoint`: `ValidateOptout` tests four fixed probes and its doc
+    claims a refusal of a glob matching no path that nothing makes; nothing
+    removes a session's `.optout`, and an abandoned run leaves its `.started`,
+    `.open`, `.frozen` and `.state`; `Record` writes through fixed tmp names;
+    `Open` rounds the age up with `math.Ceil`
+  - ruled 2026-11-05: every freeze sweeps run files in the reviewed directory
+    and `.optout` and state files under `claude-checkpoint/` untouched for over
+    7 days; `Record` writes through tmp names unique to the call, renames the
+    state file last and leans on the copy's hash check, with no lock;
+    `ValidateOptout`'s doc drops the no-match claim rather than refuse one
+  - as of 2026-11-05: group 4 built: `optout` refuses a glob matching over half
+    the repository's tracked and untracked paths, an unmerged path counted
+    once; every freeze sweeps an abandoned run's files, a crashed record's tmp
+    names, and ended sessions' opt-outs and baselines untouched for 7 days,
+    matching only ele's own names; `Record` writes through tmp names of its own;
+    a run stays open the full 120 minutes; each with a test that went red with
+    its fix removed. `Record` also renames the state last, an order no test
+    pins
+  - next: group 5, CLI refusals and stdin (`checkpoint freeze`'s refusals with
+    no reason, `gate` and `snapshot` hanging on a terminal)
 - [ ] plan-parser-warnings: `ele plan` parses or warns on every line form it now
   holds or drops in silence
   - done when each line form below is parsed or drawn as a warning by `ele plan

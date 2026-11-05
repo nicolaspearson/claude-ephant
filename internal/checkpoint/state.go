@@ -8,10 +8,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -29,7 +29,12 @@ const (
 	// Every path is hashed, so the count bounds the hook's runtime.
 	pathCap         = 200
 	sessionVariable = "CLAUDE_CODE_SESSION_ID"
+	// Far past the run window; a session idle this long loses its opt-outs.
+	staleAfter = 7 * 24 * time.Hour
 )
+
+// ele's names only, `<sha1>.`: the reviewed directory can be shared.
+var elesName = regexp.MustCompile(`^[0-9a-f]{40}\.`)
 
 // State is a working-tree fingerprint, hashed by on-disk content rather than index or diff, so the user staging or committing between turns moves nothing.
 type State struct {
@@ -161,7 +166,7 @@ func Open(ctx context.Context, root string, session string) bool {
 	if err != nil {
 		return false
 	}
-	if math.Ceil(time.Since(info.ModTime()).Minutes()) >= float64(minutes) {
+	if time.Since(info.ModTime()) >= time.Duration(minutes)*time.Minute {
 		return false
 	}
 	owner, err := os.ReadFile(run + ".open")
@@ -189,10 +194,8 @@ func Optout(ctx context.Context, root string, session string, globs []string) er
 	if session == "" {
 		return fmt.Errorf("%s is unset", sessionVariable)
 	}
-	for _, glob := range globs {
-		if err := ValidateOptout(glob); err != nil {
-			return err
-		}
+	if err := ValidateOptout(ctx, root, globs...); err != nil {
+		return err
 	}
 	file, err := OptoutFile(ctx, root, session)
 	if err != nil {
@@ -260,27 +263,48 @@ func Record(ctx context.Context, root string, session string) error {
 	case !slices.Equal(saw.Paths, state.Paths):
 		return fmt.Errorf("a frozen path in %s changed since the last freeze, so no reviewer saw it; have the change re-reviewed, then freeze again and record", root)
 	}
-	if err := os.RemoveAll(file + ".d.tmp"); err != nil {
+	// Tmp names unique to this call: a concurrent record writes into none of them.
+	directory, base := filepath.Dir(file), filepath.Base(file)
+	copies, err := os.MkdirTemp(directory, base+".d.tmp-")
+	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(file+".d.tmp", 0o700); err != nil {
-		return err
-	}
+	defer func() { _ = os.RemoveAll(copies) }()
 	for _, path := range state.Paths {
 		if path.Hash == deleted || !fileOrLink(filepath.Join(root, path.Path)) {
 			continue
 		}
-		if err := copyFile(filepath.Join(root, path.Path), filepath.Join(file+".d.tmp", path.Path)); err != nil {
+		if err = copyFile(filepath.Join(root, path.Path), filepath.Join(copies, path.Path)); err != nil {
 			return err
 		}
 	}
+	stateFile, err := writeTemp(directory, base+".tmp-", state.Bytes())
+	defer func() { _ = os.Remove(stateFile) }()
+	if err != nil {
+		return err
+	}
+	pathsFile, err := writeTemp(directory, base+".paths.tmp-", frozen)
+	defer func() { _ = os.Remove(pathsFile) }()
+	if err != nil {
+		return err
+	}
+	retired, err := os.MkdirTemp(directory, base+".d.tmp-")
+	if err != nil {
+		return err
+	}
+	defer func() { _ = os.RemoveAll(retired) }()
 	steps := []func() error{
-		func() error { return os.WriteFile(file+".tmp", state.Bytes(), 0o600) },
-		func() error { return os.WriteFile(file+".paths.tmp", frozen, 0o600) },
-		func() error { return os.RemoveAll(file + ".d") },
-		func() error { return os.Rename(file+".d.tmp", file+".d") },
-		func() error { return os.Rename(file+".paths.tmp", file+".paths") },
-		func() error { return os.Rename(file+".tmp", file) },
+		func() error { return os.Remove(retired) },
+		func() error {
+			if err := os.Rename(file+".d", retired); err != nil && !errors.Is(err, os.ErrNotExist) {
+				return err
+			}
+			return nil
+		},
+		func() error { return os.Rename(copies, file+".d") },
+		func() error { return os.Rename(pathsFile, file+".paths") },
+		// Last: ReviewedBytes reads a copy that does not hash to the record as no record, so a crash before this never reads as covered.
+		func() error { return os.Rename(stateFile, file) },
 		func() error { return endRun(ctx, root, session, ".frozen", ".open", ".state") },
 	}
 	for _, step := range steps {
@@ -401,18 +425,37 @@ func StateFile(session string, root string) (string, error) {
 	return filepath.Join(directory, sha1Hex(session+"\n"+root)), nil
 }
 
-// ValidateOptout refuses a glob that matches no repository path or nearly every one.
-func ValidateOptout(glob string) error {
-	if strings.HasPrefix(glob, "/") {
-		return fmt.Errorf("'%s' is absolute; name paths relative to the repository root", glob)
+// ValidateOptout refuses an absolute glob or one with a `.`, `..` or empty segment, one matching an arbitrary probe path, and one matching over half the repository's paths.
+func ValidateOptout(ctx context.Context, root string, globs ...string) error {
+	for _, glob := range globs {
+		if strings.HasPrefix(glob, "/") {
+			return fmt.Errorf("'%s' is absolute; name paths relative to the repository root", glob)
+		}
+		wrapped := "/" + glob + "/"
+		if MatchGlob("*/./*", wrapped) || MatchGlob("*/../*", wrapped) || MatchGlob("*//*", wrapped) {
+			return fmt.Errorf("'%s' has a \".\", \"..\" or empty path segment, which no repository path does; write paths as git prints them, e.g. deck/*", glob)
+		}
+		for _, probe := range []string{"q9x", "Z_0", "q9x/q9x/q9x.q9x", "Z_0/Z_0/Z_0.Z_0"} {
+			if MatchGlob(glob, probe) {
+				return fmt.Errorf("'%s' is too broad; name the paths", glob)
+			}
+		}
 	}
-	wrapped := "/" + glob + "/"
-	if MatchGlob("*/./*", wrapped) || MatchGlob("*/../*", wrapped) || MatchGlob("*//*", wrapped) {
-		return fmt.Errorf("'%s' has a \".\", \"..\" or empty path segment, which no repository path does; write paths as git prints them, e.g. deck/*", glob)
+	// --deduplicate: an unmerged path is listed once per stage otherwise.
+	listed, err := git(ctx, root, "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--deduplicate")
+	if err != nil {
+		return err
 	}
-	for _, probe := range []string{"q9x", "Z_0", "q9x/q9x/q9x.q9x", "Z_0/Z_0/Z_0.Z_0"} {
-		if MatchGlob(glob, probe) {
-			return fmt.Errorf("'%s' is too broad; name the paths", glob)
+	paths := slices.DeleteFunc(strings.Split(listed, "\x00"), func(path string) bool { return path == "" })
+	for _, glob := range globs {
+		matched := 0
+		for _, path := range paths {
+			if MatchGlob(glob, path) {
+				matched++
+			}
+		}
+		if matched*2 > len(paths) {
+			return fmt.Errorf("'%s' matches %d of the repository's %d paths, over half; name the paths", glob, matched, len(paths))
 		}
 	}
 	return nil
@@ -616,4 +659,38 @@ func readLines(path string) ([]string, error) {
 func sha1Hex(text string) string {
 	sum := sha1.Sum([]byte(text))
 	return hex.EncodeToString(sum[:])
+}
+
+func sweep(directory string, cutoff time.Time, stale func(name string) bool) {
+	entries, _ := os.ReadDir(directory)
+	for _, entry := range entries {
+		if info, err := entry.Info(); err == nil && stale(entry.Name()) && info.ModTime().Before(cutoff) {
+			_ = os.RemoveAll(filepath.Join(directory, entry.Name()))
+		}
+	}
+}
+
+// sweepStale removes what nothing else does: the files of runs abandoned without a record or close, a crashed record's tmp names, and ended sessions' opt-outs and baselines.
+func sweepStale(ctx context.Context, root string) {
+	file, err := ReviewedFile(ctx, root)
+	if err != nil {
+		return
+	}
+	cutoff := time.Now().Add(-staleAfter)
+	sweep(filepath.Dir(file), cutoff, func(name string) bool {
+		return elesName.MatchString(name) && (slices.Contains([]string{".frozen", ".open", ".started", ".state"}, filepath.Ext(name)) || strings.Contains(name, ".tmp"))
+	})
+	sweep(filepath.Join(os.TempDir(), "claude-checkpoint"), cutoff, func(string) bool { return true })
+}
+
+func writeTemp(directory string, pattern string, content []byte) (string, error) {
+	file, err := os.CreateTemp(directory, pattern)
+	if err != nil {
+		return "", err
+	}
+	if _, err = file.Write(content); err != nil {
+		_ = file.Close()
+		return file.Name(), err
+	}
+	return file.Name(), file.Close()
 }
