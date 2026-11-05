@@ -2,6 +2,7 @@ package checkpoint
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -117,6 +118,11 @@ func TestRecordCopiesOnlyWhatTheRunFroze(t *testing.T) {
 	require.NoFileExists(t, filepath.Join(file+".d", "other.go"))
 	_, ok := ReviewedBytes(context.Background(), root, "other.go")
 	require.False(t, ok, "a dirty path no run froze is no record")
+	require.False(t, Reviewed(context.Background(), root), "dirt no reviewer saw")
+	require.False(t, Covered(context.Background(), root, state(t, root), []string{"other.go"}), "dirt no reviewer saw")
+
+	require.NoError(t, os.Remove(filepath.Join(root, "other.go")))
+	require.True(t, Reviewed(context.Background(), root))
 }
 
 func TestRecordCoversTheFrozenBytesUntilTheyMove(t *testing.T) {
@@ -160,6 +166,26 @@ func TestRecordRefusesARunThatIsNotThisSessionsOpenOne(t *testing.T) {
 	require.ErrorContains(t, Record(context.Background(), root, ""), "CLAUDE_CODE_SESSION_ID unset")
 }
 
+func TestRecordRefusesATreeThatMovedSinceTheFreeze(t *testing.T) {
+	root := project(t)
+	writeFile(t, root, "main.go", "package main // reviewed\n")
+	freeze(t, root, FreezeOptions{}, "main.go")
+	writeFile(t, root, "main.go", "package main // unreviewed\n")
+
+	require.ErrorContains(t, Record(context.Background(), root, session), "changed since the last freeze, so no reviewer saw it; have the change re-reviewed")
+	require.False(t, Reviewed(context.Background(), root))
+
+	run, err := RunFile(context.Background(), root, session)
+	require.NoError(t, err)
+	require.NoError(t, os.Remove(run+".state"))
+	require.ErrorContains(t, Record(context.Background(), root, session), "has no frozen fingerprint, as one opened before ele saved it, so no reviewer is known to have seen the tree; have the change re-reviewed")
+
+	writeFile(t, root, "other.go", "another session's work\n")
+	freeze(t, root, FreezeOptions{}, "main.go")
+	writeFile(t, root, "other.go", "another session's work, moved\n")
+	require.NoError(t, Record(context.Background(), root, session), "a path off the change list moving is not this run's")
+}
+
 func TestRunsOfTwoSessionsOnOneRepositoryKeepTheirOwnStateAndClock(t *testing.T) {
 	root := project(t)
 	writeFile(t, root, "main.go", "package main // one\n")
@@ -175,6 +201,31 @@ func TestRunsOfTwoSessionsOnOneRepositoryKeepTheirOwnStateAndClock(t *testing.T)
 
 	require.NoError(t, Record(context.Background(), root, "another-session"))
 	require.True(t, Open(context.Background(), root, session), "another session's record leaves this run open")
+}
+
+func TestStatePastThePathCapCoversNothing(t *testing.T) {
+	root := project(t)
+	for index := range pathCap {
+		writeFile(t, root, fmt.Sprintf("a/%03d.txt", index), "x\n")
+	}
+	under := make([]string, 0, pathCap)
+	for index := range pathCap {
+		under = append(under, fmt.Sprintf("a/%03d.txt", index))
+	}
+	freeze(t, root, FreezeOptions{}, under...)
+	require.NoError(t, Record(context.Background(), root, session))
+	require.True(t, Reviewed(context.Background(), root), "every dirty path reviewed, none past the cap")
+
+	writeFile(t, root, "main.go", "package main // past the cap\n")
+	summary := freeze(t, root, FreezeOptions{}, append(under, "main.go")...)
+	require.Contains(t, summary, "dirty paths past 200, unfingerprinted: 1")
+	require.NoError(t, Record(context.Background(), root, session))
+
+	now := state(t, root)
+	require.Equal(t, 1, now.Capped)
+	require.Equal(t, now, parseState(string(now.Bytes())), "the cap survives a baseline on disk")
+	require.False(t, Reviewed(context.Background(), root), "main.go reviewed too, but past the cap no hash says so")
+	require.False(t, Covered(context.Background(), root, now, []string{"main.go"}))
 }
 
 func TestValidateOptoutRefusesGlobsThatMatchNothingOrEverything(t *testing.T) {

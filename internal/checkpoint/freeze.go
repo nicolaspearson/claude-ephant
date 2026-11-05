@@ -111,6 +111,9 @@ func Freeze(ctx context.Context, options FreezeOptions) (string, error) {
 	if err := os.WriteFile(hash, []byte(state.Fingerprint()+"\n"), 0o600); err != nil {
 		return "", err
 	}
+	if state.Capped > 0 {
+		summary += fmt.Sprintf("; dirty paths past %d, unfingerprinted: %d, so `check` and the gate cover nothing here", pathCap, state.Capped)
+	}
 	if err := openRun(ctx, root, options); err != nil {
 		return "", err
 	}
@@ -244,12 +247,19 @@ func openRun(ctx context.Context, root string, options FreezeOptions) error {
 	if err != nil {
 		return err
 	}
+	frozen, err := PathState(ctx, root, options.Paths)
+	if err != nil {
+		return err
+	}
 	if _, err := os.Stat(run + ".started"); options.StartsRun || err != nil {
 		if err := os.WriteFile(run+".started", []byte(strconv.FormatInt(time.Now().Unix(), 10)+"\n"), 0o600); err != nil {
 			return err
 		}
 	}
 	if err := os.WriteFile(run+".frozen", []byte(strings.Join(options.Paths, "\n")+"\n"), 0o600); err != nil {
+		return err
+	}
+	if err := os.WriteFile(run+".state", frozen.Bytes(), 0o600); err != nil {
 		return err
 	}
 	return os.WriteFile(run+".open", []byte(options.Session+"\n"), 0o600)

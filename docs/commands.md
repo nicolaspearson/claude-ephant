@@ -290,11 +290,14 @@ context size hint.
 Where a `checkpoint` command's `<root>` is optional, it defaults to the working
 directory's repository. `base` prints the merge-base a branch checkpoint diffs
 against. `check` exits 0 when every changed path is what the last checkpoint
-recorded, and 1 when anything changed since, none ran or nothing is changed.
+recorded, and 1 when anything changed since, none ran, nothing is changed, or
+over 200 paths are changed, past the fingerprint's cap.
 `freeze` writes each path's diff against `HEAD`, or `--base`, into `<dir>` with
-a fingerprint, and opens or extends the session's run, `--start` restarting its
-clock. `hash` prints the fingerprint of the changed paths, for comparing with a
-freeze's. `record` marks what the run froze as reviewed and ends the run;
+a fingerprint, says how many dirty paths past 200 went unfingerprinted, and
+opens or extends the session's run, `--start` restarting its clock. `hash`
+prints the fingerprint of the changed paths, for comparing with a freeze's.
+`record` marks what the run froze as reviewed, as its last freeze saw it, and
+ends the run, refusing when a frozen path moved since that freeze;
 `close` ends it without a record. `log` appends a checkpoint's or review's
 record, read on stdin. `optout` exempts paths matching each glob from the gate
 for the session. `density` measures the comment share of the diff since

@@ -57,6 +57,10 @@ func checkpointBase(ctx context.Context, args []string, _ io.Reader, stdout io.W
 func checkpointCheck(ctx context.Context, args []string, _ io.Reader, stdout io.Writer, stderr io.Writer) int {
 	return withCheckpointRoot(ctx, "checkpoint check", args, stdout, stderr, func(root string) int {
 		if !checkpoint.Reviewed(ctx, root) {
+			if _, capped := checkpoint.DirtyPaths(ctx, root); capped > 0 {
+				fmt.Fprintf(stdout, "not covered: %s has changed paths past the fingerprint's cap: %d\n", root, capped)
+				return 1
+			}
 			fmt.Fprintf(stdout, "not covered: %s has changed since the last checkpoint, or none ran\n", root)
 			return 1
 		}

@@ -21,6 +21,8 @@ import (
 )
 
 const (
+	// Path lines hold a tab; this line never does.
+	cappedPrefix       = "capped "
 	defaultOpenMinutes = 120
 	deleted            = "-"
 	devNull            = "/dev/null"
@@ -31,8 +33,9 @@ const (
 
 // State is a working-tree fingerprint, hashed by on-disk content rather than index or diff, so the user staging or committing between turns moves nothing.
 type State struct {
-	Head  string
-	Paths []StatePath
+	Capped int
+	Head   string
+	Paths  []StatePath
 }
 
 type StatePath struct {
@@ -45,6 +48,9 @@ func (s State) Bytes() []byte {
 	fmt.Fprintf(&buffer, "%s\n", s.Head)
 	for _, path := range s.Paths {
 		fmt.Fprintf(&buffer, "%s\t%s\n", path.Hash, path.Path)
+	}
+	if s.Capped > 0 {
+		fmt.Fprintf(&buffer, "%s%d\n", cappedPrefix, s.Capped)
 	}
 	return buffer.Bytes()
 }
@@ -63,11 +69,14 @@ func (s State) hashes() map[string]string {
 
 // Close ends a run that stops without a record, so it stops the clock too; a record leaves the clock for the log.
 func Close(ctx context.Context, root string, session string) error {
-	return endRun(ctx, root, session, ".frozen", ".open", ".started")
+	return endRun(ctx, root, session, ".frozen", ".open", ".started", ".state")
 }
 
 // Covered ignores dirt outside paths: another session's work does not hold a reviewed turn.
 func Covered(ctx context.Context, root string, now State, paths []string) bool {
+	if now.Capped > 0 {
+		return false
+	}
 	file, err := ReviewedFile(ctx, root)
 	if err != nil {
 		return false
@@ -86,7 +95,7 @@ func Covered(ctx context.Context, root string, now State, paths []string) bool {
 	return true
 }
 
-func DirtyPaths(ctx context.Context, root string) []string {
+func DirtyPaths(ctx context.Context, root string) ([]string, int) {
 	changed, _ := git(ctx, root, "diff", "HEAD", "--name-only", "--no-renames", "-z")
 	untracked, _ := git(ctx, root, "ls-files", "--others", "--exclude-standard", "-z")
 	var paths []string
@@ -102,9 +111,9 @@ func DirtyPaths(ctx context.Context, root string) []string {
 		paths = outside(paths, root, directory)
 	}
 	if len(paths) > pathCap {
-		paths = paths[:pathCap]
+		return paths[:pathCap], len(paths) - pathCap
 	}
-	return paths
+	return paths, 0
 }
 
 // MovedPaths lists paths whose content moved between the baseline and now. A path that went clean counts only while HEAD stayed put: clean under a new HEAD is a commit.
@@ -215,7 +224,7 @@ func ReadState(path string) (State, error) {
 	return parseState(string(content)), nil
 }
 
-// Record copies only what the run froze: a dirty path off the change list is in the record for `check`, but was never reviewed, so no delta may skip it.
+// Record holds only what the run froze, as the last freeze saw it: dirt off the change list was never reviewed, and neither was an edit since that freeze.
 func Record(ctx context.Context, root string, session string) error {
 	file, err := ReviewedFile(ctx, root)
 	if err != nil {
@@ -228,15 +237,24 @@ func Record(ctx context.Context, root string, session string) error {
 	if err != nil {
 		return err
 	}
-	state, err := WriteState(ctx, root)
-	if err != nil {
-		return err
-	}
 	frozen, err := os.ReadFile(run + ".frozen")
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	frozenPaths := strings.Split(string(frozen), "\n")
+	frozenPaths := slices.DeleteFunc(strings.Split(string(frozen), "\n"), func(path string) bool { return path == "" })
+	state, err := PathState(ctx, root, frozenPaths)
+	if err != nil {
+		return err
+	}
+	saw, err := ReadState(run + ".state")
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		return fmt.Errorf("the run in %s has no frozen fingerprint, as one opened before ele saved it, so no reviewer is known to have seen the tree; have the change re-reviewed, then freeze again and record", root)
+	case err != nil:
+		return err
+	case !slices.Equal(saw.Paths, state.Paths):
+		return fmt.Errorf("a frozen path in %s changed since the last freeze, so no reviewer saw it; have the change re-reviewed, then freeze again and record", root)
+	}
 	if err := os.RemoveAll(file + ".d.tmp"); err != nil {
 		return err
 	}
@@ -244,7 +262,7 @@ func Record(ctx context.Context, root string, session string) error {
 		return err
 	}
 	for _, path := range state.Paths {
-		if path.Hash == deleted || !regularFile(filepath.Join(root, path.Path)) || !slices.Contains(frozenPaths, path.Path) {
+		if path.Hash == deleted || !regularFile(filepath.Join(root, path.Path)) {
 			continue
 		}
 		if err := copyFile(filepath.Join(root, path.Path), filepath.Join(file+".d.tmp", path.Path)); err != nil {
@@ -258,7 +276,7 @@ func Record(ctx context.Context, root string, session string) error {
 		func() error { return os.Rename(file+".d.tmp", file+".d") },
 		func() error { return os.Rename(file+".paths.tmp", file+".paths") },
 		func() error { return os.Rename(file+".tmp", file) },
-		func() error { return endRun(ctx, root, session, ".frozen", ".open") },
+		func() error { return endRun(ctx, root, session, ".frozen", ".open", ".state") },
 	}
 	for _, step := range steps {
 		if err := step(); err != nil {
@@ -279,7 +297,7 @@ func Reviewed(ctx context.Context, root string) bool {
 		return false
 	}
 	now, err := WriteState(ctx, root)
-	if err != nil || len(now.Paths) == 0 {
+	if err != nil || len(now.Paths) == 0 || now.Capped > 0 {
 		return false
 	}
 	for _, path := range now.Paths {
@@ -395,14 +413,14 @@ func ValidateOptout(glob string) error {
 	return nil
 }
 
-// WriteState hashes a deleted path as `-`.
-func WriteState(ctx context.Context, root string) (State, error) {
+// PathState hashes the named paths, dirty or not and uncapped, a deleted one as `-`.
+func PathState(ctx context.Context, root string, paths []string) (State, error) {
 	state := State{Head: "none"}
 	if head, err := git(ctx, root, "rev-parse", "-q", "--verify", "HEAD"); err == nil {
 		state.Head = strings.TrimRight(head, "\n")
 	}
 	var files, others []string
-	for _, path := range DirtyPaths(ctx, root) {
+	for _, path := range paths {
 		if regularFile(filepath.Join(root, path)) {
 			files = append(files, path)
 		} else {
@@ -433,6 +451,13 @@ func WriteState(ctx context.Context, root string) (State, error) {
 		state.Paths = append(state.Paths, StatePath{Hash: strings.TrimRight(hash, "\n"), Path: path})
 	}
 	return state, nil
+}
+
+func WriteState(ctx context.Context, root string) (State, error) {
+	paths, capped := DirtyPaths(ctx, root)
+	state, err := PathState(ctx, root, paths)
+	state.Capped = capped
+	return state, err
 }
 
 func copyFile(source string, target string) error {
@@ -492,7 +517,11 @@ func parseState(content string) State {
 	lines := strings.Split(strings.TrimSuffix(content, "\n"), "\n")
 	state := State{Head: lines[0]}
 	for _, line := range lines[1:] {
-		hash, path, _ := strings.Cut(line, "\t")
+		hash, path, found := strings.Cut(line, "\t")
+		if count, capped := strings.CutPrefix(line, cappedPrefix); !found && capped {
+			state.Capped, _ = strconv.Atoi(count)
+			continue
+		}
 		state.Paths = append(state.Paths, StatePath{Hash: hash, Path: path})
 	}
 	return state

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,6 +25,18 @@ const (
 	hookSession = "checkpoint-test-session"
 	logRecord   = `{"change":{"files":1,"lines":2},"findings":[],"mode":"small","mutations":{"failed":0,"inconclusive":0,"run":0},"notes":{"approved":0,"proposed":0},"rereview":"skipped","scope":"uncommitted"}`
 )
+
+func TestRunCheckpointCheckNamesThePathCap(t *testing.T) {
+	root := hookRepository(t)
+	for index := range 201 {
+		writeTestFile(t, root, fmt.Sprintf("a/%03d.txt", index), "x\n")
+	}
+
+	output, code := runCheckpoint(t, "check", root)
+
+	require.Equal(t, 1, code)
+	require.Contains(t, output, "has changed paths past the fingerprint's cap: 1")
+}
 
 func TestRunCheckpointDensityMeasuresTheWholeRepositoryFromASubdirectory(t *testing.T) {
 	root, _ := checkpointRepository(t)
@@ -228,6 +241,25 @@ func TestRunCheckpointGatePassesTurnsThatAreNotCheckpoints(t *testing.T) {
 		t.Chdir(t.TempDir())
 		require.Empty(t, gateHook(t, transcriptFile(t, "PROMPT:go", editMain, doneClaim), false))
 	})
+}
+
+func TestRunCheckpointGateSeesAnEditPastThePathCap(t *testing.T) {
+	root := hookRepository(t)
+	for index := range 200 {
+		writeTestFile(t, root, fmt.Sprintf("a/%03d.txt", index), "x\n")
+	}
+	snapshotHook(t)
+	dirty(t, root)
+
+	output := gateHook(t, transcriptFile(t, "PROMPT:go", editMain, doneClaim), false)
+
+	require.Contains(t, output, `"hookSpecificOutput"`, "main.go sorts past the cap, so no hash of it moved")
+	require.Contains(t, output, "Changed: main.go")
+
+	snapshotHook(t)
+	dirty(t, root)
+	output = gateHook(t, transcriptFile(t, "PROMPT:go", "BASH:echo x > main.go", doneClaim), false)
+	require.Contains(t, output, "Changed: (Bash writes past the 200-path cap)", "a Bash write names no path to weigh")
 }
 
 func TestRunCheckpointGateWeighsOnlyWhatThisTurnWrote(t *testing.T) {

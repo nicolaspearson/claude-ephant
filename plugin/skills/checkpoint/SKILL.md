@@ -475,6 +475,7 @@ error here: §5, §6 and Stopping early handle it.
 | `not covered: <root> has changed…` from `check`, exit 1 | Expected answer, not a failure | Go on with §1's status; never rerun |
 | `Agent type '…checkpoint-reviewer' not found` | Plugin agent not loaded | Launch `general-purpose` with the same prompt |
 | `command not found: <tool>` in a §2 check | The check cannot run here | Report it unverified; no retry |
+| `have the change re-reviewed` from `record` | An edit after the last freeze, or a run with no saved fingerprint, unreviewed | Re-review it per §8, then freeze and record; never freeze and record alone |
 | `<path> is neither tracked nor a file` from `freeze` | An untracked path that is no regular file: a directory, or one missing | Replace a directory with its files from §1's status; drop a missing one |
 
 ## Stopping early

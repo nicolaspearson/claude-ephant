@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -58,10 +61,20 @@ func Gate(ctx context.Context, input GateInput, stateFile string) string {
 		return ""
 	}
 	moved := MovedPaths(baseline, now)
-	if len(moved) == 0 {
+	if len(moved) == 0 && now.Capped == 0 {
 		return ""
 	}
 	turn := lastTurn(input.TranscriptPath)
+	// Past the cap a path has no hash to move: the turn's edits stand in, and a placeholder for a Bash write, which names none.
+	if now.Capped > 0 {
+		edited, bashWork := turnEdits(turn, input.Root, input.IsWork)
+		moved = append(moved, slices.Collect(maps.Keys(edited))...)
+		if len(edited) == 0 && bashWork {
+			moved = append(moved, fmt.Sprintf("(Bash writes past the %d-path cap)", pathCap))
+		}
+		slices.Sort(moved)
+		moved = slices.Compact(moved)
+	}
 	moved = ownPaths(moved, turn, input.Root, input.IsWork)
 	if len(moved) == 0 || Covered(ctx, input.Root, now, moved) || Open(ctx, input.Root, input.Session) || OptedOut(ctx, input.Root, input.Session, moved) {
 		return ""
@@ -212,6 +225,23 @@ func ownPaths(moved []string, turn string, root string, isWork func(string) bool
 	if !strings.HasPrefix(turn, "\x1eTURN") {
 		return moved
 	}
+	paths, bashWork := turnEdits(turn, root, isWork)
+	if len(paths) == 0 {
+		if bashWork {
+			return moved
+		}
+		return nil
+	}
+	var own []string
+	for _, path := range moved {
+		if paths[path] {
+			own = append(own, path)
+		}
+	}
+	return own
+}
+
+func turnEdits(turn string, root string, isWork func(string) bool) (map[string]bool, bool) {
 	edited := map[string]bool{}
 	bashWork := false
 	for line := range strings.SplitSeq(turn, "\n") {
@@ -230,19 +260,7 @@ func ownPaths(moved []string, turn string, root string, isWork func(string) bool
 			}
 		}
 	}
-	if len(edited) == 0 {
-		if bashWork {
-			return moved
-		}
-		return nil
-	}
-	var own []string
-	for _, path := range moved {
-		if edited[path] {
-			own = append(own, path)
-		}
-	}
-	return own
+	return edited, bashWork
 }
 
 func renderAssistant(content json.RawMessage) string {

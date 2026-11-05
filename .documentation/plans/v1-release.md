@@ -1319,6 +1319,14 @@ keep.
     `log`; `stats` keeps 0-second and negative durations out of the median and
     counts them on a line of their own; the spec, `log --help` and the skill
     say "the freeze that opened the run"
+  - ruled 2026-11-05: worked in groups, each its own checkpoint and commit with
+    a progress line between, ticked when the last lands; `record` keeps only
+    the frozen paths and refuses a tree that moved since the last freeze; a
+    state past the 200-path cap reads as not covered to `check` and the gate,
+    and `freeze` says how many paths went unfingerprinted, the delta staying
+    exact since `record` hashes the frozen paths uncapped;
+    `ValidateOptout` also refuses a glob matching more than half the
+    repository's tracked and untracked paths
   - 2026-10-30, from cli-freeze's persisted-files survey: nothing removes a
     checkpoint run's leftovers. The session's `.optout` file under the temp
     dir's `claude-checkpoint/` is never deleted, and a run frozen but never
@@ -1385,6 +1393,20 @@ keep.
     recording at once interleave, and swaps its three artefacts by separate
     renames, so a crash between them leaves record and copy disagreeing.
     `Open` rounds the age up, closing a run at about 119 minutes, not 120
+  - as of 2026-11-05 (b1ae484): each defect above re-derived and still present
+    in `internal/checkpoint` (`Record`, `Reviewed`, `DirtyPaths`,
+    `ValidateOptout`, `openRun`, `appendGit`, `Freeze`, `WriteState`, `Open`),
+    `Median` in its stats, and `cmd/ele` (`checkpointFreeze`,
+    `readCheckpointHook`), but one: `Freeze` now refuses an untracked
+    directory; a tracked one still passes `known`. The fingerprint edges'
+    symlink, non-regular and newline cases are not checked
+  - as of 2026-11-05: group 1 built: `record` holds only the frozen paths and
+    refuses one moved since the freeze, and a state past the 200-path cap
+    covers nothing to `check` and the gate, each with a test that went red with
+    its fix removed
+  - next: group 2, freeze's path handling and diff (literal pathspecs, `../`
+    and directory paths, basename clashes, truncation order, `appendGit`'s exit
+    status)
 - [ ] plan-parser-warnings: `ele plan` parses or warns on every line form it now
   holds or drops in silence
   - done when each line form below is parsed or drawn as a warning by `ele plan
