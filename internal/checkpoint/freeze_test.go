@@ -379,6 +379,9 @@ func TestFreezeRefusesDirectoriesAndPathsNotAsGitPrintsThem(t *testing.T) {
 	for path, want := range map[string]string{
 		"../outside.go":   "../outside.go is not a path relative to " + root + " as git prints it",
 		"./main.go":       "./main.go is not a path relative to " + root + " as git prints it",
+		".GIT/config":     ".GIT/config is inside git's own directory; name a file in the working tree",
+		".git":            ".git is inside git's own directory; name a file in the working tree",
+		".git/config":     ".git/config is inside git's own directory; name a file in the working tree",
 		"fresh":           "fresh is a directory; name the files in it",
 		"main.go/":        "main.go/ is not a path relative to " + root + " as git prints it",
 		"pkg":             "pkg is a directory; name the files in it",

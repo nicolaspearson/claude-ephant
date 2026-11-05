@@ -74,6 +74,10 @@ func Freeze(ctx context.Context, options FreezeOptions) (string, error) {
 		if !filepath.IsLocal(path) || filepath.Clean(path) != path {
 			return "", fmt.Errorf("%s is not a path relative to %s as git prints it; name it as `git status` does", path, root)
 		}
+		// A case-insensitive filesystem opens .GIT as .git.
+		if first, _, _ := strings.Cut(path, "/"); strings.EqualFold(first, ".git") {
+			return "", fmt.Errorf("%s is inside git's own directory; name a file in the working tree", path)
+		}
 		if nested := nestedRepository(root, path); nested != "" && !known(ctx, root, against, path) {
 			return "", fmt.Errorf("%s is inside the repository at %s; checkpoint it from there", path, nested)
 		}

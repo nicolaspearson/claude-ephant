@@ -297,10 +297,11 @@ a fingerprint, says how many dirty paths past 200 went unfingerprinted, and
 opens or extends the session's run, `--start` restarting its clock. It takes
 each path literally, never as a glob, diffs its bytes, never a textconv, and
 refuses a directory or an untracked symlink to one, an untracked path inside a
-nested repository, a path not relative to the root as git prints it, one
-holding a newline, a repository with no commit yet, and a `<dir>` holding
-another root's checkpoint files. A file
-git's attributes mark binary still diffs as binary. `hash` prints the
+nested repository, a path inside `.git`, a path not relative to the root as git
+prints it, one holding a newline, a repository with no commit yet, and a `<dir>`
+holding another root's checkpoint files. A file git's attributes mark binary
+still diffs as binary. A call missing its root, `<dir>`, `--base` commit or
+paths prints the reason before the synopsis. `hash` prints the
 fingerprint of the changed paths, a symlink hashed by its link text as git
 does, for comparing with a freeze's.
 `record` marks what the run froze as reviewed, as its last freeze saw it, and
@@ -311,7 +312,8 @@ for the session, refusing a glob that matches over half the repository's paths.
 Every freeze sweeps abandoned runs' files, crashed records' tmp files, and
 sessions' opt-outs and baselines, once untouched for 7 days; a record stays.
 `density` measures the comment share of the diff since `--ref`. `gate` and
-`snapshot` read their hook's input on stdin. `stats` reports what checkpoints
+`snapshot` read their hook's input on stdin, and run by hand on a terminal they
+say so and exit 1, rather than wait. `stats` reports what checkpoints
 found since `--since`, 30 days back by default.
 `ticket claims` flags open GitHub tickets labelled `wayfinder:map` that grant
 themselves execution and `wayfinder:task` tickets naming a source path, only the

@@ -395,14 +395,22 @@ func TestRunCheckpointRecordSubcommandsRefuseBadCalls(t *testing.T) {
 	root := hookRepository(t)
 	work := t.TempDir()
 	for name, args := range map[string][]string{
-		"freeze with no paths":      {"freeze", root, work, "--"},
-		"freeze into no directory":  {"freeze", root, filepath.Join(work, "missing"), "--", "main.go"},
-		"freeze with a bare --base": {"freeze", root, work, "--base"},
-		"optout with no glob":       {"optout", root},
-		"two roots":                 {"check", root, root},
+		"optout with no glob": {"optout", root},
+		"two roots":           {"check", root, root},
 	} {
 		_, code := runCheckpoint(t, args...)
 		require.Equal(t, 2, code, name)
+	}
+	synopsis := "ele checkpoint freeze <root> <dir> [--base <commit>] [--start] -- <path>...\n"
+	for args, reason := range map[string]string{
+		"freeze " + root:                                      "ele: checkpoint freeze needs a root and an out directory\n",
+		"freeze " + root + " " + work + " --":                 "ele: checkpoint freeze names no path\n",
+		"freeze " + root + " " + work + " --base":             "ele: --base needs a commit\n",
+		"freeze " + root + " " + work + "/missing -- main.go": "ele: " + work + "/missing is not a directory\n",
+	} {
+		output, code := runCheckpoint(t, strings.Fields(args)...)
+		require.Equal(t, 2, code, args)
+		require.True(t, strings.HasPrefix(output, reason+synopsis), "%s printed %q", args, output)
 	}
 	output, code := runCheckpoint(t, "optout", root, "deck/*")
 	require.Equal(t, 1, code)
@@ -414,6 +422,37 @@ func TestRunCheckpointRecordSubcommandsRefuseBadCalls(t *testing.T) {
 	output, code = runCheckpoint(t, "check", root)
 	require.Equal(t, 1, code)
 	require.Equal(t, "not covered: "+root+" has changed since the last checkpoint, or none ran\n", output)
+}
+
+func TestRunCheckpointHooksRefuseATerminalAndPassBadInput(t *testing.T) {
+	root := hookRepository(t)
+	for command, reason := range map[string]string{
+		"gate":     "ele: checkpoint gate reads a Stop hook's JSON on stdin\n",
+		"snapshot": "ele: checkpoint snapshot reads a UserPromptSubmit hook's JSON on stdin\n",
+	} {
+		device, err := os.Open(os.DevNull)
+		require.NoError(t, err)
+		var stdout, stderr bytes.Buffer
+		code := checkpointCommand(context.Background(), []string{command}, device, &stdout, &stderr)
+		require.NoError(t, device.Close())
+		require.Equal(t, 1, code, command)
+		require.Equal(t, reason, stderr.String(), command)
+
+		stdout.Reset()
+		stderr.Reset()
+		code = checkpointCommand(context.Background(), []string{command}, strings.NewReader("not json"), &stdout, &stderr)
+		require.Equal(t, 0, code, command)
+		require.Empty(t, stdout.String()+stderr.String(), command)
+	}
+
+	stateFile, err := checkpoint.StateFile(hookSession, root)
+	require.NoError(t, err)
+	oversized := `{"session_id":"` + hookSession + `","prompt":"` + strings.Repeat("x", hookInputLimit) + `"}`
+	var stdout, stderr bytes.Buffer
+	code := checkpointCommand(context.Background(), []string{"snapshot"}, strings.NewReader(oversized), &stdout, &stderr)
+	require.Equal(t, 0, code)
+	require.Empty(t, stdout.String()+stderr.String())
+	require.NoFileExists(t, stateFile, "a payload past the limit takes no baseline")
 }
 
 func TestRunCheckpointSnapshotKeepsTheBaselineOfATurnStillRunning(t *testing.T) {

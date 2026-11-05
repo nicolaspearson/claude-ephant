@@ -1476,8 +1476,32 @@ keep.
     a run stays open the full 120 minutes; each with a test that went red with
     its fix removed. `Record` also renames the state last, an order no test
     pins
-  - next: group 5, CLI refusals and stdin (`checkpoint freeze`'s refusals with
-    no reason, `gate` and `snapshot` hanging on a terminal)
+  - as of 2026-11-05 (1bc3e5d): group 5's defects re-derived in `cmd/ele`:
+    `checkpointFreeze` refuses too few positionals, a `--base` with no commit,
+    a missing or non-directory out dir and no paths through
+    `rejectCall(flags, nil, …)`, which prints the synopsis alone;
+    `readCheckpointHook`, which `checkpointGate` and `checkpointSnapshot`
+    call, reads stdin with `io.ReadAll`, no terminal guard and no limit, where
+    `readHookInput` refuses a terminal and reads at most `hookInputLimit`;
+    `Freeze` takes a path under the root's `.git` as untracked
+  - ruled 2026-11-05: each `freeze` refusal prints `ele: <reason>` and then the
+    synopsis, exiting 2; `gate` and `snapshot` read through `readHookInput`,
+    and on a terminal print that each reads its hook's JSON on stdin and exit
+    1, never 2, which blocks a Stop; malformed hook input still exits 0;
+    `freeze` refuses a path whose first segment is `.git`
+  - ruled 2026-11-05, on the group 5 review: the hooks keep the 1 MiB limit
+    every ele hook reads to, a payload past it passing ungated, and the spec
+    says so
+  - as of 2026-11-05: group 5 built: each `freeze` refusal prints its reason
+    before the synopsis; `gate` and `snapshot` say they read their hook's JSON
+    and exit 1 on a terminal or other character device, pass non-JSON and a
+    payload past 1 MiB with 0; `freeze` refuses a path whose first segment is
+    `.git` in any case; each with a test that went red with its fix removed
+  - next: group 6, the 2026-11-02 duration rulings, none built as of
+    2026-11-05: `openRun` keeps `.started` past the two-hour window; `stats`
+    puts 0-second and negative durations in the median; the skill does not
+    forbid chaining the `--start` freeze with `log`; `log --help`, `stats`,
+    `log`'s refusal, `checkpoint-stats.md` and the spec say "first freeze"
 - [ ] plan-parser-warnings: `ele plan` parses or warns on every line form it now
   holds or drops in silence
   - done when each line form below is parsed or drawn as a warning by `ele plan
@@ -1979,16 +2003,6 @@ keep.
 
 ## Inbox
 
-- 2026-11-05, from checkpoint-correctness group 2b's review: a file git's
-  attributes mark `-diff` or `binary`, `package-lock.json -diff` say, diffs in
-  `freeze` as "Binary files differ", so reviewers read none of its bytes while
-  `record` marks them reviewed. Should `freeze` pass `--text` for a path with no
-  NUL byte?
-- 2026-11-05, from checkpoint-correctness group 2b's review: `freeze` accepts a
-  path under the repository's own `.git`, such as `.git/config`, as an
-  untracked file and diffs it whole, though git never lists one. Should
-  `freeze` refuse a path whose first segment is `.git`, in group 5 or later?
-
 ## Out of scope
 
 - Self-audit of ele's own records: a feature, not a release gate (ruled
@@ -2008,3 +2022,6 @@ keep.
   constant: git never lists an untracked fifo and `freeze` refuses an
   untracked non-regular path, so only that replacement reaches it (ruled
   2026-11-05, from checkpoint-correctness's group 3 probe)
+- `freeze` passing `--text` for a file git's attributes mark `-diff` or
+  `binary`: such a file diffs as binary, as the spec and `freeze --help` say
+  (ruled 2026-11-05, from checkpoint-correctness group 2b's review)

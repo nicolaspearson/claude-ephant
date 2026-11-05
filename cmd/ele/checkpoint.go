@@ -104,8 +104,12 @@ func checkpointFreeze(ctx context.Context, args []string, _ io.Reader, stdout io
 	if len(args) > 0 && isHelpFlag(args[0]) {
 		return rejectCall(flags, flag.ErrHelp, stdout, stderr)
 	}
-	if len(args) < 2 {
+	refuse := func(reason string) int {
+		fmt.Fprintf(stderr, "ele: %s\n", reason)
 		return rejectCall(flags, nil, stdout, stderr)
+	}
+	if len(args) < 2 {
+		return refuse("checkpoint freeze needs a root and an out directory")
 	}
 	options := checkpoint.FreezeOptions{Against: "HEAD", OutDir: args[1], Session: checkpoint.Session()}
 	rest := args[2:]
@@ -118,15 +122,18 @@ func checkpointFreeze(ctx context.Context, args []string, _ io.Reader, stdout io
 			break
 		}
 		if len(rest) < 2 {
-			return rejectCall(flags, nil, stdout, stderr)
+			return refuse("--base needs a commit")
 		}
 		options.Against, rest = rest[1], rest[2:]
 	}
 	if len(rest) > 0 && rest[0] == "--" {
 		rest = rest[1:]
 	}
-	if info, err := os.Stat(options.OutDir); len(rest) == 0 || err != nil || !info.IsDir() {
-		return rejectCall(flags, nil, stdout, stderr)
+	if info, err := os.Stat(options.OutDir); err != nil || !info.IsDir() {
+		return refuse(options.OutDir + " is not a directory")
+	}
+	if len(rest) == 0 {
+		return refuse("checkpoint freeze names no path")
 	}
 	options.Paths = rest
 	return withCheckpointRoot(ctx, "checkpoint freeze", args[:1], stdout, stderr, func(root string) int {
@@ -146,6 +153,10 @@ func checkpointGate(ctx context.Context, args []string, stdin io.Reader, stdout 
 	flags := newFlagSet("checkpoint gate", stderr)
 	if err := flags.Parse(args); err != nil || flags.NArg() > 0 {
 		return rejectCall(flags, err, stdout, stderr)
+	}
+	if isTerminal(stdin) {
+		fmt.Fprintln(stderr, "ele: checkpoint gate reads a Stop hook's JSON on stdin")
+		return 1
 	}
 	input, root, stateFile, ok := readCheckpointHook(ctx, stdin)
 	if !ok {
@@ -273,6 +284,10 @@ func checkpointSnapshot(ctx context.Context, args []string, stdin io.Reader, std
 	if err := flags.Parse(args); err != nil || flags.NArg() > 0 {
 		return rejectCall(flags, err, stdout, stderr)
 	}
+	if isTerminal(stdin) {
+		fmt.Fprintln(stderr, "ele: checkpoint snapshot reads a UserPromptSubmit hook's JSON on stdin")
+		return 1
+	}
 	_, root, stateFile, ok := readCheckpointHook(ctx, stdin)
 	if !ok {
 		return 0
@@ -320,8 +335,7 @@ func checkpointStats(ctx context.Context, args []string, stdin io.Reader, stdout
 
 func readCheckpointHook(ctx context.Context, stdin io.Reader) (hookInput, string, string, bool) {
 	var input hookInput
-	content, _ := io.ReadAll(stdin)
-	_ = json.Unmarshal(content, &input)
+	readHookInput(stdin, &input)
 	root, err := checkpoint.Root(ctx, ".")
 	if err != nil || root == "" {
 		return input, "", "", false

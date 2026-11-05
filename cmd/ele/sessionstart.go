@@ -152,13 +152,19 @@ func planSection(ctx context.Context, all []notes.Note, project string, noteDire
 
 // A terminal is never read: run by hand, a hook command would wait on it.
 func readHookInput(input io.Reader, hook any) bool {
-	if file, ok := input.(*os.File); ok {
-		info, err := file.Stat()
-		if err != nil || info.Mode()&os.ModeCharDevice != 0 {
-			return false
-		}
+	if isTerminal(input) {
+		return false
 	}
 	return json.NewDecoder(io.LimitReader(input, hookInputLimit)).Decode(hook) == nil
+}
+
+func isTerminal(input io.Reader) bool {
+	file, ok := input.(*os.File)
+	if !ok {
+		return false
+	}
+	info, err := file.Stat()
+	return err != nil || info.Mode()&os.ModeCharDevice != 0
 }
 
 func reminderSection(due []notes.Note) string {
