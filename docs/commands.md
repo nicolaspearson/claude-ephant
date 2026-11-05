@@ -296,11 +296,13 @@ over 200 paths are changed, past the fingerprint's cap.
 a fingerprint, says how many dirty paths past 200 went unfingerprinted, and
 opens or extends the session's run, `--start` restarting its clock. It takes
 each path literally, never as a glob, diffs its bytes, never a textconv, and
-refuses a directory, an untracked path inside a nested repository, a path not
-relative to the root as git prints it, and a `<dir>` holding another root's
-checkpoint files. A file git's attributes mark binary still diffs as binary.
-`hash` prints the fingerprint of the changed paths, for comparing with a
-freeze's.
+refuses a directory or an untracked symlink to one, an untracked path inside a
+nested repository, a path not relative to the root as git prints it, one
+holding a newline, a repository with no commit yet, and a `<dir>` holding
+another root's checkpoint files. A file
+git's attributes mark binary still diffs as binary. `hash` prints the
+fingerprint of the changed paths, a symlink hashed by its link text as git
+does, for comparing with a freeze's.
 `record` marks what the run froze as reviewed, as its last freeze saw it, and
 ends the run, refusing when a frozen path moved since that freeze;
 `close` ends it without a record. `log` appends a checkpoint's or review's

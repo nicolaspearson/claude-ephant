@@ -12,6 +12,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestAppendGitFailsOnAnErrorThatNoIndexExits1For(t *testing.T) {
+	directory := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(directory, "target"), 0o700))
+	require.NoError(t, os.Symlink("target", filepath.Join(directory, "alias")))
+
+	err := appendGit(context.Background(), directory, filepath.Join(t.TempDir(), "out.diff"), "diff", "--no-index", "--", devNull, "alias")
+
+	require.ErrorContains(t, err, "Could not access")
+}
+
 func TestBaseTakesTheUpstreamElseOriginsDefaultBranch(t *testing.T) {
 	root := project(t)
 	_, err := Base(context.Background(), root)
@@ -134,6 +144,32 @@ func TestFreezeDiffsAPathReviewedAsDeletedFromNothing(t *testing.T) {
 	require.Contains(t, freeze(t, root, FreezeOptions{OutDir: out}, "other.go"), "1 changed since the last checkpoint, 0 lines")
 }
 
+func TestFreezeDiffsASymlinkByItsLinkText(t *testing.T) {
+	root := project(t)
+	writeFile(t, root, "a.txt", "same\n")
+	writeFile(t, root, "b.txt", "same\n")
+	runGit(t, root, "add", "a.txt", "b.txt")
+	runGit(t, root, "commit", "-qm", "targets")
+	require.NoError(t, os.Symlink("a.txt", filepath.Join(root, "link")))
+	freeze(t, root, FreezeOptions{}, "link")
+	require.NoError(t, Record(context.Background(), root, session))
+	copied, ok := ReviewedBytes(context.Background(), root, "link")
+	require.True(t, ok)
+	target, err := os.Readlink(copied)
+	require.NoError(t, err, "the record keeps the link, not its target's bytes")
+	require.Equal(t, "a.txt", target)
+	require.Contains(t, freeze(t, root, FreezeOptions{}, "link"), "0 changed since the last checkpoint", "the link as recorded")
+
+	require.NoError(t, os.Remove(filepath.Join(root, "link")))
+	require.NoError(t, os.Symlink("b.txt", filepath.Join(root, "link")))
+	out := t.TempDir()
+
+	require.Contains(t, freeze(t, root, FreezeOptions{OutDir: out}, "link"), "1 changed since the last checkpoint")
+	delta := readFile(t, filepath.Join(out, "checkpoint-"+filepath.Base(root)+".delta.diff"))
+	require.Contains(t, delta, "+b.txt")
+	require.NotContains(t, delta, "+same")
+}
+
 func TestFreezeDiffsTheBytesNotATextconv(t *testing.T) {
 	root := project(t)
 	runGit(t, root, "config", "diff.upper.textconv", "tr a-z A-Z <")
@@ -250,6 +286,15 @@ func TestFreezePairsAStagedRenameAndTakesAStagedDeletion(t *testing.T) {
 	require.Contains(t, freeze(t, root, FreezeOptions{}, "other.go"), "froze 1 paths, 1 lines")
 }
 
+func TestFreezeRefusesAPathHoldingANewline(t *testing.T) {
+	root := project(t)
+	writeFile(t, root, "new\nline.txt", "x\n")
+
+	_, err := Freeze(context.Background(), FreezeOptions{Against: "HEAD", OutDir: t.TempDir(), Paths: []string{"new\nline.txt"}, Root: root, Session: session})
+
+	require.ErrorContains(t, err, "holds a newline, which the run's path list cannot; rename it")
+}
+
 func TestFreezeRefusesAPathInsideANestedRepository(t *testing.T) {
 	root := project(t)
 	writeFile(t, root, "kept/t.txt", "tracked\n")
@@ -276,6 +321,17 @@ func TestFreezeRefusesAPathInsideANestedRepository(t *testing.T) {
 	require.Contains(t, freeze(t, root, FreezeOptions{}, "kept/t.txt"), "froze 1 paths", "a path the parent tracks")
 }
 
+func TestFreezeRefusesARepositoryWithNoCommit(t *testing.T) {
+	root, _ := repository(t)
+	runGit(t, root, "update-ref", "-d", "HEAD")
+	writeFile(t, root, "staged.go", "package staged\n")
+	runGit(t, root, "add", "staged.go")
+
+	_, err := Freeze(context.Background(), FreezeOptions{Against: "HEAD", OutDir: t.TempDir(), Paths: []string{"staged.go"}, Root: root, Session: session})
+
+	require.ErrorContains(t, err, root+" has no commit yet; commit once, then checkpoint")
+}
+
 func TestFreezeRefusesAnOutDirAnotherRootFroze(t *testing.T) {
 	var roots []string
 	for range 2 {
@@ -297,6 +353,17 @@ func TestFreezeRefusesAnOutDirAnotherRootFroze(t *testing.T) {
 	require.ErrorContains(t, err, out+" holds the checkpoint files of "+roots[0]+"; freeze "+roots[1]+" into another directory")
 	require.Equal(t, diff, readFile(t, filepath.Join(out, "checkpoint-same.diff")))
 	freeze(t, roots[0], FreezeOptions{OutDir: out}, "main.go")
+}
+
+func TestFreezeRefusesAnUntrackedSymlinkToADirectory(t *testing.T) {
+	root := project(t)
+	writeFile(t, root, "pkg/a.go", "package pkg\n")
+	require.NoError(t, os.Symlink("pkg", filepath.Join(root, "alias")))
+	writeFile(t, root, "main.go", "package main // one\n")
+
+	_, err := Freeze(context.Background(), FreezeOptions{Against: "HEAD", OutDir: t.TempDir(), Paths: []string{"main.go", "alias"}, Root: root, Session: session})
+
+	require.ErrorContains(t, err, "alias is an untracked symlink to a directory, which git cannot diff; stage it with `git add`, then freeze")
 }
 
 func TestFreezeRefusesDirectoriesAndPathsNotAsGitPrintsThem(t *testing.T) {
@@ -400,7 +467,7 @@ func TestFreezeVouchesOnlyForPathsTheLastFreezeNamed(t *testing.T) {
 			setup(root)
 			require.NoError(t, Record(context.Background(), root, session))
 			out := t.TempDir()
-			if regularFile(filepath.Join(root, "other.go")) {
+			if fileOrLink(filepath.Join(root, "other.go")) {
 				writeFile(t, root, "other.go", "changed again\n")
 			}
 

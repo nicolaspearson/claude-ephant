@@ -47,7 +47,12 @@ func (s State) Bytes() []byte {
 	var buffer bytes.Buffer
 	fmt.Fprintf(&buffer, "%s\n", s.Head)
 	for _, path := range s.Paths {
-		fmt.Fprintf(&buffer, "%s\t%s\n", path.Hash, path.Path)
+		name := path.Path
+		// One path a line; a leading quote reads as quoting.
+		if strings.Contains(name, "\n") || strings.HasPrefix(name, `"`) {
+			name = strconv.Quote(name)
+		}
+		fmt.Fprintf(&buffer, "%s\t%s\n", path.Hash, name)
 	}
 	if s.Capped > 0 {
 		fmt.Fprintf(&buffer, "%s%d\n", cappedPrefix, s.Capped)
@@ -96,7 +101,7 @@ func Covered(ctx context.Context, root string, now State, paths []string) bool {
 }
 
 func DirtyPaths(ctx context.Context, root string) ([]string, int) {
-	changed, _ := git(ctx, root, "diff", "HEAD", "--name-only", "--no-renames", "-z")
+	changed, _ := git(ctx, root, "diff", diffBase(ctx, root), "--name-only", "--no-renames", "-z")
 	untracked, _ := git(ctx, root, "ls-files", "--others", "--exclude-standard", "-z")
 	var paths []string
 	for path := range strings.SplitSeq(changed+untracked, "\x00") {
@@ -262,7 +267,7 @@ func Record(ctx context.Context, root string, session string) error {
 		return err
 	}
 	for _, path := range state.Paths {
-		if path.Hash == deleted || !regularFile(filepath.Join(root, path.Path)) {
+		if path.Hash == deleted || !fileOrLink(filepath.Join(root, path.Path)) {
 			continue
 		}
 		if err := copyFile(filepath.Join(root, path.Path), filepath.Join(file+".d.tmp", path.Path)); err != nil {
@@ -330,11 +335,11 @@ func ReviewedBytes(ctx context.Context, root string, path string) (string, bool)
 		return devNull, true
 	}
 	copied := filepath.Join(file+".d", path)
-	if !regularFile(copied) {
+	if !fileOrLink(copied) {
 		return "", false
 	}
-	hash, err := git(ctx, root, "hash-object", "--path="+path, "--", copied)
-	if err != nil || strings.TrimSpace(hash) != record.Paths[index].Hash {
+	hash, err := hashPath(ctx, root, copied, path)
+	if err != nil || hash != record.Paths[index].Hash {
 		return "", false
 	}
 	return copied, true
@@ -419,11 +424,16 @@ func PathState(ctx context.Context, root string, paths []string) (State, error) 
 	if head, err := git(ctx, root, "rev-parse", "-q", "--verify", "HEAD"); err == nil {
 		state.Head = strings.TrimRight(head, "\n")
 	}
-	var files, others []string
+	var files, others, singles []string
 	for _, path := range paths {
-		if regularFile(filepath.Join(root, path)) {
+		info, err := os.Lstat(filepath.Join(root, path))
+		// --stdin-paths reads a symlink's target, splits a name at a newline, drops a carriage return before one and unquotes a leading quote.
+		switch {
+		case err == nil && info.Mode().IsRegular() && !strings.ContainsAny(path, "\n\r") && !strings.HasPrefix(path, `"`):
 			files = append(files, path)
-		} else {
+		case err == nil && (info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0):
+			singles = append(singles, path)
+		default:
 			others = append(others, path)
 		}
 	}
@@ -438,12 +448,23 @@ func PathState(ctx context.Context, root string, paths []string) (State, error) 
 			}
 		}
 	}
+	for _, path := range singles {
+		hash, err := hashPath(ctx, root, filepath.Join(root, path), path)
+		if err != nil {
+			return State{}, err
+		}
+		state.Paths = append(state.Paths, StatePath{Hash: hash, Path: path})
+	}
+	against := ""
 	for _, path := range others {
-		if _, err := os.Stat(filepath.Join(root, path)); err != nil {
+		if _, err := os.Lstat(filepath.Join(root, path)); err != nil {
 			state.Paths = append(state.Paths, StatePath{Hash: deleted, Path: path})
 			continue
 		}
-		diff, _ := git(ctx, root, "diff", "HEAD", "--", path)
+		if against == "" {
+			against = diffBase(ctx, root)
+		}
+		diff, _ := git(ctx, root, "diff", against, "--", path)
 		hash, err := gitInput(ctx, root, diff, "hash-object", "--stdin")
 		if err != nil {
 			return State{}, err
@@ -461,18 +482,40 @@ func WriteState(ctx context.Context, root string) (State, error) {
 }
 
 func copyFile(source string, target string) error {
-	info, err := os.Stat(source)
+	info, err := os.Lstat(source)
 	if err != nil {
 		return err
+	}
+	if err = os.MkdirAll(filepath.Dir(target), 0o700); err != nil {
+		return err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		var link string
+		if link, err = os.Readlink(source); err != nil {
+			return err
+		}
+		if err = os.Remove(target); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		return os.Symlink(link, target)
 	}
 	content, err := os.ReadFile(source)
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(target), 0o700); err != nil {
-		return err
-	}
 	return os.WriteFile(target, content, info.Mode().Perm())
+}
+
+// diffBase is HEAD, or the empty tree before the first commit, so staged files still diff.
+func diffBase(ctx context.Context, root string) string {
+	if _, err := git(ctx, root, "rev-parse", "-q", "--verify", "HEAD^{commit}"); err == nil {
+		return "HEAD"
+	}
+	tree, err := git(ctx, root, "hash-object", "-t", "tree", devNull)
+	if err != nil {
+		return "HEAD"
+	}
+	return strings.TrimSpace(tree)
 }
 
 func endRun(ctx context.Context, root string, session string, suffixes ...string) error {
@@ -486,6 +529,11 @@ func endRun(ctx context.Context, root string, session string, suffixes ...string
 		}
 	}
 	return nil
+}
+
+func fileOrLink(path string) bool {
+	info, err := os.Lstat(path)
+	return err == nil && (info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0)
 }
 
 func git(ctx context.Context, directory string, args ...string) (string, error) {
@@ -502,6 +550,25 @@ func gitInput(ctx context.Context, directory string, input string, args ...strin
 		return stdout.String(), fmt.Errorf("git %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
 	}
 	return stdout.String(), nil
+}
+
+// A symlink hashes by its link text, as git stores it: hash-object on the path would read the target.
+func hashPath(ctx context.Context, root string, file string, path string) (string, error) {
+	info, err := os.Lstat(file)
+	if err != nil {
+		return "", err
+	}
+	var hash string
+	if info.Mode()&os.ModeSymlink == 0 {
+		hash, err = git(ctx, root, "hash-object", "--path="+path, "--", file)
+		return strings.TrimSpace(hash), err
+	}
+	link, err := os.Readlink(file)
+	if err != nil {
+		return "", err
+	}
+	hash, err = gitInput(ctx, root, link, "hash-object", "--stdin")
+	return strings.TrimSpace(hash), err
 }
 
 func outside(paths []string, root string, directory string) []string {
@@ -523,6 +590,9 @@ func parseState(content string) State {
 			state.Capped, _ = strconv.Atoi(count)
 			continue
 		}
+		if unquoted, err := strconv.Unquote(path); err == nil && strings.HasPrefix(path, `"`) {
+			path = unquoted
+		}
 		state.Paths = append(state.Paths, StatePath{Hash: hash, Path: path})
 	}
 	return state
@@ -541,11 +611,6 @@ func readLines(path string) ([]string, error) {
 		lines = append(lines, scanner.Text())
 	}
 	return lines, scanner.Err()
-}
-
-func regularFile(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && info.Mode().IsRegular()
 }
 
 func sha1Hex(text string) string {

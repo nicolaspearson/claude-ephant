@@ -58,11 +58,17 @@ func Freeze(ctx context.Context, options FreezeOptions) (string, error) {
 		return "", fmt.Errorf("%s is not a git repository", root)
 	}
 	against := options.Against
+	if against == "HEAD" && diffBase(ctx, root) != "HEAD" {
+		return "", fmt.Errorf("%s has no commit yet; commit once, then checkpoint", root)
+	}
 	if _, err := git(ctx, root, "rev-parse", "-q", "--verify", against+"^{commit}"); err != nil {
 		return "", fmt.Errorf("%s is not a commit in %s", against, root)
 	}
 	sizes := measure{docs: true, tracked: true}
 	for _, path := range options.Paths {
+		if strings.Contains(path, "\n") {
+			return "", fmt.Errorf("%q holds a newline, which the run's path list cannot; rename it", path)
+		}
 		// The run's frozen paths are matched against git's own names.
 		if !filepath.IsLocal(path) || filepath.Clean(path) != path {
 			return "", fmt.Errorf("%s is not a path relative to %s as git prints it; name it as `git status` does", path, root)
@@ -78,8 +84,10 @@ func Freeze(ctx context.Context, options FreezeOptions) (string, error) {
 			if _, err := git(ctx, root, "diff", against, "--quiet", "--", path); err == nil {
 				return "", fmt.Errorf("%s has no change against %s", path, against)
 			}
-		} else if !regularFile(filepath.Join(root, path)) {
+		} else if !fileOrLink(filepath.Join(root, path)) {
 			return "", fmt.Errorf("%s is neither tracked nor a file in %s", path, root)
+		} else if info, err := os.Stat(filepath.Join(root, path)); err == nil && info.IsDir() {
+			return "", fmt.Errorf("%s is an untracked symlink to a directory, which git cannot diff; stage it with `git add`, then freeze", path)
 		}
 		if !strings.HasSuffix(path, ".md") && !strings.HasSuffix(path, ".txt") {
 			sizes.docs = false
@@ -200,7 +208,8 @@ func appendGit(ctx context.Context, directory string, out string, args ...string
 	command := exec.CommandContext(ctx, "git", append([]string{"-C", directory, "--literal-pathspecs"}, args...)...)
 	command.Stdout, command.Stderr = file, &stderr
 	var exitError *exec.ExitError
-	if err = command.Run(); errors.As(err, &exitError) && exitError.ExitCode() == 1 && slices.Contains(args, "--no-index") {
+	// It exits 1 too on an `error:`, a path it could not read.
+	if err = command.Run(); errors.As(err, &exitError) && exitError.ExitCode() == 1 && slices.Contains(args, "--no-index") && !strings.Contains(stderr.String(), "error: ") {
 		err = nil
 	}
 	if err != nil {
@@ -230,7 +239,7 @@ func freezeDelta(ctx context.Context, root string, paths []string, delta string,
 			continue
 		}
 		current := devNull
-		if regularFile(filepath.Join(root, path)) {
+		if fileOrLink(filepath.Join(root, path)) {
 			current = filepath.Join(root, path)
 		}
 		if baseline == current || (baseline != devNull && current != devNull && sameBytes(baseline, current)) {
@@ -346,6 +355,11 @@ func renamedPaths(ctx context.Context, root string, paths []string) ([]string, e
 }
 
 func sameBytes(left string, right string) bool {
+	leftLink, leftLinkErr := os.Readlink(left)
+	rightLink, rightLinkErr := os.Readlink(right)
+	if leftLinkErr == nil || rightLinkErr == nil {
+		return leftLinkErr == nil && rightLinkErr == nil && leftLink == rightLink
+	}
 	leftContent, leftErr := os.ReadFile(left)
 	rightContent, rightErr := os.ReadFile(right)
 	return leftErr == nil && rightErr == nil && bytes.Equal(leftContent, rightContent)

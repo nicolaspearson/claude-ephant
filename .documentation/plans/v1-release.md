@@ -1437,8 +1437,29 @@ keep.
     textconv; the checkpoint skill's errors table names the basename clash and
     sends a submodule to its own checkpoint, each code change with a test that
     went red with its fix removed
-  - next: group 3, fingerprint edges (symlinks, non-regular paths, a newline in
-    a path, a repository with no commit)
+  - as of 2026-11-05 (1c9efb6), probed through `WriteState` and `DirtyPaths`: a
+    dangling symlink hashes `-`, as a deleted path; a symlink hashes as its
+    target's bytes, so a retarget to equal bytes moves nothing; git never lists
+    an untracked fifo, so only a tracked file replaced by one hashes a
+    constant; an untracked path holding a newline fails `hash-object
+    --stdin-paths`, so `WriteState` errors for the whole repository; with no
+    commit, staged files are missing from the dirty paths
+  - ruled 2026-11-05: group 3 hashes, records and deltas a symlink by its link
+    text, as git does; the fingerprint hashes a path holding a newline alone
+    and writes it quoted in the state, and `freeze` refuses one; with no commit
+    the fingerprint diffs against the empty tree, and `freeze` refuses saying to
+    commit once first
+  - as of 2026-11-05: group 3 built: the fingerprint, record and delta take a
+    symlink by its link text; a name holding a newline, a carriage return or a
+    leading quote is hashed alone, and one holding a newline or a leading quote
+    written quoted; before the first commit the dirty paths diff against the
+    empty tree; `freeze` refuses a path holding a newline, a repository with no
+    commit and an untracked symlink to a directory, and fails when `--no-index`
+    reports an error, which also closes the vanished-path race 2b left; each
+    with a test that went red with its fix removed
+  - next: group 4, `ValidateOptout` and leftovers (a glob matching more than
+    half the paths, the `.optout` and `.started` sweeps, `Record`'s fixed tmp
+    names and separate renames, `Open`'s rounding)
 - [ ] plan-parser-warnings: `ele plan` parses or warns on every line form it now
   holds or drops in silence
   - done when each line form below is parsed or drawn as a warning by `ele plan
@@ -1961,3 +1982,7 @@ keep.
 - `bashwork` tracks shell assignments flat, so a subshell's reassignment reads
   as a write elsewhere: contrived, as the audit said (ruled 2026-10-31, from
   audit-cmd)
+- The fingerprint hashing a tracked file replaced by a fifo or socket as a
+  constant: git never lists an untracked fifo and `freeze` refuses an
+  untracked non-regular path, so only that replacement reaches it (ruled
+  2026-11-05, from checkpoint-correctness's group 3 probe)

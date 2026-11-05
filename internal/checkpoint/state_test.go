@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,6 +25,53 @@ func TestCloseEndsOnlyThisSessionsRun(t *testing.T) {
 	require.False(t, Open(context.Background(), root, session))
 	require.True(t, Open(context.Background(), root, "another-session"))
 	require.Error(t, Close(context.Background(), root, ""))
+}
+
+func TestFingerprintHashesASymlinkByItsLinkText(t *testing.T) {
+	root := project(t)
+	writeFile(t, root, "a.txt", "same\n")
+	writeFile(t, root, "b.txt", "same\n")
+	require.NoError(t, os.Symlink("a.txt", filepath.Join(root, "link")))
+	runGit(t, root, "add", "a.txt", "b.txt", "link")
+	runGit(t, root, "commit", "-qm", "link")
+	require.NoError(t, os.Remove(filepath.Join(root, "link")))
+	require.NoError(t, os.Symlink("b.txt", filepath.Join(root, "link")))
+	runGit(t, root, "add", "link")
+	require.Equal(t, []StatePath{{Hash: strings.TrimSpace(gitOutput(t, root, "rev-parse", ":link")), Path: "link"}}, state(t, root).Paths, "the link's blob, as git hashes it")
+
+	require.NoError(t, os.Symlink("nowhere", filepath.Join(root, "dangling")))
+	before := fingerprint(t, root)
+	require.NoError(t, os.Remove(filepath.Join(root, "dangling")))
+	require.NoError(t, os.Symlink("elsewhere", filepath.Join(root, "dangling")))
+	require.NotEqual(t, before, fingerprint(t, root), "a dangling link retargeted")
+}
+
+func TestFingerprintHoldsAPathWithANewline(t *testing.T) {
+	root := project(t)
+	names := []string{"\"quoted.txt", "Icon\r", "new\nline.txt"}
+	for index, name := range names {
+		writeFile(t, root, name, fmt.Sprintf("%d\n", index))
+	}
+
+	now := state(t, root)
+
+	var want []StatePath
+	for _, name := range names {
+		want = append(want, StatePath{Hash: strings.TrimSpace(gitOutput(t, root, "hash-object", "--", name)), Path: name})
+	}
+	require.Equal(t, want, now.Paths)
+	require.Equal(t, now, parseState(string(now.Bytes())))
+}
+
+func TestFingerprintSeesStagedFilesBeforeTheFirstCommit(t *testing.T) {
+	root, _ := repository(t)
+	runGit(t, root, "update-ref", "-d", "HEAD")
+	writeFile(t, root, "staged.go", "package staged\n")
+	runGit(t, root, "add", "staged.go")
+
+	paths, _ := DirtyPaths(context.Background(), root)
+
+	require.Equal(t, []string{"staged.go"}, paths)
 }
 
 func TestFingerprintSurvivesStagingAndMovesOnAnEdit(t *testing.T) {
