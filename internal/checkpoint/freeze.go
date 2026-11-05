@@ -67,6 +67,9 @@ func Freeze(ctx context.Context, options FreezeOptions) (string, error) {
 		if !filepath.IsLocal(path) || filepath.Clean(path) != path {
 			return "", fmt.Errorf("%s is not a path relative to %s as git prints it; name it as `git status` does", path, root)
 		}
+		if nested := nestedRepository(root, path); nested != "" && !known(ctx, root, against, path) {
+			return "", fmt.Errorf("%s is inside the repository at %s; checkpoint it from there", path, nested)
+		}
 		if isDirectory(ctx, root, against, path) {
 			return "", fmt.Errorf("%s is a directory; name the files in it", path)
 		}
@@ -169,18 +172,18 @@ func appendDiff(ctx context.Context, root string, against string, out string, si
 		}
 	}
 	if len(tracked) > 0 {
-		if err := appendGit(ctx, root, out, append([]string{"diff", "--no-ext-diff", "--no-color", against, "-M", "--"}, tracked...)...); err != nil {
+		if err := appendGit(ctx, root, out, append([]string{"diff", "--no-ext-diff", "--no-color", "--no-textconv", against, "-M", "--"}, tracked...)...); err != nil {
 			return err
 		}
-		numstat, _ := git(ctx, root, append([]string{"diff", against, "-M", "--numstat", "--"}, tracked...)...)
+		numstat, _ := git(ctx, root, append([]string{"diff", "--no-textconv", against, "-M", "--numstat", "--"}, tracked...)...)
 		sizes.numstat = append(sizes.numstat, strings.Split(numstat, "\n")...)
 	}
 	for _, path := range untracked {
 		sizes.tracked = false
-		if err := appendGit(ctx, root, out, "diff", "--no-ext-diff", "--no-color", "--no-index", "--", devNull, path); err != nil {
+		if err := appendGit(ctx, root, out, "diff", "--no-ext-diff", "--no-color", "--no-textconv", "--no-index", "--", devNull, path); err != nil {
 			return err
 		}
-		numstat, _ := git(ctx, root, "diff", "--no-index", "--numstat", "--", devNull, path)
+		numstat, _ := git(ctx, root, "diff", "--no-textconv", "--no-index", "--numstat", "--", devNull, path)
 		sizes.numstat = append(sizes.numstat, strings.Split(numstat, "\n")...)
 	}
 	sizes.count()
@@ -247,10 +250,10 @@ func freezeDelta(ctx context.Context, root string, paths []string, delta string,
 				return false, "", "", err
 			}
 		}
-		if err = appendGit(ctx, staging, delta, "diff", "--no-ext-diff", "--no-color", "--no-index", "--no-prefix", "--", before, after); err != nil {
+		if err = appendGit(ctx, staging, delta, "diff", "--no-ext-diff", "--no-color", "--no-textconv", "--no-index", "--no-prefix", "--", before, after); err != nil {
 			return false, "", "", err
 		}
-		numstat, _ := git(ctx, staging, "diff", "--no-index", "--numstat", "--", before, after)
+		numstat, _ := git(ctx, staging, "diff", "--no-textconv", "--no-index", "--numstat", "--", before, after)
 		sizes.numstat = append(sizes.numstat, strings.Split(numstat, "\n")...)
 	}
 	if !reviewed {
@@ -287,6 +290,16 @@ func known(ctx context.Context, root string, against string, path string) bool {
 	}
 	listed, err := git(ctx, root, "ls-files", "-z", "--", path)
 	return err == nil && slices.Contains(strings.Split(listed, "\x00"), path)
+}
+
+// A submodule or clone holds a `.git` entry, and the parent lists only its directory, never its untracked files.
+func nestedRepository(root string, path string) string {
+	for directory := filepath.Dir(path); directory != "."; directory = filepath.Dir(directory) {
+		if _, err := os.Lstat(filepath.Join(root, directory, ".git")); err == nil {
+			return directory
+		}
+	}
+	return ""
 }
 
 func openRun(ctx context.Context, root string, options FreezeOptions) error {

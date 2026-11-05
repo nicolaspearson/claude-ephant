@@ -1420,6 +1420,23 @@ keep.
     directory another root of that basename froze into; it builds the diff and
     delta aside, writes the fingerprint last and fails when git fails writing
     the diff, each with a test that went red with its fix removed
+  - ruled 2026-11-05: a group 2b lands before group 3: `freeze` refuses a path
+    inside a nested repository, a leading directory holding `.git`, naming that
+    repository; it passes `--no-textconv`, so reviewers read the bytes `record`
+    hashes; the checkpoint skill's errors table names the basename clash's
+    refusal. Left as they are: a branch-scope path that is a file at the base
+    and a directory now is refused; `--no-index` exiting 1 on a path that
+    vanished since its check; no test of the empty-diff refusal or a
+    `WriteState` failure
+  - ruled 2026-11-05, on the 2b review: the nested refusal skips a path the
+    parent tracks, which git still prints from the root; a file git's
+    attributes mark binary still diffs as binary, and the spec and help say so
+    rather than claim reviewers always read the bytes
+  - as of 2026-11-05: group 2b built: `freeze` refuses an untracked path
+    inside a nested repository, naming the innermost, and diffs without a
+    textconv; the checkpoint skill's errors table names the basename clash and
+    sends a submodule to its own checkpoint, each code change with a test that
+    went red with its fix removed
   - next: group 3, fingerprint edges (symlinks, non-regular paths, a newline in
     a path, a repository with no commit)
 - [ ] plan-parser-warnings: `ele plan` parses or warns on every line form it now
@@ -1922,6 +1939,12 @@ keep.
   .documentation/plans/v1-release.md`, and delete this plan
 
 ## Inbox
+
+- 2026-11-05, from checkpoint-correctness group 2b's review: a file git's
+  attributes mark `-diff` or `binary`, `package-lock.json -diff` say, diffs in
+  `freeze` as "Binary files differ", so reviewers read none of its bytes while
+  `record` marks them reviewed. Should `freeze` pass `--text` for a path with no
+  NUL byte?
 
 ## Out of scope
 

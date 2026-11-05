@@ -476,7 +476,8 @@ error here: §5, §6 and Stopping early handle it.
 | `Agent type '…checkpoint-reviewer' not found` | Plugin agent not loaded | Launch `general-purpose` with the same prompt |
 | `command not found: <tool>` in a §2 check | The check cannot run here | Report it unverified; no retry |
 | `have the change re-reviewed` from `record` | An edit after the last freeze, or a run with no saved fingerprint, unreviewed | Re-review it per §8, then freeze and record; never freeze and record alone |
-| `<path> is neither tracked nor a file` from `freeze` | An untracked path that is no regular file: a directory, or one missing | Replace a directory with its files from §1's status; drop a missing one |
+| `<path> is a directory`, `is inside the repository at` or `is neither tracked nor a file` from `freeze` | A directory, or an untracked path missing | Replace a directory with its files from §1's status, checkpointing a submodule or clone as its own repository; drop a missing one |
+| `holds the checkpoint files of` from `freeze` | Two repositories share a basename | Freeze this one into its own subdirectory of the scratchpad, and use that directory for its §8 hash |
 
 ## Stopping early
 

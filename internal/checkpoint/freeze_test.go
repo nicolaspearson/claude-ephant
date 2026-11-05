@@ -134,6 +134,26 @@ func TestFreezeDiffsAPathReviewedAsDeletedFromNothing(t *testing.T) {
 	require.Contains(t, freeze(t, root, FreezeOptions{OutDir: out}, "other.go"), "1 changed since the last checkpoint, 0 lines")
 }
 
+func TestFreezeDiffsTheBytesNotATextconv(t *testing.T) {
+	root := project(t)
+	runGit(t, root, "config", "diff.upper.textconv", "tr a-z A-Z <")
+	writeFile(t, root, ".gitattributes", "*.up diff=upper\n")
+	writeFile(t, root, "tracked.up", "old\n")
+	runGit(t, root, "add", ".gitattributes", "tracked.up")
+	runGit(t, root, "commit", "-qm", "textconv")
+	writeFile(t, root, "tracked.up", "new\n")
+	writeFile(t, root, "untracked.up", "fresh\n")
+	out := t.TempDir()
+
+	freeze(t, root, FreezeOptions{OutDir: out}, "tracked.up", "untracked.up")
+
+	diff := readFile(t, filepath.Join(out, "checkpoint-"+filepath.Base(root)+".diff"))
+	require.Contains(t, diff, "+new\n")
+	require.Contains(t, diff, "+fresh\n")
+	require.NotContains(t, diff, "NEW")
+	require.NotContains(t, diff, "FRESH")
+}
+
 func TestFreezeKeepsTheLastDiffWhenGitFails(t *testing.T) {
 	root := project(t)
 	writeFile(t, root, "other.go", "package other\n")
@@ -153,7 +173,7 @@ func TestFreezeKeepsTheLastDiffWhenGitFails(t *testing.T) {
 
 	for _, paths := range [][]string{{"other.go"}, {"main.go", "other.go"}} {
 		_, err := Freeze(context.Background(), FreezeOptions{Against: "HEAD", OutDir: out, Paths: paths, Root: root, Session: session})
-		require.ErrorContains(t, err, "git diff --no-ext-diff --no-color HEAD", "%v", paths)
+		require.ErrorContains(t, err, "git diff --no-ext-diff --no-color --no-textconv HEAD", "%v", paths)
 		require.Equal(t, diff, readFile(t, prefix+".diff"), "%v", paths)
 		require.Equal(t, delta, readFile(t, prefix+".delta.diff"), "%v", paths)
 		require.Equal(t, hash, readFile(t, prefix+".hash"), "%v", paths)
@@ -228,6 +248,32 @@ func TestFreezePairsAStagedRenameAndTakesAStagedDeletion(t *testing.T) {
 	runGit(t, root, "reset", "-q", "--hard")
 	runGit(t, root, "rm", "-q", "other.go")
 	require.Contains(t, freeze(t, root, FreezeOptions{}, "other.go"), "froze 1 paths, 1 lines")
+}
+
+func TestFreezeRefusesAPathInsideANestedRepository(t *testing.T) {
+	root := project(t)
+	writeFile(t, root, "kept/t.txt", "tracked\n")
+	runGit(t, root, "add", "kept/t.txt")
+	runGit(t, root, "commit", "-qm", "kept")
+	runGit(t, root, "init", "-q", "kept")
+	writeFile(t, root, "kept/t.txt", "tracked // one\n")
+	runGit(t, root, "init", "-q", "vendor/clone")
+	runGit(t, root, "init", "-q", "vendor/clone/inner")
+	writeFile(t, root, "vendor/clone/a.go", "package clone\n")
+	writeFile(t, root, "vendor/clone/inner/c.go", "package inner\n")
+	runGit(t, root, "init", "-q", "--separate-git-dir", filepath.Join(t.TempDir(), "module.git"), "module")
+	writeFile(t, root, "module/deep/b.go", "package deep\n")
+	writeFile(t, root, "main.go", "package main // one\n")
+	for path, nested := range map[string]string{
+		"module/deep/b.go":        "module",
+		"vendor/clone/a.go":       "vendor/clone",
+		"vendor/clone/inner/c.go": "vendor/clone/inner",
+	} {
+		_, err := Freeze(context.Background(), FreezeOptions{Against: "HEAD", OutDir: t.TempDir(), Paths: []string{"main.go", path}, Root: root, Session: session})
+		require.ErrorContains(t, err, path+" is inside the repository at "+nested+"; checkpoint it from there", path)
+	}
+
+	require.Contains(t, freeze(t, root, FreezeOptions{}, "kept/t.txt"), "froze 1 paths", "a path the parent tracks")
 }
 
 func TestFreezeRefusesAnOutDirAnotherRootFroze(t *testing.T) {
