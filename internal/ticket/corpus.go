@@ -28,7 +28,7 @@ import (
 const (
 	corpusWorkers = 8
 	manifestName  = "manifest.json"
-	// Page cap: a pagination bug cannot loop forever; 20 pages outrun any ticket's notes.
+	// Page cap: a pagination bug cannot loop forever; a list reaching it warns.
 	maximumPages = 20
 	pageSize     = 100
 )
@@ -62,6 +62,7 @@ type CorpusOptions struct {
 }
 
 type corpusEntry struct {
+	alias    string
 	blockers []string
 	file     string
 	hash     string
@@ -74,6 +75,7 @@ type corpusEntry struct {
 
 type fetched struct {
 	body     string
+	capped   bool
 	comments []string
 	err      error
 	state    string
@@ -116,6 +118,9 @@ func Compare(ctx context.Context, stdout io.Writer, stderr io.Writer, commands C
 	if ticket.err != nil {
 		fmt.Fprintf(stderr, "ele: %v\n", ticket.err)
 		return 2
+	}
+	if ticket.capped {
+		warnCapped(stderr, number, "comments")
 	}
 	type candidate struct{ label, text string }
 	candidates := []candidate{{"body", ticket.body}}
@@ -308,7 +313,7 @@ func blockerTable(entries []corpusEntry) []string {
 }
 
 func childrenOf(ctx context.Context, stderr io.Writer, commands Commands, cli string, mapNumber int) ([]int, map[int]string, error) {
-	native, err := nativeChildren(ctx, commands, cli, mapNumber)
+	native, err := nativeChildren(ctx, stderr, commands, cli, mapNumber)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -435,7 +440,8 @@ func fetch(ctx context.Context, commands Commands, cli string, number int) fetch
 			Body   string `json:"body"`
 			System bool   `json:"system"`
 		}
-		if err := paged(ctx, commands, &notes, "glab", fmt.Sprintf("projects/:id/issues/%d/notes", number)); err != nil {
+		capped, err := paged(ctx, commands, &notes, "glab", fmt.Sprintf("projects/:id/issues/%d/notes", number))
+		if err != nil {
 			return fetched{err: err}
 		}
 		var comments []string
@@ -444,7 +450,7 @@ func fetch(ctx context.Context, commands Commands, cli string, number int) fetch
 				comments = append(comments, note.Body)
 			}
 		}
-		return fetched{body: valueOf(issue.Description), comments: comments, state: stateLabel(issue.State), title: issue.Title}
+		return fetched{body: valueOf(issue.Description), capped: capped, comments: comments, state: stateLabel(issue.State), title: issue.Title}
 	}
 	var issue struct {
 		Body  *string `json:"body"`
@@ -457,14 +463,15 @@ func fetch(ctx context.Context, commands Commands, cli string, number int) fetch
 	var notes []struct {
 		Body string `json:"body"`
 	}
-	if err := paged(ctx, commands, &notes, "gh", fmt.Sprintf("repos/{owner}/{repo}/issues/%d/comments", number)); err != nil {
+	capped, err := paged(ctx, commands, &notes, "gh", fmt.Sprintf("repos/{owner}/{repo}/issues/%d/comments", number))
+	if err != nil {
 		return fetched{err: err}
 	}
 	var comments []string
 	for _, note := range notes {
 		comments = append(comments, note.Body)
 	}
-	return fetched{body: valueOf(issue.Body), comments: comments, state: stateLabel(issue.State), title: issue.Title}
+	return fetched{body: valueOf(issue.Body), capped: capped, comments: comments, state: stateLabel(issue.State), title: issue.Title}
 }
 
 func isWhitespace(character rune) bool {
@@ -488,13 +495,16 @@ func manifest(entries []corpusEntry) []byte {
 			written.WriteString(",")
 		}
 		written.WriteString("\n  {\n")
+		if entry.alias != "" {
+			fmt.Fprintf(&written, "    \"alias\": %s,\n", dumpsString(entry.alias))
+		}
 		fmt.Fprintf(&written, "    \"file\": %s,\n    \"hash\": %s,\n    \"key\": %s,\n    \"state\": %s\n  }", dumpsString(entry.file), dumpsString(entry.hash), dumpsString(entry.key), dumpsString(entry.state))
 	}
 	written.WriteString("\n]\n")
 	return []byte(written.String())
 }
 
-func nativeChildren(ctx context.Context, commands Commands, cli string, mapNumber int) (map[int]bool, error) {
+func nativeChildren(ctx context.Context, stderr io.Writer, commands Commands, cli string, mapNumber int) (map[int]bool, error) {
 	children := map[int]bool{}
 	if cli != "gh" {
 		return children, nil
@@ -502,8 +512,12 @@ func nativeChildren(ctx context.Context, commands Commands, cli string, mapNumbe
 	var issues []struct {
 		Number int `json:"number"`
 	}
-	if err := paged(ctx, commands, &issues, "gh", fmt.Sprintf("repos/{owner}/{repo}/issues/%d/sub_issues", mapNumber)); err != nil {
+	capped, err := paged(ctx, commands, &issues, "gh", fmt.Sprintf("repos/{owner}/{repo}/issues/%d/sub_issues", mapNumber))
+	if err != nil {
 		return nil, err
+	}
+	if capped {
+		warnCapped(stderr, mapNumber, "sub-issues")
 	}
 	for _, issue := range issues {
 		children[issue.Number] = true
@@ -512,7 +526,8 @@ func nativeChildren(ctx context.Context, commands Commands, cli string, mapNumbe
 }
 
 // Every page, not the first: a decision recorded in note 123 is a decision.
-func paged[T any](ctx context.Context, commands Commands, items *[]T, cli string, path string) error {
+// True when every page up to the cap came back full, so more may follow unread.
+func paged[T any](ctx context.Context, commands Commands, items *[]T, cli string, path string) (bool, error) {
 	separator := "?"
 	if strings.Contains(path, "?") {
 		separator = "&"
@@ -520,29 +535,29 @@ func paged[T any](ctx context.Context, commands Commands, items *[]T, cli string
 	for page := 1; page <= maximumPages; page++ {
 		output, err := commands.Run(ctx, cli, "api", fmt.Sprintf("%s%sper_page=%d&page=%d", path, separator, pageSize, page))
 		if err != nil {
-			return err
+			return false, err
 		}
 		if output == "" {
 			output = "[]"
 		}
 		var raw any
 		if err := json.Unmarshal([]byte(output), &raw); err != nil {
-			return fmt.Errorf("%s api %s: %w", cli, path, err)
+			return false, fmt.Errorf("%s api %s: %w", cli, path, err)
 		}
 		listed, ok := raw.([]any)
 		if !ok || len(listed) == 0 {
-			return nil
+			return false, nil
 		}
 		var batch []T
 		if err := json.Unmarshal([]byte(output), &batch); err != nil {
-			return fmt.Errorf("%s api %s: %w", cli, path, err)
+			return false, fmt.Errorf("%s api %s: %w", cli, path, err)
 		}
 		*items = append(*items, batch...)
 		if len(batch) < pageSize {
-			return nil
+			return false, nil
 		}
 	}
-	return nil
+	return true, nil
 }
 
 func placeholder(text string) string {
@@ -584,7 +599,7 @@ func planEntries(ctx context.Context, commands Commands, path string) ([]corpusE
 	if err != nil {
 		return nil, err
 	}
-	repository, relative, err := planLocation(ctx, commands, path)
+	repository, folder, relative, err := planLocation(ctx, commands, path)
 	if err != nil {
 		return nil, err
 	}
@@ -599,7 +614,11 @@ func planEntries(ctx context.Context, commands Commands, path string) ([]corpusE
 		if key == "" {
 			key = item.title
 		}
-		entries = append(entries, corpusEntry{file: name + ".md", hash: itemHash(item.hashed), key: fmt.Sprintf("%s/%s: %s", repository, relative, key), name: name, raw: item.raw, state: item.state, title: item.title})
+		entry := corpusEntry{file: name + ".md", hash: itemHash(item.hashed), key: fmt.Sprintf("%s/%s: %s", repository, relative, key), name: name, raw: item.raw, state: item.state, title: item.title}
+		if folder != repository {
+			entry.alias = fmt.Sprintf("%s/%s: %s", folder, relative, key)
+		}
+		entries = append(entries, entry)
 	}
 	return entries, nil
 }
@@ -615,15 +634,31 @@ func planItems(text string) []planEntry {
 	var items []*gathering
 	var current *gathering
 	section := ""
-	for _, line := range splitLines(text, false) {
-		if heading, ok := strings.CutPrefix(line, "## "); ok {
-			section, current = trimWhitespace(heading), nil
+	lines := splitLines(text, false)
+	fenced := plan.Fenced(lines)
+	for index, line := range lines {
+		if fenced[index] {
+			if current != nil {
+				current.lines = append(current.lines, line)
+				current.body = append(current.body, line)
+			}
+			continue
+		}
+		if level, title, ok := plan.Heading(line); ok {
+			current = nil
+			switch level {
+			case 1:
+				section = ""
+			case 2:
+				section = title
+			}
 			continue
 		}
 		if section != "Actions" && section != "Inbox" {
 			continue
 		}
-		if match := planItem.FindStringSubmatch(line); match != nil {
+		// Under Actions only a checkbox line is an item, as plan.Parse reads it.
+		if match := planItem.FindStringSubmatch(line); match != nil && (section == "Inbox" || match[1] != "") {
 			state := "open"
 			if match[1] == "x" || match[1] == "X" {
 				state = "closed"
@@ -648,17 +683,17 @@ func planItems(text string) []planEntry {
 	return entries
 }
 
-func planLocation(ctx context.Context, commands Commands, plan string) (string, string, error) {
+func planLocation(ctx context.Context, commands Commands, plan string) (string, string, string, error) {
 	absolute, err := filepath.Abs(plan)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	if resolved, resolveErr := filepath.EvalSymlinks(absolute); resolveErr == nil {
 		absolute = resolved
 	}
 	output, err := commands.Run(ctx, "git", "-C", filepath.Dir(absolute), "rev-parse", "--show-toplevel")
 	if err != nil {
-		return "", "", fmt.Errorf("%s is not in a git repository", absolute)
+		return "", "", "", fmt.Errorf("%s is not in a git repository", absolute)
 	}
 	top := trimWhitespace(output)
 	resolvedTop := top
@@ -667,9 +702,15 @@ func planLocation(ctx context.Context, commands Commands, plan string) (string, 
 	}
 	relative, err := filepath.Rel(resolvedTop, absolute)
 	if err != nil || relative == ".." || strings.HasPrefix(relative, "../") {
-		return "", "", fmt.Errorf("%s is not inside %s", absolute, resolvedTop)
+		return "", "", "", fmt.Errorf("%s is not inside %s", absolute, resolvedTop)
 	}
-	return filepath.Base(top), filepath.ToSlash(relative), nil
+	// The origin's project path, so a worktree or a clone under another folder keeps its rulings.
+	if remote, remoteErr := commands.Run(ctx, "git", "-C", top, "remote", "get-url", "origin"); remoteErr == nil {
+		if match := remoteProject.FindStringSubmatch(trimWhitespace(remote)); match != nil {
+			return match[1], filepath.Base(top), filepath.ToSlash(relative), nil
+		}
+	}
+	return filepath.Base(top), filepath.Base(top), filepath.ToSlash(relative), nil
 }
 
 // An empty corpus directory, or a refusal: files left by an earlier run would be
@@ -841,15 +882,16 @@ func search(ctx context.Context, stderr io.Writer, commands Commands, cli string
 				}
 			}
 			if len(batch) == 0 {
-				break
+				return hits, nil
 			}
 			for _, issue := range batch {
 				hits = append(hits, searchHit{body: valueOf(issue.Description), number: issue.IID, state: stateLabel(issue.State)})
 			}
 			if len(batch) < pageSize {
-				break
+				return hits, nil
 			}
 		}
+		warnSearchCapped(stderr, maximumPages*pageSize)
 		return hits, nil
 	}
 	limit := pageSize * 5
@@ -871,7 +913,7 @@ func search(ctx context.Context, stderr io.Writer, commands Commands, cli string
 		hits = append(hits, searchHit{body: valueOf(issue.Body), number: issue.Number, state: stateLabel(issue.State)})
 	}
 	if len(batch) == limit {
-		fmt.Fprintf(stderr, "warning: hit the %d-issue search cap — pass --tickets for the full set\n", limit)
+		warnSearchCapped(stderr, limit)
 	}
 	return hits, nil
 }
@@ -978,6 +1020,9 @@ func ticketEntries(ctx context.Context, stderr io.Writer, commands Commands, opt
 			failed = append(failed, number)
 			continue
 		}
+		if result.capped {
+			warnCapped(stderr, number, "comments")
+		}
 		text := strings.Join(append([]string{result.body}, result.comments...), "\n\n")
 		blockers, unread := blockedBy(text, project)
 		name := strconv.Itoa(number)
@@ -1051,4 +1096,12 @@ func valueOf(text *string) string {
 		return ""
 	}
 	return *text
+}
+
+func warnCapped(stderr io.Writer, number int, listed string) {
+	fmt.Fprintf(stderr, "warning: #%d's %s reach the %d-item cap, so any beyond were not read\n", number, listed, maximumPages*pageSize)
+}
+
+func warnSearchCapped(stderr io.Writer, limit int) {
+	fmt.Fprintf(stderr, "warning: hit the %d-issue search cap — pass --tickets for the full set\n", limit)
 }

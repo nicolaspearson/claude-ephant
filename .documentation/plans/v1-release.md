@@ -390,7 +390,7 @@ keep.
     it each say `/ele:review` is experimental
 - [ ] readme-guides: Sweep the README and every page under `docs/` against the
   code
-  - blocked: help-text, data-dir-edges, bashwork-reads, plan-parser-warnings, ticket-robust
+  - blocked: help-text, data-dir-edges, bashwork-reads
   - done when each page's commands and flags are checked against `--help`,
     each behaviour it states is checked against the code or a run, and
     `task format`, `task lint` and `task lint-docs` pass
@@ -1604,9 +1604,19 @@ keep.
     commit that flipped a box, and a revert flips none, so the reverted tick
     stays Previous; `flipped` pairs titles exactly, so a reword is no flip;
     any `rev-parse --verify HEAD` error returns no tick and no error
-- [ ] ticket-robust: `ele ticket` keeps its ledger and lists whole
+- [x] ticket-robust: `ele ticket` keeps its ledger and lists whole
   - done when each defect below has a test that fails before its fix, or the
     user rules it out of scope
+  - asserted in the ticket-robust commit: in `internal/ticket`, each of the
+    five defects has a test seen red under mutation at the checkpoint (21
+    mutations). Claims view each number once, name a ticket not open or
+    unreadable, and hold back the all-clear. Plan keys are the origin path,
+    with the folder-name key as a manifest alias, read through on a copy of
+    the real ledger. `planItems` agrees with `plan.Parse` on fences,
+    headings and items. `Record` rewrites through a temp file and rename,
+    one line per key and text. Comment, sub-issue and glab search caps
+    warn. `task check FORCE=1` and `task audit` are green on macOS; CI's
+    ubuntu run is not yet seen
   - 2026-10-30, from audit-plan: `ticket`'s `WriteClaims` lists open issues
     with `--limit 200` and filters by the numbers asked for, so a number that
     is closed, unknown or open beyond the 200 gh returns is dropped unchecked,
@@ -1633,11 +1643,50 @@ keep.
     comments, and glab's `search` at 2,000 hits, both silently, where gh's
     path warns at its 500 cap; the comment "20 pages outrun any ticket's
     notes" is undated
+  - as of 2026-11-06 (ad4eeba), every defect above re-derived and still
+    present in `internal/ticket`: `openTickets` lists with `--limit 200`
+    and drops numbers it did not list, and `WriteClaims` prints the
+    all-clear on an empty flagged set; `planLocation` returns
+    `filepath.Base(top)`; `planItems` switches section on any `##` line,
+    tracks no fence and takes any column-0 `-` line; `Record` appends
+    with `O_APPEND` and one `Write`, `loadLedger` refuses any non-JSON
+    line, and `WriteRulings` prints every ledger line's rulings, repeats
+    included; `paged` and glab's `search` loop to `maximumPages` and
+    return without a warning, gh's `search` warns at `pageSize * 5`
+  - as of 2026-11-06: `plan.Parse` returns `Inbox` as `[]Dated`, not
+    `[]Item`, and `Item` holds no raw text, so `planItems` taking
+    `plan.Parse` needs `plan` to expose an Inbox item's lines and an
+    item's raw block; not checked whether `Item.Body` alone rebuilds the
+    hashed text byte for byte, which ledger hashes depend on
+  - ruled 2026-11-06: claims views each asked-for number with
+    `gh issue view`, naming a closed or unknown one and never printing the
+    all-clear past it, and the unscoped list pages and warns at its cap;
+    plan keys take the plan's checkout's origin project path, the checkout's
+    folder name when origin is missing or unreadable; `planItems` is
+    fixed in place, not moved onto `plan.Parse`, so ledger hashes hold;
+    `Record` rewrites the ledger through a temp file and rename, and
+    `loadLedger` skips a torn last line with a warning; `paged` and glab's
+    `search` warn at their cap
+  - ruled 2026-11-06, replacing one line per key: the ledger keeps one line
+    per key and text hash, the union of its rulings and the newest audit,
+    since one line per key would give a ruling on older text the newest
+    hash and print it as unchanged; `WriteRulings` prints each key's
+    finding and ruling once, from the line whose text is unchanged where
+    one is
+  - ruled 2026-11-06: a plan entry whose folder-name key differs from its
+    origin key carries the old one as `alias` in the manifest; `rulings`
+    reads a ledger line under either, and `record` rewrites it under the new
+    key. As of 2026-11-06 the author's ledger held 390 lines, 100 of them
+    ruled plan lines under folder-name keys, none on `v1-release`
 - [ ] data-dir-edges: The data directory, owner map and profiles hold up to hand
   edits and symlinks
   - done when each defect below has a test that fails before its fix or the user
     rules it out, and `docs/` and the spec say what stays and what is refused,
     such as a relative `ELE_HOME`
+  - 2026-11-06, from ticket-robust's checkpoint: `internal/ticket`'s
+    `Record` renames a temp file over the ledger path, so a symlinked
+    `logs/ticket-audits.jsonl` becomes a plain file and its target stops
+    getting records; rule whether the link is followed or refused
   - ruled 2026-11-02: `sync.log` rotates at 1 MiB to `sync.log.1`, one kept,
     and `status` reads its tail; `backup` and `status` drop `claude-mem/`,
     left on disk and named in the docs as safe to remove; `design.md`'s
@@ -1692,6 +1741,15 @@ keep.
     out `ele checkpoint stats`, `ele config list`, `ele stats` and `ele usage`,
     as does `stop-check.md`'s "What it reads", so `/ele:checkpoint-stats` marks
     the session mid-task and draws a notes ask
+  - 2026-11-06, from hook-stats: a turn with no edits whose only Bash work is
+    `ele checkpoint record` and `ele checkpoint log` reads as work, so the
+    gate judges every moved path: `eleNotWork` lists only `check` and `hash`
+    under `checkpoint`, and `log`'s heredoc body makes `scanShell` refuse the
+    whole command. On 2026-11-05 in horizon it blocked a turn that had just
+    recorded its own checkpoint, on two docs another session had edited.
+    gate-false-blocks named this cost in its re-measure and left it open.
+    Should `record` and `log`, its heredoc included, read as not work, given
+    the gate and the notes ask both read `commandIsWork`?
 - [ ] ci-hardening: CI lints what it ships and pins what it runs
   - done when CI runs actionlint, pins Task and shellcheck, and keys its build
     cache so a changed build saves; `install.sh` cleans up on a signal, accepts
@@ -2043,6 +2101,11 @@ keep.
   - 2026-11-02, from notes-robust's and sync-robust's checkpoints: three
     copies of one helper pattern; the sweep covers `notes/` only (not checked
     beyond the checkpoint findings)
+  - 2026-11-06, from ticket-robust's checkpoint: `internal/ticket`'s
+    `Record` now reads, merges and rewrites the ledger through its own
+    `writeAtomically`, a third copy, with no lock, so two sessions recording
+    at once can lose one run's lines, where the old append could not; it
+    takes the shared file lock once one exists
 - [ ] stop-attachments: Count the notes ask when the checkpoint gate and the
   notes ask both continue one stop
   - done when a `hook-output-probe` run with both Stop hooks continuing one
@@ -2057,7 +2120,7 @@ keep.
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: readme-guides, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
+  - blocked: readme-guides, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`
@@ -2067,16 +2130,6 @@ keep.
   .documentation/plans/v1-release.md`, and delete this plan
 
 ## Inbox
-
-- 2026-11-06, from hook-stats: a turn with no edits whose only Bash work is
-  `ele checkpoint record` and `ele checkpoint log` reads as work, so the gate
-  judges every moved path: `eleNotWork` lists only `check` and `hash` under
-  `checkpoint`, and `log`'s heredoc body makes `scanShell` refuse the whole
-  command. On 2026-11-05 in horizon it blocked a turn that had just recorded
-  its own checkpoint, on two docs another session had edited. gate-false-blocks
-  named this cost in its re-measure and left it open. Should `record` and
-  `log`, its heredoc included, read as not work, given the gate and the notes
-  ask both read `commandIsWork`?
 
 ## Out of scope
 

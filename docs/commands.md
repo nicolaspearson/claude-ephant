@@ -318,7 +318,9 @@ say so and exit 1, rather than wait. `stats` reports what checkpoints
 found since `--since`, 30 days back by default.
 `ticket claims` flags open GitHub tickets labelled `wayfinder:map` that grant
 themselves execution and `wayfinder:task` tickets naming a source path, only the
-numbered ones when given; `--quiet` prints nothing when none is flagged.
+numbered ones when given; `--quiet` prints nothing when none is flagged. A
+numbered ticket that is not open or could not be read, and an open list reaching its
+500-ticket cap, draw a warning on stderr.
 
 `ticket corpus` writes tickets into `--out`: a map's children with `--map`,
 narrowed by `--tickets`; a list of tickets with `--tickets`, comma-separated; or
@@ -327,12 +329,16 @@ files an earlier corpus's manifest there lists; any other `.md` in `--out` is
 kept and refuses the run, since the corpus hash covers every `.md` there.
 `--cli` picks `glab` or `gh` over the one the remote names. `--compare`
 reads a ticket back after a write against the text in `--expect`, its body or,
-with `--note`, a comment.
+with `--note`, a comment. `ticket corpus` warns on stderr when a ticket's
+comments or a map's sub-issues reach 2,000, or a search reaches its cap: 2,000
+hits on glab, 500 on gh.
 
-`ticket ledger record` appends the audit's `--records` for the corpus's
-`--manifest`; `rulings` prints earlier rulings on the manifest's items
-and whether their text changed since; `--ledger` names the ledger file,
-`logs/ticket-audits.jsonl` in the data directory by default.
+`ticket ledger record` adds the audit's `--records` for the corpus's
+`--manifest`, keeping one line per item and text, and replaces the file whole,
+so an interrupted write leaves the old ledger; `rulings` prints each earlier
+ruling on the manifest's items once, and whether its text changed since;
+`--ledger` names the ledger file, `logs/ticket-audits.jsonl` in the data
+directory by default.
 
 `mine` lists the unjudged units of an analysis, `checkpoint-runs` or
 `review-cycles`, or the units `--units` names, judged or not, writing each

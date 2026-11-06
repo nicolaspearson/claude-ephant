@@ -2,6 +2,7 @@ package ticket
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"os/exec"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -16,6 +18,7 @@ import (
 const (
 	maximumTokenLength = 80
 	minimumTokenLength = 4
+	ticketListLimit    = 500
 )
 
 var (
@@ -36,6 +39,7 @@ type Ticket struct {
 	Body   string  `json:"body"`
 	Labels []Label `json:"labels"`
 	Number int     `json:"number"`
+	State  string  `json:"state"`
 	Title  string  `json:"title"`
 }
 
@@ -77,7 +81,7 @@ func WriteClaims(ctx context.Context, stdout io.Writer, stderr io.Writer, direct
 		}
 		return
 	}
-	tickets, err := openTickets(ctx, root, numbers)
+	tickets, complete, err := openTickets(ctx, stderr, root, numbers)
 	if err != nil {
 		fmt.Fprintf(stderr, "Warning: the ticket claim check did not run: %v\n", err)
 		return
@@ -89,7 +93,7 @@ func WriteClaims(ctx context.Context, stdout io.Writer, stderr io.Writer, direct
 		}
 	}
 	if len(flagged) == 0 {
-		if !quiet {
+		if !quiet && complete {
 			fmt.Fprintln(stdout, "No open ticket is mistyped or grants itself execution.")
 		}
 		return
@@ -157,19 +161,47 @@ func hasTracker(ctx context.Context, root string) bool {
 	return false
 }
 
-func openTickets(ctx context.Context, root string, numbers []int) ([]Ticket, error) {
-	listed, err := run(ctx, root, "gh", "issue", "list", "--state", "open", "--limit", "200", "--json", "number,title,body,labels")
-	if err != nil {
-		return nil, err
+func openTickets(ctx context.Context, stderr io.Writer, root string, numbers []int) ([]Ticket, bool, error) {
+	if len(numbers) == 0 {
+		listed, err := run(ctx, root, "gh", "issue", "list", "--state", "open", "--limit", strconv.Itoa(ticketListLimit), "--json", "number,title,body,labels")
+		if err != nil {
+			return nil, false, err
+		}
+		var tickets []Ticket
+		if err := json.Unmarshal([]byte(listed), &tickets); err != nil {
+			return nil, false, fmt.Errorf("gh printed no ticket list: %w", err)
+		}
+		if len(tickets) >= ticketListLimit {
+			fmt.Fprintf(stderr, "Warning: gh listed %d open tickets, its cap, so any beyond were not checked; pass their numbers to check them.\n", ticketListLimit)
+			return tickets, false, nil
+		}
+		return tickets, true, nil
 	}
 	var tickets []Ticket
-	if err := json.Unmarshal([]byte(listed), &tickets); err != nil {
-		return nil, fmt.Errorf("gh printed no ticket list: %w", err)
+	complete := true
+	for index, number := range numbers {
+		if slices.Contains(numbers[:index], number) {
+			continue
+		}
+		viewed, err := run(ctx, root, "gh", "issue", "view", strconv.Itoa(number), "--json", "number,title,body,labels,state")
+		var ticket Ticket
+		if err == nil {
+			if err = json.Unmarshal([]byte(viewed), &ticket); err != nil {
+				err = fmt.Errorf("gh printed no ticket: %w", err)
+			}
+		}
+		switch {
+		case err != nil:
+			fmt.Fprintf(stderr, "Warning: #%d was not checked: %v\n", number, err)
+			complete = false
+		case ticket.State != "OPEN":
+			fmt.Fprintf(stderr, "Warning: #%d is %s, so its claims were not checked.\n", number, cmp.Or(strings.ToLower(ticket.State), "not open"))
+			complete = false
+		default:
+			tickets = append(tickets, ticket)
+		}
 	}
-	if len(numbers) > 0 {
-		tickets = slices.DeleteFunc(tickets, func(ticket Ticket) bool { return !slices.Contains(numbers, ticket.Number) })
-	}
-	return tickets, nil
+	return tickets, complete, nil
 }
 
 func run(ctx context.Context, directory string, name string, args ...string) (string, error) {

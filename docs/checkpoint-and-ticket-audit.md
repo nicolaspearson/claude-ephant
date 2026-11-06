@@ -91,7 +91,10 @@ to run: nothing is written to the tracker by the audit itself.
 Your rulings on its findings go in a ledger, `logs/ticket-audits.jsonl` in the
 data directory.
 A later audit of the same map raises a ruled finding again with your ruling
-beside it, and says whether the ticket's text changed since.
+beside it, and says whether the ticket's text changed since. A plan item's
+rulings are keyed on its repository's origin, so a worktree or another clone
+of it sees them too; rulings recorded under the folder's name before then
+still show, and move to the new key at the next record.
 
 For ele plans, use [`/ele:plan-audit`](plans.md#auditing-plans), which runs the
 same methods over plans.
@@ -100,6 +103,8 @@ same methods over plans.
 
 `/ele:ticket-claims` is for a GitHub tracker that labels its parent tickets
 `wayfinder:map` and its work tickets `wayfinder:task`; on a tracker without those
-labels it finds nothing. Of the first 200 open tickets, it flags a map granting
-itself execution and a task naming a source path. Each flag is a judgement for
-you to confirm, not a defect.
+labels it finds nothing. Of the first 500 open tickets, or the ones you number,
+it flags a map granting itself execution and a task naming a source path. It
+warns when the list reaches 500, and names each numbered ticket that is not
+open or could not be read, rather than leave it out unsaid. Each flag is a judgement for you
+to confirm, not a defect.

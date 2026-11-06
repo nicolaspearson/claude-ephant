@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/nicolaspearson/claude-ephant/internal/plan"
 )
 
 const corpusPlan = `---
@@ -302,6 +304,26 @@ func TestCorpusKeysANamedPlanItemOnItsNameSoARewordKeepsItsRulings(t *testing.T)
 	require.Equal(t, "repo/.documentation/plans/plan.md: ship-it\n  ruled 2026-10-21: f1 — r1\n  text CHANGED since\n", output.String())
 }
 
+func TestCorpusKeysAPlanOnItsOriginSoAnotherCheckoutKeepsItsRulings(t *testing.T) {
+	tracker := &fakeTracker{remote: "git@github.com:owner/project.git"}
+	var aliases, keys []string
+	for _, folder := range []string{"project", "project-worktree"} {
+		out := t.TempDir()
+		code := Corpus(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, tracker.commands(), CorpusOptions{Out: out, Plans: []string{writePlanAt(t, folder, "plan.md", corpusPlan)}})
+		require.Equal(t, 0, code)
+		content, err := os.ReadFile(filepath.Join(out, manifestName))
+		require.NoError(t, err)
+		var entries []map[string]string
+		require.NoError(t, json.Unmarshal(content, &entries))
+		aliases = append(aliases, entries[0]["alias"])
+		keys = append(keys, entries[0]["key"])
+	}
+
+	require.Equal(t, []string{"owner/project/.documentation/plans/plan.md: Build the thing", "owner/project/.documentation/plans/plan.md: Build the thing"}, keys)
+	require.Equal(t, []string{"project/.documentation/plans/plan.md: Build the thing", "project-worktree/.documentation/plans/plan.md: Build the thing"}, aliases, "the folder-name key earlier ledgers hold")
+	require.NotContains(t, corpusManifest(t, t.TempDir(), corpusPlan)[0], "alias", "no alias where the key is the folder name")
+}
+
 func TestCorpusKeysAnInboxItemOnItsTitleAndAnActionOnItsName(t *testing.T) {
 	plan := "## Actions\n\n- [ ] ship-it: Ship the thing\n  - done when shipped\n\n## Inbox\n\n- idea-x: try it\n- 2026-10-28: one\n- 2026-10-28: two\n"
 
@@ -336,6 +358,59 @@ func TestCorpusSplitsAPlanIntoActionsThenInboxItems(t *testing.T) {
 	require.NotEqual(t, entries[0]["hash"], edited[0]["hash"], "a sub-bullet edit is")
 	require.Equal(t, entries[1]["hash"], edited[1]["hash"])
 	require.Equal(t, []string{"closed"}, statesOf(planItems("## Inbox\n\n- [x] Done")), "a ticked Inbox item is closed")
+}
+
+func TestPlanItemsReadsSectionsAndItemsAsPlanParseDoes(t *testing.T) {
+	text := "---\nkind: plan\n---\n\n## Actions\n\n- [ ] first: First\n  - done when x\n\n```\n## Inbox\n- [ ] fenced\n```\n\n- a note, not an action\n- [ ] second: Second\n  ```\n## Inbox\n  ```\n\n# Elsewhere\n\n- [ ] past the plan\n\n## Inbox\n\n- an idea\n"
+
+	items := planItems(text)
+
+	var titles []string
+	for _, item := range items {
+		titles = append(titles, item.title)
+	}
+	require.Equal(t, []string{"first: First", "second: Second", "an idea"}, titles)
+	require.Equal(t, []string{"open", "open", "inbox"}, statesOf(items))
+	require.Contains(t, items[1].raw, "## Inbox", "a fence in an item's body stays in its body")
+	parsed, err := plan.Parse([]byte(text))
+	require.NoError(t, err)
+	require.Equal(t, []string{"first: First", "second: Second"}, []string{parsed.Actions[0].Title, parsed.Actions[1].Title})
+	require.Len(t, parsed.Actions, 2)
+	require.Len(t, parsed.Inbox, 1)
+}
+
+func TestCorpusWarnsWhenAListReachesThePageCap(t *testing.T) {
+	tracker := &fakeTracker{issues: map[int]fakeIssue{9: {title: "Nine"}}, remote: "git@github.com:owner/repo.git"}
+	commands := tracker.commands()
+	commands.Run = func(ctx context.Context, name string, args ...string) (string, error) {
+		if name == "gh" && args[0] == "api" {
+			return encode(fullPage(map[string]any{"body": "note", "number": 1})), nil
+		}
+		return tracker.run(ctx, name, args...)
+	}
+	var stderr bytes.Buffer
+
+	code := Corpus(context.Background(), &bytes.Buffer{}, &stderr, commands, CorpusOptions{Out: t.TempDir(), Tickets: []int{9}})
+
+	require.Equal(t, 0, code, stderr.String())
+	require.Contains(t, stderr.String(), "warning: #9's comments reach the 2000-item cap, so any beyond were not read\n")
+	stderr.Reset()
+	_, err := nativeChildren(context.Background(), &stderr, commands, "gh", 4)
+	require.NoError(t, err)
+	require.Equal(t, "warning: #4's sub-issues reach the 2000-item cap, so any beyond were not read\n", stderr.String())
+}
+
+func TestSearchWarnsWhenGlabReachesThePageCap(t *testing.T) {
+	commands := Commands{Run: func(context.Context, string, ...string) (string, error) {
+		return encode(fullPage(map[string]any{"description": "Part of #1", "iid": 2, "state": "opened"})), nil
+	}}
+	var stderr bytes.Buffer
+
+	hits, err := search(context.Background(), &stderr, commands, "glab", "Part of #1")
+
+	require.NoError(t, err)
+	require.Len(t, hits, maximumPages*pageSize)
+	require.Equal(t, "warning: hit the 2000-issue search cap — pass --tickets for the full set\n", stderr.String())
 }
 
 func TestCorpusTakesSeveralPlansInTheOrderGiven(t *testing.T) {
@@ -504,7 +579,7 @@ func (tracker *fakeTracker) commands() Commands {
 func (tracker *fakeTracker) run(_ context.Context, name string, args ...string) (string, error) {
 	call := strings.Join(append([]string{name}, args...), " ")
 	switch {
-	case call == "git remote get-url origin":
+	case call == "git remote get-url origin", name == "git" && strings.HasSuffix(call, " remote get-url origin"):
 		return tracker.remote + "\n", nil
 	case name == "git":
 		return filepath.Dir(filepath.Dir(args[1])) + "\n", nil
@@ -579,6 +654,14 @@ func fieldOf(entries []map[string]string, field string) []string {
 		values = append(values, entry[field])
 	}
 	return values
+}
+
+func fullPage(item map[string]any) []map[string]any {
+	page := make([]map[string]any, pageSize)
+	for index := range page {
+		page[index] = item
+	}
+	return page
 }
 
 func statesOf(entries []planEntry) []string {

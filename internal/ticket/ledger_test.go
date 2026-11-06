@@ -33,7 +33,7 @@ func TestLedgerPathDefaultsToTheDataDirectory(t *testing.T) {
 	require.Equal(t, filepath.Join(directory, "logs", "ticket-audits.jsonl"), path)
 }
 
-func TestRecordAppendsOneLinePerItemWithTheManifestHash(t *testing.T) {
+func TestRecordWritesOneLinePerItemWithTheManifestHash(t *testing.T) {
 	directory := t.TempDir()
 	ledgerPath := filepath.Join(directory, "logs", "ticket-audits.jsonl")
 	records := `[{"key":"` + firstKey + `","methods":["contradiction","premises"],"rulings":[{"ruling":"not a contradiction","finding":"contradicts item 2"}]},` +
@@ -68,6 +68,103 @@ func TestRecordRefusesWhatTheAuditDidNotReadOrRunWritingNothing(t *testing.T) {
 		require.EqualError(t, err, "nothing recorded:\n  "+problem, records)
 		require.NoFileExists(t, ledgerPath, records)
 	}
+}
+
+func TestRecordKeepsOneLinePerKeyAndTextWithEveryRulingOnce(t *testing.T) {
+	directory := t.TempDir()
+	ledgerPath := filepath.Join(directory, "ticket-audits.jsonl")
+	writeLedger(t, ledgerPath,
+		`{"audited":"2026-10-01T10:00:00+00:00","hash":"aaa","key":"`+firstKey+`","methods":["premises"],"rulings":[{"ruling":"r1","finding":"f1"}]}`,
+		`{"audited":"2026-10-02T10:00:00+00:00","hash":"aaa","key":"`+firstKey+`","methods":["premises"],"rulings":[{"ruling":"r1","finding":"f1"}]}`,
+		`{"audited":"2026-10-02T10:00:00+00:00","hash":"old","key":"`+secondKey+`","methods":["status"],"rulings":[{"finding":"f3","ruling":"r3"}]}`,
+	)
+	records := `[{"key":"` + firstKey + `","methods":["contradiction"],"rulings":[{"finding":"f1","ruling":"r1"},{"finding":"f2","ruling":"r2"}]},` +
+		`{"key":"` + secondKey + `","methods":["premises"],"rulings":[]}]`
+
+	_, err := record(t, directory, records, ledgerPath)
+
+	require.NoError(t, err)
+	written, err := os.ReadFile(ledgerPath)
+	require.NoError(t, err)
+	require.Equal(t, `{"audited": "2026-10-21T07:30:00+00:00", "hash": "aaa", "key": "`+firstKey+`", "methods": ["premises", "contradiction"], "rulings": [{"ruling": "r1", "finding": "f1"}, {"finding": "f2", "ruling": "r2"}]}`+"\n"+
+		`{"audited": "2026-10-02T10:00:00+00:00", "hash": "old", "key": "`+secondKey+`", "methods": ["status"], "rulings": [{"finding": "f3", "ruling": "r3"}]}`+"\n"+
+		`{"audited": "2026-10-21T07:30:00+00:00", "hash": "bbb", "key": "`+secondKey+`", "methods": ["premises"], "rulings": []}`+"\n", string(written), "changed text keeps its own line")
+	leftovers, err := filepath.Glob(filepath.Join(directory, "*.tmp"))
+	require.NoError(t, err)
+	require.Empty(t, leftovers)
+}
+
+func TestRecordLeavesTheLedgerWholeWhenItCannotWrite(t *testing.T) {
+	directory := t.TempDir()
+	ledgerPath := filepath.Join(directory, "logs", "ticket-audits.jsonl")
+	require.NoError(t, os.MkdirAll(filepath.Dir(ledgerPath), 0o700))
+	earlier := `{"audited":"2026-10-01","hash":"aaa","key":"` + firstKey + `","methods":[],"rulings":[{"finding":"f1","ruling":"r1"}]}`
+	writeLedger(t, ledgerPath, earlier)
+	require.NoError(t, os.Chmod(filepath.Dir(ledgerPath), 0o500))
+	t.Cleanup(func() { _ = os.Chmod(filepath.Dir(ledgerPath), 0o700) })
+
+	_, err := record(t, directory, `[{"key":"`+firstKey+`","methods":[],"rulings":[{"finding":"f2","ruling":"r2"}]}]`, ledgerPath)
+
+	require.Error(t, err)
+	written, readErr := os.ReadFile(ledgerPath)
+	require.NoError(t, readErr)
+	require.Equal(t, earlier+"\n", string(written))
+}
+
+func TestLedgerSkipsATornLastLineAndRecordDropsIt(t *testing.T) {
+	directory := t.TempDir()
+	ledgerPath := filepath.Join(directory, "ticket-audits.jsonl")
+	good := `{"audited":"2026-10-01T10:00:00+00:00","hash":"aaa","key":"` + firstKey + `","methods":[],"rulings":[{"finding":"f1","ruling":"r1"}]}`
+	require.NoError(t, os.WriteFile(ledgerPath, []byte(good+"\n"+`{"audited": "2026-10-02`), 0o600))
+	var output bytes.Buffer
+
+	require.NoError(t, WriteRulings(&output, writeManifest(t, directory), ledgerPath))
+
+	require.Equal(t, "warning: "+ledgerPath+":2 is cut short, so it is skipped; the next record drops it\n"+
+		firstKey+"\n  ruled 2026-10-01: f1 — r1\n  text unchanged since\n", output.String())
+	_, err := record(t, directory, `[{"key":"`+secondKey+`","methods":[],"rulings":[]}]`, ledgerPath)
+	require.NoError(t, err)
+	written, err := os.ReadFile(ledgerPath)
+	require.NoError(t, err)
+	require.NotContains(t, string(written), `"2026-10-02`)
+	require.Equal(t, 2, strings.Count(string(written), "\n"))
+}
+
+func TestWriteRulingsPrintsEachRulingOncePreferringUnchangedText(t *testing.T) {
+	directory := t.TempDir()
+	ledgerPath := filepath.Join(directory, "ticket-audits.jsonl")
+	writeLedger(t, ledgerPath,
+		`{"audited":"2026-10-01","hash":"old","key":"`+firstKey+`","methods":[],"rulings":[{"finding":"f1","ruling":"r1"},{"finding":"f2","ruling":"r2"}]}`,
+		`{"audited":"2026-10-05","hash":"aaa","key":"`+firstKey+`","methods":[],"rulings":[{"finding":"f1","ruling":"r1"}]}`,
+		`{"audited":"2026-10-06","hash":"aaa","key":"`+firstKey+`","methods":[],"rulings":[{"finding":"f1","ruling":"r1"}]}`,
+	)
+	var output bytes.Buffer
+
+	require.NoError(t, WriteRulings(&output, writeManifest(t, directory), ledgerPath))
+
+	require.Equal(t, firstKey+"\n  ruled 2026-10-06: f1 — r1\n  text unchanged since\n"+
+		firstKey+"\n  ruled 2026-10-01: f2 — r2\n  text CHANGED since\n", output.String())
+}
+
+func TestLedgerReadsAFolderNameKeyThroughItsAliasAndRecordRenamesIt(t *testing.T) {
+	directory := t.TempDir()
+	ledgerPath := filepath.Join(directory, "ticket-audits.jsonl")
+	manifest, err := json.Marshal([]map[string]string{{"alias": "repo/plan.md: ship-it", "file": "01.md", "hash": "aaa", "key": "owner/repo/plan.md: ship-it"}})
+	require.NoError(t, err)
+	manifestPath := filepath.Join(directory, "manifest.json")
+	require.NoError(t, os.WriteFile(manifestPath, manifest, 0o600))
+	writeLedger(t, ledgerPath, `{"audited":"2026-10-01","hash":"aaa","key":"repo/plan.md: ship-it","methods":[],"rulings":[{"finding":"f1","ruling":"r1"}]}`)
+	var output bytes.Buffer
+
+	require.NoError(t, WriteRulings(&output, manifestPath, ledgerPath))
+	require.Equal(t, "owner/repo/plan.md: ship-it\n  ruled 2026-10-01: f1 — r1\n  text unchanged since\n", output.String())
+
+	recordsPath := filepath.Join(directory, "records.json")
+	require.NoError(t, os.WriteFile(recordsPath, []byte(`[{"key":"owner/repo/plan.md: ship-it","methods":[],"rulings":[{"finding":"f1","ruling":"r1"}]}]`), 0o600))
+	require.NoError(t, Record(&bytes.Buffer{}, manifestPath, recordsPath, ledgerPath, ledgerNow))
+	written, err := os.ReadFile(ledgerPath)
+	require.NoError(t, err)
+	require.Equal(t, `{"audited": "2026-10-21T07:30:00+00:00", "hash": "aaa", "key": "owner/repo/plan.md: ship-it", "methods": [], "rulings": [{"finding": "f1", "ruling": "r1"}]}`+"\n", string(written))
 }
 
 func TestWriteRulingsLabelsEachEarlierRulingByWhetherItsTextChanged(t *testing.T) {

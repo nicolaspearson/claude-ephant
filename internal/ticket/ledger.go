@@ -21,15 +21,17 @@ import (
 var methods = []string{"artefacts", "contradiction", "decisions", "graph", "premises", "status"}
 
 type ledgerLine struct {
-	Audited string   `json:"audited"`
-	Hash    string   `json:"hash"`
-	Key     string   `json:"key"`
-	Rulings []ruling `json:"rulings"`
+	Audited string            `json:"audited"`
+	Hash    string            `json:"hash"`
+	Key     string            `json:"key"`
+	Methods []string          `json:"methods"`
+	Rulings []json.RawMessage `json:"rulings"`
 }
 
 type manifestEntry struct {
-	Hash string `json:"hash"`
-	Key  string `json:"key"`
+	Alias string `json:"alias"`
+	Hash  string `json:"hash"`
+	Key   string `json:"key"`
 }
 
 type ruling struct {
@@ -43,7 +45,7 @@ func LedgerPath() (string, error) {
 
 // Record writes nothing unless every record can be recorded: a partial set reads as a whole audit.
 func Record(w io.Writer, manifestPath string, recordsPath string, ledgerPath string, now time.Time) error {
-	hashes, err := loadManifest(manifestPath)
+	hashes, aliases, err := loadManifest(manifestPath)
 	if err != nil {
 		return err
 	}
@@ -58,37 +60,25 @@ func Record(w io.Writer, manifestPath string, recordsPath string, ledgerPath str
 	if err = json.Unmarshal(records, &listed); err != nil {
 		return err
 	}
-	audited := now.UTC().Format("2006-01-02T15:04:05+00:00")
-	// json.dumps' ", " and ": " separators.
-	var lines bytes.Buffer
-	for _, record := range listed {
-		key, _ := jsonString(record["key"])
-		lines.WriteString(`{"audited": ` + dumpsString(audited) + `, "hash": ` + dumpsString(hashes[key]) + `, "key": ` + dumpsString(key) + `, "methods": [`)
-		var named []string
-		_ = json.Unmarshal(record["methods"], &named)
-		for index, method := range named {
-			lines.WriteString(separator(index) + dumpsString(method))
-		}
-		lines.WriteString(`], "rulings": [`)
-		var rulings []json.RawMessage
-		_ = json.Unmarshal(record["rulings"], &rulings)
-		for index, raw := range rulings {
-			lines.WriteString(separator(index) + dumpsRuling(raw))
-		}
-		lines.WriteString("]}\n")
-	}
-	if err = os.MkdirAll(filepath.Dir(ledgerPath), 0o755); err != nil {
-		return err
-	}
-	ledger, err := os.OpenFile(ledgerPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	ledger, err := loadLedger(w, ledgerPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("nothing recorded: %w", err)
 	}
-	if _, err := ledger.Write(lines.Bytes()); err != nil {
-		_ = ledger.Close()
-		return err
+	renameAliases(ledger, aliases)
+	audited := now.UTC().Format("2006-01-02T15:04:05+00:00")
+	for _, record := range listed {
+		line := ledgerLine{Audited: audited}
+		line.Key, _ = jsonString(record["key"])
+		line.Hash = hashes[line.Key]
+		_ = json.Unmarshal(record["methods"], &line.Methods)
+		_ = json.Unmarshal(record["rulings"], &line.Rulings)
+		ledger = append(ledger, line)
 	}
-	if err := ledger.Close(); err != nil {
+	var lines bytes.Buffer
+	for _, line := range mergeLines(ledger) {
+		lines.WriteString(dumpsLine(line))
+	}
+	if err = writeAtomically(ledgerPath, lines.Bytes()); err != nil {
 		return err
 	}
 	fmt.Fprintf(w, "recorded %d item(s) in %s\n", len(listed), ledgerPath)
@@ -96,14 +86,23 @@ func Record(w io.Writer, manifestPath string, recordsPath string, ledgerPath str
 }
 
 func WriteRulings(w io.Writer, manifestPath string, ledgerPath string) error {
-	hashes, err := loadManifest(manifestPath)
+	hashes, aliases, err := loadManifest(manifestPath)
 	if err != nil {
 		return err
 	}
-	ledger, err := loadLedger(ledgerPath)
+	ledger, err := loadLedger(w, ledgerPath)
 	if err != nil {
 		return err
 	}
+	renameAliases(ledger, aliases)
+	type shown struct {
+		audited string
+		earlier ruling
+		key     string
+		since   string
+	}
+	var printed []shown
+	at := map[[3]string]int{}
 	for _, line := range ledger {
 		hash, ok := hashes[line.Key]
 		if !ok {
@@ -114,9 +113,21 @@ func WriteRulings(w io.Writer, manifestPath string, ledgerPath string) error {
 			since = "unchanged"
 		}
 		audited := []rune(line.Audited)
-		for _, earlier := range line.Rulings {
-			fmt.Fprintf(w, "%s\n  ruled %s: %s — %s\n  text %s since\n", line.Key, string(audited[:min(10, len(audited))]), earlier.Finding, earlier.Ruling, since)
+		for _, raw := range line.Rulings {
+			entry := shown{audited: string(audited[:min(10, len(audited))]), earlier: parseRuling(raw), key: line.Key, since: since}
+			identity := [3]string{line.Key, entry.earlier.Finding, entry.earlier.Ruling}
+			index, seen := at[identity]
+			switch {
+			case !seen:
+				at[identity] = len(printed)
+				printed = append(printed, entry)
+			case since == "unchanged" || printed[index].since == "CHANGED":
+				printed[index] = entry
+			}
 		}
+	}
+	for _, entry := range printed {
+		fmt.Fprintf(w, "%s\n  ruled %s: %s — %s\n  text %s since\n", entry.key, entry.audited, entry.earlier.Finding, entry.earlier.Ruling, entry.since)
 	}
 	return nil
 }
@@ -127,6 +138,21 @@ func compact(raw json.RawMessage) string {
 		return string(raw)
 	}
 	return buffer.String()
+}
+
+// json.dumps' ", " and ": " separators.
+func dumpsLine(line ledgerLine) string {
+	var dumped strings.Builder
+	dumped.WriteString(`{"audited": ` + dumpsString(line.Audited) + `, "hash": ` + dumpsString(line.Hash) + `, "key": ` + dumpsString(line.Key) + `, "methods": [`)
+	for index, method := range line.Methods {
+		dumped.WriteString(separator(index) + dumpsString(method))
+	}
+	dumped.WriteString(`], "rulings": [`)
+	for index, raw := range line.Rulings {
+		dumped.WriteString(separator(index) + dumpsRuling(raw))
+	}
+	dumped.WriteString("]}\n")
+	return dumped.String()
 }
 
 // A ruling keeps the field order it was given in.
@@ -202,7 +228,8 @@ func jsonString(raw json.RawMessage) (string, bool) {
 }
 
 // Refuses a bad line rather than skipping it: a skipped line is a hidden ruling.
-func loadLedger(path string) ([]ledgerLine, error) {
+// An unparsable last line with no newline is a write cut short, which never held a whole ruling.
+func loadLedger(w io.Writer, path string) ([]ledgerLine, error) {
 	content, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
@@ -210,13 +237,19 @@ func loadLedger(path string) ([]ledgerLine, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot read %s: %w", path, err)
 	}
+	torn := !bytes.HasSuffix(content, []byte("\n"))
+	split := strings.Split(strings.TrimSuffix(string(content), "\n"), "\n")
 	var lines []ledgerLine
-	for number, text := range strings.Split(strings.TrimSuffix(string(content), "\n"), "\n") {
+	for number, text := range split {
 		if strings.TrimSpace(text) == "" {
 			continue
 		}
 		where := fmt.Sprintf("%s:%d", path, number+1)
 		if !json.Valid([]byte(text)) {
+			if torn && number == len(split)-1 {
+				fmt.Fprintf(w, "warning: %s is cut short, so it is skipped; the next record drops it\n", where)
+				continue
+			}
 			var probe any
 			return nil, fmt.Errorf("%s: not JSON: %w", where, json.Unmarshal([]byte(text), &probe))
 		}
@@ -233,20 +266,57 @@ func loadLedger(path string) ([]ledgerLine, error) {
 	return lines, nil
 }
 
-func loadManifest(path string) (map[string]string, error) {
+func loadManifest(path string) (map[string]string, map[string]string, error) {
 	raw, err := readJSON(path)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var entries []manifestEntry
 	if err := json.Unmarshal(raw, &entries); err != nil {
-		return nil, fmt.Errorf("cannot read %s: %w", path, err)
+		return nil, nil, fmt.Errorf("cannot read %s: %w", path, err)
 	}
-	hashes := map[string]string{}
+	hashes, aliases := map[string]string{}, map[string]string{}
 	for _, entry := range entries {
 		hashes[entry.Key] = entry.Hash
+		if entry.Alias != "" {
+			aliases[entry.Alias] = entry.Key
+		}
 	}
-	return hashes, nil
+	return hashes, aliases, nil
+}
+
+// One line per key and text, so a ruling on older text keeps that text's hash and still reads as changed.
+func mergeLines(lines []ledgerLine) []ledgerLine {
+	var merged []ledgerLine
+	at := map[[2]string]int{}
+	for _, line := range lines {
+		group := [2]string{line.Key, line.Hash}
+		index, ok := at[group]
+		if !ok {
+			index = len(merged)
+			at[group] = index
+			merged = append(merged, ledgerLine{Hash: line.Hash, Key: line.Key})
+		}
+		target := &merged[index]
+		target.Audited = line.Audited
+		for _, method := range line.Methods {
+			if !slices.Contains(target.Methods, method) {
+				target.Methods = append(target.Methods, method)
+			}
+		}
+		for _, raw := range line.Rulings {
+			if !slices.ContainsFunc(target.Rulings, func(kept json.RawMessage) bool { return parseRuling(kept) == parseRuling(raw) }) {
+				target.Rulings = append(target.Rulings, raw)
+			}
+		}
+	}
+	return merged
+}
+
+func parseRuling(raw json.RawMessage) ruling {
+	var parsed ruling
+	_ = json.Unmarshal(raw, &parsed)
+	return parsed
 }
 
 func readJSON(path string) (json.RawMessage, error) {
@@ -297,6 +367,14 @@ func recordProblems(records json.RawMessage, hashes map[string]string) []string 
 	return problems
 }
 
+func renameAliases(ledger []ledgerLine, aliases map[string]string) {
+	for index := range ledger {
+		if key, ok := aliases[ledger[index].Key]; ok {
+			ledger[index].Key = key
+		}
+	}
+}
+
 func separator(index int) string {
 	if index == 0 {
 		return ""
@@ -322,4 +400,29 @@ func wellFormed(raw json.RawMessage) bool {
 		}
 	}
 	return true
+}
+
+// A reader racing the write sees the old ledger or the new one, never half of either.
+func writeAtomically(path string, content []byte) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
+	}
+	temporary, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*.tmp")
+	if err != nil {
+		return err
+	}
+	_, err = temporary.Write(content)
+	if err == nil {
+		err = temporary.Sync()
+	}
+	if closeErr := temporary.Close(); err == nil {
+		err = closeErr
+	}
+	if err == nil {
+		err = os.Rename(temporary.Name(), path)
+	}
+	if err != nil {
+		_ = os.Remove(temporary.Name())
+	}
+	return err
 }

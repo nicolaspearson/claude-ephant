@@ -124,8 +124,9 @@ each, and each approved fold is written.
   Add each plan's `spec` from its front matter, and read its Context and
   Decisions as the plan's notes. Name an item `<plan>/<name>`, the kebab name
   after its checkbox; an unnamed one, an inbox item or the closing action, by
-  plan and title. Its ledger key is the repository, the plan's path and its
-  name, so rewording keeps its rulings; an unnamed action's or an inbox item's
+  plan and title. Its ledger key is the repository's origin project path, so
+  another checkout keeps its rulings, then the plan's path and its name, so
+  rewording keeps them; an unnamed action's or an inbox item's
   key is its title, a leading `word:` on an inbox line included.
   Two plans of one file name, drafts in two repositories, are refused: audit
   each repository's plans in a run of its own

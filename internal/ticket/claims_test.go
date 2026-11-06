@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -70,6 +71,41 @@ func TestWriteClaimsListsFlaggedTicketsByNumber(t *testing.T) {
 	require.True(t, strings.HasPrefix(stdout, "1 open tickets are flagged.\n\n  #7 Task\n"), stdout)
 }
 
+func TestWriteClaimsNamesEachAskedNumberItCouldNotCheck(t *testing.T) {
+	root := trackedRepository(t, []Ticket{
+		{Body: "clean", Number: 9, Title: "Bug"},
+		{Body: "touch internal/x.go", Labels: []Label{{Name: "wayfinder:task"}}, Number: 12, State: "CLOSED", Title: "Done"},
+		{Body: "clean", Number: 14, State: "MERGED", Title: "A pull request"},
+		{Body: "touch internal/x.go", Labels: []Label{{Name: "wayfinder:task"}}, Number: 7, Title: "Task"},
+	})
+
+	stdout, stderr := writeClaims(t, root, []int{9, 12, 99, 14, 12}, false)
+
+	require.Empty(t, stdout, "no all-clear past a number left unchecked")
+	require.Equal(t, "Warning: #12 is closed, so its claims were not checked.\n"+
+		"Warning: #99 was not checked: GraphQL: Could not resolve to an issue or pull request with the number of 99.\n"+
+		"Warning: #14 is merged, so its claims were not checked.\n", stderr, "each number once")
+
+	stdout, _ = writeClaims(t, root, []int{7, 7}, true)
+	require.True(t, strings.HasPrefix(stdout, "1 open tickets are flagged.\n\n  #7 Task\n"), stdout)
+
+	stdout, stderr = writeClaims(t, root, []int{9}, false)
+	require.Equal(t, "No open ticket is mistyped or grants itself execution.\n", stdout+stderr)
+}
+
+func TestWriteClaimsWarnsWhenTheListReachesItsCap(t *testing.T) {
+	tickets := make([]Ticket, ticketListLimit)
+	for index := range tickets {
+		tickets[index] = Ticket{Body: "clean", Number: index + 1, Title: "Bug"}
+	}
+	root := trackedRepository(t, tickets)
+
+	stdout, stderr := writeClaims(t, root, nil, true)
+
+	require.Empty(t, stdout)
+	require.Equal(t, "Warning: gh listed 500 open tickets, its cap, so any beyond were not checked; pass their numbers to check them.\n", stderr)
+}
+
 func TestWriteClaimsSaysWhyNothingWasChecked(t *testing.T) {
 	root := trackedRepository(t, nil)
 
@@ -112,17 +148,35 @@ func runGit(t *testing.T, root string, args ...string) {
 	require.NoError(t, err, string(output))
 }
 
-// A gh on PATH that prints the tickets, or fails with $GH_FAIL on stderr.
+// A gh on PATH that lists the open tickets and views any by number, or fails
+// with $GH_FAIL on stderr. A ticket with no state is open.
 func trackedRepository(t *testing.T, tickets []Ticket) string {
 	t.Helper()
 	root := t.TempDir()
 	runGit(t, root, "init", "-q")
 	runGit(t, root, "remote", "add", "origin", "git@github.com:x/y.git")
-	listed, err := json.Marshal(tickets)
-	require.NoError(t, err)
 	bin := t.TempDir()
+	var open []Ticket
+	for _, ticket := range tickets {
+		if ticket.State == "" {
+			ticket.State = "OPEN"
+		}
+		if ticket.State == "OPEN" {
+			open = append(open, ticket)
+		}
+		viewed, err := json.Marshal(ticket)
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(filepath.Join(bin, fmt.Sprintf("%d.json", ticket.Number)), viewed, 0o600))
+	}
+	listed, err := json.Marshal(open)
+	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(bin, "tickets.json"), listed, 0o600))
-	script := "#!/bin/sh\n[ -n \"$GH_FAIL\" ] && { echo \"$GH_FAIL\" >&2; exit 1; }\ncat '" + filepath.Join(bin, "tickets.json") + "'\n"
+	script := "#!/bin/sh\n[ -n \"$GH_FAIL\" ] && { echo \"$GH_FAIL\" >&2; exit 1; }\n" +
+		"if [ \"$2\" = view ]; then\n" +
+		"  [ -f '" + bin + "'/\"$3\".json ] || { echo \"GraphQL: Could not resolve to an issue or pull request with the number of $3.\" >&2; exit 1; }\n" +
+		"  exec cat '" + bin + "'/\"$3\".json\n" +
+		"fi\n" +
+		"cat '" + filepath.Join(bin, "tickets.json") + "'\n"
 	require.NoError(t, os.WriteFile(filepath.Join(bin, "gh"), []byte(script), 0o700))
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	return root

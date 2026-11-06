@@ -352,6 +352,32 @@ func (e Edge) String() string {
 	return e.Plan + "/" + e.Name
 }
 
+// Fenced marks each line Parse reads as a fence or inside one.
+func Fenced(lines []string) []bool {
+	fenced := make([]bool, len(lines))
+	fence := ""
+	var lists containers
+	for index, line := range lines {
+		inside := fence != ""
+		base := lists.top()
+		if !inside {
+			base = lists.enter(line)
+		}
+		fence = stepFence(fence, line, base)
+		fenced[index] = inside || fence != ""
+	}
+	return fenced
+}
+
+// Heading reads a line as Parse reads a heading: its level and its text.
+func Heading(line string) (int, string, bool) {
+	match := heading.FindStringSubmatch(line)
+	if match == nil {
+		return 0, "", false
+	}
+	return len(match[1]), match[2], true
+}
+
 func Name(title string) string {
 	if match := itemName.FindStringSubmatch(title); match != nil {
 		return match[1]
