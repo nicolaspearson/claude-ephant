@@ -110,7 +110,8 @@ created: 2026-10-23
   `YYYY-MM-DD HH:MMZ` a UTC time. An `after:` in neither form holds its item
   and draws an `ele plan check` warning until fixed. Either matches in any
   case, and a `blocked:` list ending in a comma, before any `;`, carries on to
-  the next indented line that is not a list item
+  the next indented line that is not a list item or a fence, holds no `:` and
+  does not start `done when`
 - **Lines ele cannot read** each draw an `ele plan check` warning naming the
   line, so no edit hides an item in silence: an empty or malformed `blocked:`
   list, item names with no commas between them, a blocker cycle or an item

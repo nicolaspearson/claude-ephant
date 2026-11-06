@@ -561,8 +561,12 @@ func column(line string) int {
 	return width
 }
 
+// No item name holds a colon, so a line with one, such as a bare after:, is not a wrapped name.
 func continues(line string) bool {
 	trimmed := strings.TrimSpace(line)
+	if _, doneWhen := cutFold(trimmed, "done when"); doneWhen || strings.Contains(trimmed, ":") {
+		return false
+	}
 	return trimmed != "" && line != trimmed && !strings.HasPrefix(trimmed, "- ") && !otherList.MatchString(trimmed) && stepFence("", trimmed, 0) == ""
 }
 

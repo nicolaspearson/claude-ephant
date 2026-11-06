@@ -1541,6 +1541,9 @@ keep.
     `HEAD` read as outside git, and a garbage branch ref may read as no commit
     yet, all within the ruling's words and not probed, since the guard hook
     refuses git writes in the scratchpad
+  - ruled 2026-11-06, after the tick: the comma join never takes a line
+    holding a `:` or starting `done when`, so a bare `after:` or done-when
+    line keeps its meaning
   - done when each line form below is parsed or drawn as a warning by `ele plan
     check`, each by a test, a `blocked:` list wrapped over lines among them;
     `Next` never returns the closing action while another action is open;
