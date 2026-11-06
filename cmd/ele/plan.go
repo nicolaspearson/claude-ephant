@@ -337,13 +337,11 @@ func planView(ctx context.Context, root string, relative string, bodyLimit int, 
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", relative, err)
 	}
-	tick, ticked, err := plan.Previous(ctx, root, relative)
-	if err != nil {
-		return "", err
-	}
+	// A git failure costs only the Previous line, never the next item.
+	tick, ticked, previousErr := plan.Previous(ctx, root, relative)
 	resolved, warnings := plans.check(ctx, relative, parsed)
 	var view strings.Builder
-	writePlanView(&view, relative, resolved, len(warnings), tick, ticked, bodyLimit)
+	writePlanView(&view, relative, resolved, len(warnings), tick, ticked, previousErr, bodyLimit)
 	for _, clash := range plans.clashes(relative, parsed) {
 		fmt.Fprintf(&view, "Warning: %s; %s.\n", clash, namesUnique)
 	}
@@ -533,13 +531,15 @@ func startPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.W
 	return 0
 }
 
-func writePlanView(out *strings.Builder, relative string, parsed plan.Plan, warnings int, tick plan.Tick, ticked bool, bodyLimit int) {
+func writePlanView(out *strings.Builder, relative string, parsed plan.Plan, warnings int, tick plan.Tick, ticked bool, previousErr error, bodyLimit int) {
 	counts := parsed.Counts()
 	fmt.Fprintf(out, "Plan %s: %d open, %d blocked, %d done, %d in the inbox.\n", relative, counts.Open, counts.Blocked, counts.Done, counts.Inbox)
 	if warnings > 0 {
 		fmt.Fprintf(out, "%s; ele plan check %s lists %s.\n", plural(warnings, "warning", "warnings"), relative, pronoun(warnings))
 	}
 	switch {
+	case previousErr != nil:
+		fmt.Fprintf(out, "Previous: unknown; %v\n", previousErr)
 	case ticked && tick.Commit == "":
 		fmt.Fprintf(out, "Previous: %s (uncommitted)\n", tick.Title)
 	case ticked:
@@ -558,7 +558,10 @@ func writePlanView(out *strings.Builder, relative string, parsed plan.Plan, warn
 			for _, reason := range action.Blocked {
 				fmt.Fprintf(out, "  blocked: %s\n", reason)
 			}
-			if !action.After.IsZero() {
+			switch {
+			case action.AfterInvalid != "":
+				fmt.Fprintf(out, "  after: %s, not a date; ele plan check names the line\n", action.AfterInvalid)
+			case !action.After.IsZero():
 				fmt.Fprintf(out, "  after: %s\n", action.After.Local().Format("2006-01-02 15:04 -07:00"))
 			}
 			for _, flag := range action.Flags {

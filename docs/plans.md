@@ -108,7 +108,18 @@ created: 2026-10-23
   `<plan>/<name>` in another; a reason may follow a `;`. **`after: <date>`**
   holds an item until then: `YYYY-MM-DD` is local midnight, and
   `YYYY-MM-DD HH:MMZ` a UTC time. An `after:` in neither form holds its item
-  and draws an `ele plan check` warning until fixed
+  and draws an `ele plan check` warning until fixed. Either matches in any
+  case, and a `blocked:` list ending in a comma, before any `;`, carries on to
+  the next indented line that is not a list item
+- **Lines ele cannot read** each draw an `ele plan check` warning naming the
+  line, so no edit hides an item in silence: an empty or malformed `blocked:`
+  list, item names with no commas between them, a blocker cycle or an item
+  blocking itself, a ticked item that lists an open blocker, a checkbox
+  written with `*`, `+` or a number or after other text on its line, and an
+  inbox line starting `*`, `+` or a number. A fence indented four spaces or more
+  past the text of the bullet it sits under, a tab counting to the next
+  multiple of four, is no fence, as CommonMark has it. `ele plan show` lists a malformed `after:` as written under
+  its blocked item
 - **Progress** goes in the item's body as dated lines, `as of <date>: …` or
   `next: …`, so a session stopping mid-item needs no handoff. A tick carries
   one line saying what was checked, and at which commit
@@ -129,8 +140,14 @@ created: 2026-10-23
 ## Working through one
 
 At startup and after `/clear`, the session opens with each active plan and its
-next item: the first open item nothing blocks. Claude asks before starting
-anything.
+next item: the first open item nothing blocks, the closing action only once
+every other action is done. Claude asks before starting anything.
+
+`ele plan show` also names the previous item: the last box ticked, from git,
+followed across a rename, a tick since reverted left out and a title reworded
+as it was ticked still matched by its name. Outside git or before the first
+commit there is none; any other git failure takes the previous item's place
+as a line naming the error, and the rest of the plan shows as usual.
 
 `/ele:plan` with no argument picks up where you left off. It checks whether the
 next item is already done in the commits and uncommitted changes since the last

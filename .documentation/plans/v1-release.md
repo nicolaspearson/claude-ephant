@@ -1523,12 +1523,36 @@ keep.
     `stats`, `checkpoint-stats.md` and the spec say "the freeze that opened the
     run"; groups 1 to 5 hold the rest, each line above, less what the
     2026-11-06 ruling put out of scope
-- [ ] plan-parser-warnings: `ele plan` parses or warns on every line form it now
+- [x] plan-parser-warnings: `ele plan` parses or warns on every line form it now
   holds or drops in silence
+  - asserted in the plan-parser-warnings commit: `go test -race` in
+    internal/plan and cmd/ele, each case red with its fix removed: every line
+    form parses or draws its `ele plan check` warning, a wrapped `blocked:`
+    list parses, Next leaves the closing action while another is open,
+    Previous follows a rename, a revert, a reword and a two-tick commit, and
+    errors on a git failure other than no repository or no commit, which
+    `ele plan show` prints in Previous's place, keeping the next item;
+    `ele plan show` names a malformed `after:`; a fence's indent counts from
+    its list item's content
+  - ruled 2026-11-06, at the checkpoint: a fence's four columns count from
+    the content of the list item it sits in, as CommonMark has it, so a fence
+    under a nested bullet stays a fence; a git failure costs `ele plan show`
+    only its Previous line; a `.git` file pointing nowhere and a garbage
+    `HEAD` read as outside git, and a garbage branch ref may read as no commit
+    yet, all within the ruling's words and not probed, since the guard hook
+    refuses git writes in the scratchpad
   - done when each line form below is parsed or drawn as a warning by `ele plan
     check`, each by a test, a `blocked:` list wrapped over lines among them;
-    `Next` never returns the closing action while another action is open; and
-    `Previous` follows a rename and a revert, each by a test
+    `Next` never returns the closing action while another action is open;
+    `Previous` follows a rename, a revert and a title reword, and returns an
+    error for a git failure other than no repository or no commit, each by a
+    test; and `ele plan show` names a malformed `after:` as its item's reason
+  - ruled 2026-11-06: a `blocked:` list ending in a comma joins the next
+    indented line that is not a list item, and parses as edges; a tick
+    committed with a reword is a flip when the item's name matches; only "not
+    a git repository" and no `HEAD` yet read as no tick, any other git
+    failure is an error; `ele plan show` prints a malformed `after:` under
+    Blocked as the item's reason, as `check` names the line
   - ruled 2026-11-02: `Blocked:` and `After:` match in any case, as `done
     when` does; an empty or malformed `blocked:` list, a self-block or cycle,
     a ticked item listing an open blocker, `* [ ]` items and `*`, `+` or
@@ -1560,6 +1584,23 @@ keep.
     an open blocker draws none; a fence indented four or more spaces still
     opens a fence, swallowing what follows (probed); `* [ ]` items and `*`,
     `+` or numbered Inbox lines are not counted
+  - as of 2026-11-06, premise check at ce862b3, each parser claim probed on
+    the clone build and reproduced, `ele plan check` silent on every one:
+    `plan.Next` returns the closing action under an `a`/`b` cycle;
+    `writePlanView`'s "every open item is blocked" is still unreachable;
+    a merged header drops its item (counted 2 open of 3); `Blocked:` and
+    `After:` release their item; `blocked: c,`, an empty `blocked:`,
+    `blocked: c d` and a self-block each hold with no flag; a ticked item
+    listing an open blocker draws nothing; a fence indented six spaces
+    swallows every later action; `* [ ]` and `*`, `+`, `1.` Inbox lines are
+    not counted; `blocked: b,` wrapped onto `c` reads as prose and holds
+    forever, since `Parse` reads `blocked:` one body line at a time
+  - as of 2026-11-06, `Previous` claims from reading `plan.Previous` and
+    `flipped`, not probed (the guard hook refuses `git init` in the
+    scratchpad): `git log` there has no `--follow`; it returns the newest
+    commit that flipped a box, and a revert flips none, so the reverted tick
+    stays Previous; `flipped` pairs titles exactly, so a reword is no flip;
+    any `rev-parse --verify HEAD` error returns no tick and no error
 - [ ] ticket-robust: `ele ticket` keeps its ledger and lists whole
   - done when each defect below has a test that fails before its fix, or the
     user rules it out of scope
@@ -2023,6 +2064,16 @@ keep.
   .documentation/plans/v1-release.md`, and delete this plan
 
 ## Inbox
+
+- 2026-11-06, from hook-stats: a turn with no edits whose only Bash work is
+  `ele checkpoint record` and `ele checkpoint log` reads as work, so the gate
+  judges every moved path: `eleNotWork` lists only `check` and `hash` under
+  `checkpoint`, and `log`'s heredoc body makes `scanShell` refuse the whole
+  command. On 2026-11-05 in horizon it blocked a turn that had just recorded
+  its own checkpoint, on two docs another session had edited. gate-false-blocks
+  named this cost in its re-measure and left it open. Should `record` and
+  `log`, its heredoc included, read as not work, given the gate and the notes
+  ask both read `commandIsWork`?
 
 ## Out of scope
 

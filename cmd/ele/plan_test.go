@@ -29,6 +29,7 @@ created: 2026-10-17
   blocked: the parser first
 - [ ] Commands
   next: done and list
+- [ ] Close the plan
 
 ## Inbox
 
@@ -149,7 +150,7 @@ func TestRunPlanShowNamesEachActivePlanOrAMissingFile(t *testing.T) {
 
 	output, code := runCommand(t, "plan", "show")
 	require.Equal(t, 0, code, output)
-	summary := `\.md: 1 open, 1 blocked, 1 done, 1 in the inbox\. 2 warnings; ele plan check lists them\. Next: Commands\n`
+	summary := `\.md: 2 open, 1 blocked, 1 done, 1 in the inbox\. 4 warnings; ele plan check lists them\. Next: Commands\n`
 	require.Regexp(t, `^Active plans for corp · gateway, newest first; ele plan show <path> prints one:\n- \S+: (first|second)`+summary+`- \S+: (first|second)`+summary+`$`, output, "the next item skips the blocked one")
 
 	require.NoError(t, os.Remove(filepath.Join(gateway, "first.md")))
@@ -278,6 +279,29 @@ func TestRunPlanShowFreesAnItemOnceAnotherPlansBlockerIsTicked(t *testing.T) {
 	require.Equal(t, "Plan other.md: 1 open, 0 blocked, 0 done, 0 in the inbox.\n1 warning; ele plan check other.md lists it.\nFlagged:\n- wire: Wire\n  flag: blocker build/commands is done; drop it from blocked:\nNext, line 5:\n- [ ] wire: Wire\n  blocked: build/commands\n", output)
 }
 
+func TestRunPlanShowNamesAMalformedAfterAsTheReason(t *testing.T) {
+	home := recallFixture(t)
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	writeFile(t, filepath.Join(gateway, "build.md"), "---\nkind: plan\n---\n## Actions\n- [ ] wire: Wire\n  - done when x\n  - after: soon\n- [ ] Close\n")
+	t.Chdir(gateway)
+
+	output, code := runCommand(t, "plan", "show", "build.md")
+	require.Equal(t, 0, code, output)
+	require.Equal(t, "Plan build.md: 1 open, 1 blocked, 0 done, 0 in the inbox.\n1 warning; ele plan check build.md lists it.\nBlocked:\n- wire: Wire\n  after: soon, not a date; ele plan check names the line\nNext: none; every open item is blocked.\n", output)
+}
+
+func TestRunPlanShowKeepsTheNextItemWhenGitFails(t *testing.T) {
+	home := recallFixture(t)
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	writeFile(t, filepath.Join(gateway, "build.md"), "---\nkind: plan\n---\n## Actions\n- [ ] wire: Wire\n  - done when x\n- [ ] Close\n")
+	t.Chdir(gateway)
+	t.Setenv("PATH", "")
+
+	output, code := runCommand(t, "plan", "show", "build.md")
+	require.Equal(t, 0, code, output)
+	require.Regexp(t, `^Plan build.md: 2 open, 0 blocked, 0 done, 0 in the inbox.\nPrevious: unknown; git rev-parse --verify --quiet HEAD: .+\nNext, line 5:\n- \[ \] wire: Wire\n  - done when x\n$`, output)
+}
+
 func TestRunPlanStartNamesThePlansItCouldNotCheckAndDoneStoresAClosedPlansRecord(t *testing.T) {
 	home := recallFixture(t)
 	gateway := filepath.Join(home, "w", "corp", "gateway")
@@ -395,8 +419,8 @@ func TestRunPlanStartsShowsListsAndCloses(t *testing.T) {
 
 	output, code = runCommand(t, "plan", "show")
 	require.Equal(t, 0, code, output)
-	require.Equal(t, `Plan .documentation/plans/build.md: 1 open, 1 blocked, 1 done, 1 in the inbox.
-2 warnings; ele plan check .documentation/plans/build.md lists them.
+	require.Equal(t, `Plan .documentation/plans/build.md: 2 open, 1 blocked, 1 done, 1 in the inbox.
+4 warnings; ele plan check .documentation/plans/build.md lists them.
 Blocked:
 - Start block
   blocked: the parser first

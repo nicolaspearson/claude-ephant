@@ -55,6 +55,97 @@ func TestNextIsNoneWhenEveryOpenItemIsBlocked(t *testing.T) {
 	require.False(t, ok)
 }
 
+func TestNextLeavesTheClosingActionUntilEveryOtherIsDone(t *testing.T) {
+	tests := []struct {
+		content string
+		name    string
+		want    string
+	}{
+		{content: "- [ ] a: A\n  after: 2099-01-01\n- [ ] Close\n", name: "after"},
+		{content: "- [ ] Close\n", name: "closing alone", want: "Close"},
+		{content: "- [ ] a: A\n  blocked: b\n- [ ] b: B\n  blocked: a\n- [ ] Close\n", name: "cycle"},
+		{content: "- [x] a: A\n- [ ] Close\n", name: "every other done", want: "Close"},
+		{content: "- [ ] a: A\n  blocked: the user's call\n- [ ] Close\n", name: "prose"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			parsed, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n" + test.content))
+			require.NoError(t, err)
+			next, _ := parsed.Resolve(time.Now(), nil).Next()
+			require.Equal(t, test.want, next.Title)
+		})
+	}
+}
+
+func TestCheckWarnsOnEachLineFormItHoldsOrDrops(t *testing.T) {
+	tests := []struct {
+		content string
+		name    string
+		want    []Warning
+	}{
+		{content: "- [ ] a: A\n  - done when x, and `- [ ] b: B` in code\n- [ ] Close\n", name: "checkbox in a code span"},
+		{content: "- [ ] a: A\n  - done when x\n  - blocked: b\n- [ ] b: B\n  - done when x\n  - blocked: a\n- [ ] Close\n", name: "cycle", want: []Warning{{Line: 5, Text: "a: blocked in a cycle, a → b → a, which no tick can free"}, {Line: 8, Text: "b: blocked in a cycle, b → a → b, which no tick can free"}}},
+		{content: "- [ ] a: A\n  - done when x\n  - blocked:\n- [ ] Close\n", name: "empty blocked", want: []Warning{{Line: 7, Text: "a: blocked: names no item; it holds an open item until fixed"}}},
+		{content: "- [x] a: A\n- [ ] Close\n## Inbox\n* 2026-10-21 star\n+ 2026-10-21 plus\n1. 2026-10-21 numbered\n", name: "inbox lines", want: []Warning{
+			{Line: 6, Text: "every action but the closing one is done; ready to close"},
+			{Line: 8, Text: "inbox item is not a - line, so ele does not count it"},
+			{Line: 9, Text: "inbox item is not a - line, so ele does not count it"},
+			{Line: 10, Text: "inbox item is not a - line, so ele does not count it"},
+		}},
+		{content: "- [ ] a: A\n  - done when x- [ ] b: B\n  - done when y\n- [ ] Close\n", name: "merged header", want: []Warning{{Line: 6, Text: "a checkbox follows other text, so ele reads no item there; put it on a line of its own"}}},
+		{content: "- [ ] a: A\n  - done when x\n  - blocked: c d\n- [ ] c: C\n  - done when x\n- [ ] d: D\n  - done when x\n- [ ] Close\n", name: "names without commas", want: []Warning{{Line: 5, Text: `a: blocked: "c d" reads as prose; separate its names with commas`}}},
+		{content: "1. [ ] a: A\n  - done when x\n- [ ] Close\n", name: "numbered item", want: []Warning{{Line: 5, Text: "item is not a - [ ] or - [x] line, so ele does not read it"}}},
+		{content: "+ [x] a: A\n- [ ] Close\n", name: "plus item", want: []Warning{{Line: 5, Text: "item is not a - [ ] or - [x] line, so ele does not read it"}}},
+		{content: "- [ ] a: A\n  - done when x\n  - blocked: a\n- [ ] Close\n", name: "self-block", want: []Warning{{Line: 5, Text: "a: blocked in a cycle, a → a, which no tick can free"}}},
+		{content: "* [ ] a: A\n  - done when x\n- [ ] Close\n", name: "star item", want: []Warning{{Line: 5, Text: "item is not a - [ ] or - [x] line, so ele does not read it"}}},
+		{content: "- [x] a: A\n  - blocked: b\n- [ ] b: B\n  - done when x\n- [ ] Close\n", name: "ticked over an open blocker", want: []Warning{{Line: 5, Text: "a: ticked while blocker b is open"}}},
+		{content: "- [ ] a: A\n  - done when x\n  - blocked: c,\n- [ ] c: C\n  - done when x\n- [ ] Close\n", name: "trailing comma", want: []Warning{{Line: 7, Text: `a: blocked: "c," is not a list of item names; it holds an open item until fixed`}}},
+		{content: "- [ ] a: A\n  - blocked: c,\n  ```\n  - done when x\n  ```\n- [ ] c: C\n  - done when x\n- [ ] Close\n", name: "trailing comma before a fence", want: []Warning{{Line: 5, Text: "a: no done when line"}, {Line: 6, Text: `a: blocked: "c," is not a list of item names; it holds an open item until fixed`}}},
+		{content: "- [ ] a: A\n  - blocked: c,\n  - done when x\n- [ ] c: C\n  - done when x\n- [ ] Close\n", name: "trailing comma before a list item", want: []Warning{{Line: 6, Text: `a: blocked: "c," is not a list of item names; it holds an open item until fixed`}}},
+	}
+	now := time.Date(2026, 10, 21, 12, 0, 0, 0, time.Local)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			parsed, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n" + test.content))
+			require.NoError(t, err)
+			require.Equal(t, test.want, parsed.Resolve(now, nil).Check(now))
+		})
+	}
+}
+
+func TestParseReadsBlockedAndAfterInAnyCaseAndAWrappedList(t *testing.T) {
+	parsed, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n" +
+		"- [ ] a: A\n  - Blocked: b,\n    c; once both land\n  - AFTER: 2099-01-01\n  - next: more\n" +
+		"- [ ] b: B\n  blocked: c; waits on the review, the docs,\n  after: 2099-01-02\n- [ ] c: C\n- [ ] Close\n"))
+	require.NoError(t, err)
+	require.Equal(t, []Edge{{Name: "b"}, {Name: "c"}}, parsed.Actions[0].Edges)
+	require.Equal(t, []string{"b, c; once both land"}, parsed.Actions[0].Blocked)
+	require.Equal(t, time.Date(2099, 1, 1, 0, 0, 0, 0, time.Local), parsed.Actions[0].After)
+	require.True(t, parsed.Resolve(time.Now(), nil).Actions[0].Held)
+	require.Equal(t, time.Date(2099, 1, 2, 0, 0, 0, 0, time.Local), parsed.Actions[1].After, "a comma in the reason joins nothing")
+}
+
+func TestParseCountsAFencesIndentFromItsListItem(t *testing.T) {
+	parsed, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n" +
+		"- [ ] a: A\n      ```\n" +
+		"- [ ] b: B\n\t\t```\n" +
+		"- [ ] c: C\n  - an example:\n    ```\n  blocked: not a reason\n    ```\n" +
+		"- [ ] d: D\n  - an example:\n        ```\n  blocked: a reason\n" +
+		"- [ ] e: E\n  - an example:\n      ```\n  blocked: not a reason\n      ```\n" +
+		"- [ ] f: F\n  - a nested item\n  back at the item\n      ```\n  blocked: a reason\n" +
+		"- [ ] Close\n"))
+	require.NoError(t, err)
+	var names []string
+	for _, action := range parsed.Actions {
+		names = append(names, action.Name)
+	}
+	require.Equal(t, []string{"a", "b", "c", "d", "e", "f", ""}, names, "four columns past the item's content is no fence")
+	require.Empty(t, parsed.Actions[2].Blocked, "a fence under a nested item is a fence")
+	require.Equal(t, []string{"a reason"}, parsed.Actions[3].Blocked, "four columns past a nested item's content is no fence")
+	require.Empty(t, parsed.Actions[4].Blocked, "two columns past a nested item's content is a fence")
+	require.Equal(t, []string{"a reason"}, parsed.Actions[5].Blocked, "a line back at the item's indent ends the nested item")
+}
+
 func TestParseClosesAFenceOnlyOnItsOwnMarker(t *testing.T) {
 	content := "---\nkind: plan\n---\n## Actions\n" +
 		"- [ ] Tilde\n  ~~~\n  ```go\n  blocked: an example, not a reason\n  ~~~\n" +
@@ -300,6 +391,11 @@ func TestCheckWarnsOnWhatItCannotReadAndHoldsALooseAfter(t *testing.T) {
 		{Line: 4, Text: `unknown front matter key "status"; ignored`},
 		{Line: 9, Text: `a: after "soon" is neither YYYY-MM-DD nor YYYY-MM-DD HH:MMZ; it holds an open item until fixed`},
 	}, resolved.Check(time.Now()))
+
+	empty, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n- [ ] a: A\n  - done when x\n  - after:\n- [ ] Close\n"))
+	require.NoError(t, err)
+	require.Equal(t, `""`, empty.Actions[0].AfterInvalid)
+	require.True(t, empty.Resolve(time.Now(), nil).Actions[0].Held, "an empty after: holds its item")
 }
 
 func TestParseRejectsInvalidPlans(t *testing.T) {
@@ -404,6 +500,82 @@ func TestPreviousPrefersAnUncommittedTick(t *testing.T) {
 	tick, _, err = Previous(context.Background(), root, "plans.md")
 	require.NoError(t, err)
 	require.Equal(t, Tick{Title: "Third"}, tick, "of two ticks in one diff, the later in the file")
+}
+
+func TestPreviousFollowsARenameARevertAndAReword(t *testing.T) {
+	root := t.TempDir()
+	runGit(t, root, "init", "--quiet")
+	write := func(path string, content string) {
+		t.Helper()
+		require.NoError(t, os.WriteFile(filepath.Join(root, path), []byte("---\nkind: plan\n---\n## Actions\n"+content), 0o600))
+	}
+
+	write("plans.md", "- [ ] a: A\n- [ ] b: B\n- [ ] Close\n")
+	runGit(t, root, "add", "plans.md")
+	runGit(t, root, "commit", "--quiet", "-m", "plan")
+	write("plans.md", "- [x] a: A, reworded\n- [ ] b: B\n- [ ] Close\n")
+	runGit(t, root, "commit", "--quiet", "-am", "tick a")
+	runGit(t, root, "mv", "plans.md", "moved.md")
+	runGit(t, root, "commit", "--quiet", "-m", "move")
+	tick, ok, err := Previous(context.Background(), root, "moved.md")
+	require.NoError(t, err)
+	require.True(t, ok, "the tick before the rename")
+	require.Equal(t, "a: A, reworded", tick.Title, "a reword in the ticking commit is still its flip")
+
+	write("moved.md", "- [x] a: A, reworded\n- [x] b: B\n- [ ] Close\n")
+	runGit(t, root, "commit", "--quiet", "-am", "tick b")
+	runGit(t, root, "revert", "--no-edit", "HEAD")
+	tick, ok, err = Previous(context.Background(), root, "moved.md")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, "a: A, reworded", tick.Title, "a reverted tick is not previous")
+}
+
+func TestPreviousTakesTheTickStillTickedOfACommitThatTickedTwo(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "plans.md")
+	runGit(t, root, "init", "--quiet")
+	write := func(content string) {
+		t.Helper()
+		require.NoError(t, os.WriteFile(path, []byte("---\nkind: plan\n---\n## Actions\n"+content), 0o600))
+	}
+
+	write("- [ ] a: A\n- [ ] b: B\n- [ ] Close\n")
+	runGit(t, root, "add", "plans.md")
+	runGit(t, root, "commit", "--quiet", "-m", "plan")
+	write("- [x] a: A\n- [x] b: B\n- [ ] Close\n")
+	runGit(t, root, "commit", "--quiet", "-am", "tick a and b")
+	write("- [x] a: A\n- [ ] b: B\n- [ ] Close\n")
+	runGit(t, root, "commit", "--quiet", "-am", "untick b")
+	tick, ok, err := Previous(context.Background(), root, "plans.md")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, "a: A", tick.Title)
+}
+
+func TestPreviousIsNoneBeforeTheFirstCommitAndFailsOnABrokenRepository(t *testing.T) {
+	root := t.TempDir()
+	runGit(t, root, "init", "--quiet")
+	_, ok, err := Previous(context.Background(), root, "plans.md")
+	require.NoError(t, err)
+	require.False(t, ok)
+
+	require.NoError(t, os.WriteFile(filepath.Join(root, "plans.md"), []byte("---\nkind: plan\n---\n## Actions\n- [ ] Close\n"), 0o600))
+	runGit(t, root, "add", "plans.md")
+	runGit(t, root, "commit", "--quiet", "-m", "plan")
+	require.NoError(t, os.RemoveAll(filepath.Join(root, ".git", "objects")))
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".git", "objects"), 0o700))
+	_, _, err = Previous(context.Background(), root, "plans.md")
+	require.Error(t, err, "a repository missing its objects is not outside git")
+
+	file := filepath.Join(t.TempDir(), "file")
+	require.NoError(t, os.WriteFile(file, nil, 0o600))
+	_, _, err = Previous(context.Background(), file, "plans.md")
+	require.ErrorContains(t, err, "git rev-parse", "a rev-parse git refuses is not outside git")
+
+	t.Setenv("PATH", "")
+	_, _, err = Previous(context.Background(), root, "plans.md")
+	require.Error(t, err, "a missing git is not outside git")
 }
 
 func TestWriteStoredLeavesAReaderOfTheEarlierFileItWhole(t *testing.T) {

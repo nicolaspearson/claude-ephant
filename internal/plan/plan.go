@@ -27,11 +27,16 @@ var (
 	checkbox = regexp.MustCompile(`^- \[([ xX])\] (.*)$`)
 	edgeName = regexp.MustCompile(`^(?:([a-z0-9]+(?:-[a-z0-9]+)*)/)?([a-z0-9]+(?:-[a-z0-9]+)*)$`)
 	// Eight hex digits for a session prefix, so prose such as "ele show added" passes.
-	eleShow   = regexp.MustCompile(`\bele show(?: --(?:around|at|context) (?:"[^"]*"|'[^']*'|\S+))* (?:--note (\d{8}-[0-9a-f]{6}|[0-9a-f]{8,})|([0-9a-f]{8,}))\b`)
-	heading   = regexp.MustCompile(`^(#{1,6})\s+(.*?)\s*#*\s*$`)
-	inboxDate = regexp.MustCompile(`^- (\d{4}-\d{2}-\d{2})\b`)
-	itemName  = regexp.MustCompile(`^([a-z0-9]+(?:-[a-z0-9]+)*): `)
+	eleShow    = regexp.MustCompile(`\bele show(?: --(?:around|at|context) (?:"[^"]*"|'[^']*'|\S+))* (?:--note (\d{8}-[0-9a-f]{6}|[0-9a-f]{8,})|([0-9a-f]{8,}))\b`)
+	heading    = regexp.MustCompile(`^(#{1,6})\s+(.*?)\s*#*\s*$`)
+	inboxDate  = regexp.MustCompile(`^- (\d{4}-\d{2}-\d{2})\b`)
+	itemName   = regexp.MustCompile(`^([a-z0-9]+(?:-[a-z0-9]+)*): `)
+	listMarker = regexp.MustCompile(`^(?:[-*+]|\d{1,9}[.)]) +`)
+	// A deleted line can join an item's header onto the end of the line before.
+	mergedBox = regexp.MustCompile(`\S.*- \[[ xX]\] `)
 	noteID    = regexp.MustCompile(`\b\d{8}-[0-9a-f]{6}\b`)
+	otherBox  = regexp.MustCompile(`^(?:[*+]|\d+[.)]) \[[ xX]\] `)
+	otherList = regexp.MustCompile(`^(?:[*+]|\d+[.)]) `)
 	sessionID = regexp.MustCompile(`\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b`)
 )
 
@@ -70,8 +75,9 @@ type Edge struct {
 }
 
 type Item struct {
-	After        time.Time
-	AfterInvalid bool
+	After time.Time
+	// The malformed value as written, two quote characters when empty; non-empty holds the item.
+	AfterInvalid string
 	Blocked      []string
 	Body         []string
 	Done         bool
@@ -113,6 +119,33 @@ const (
 type Warning struct {
 	Line int
 	Text string
+}
+
+// The content column of each list item a line may sit in, outermost first.
+type containers []int
+
+// enter reads a line outside a fence and returns the column its fence indent counts from.
+func (c *containers) enter(line string) int {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" {
+		return c.top()
+	}
+	indent := column(line)
+	for len(*c) > 0 && indent < (*c)[len(*c)-1] {
+		*c = (*c)[:len(*c)-1]
+	}
+	base := c.top()
+	if marker := listMarker.FindString(trimmed); marker != "" {
+		*c = append(*c, indent+len(marker))
+	}
+	return base
+}
+
+func (c containers) top() int {
+	if len(c) == 0 {
+		return 0
+	}
+	return c[len(c)-1]
 }
 
 func Parse(content []byte) (Plan, error) {
@@ -169,6 +202,7 @@ func Parse(content []byte) (Plan, error) {
 
 	section, fence, actions := "", "", false
 	var item *Item
+	var lists containers
 	for scanner.Scan() {
 		number++
 		line := scanner.Text()
@@ -176,8 +210,15 @@ func Parse(content []byte) (Plan, error) {
 			plan.Citations = append(plan.Citations, Citation{Line: number, References: references})
 		}
 		inside := fence != ""
-		fence = stepFence(fence, line)
+		base := lists.top()
+		if !inside {
+			base = lists.enter(line)
+		}
+		fence = stepFence(fence, line, base)
 		fenceLine := inside || fence != ""
+		if section == sectionActions && !fenceLine && mergedBox.MatchString(withoutCode(strings.TrimSpace(line))) {
+			plan.Malformed = append(plan.Malformed, Warning{Line: number, Text: "a checkbox follows other text, so ele reads no item there; put it on a line of its own"})
+		}
 		if item != nil && (strings.TrimSpace(line) == "" || fenceLine || line != strings.TrimLeft(line, " \t")) {
 			item.Body = append(item.Body, line)
 			if !item.Done && !fenceLine {
@@ -209,6 +250,10 @@ func Parse(content []byte) (Plan, error) {
 				entry.Date, _ = time.ParseInLocation(time.DateOnly, match[1], time.Local)
 			}
 			plan.Inbox = append(plan.Inbox, entry)
+		case section == sectionInbox && otherList.MatchString(line):
+			plan.Malformed = append(plan.Malformed, Warning{Line: number, Text: "inbox item is not a - line, so ele does not count it"})
+		case section == sectionActions && otherBox.MatchString(line):
+			plan.Malformed = append(plan.Malformed, Warning{Line: number, Text: "item is not a - [ ] or - [x] line, so ele does not read it"})
 		case section == sectionActions:
 			if match := checkbox.FindStringSubmatch(line); match != nil {
 				title := strings.TrimSpace(match[2])
@@ -241,40 +286,61 @@ func Parse(content []byte) (Plan, error) {
 		for len(action.Body) > 0 && strings.TrimSpace(action.Body[len(action.Body)-1]) == "" {
 			action.Body = action.Body[:len(action.Body)-1]
 		}
+		label := cmp.Or(action.Name, "action")
 		bodyFence := ""
-		for offset, line := range action.Body {
+		// The header's checkbox is its list item's content.
+		lists := containers{len("- ")}
+		for offset := 0; offset < len(action.Body); offset++ {
+			line := action.Body[offset]
 			inside := bodyFence != ""
-			if bodyFence = stepFence(bodyFence, line); inside || bodyFence != "" {
+			base := lists.top()
+			if !inside {
+				base = lists.enter(line)
+			}
+			if bodyFence = stepFence(bodyFence, line, base); inside || bodyFence != "" {
 				continue
 			}
+			number := action.Line + offset + 1
 			trimmed := strings.TrimPrefix(strings.TrimSpace(line), "- ")
 			action.DoneWhen = action.DoneWhen || strings.HasPrefix(strings.ToLower(trimmed), "done when")
-			if reason, ok := strings.CutPrefix(trimmed, "blocked:"); ok {
+			if reason, ok := cutFold(trimmed, "blocked:"); ok {
 				reason = strings.TrimSpace(reason)
+				// A formatter wraps a long list after a comma.
+				for strings.HasSuffix(reason, ",") && !strings.Contains(reason, ";") && offset+1 < len(action.Body) && continues(action.Body[offset+1]) {
+					offset++
+					reason += " " + strings.TrimSpace(action.Body[offset])
+				}
 				action.Blocked = append(action.Blocked, reason)
-				if found := edges(reason); found != nil {
+				head, _, _ := strings.Cut(reason, ";")
+				switch found := edges(reason); {
+				case found != nil:
 					action.Edges = append(action.Edges, found...)
-				} else {
+				case strings.TrimSpace(head) == "":
+					action.Prose = append(action.Prose, reason)
+					plan.Malformed = append(plan.Malformed, Warning{Line: number, Text: label + ": blocked: names no item; it holds an open item until fixed"})
+				case strings.Contains(head, ","):
+					action.Prose = append(action.Prose, reason)
+					plan.Malformed = append(plan.Malformed, Warning{Line: number, Text: fmt.Sprintf("%s: blocked: %q is not a list of item names; it holds an open item until fixed", label, strings.TrimSpace(head))})
+				default:
 					action.Prose = append(action.Prose, reason)
 				}
 			}
-			if value, ok := strings.CutPrefix(trimmed, "after:"); ok {
-				number := action.Line + offset + 1
-				if !action.After.IsZero() || action.AfterInvalid {
+			if value, ok := cutFold(trimmed, "after:"); ok {
+				if !action.After.IsZero() || action.AfterInvalid != "" {
 					return invalid("a second after: on line %d", number)
 				}
-				after, err := parseAfter(strings.TrimSpace(value))
+				value = strings.TrimSpace(value)
+				after, err := parseAfter(value)
 				if err != nil {
-					label := cmp.Or(action.Name, "action")
-					plan.Malformed = append(plan.Malformed, Warning{Line: number, Text: fmt.Sprintf("%s: after %q is neither YYYY-MM-DD nor YYYY-MM-DD HH:MMZ; it holds an open item until fixed", label, strings.TrimSpace(value))})
-					action.AfterInvalid = true
+					plan.Malformed = append(plan.Malformed, Warning{Line: number, Text: fmt.Sprintf("%s: after %q is neither YYYY-MM-DD nor YYYY-MM-DD HH:MMZ; it holds an open item until fixed", label, value)})
+					action.AfterInvalid = cmp.Or(value, `""`)
 					continue
 				}
 				action.After = after
 			}
 		}
 		// Unresolved until Resolve: every edge and date still holds the item back.
-		action.Held = !action.Done && (len(action.Blocked) > 0 || !action.After.IsZero() || action.AfterInvalid)
+		action.Held = !action.Done && (len(action.Blocked) > 0 || !action.After.IsZero() || action.AfterInvalid != "")
 	}
 	return plan, nil
 }
@@ -362,11 +428,17 @@ func (p Plan) Counts() Counts {
 	return counts
 }
 
+// Next leaves the closing action until every other action is done, held ones included.
 func (p Plan) Next() (Item, bool) {
-	for _, action := range p.Actions {
-		if !action.Done && !action.Held {
-			return action, true
+	last := len(p.Actions) - 1
+	for at, action := range p.Actions {
+		if action.Done || action.Held {
+			continue
 		}
+		if at == last && slices.ContainsFunc(p.Actions[:last], func(earlier Item) bool { return !earlier.Done }) {
+			break
+		}
+		return action, true
 	}
 	return Item{}, false
 }
@@ -383,23 +455,48 @@ func (p Plan) Resolve(now time.Time, lookup Lookup) Plan {
 			local[action.Name] = BlockerOpen
 		}
 	}
+	state := func(edge Edge) Blocker {
+		if edge.Plan != "" {
+			return lookup(edge)
+		}
+		return local[edge.Name]
+	}
+	waits := map[string][]string{}
+	for _, action := range p.Actions {
+		for _, edge := range action.Edges {
+			if !action.Done && action.Name != "" && edge.Plan == "" {
+				waits[action.Name] = append(waits[action.Name], edge.Name)
+			}
+		}
+	}
 	actions := slices.Clone(p.Actions)
 	for at := range actions {
 		action := &actions[at]
 		action.Flags, action.Held = nil, false
 		if action.Done {
+			for _, edge := range action.Edges {
+				if state(edge) == BlockerOpen {
+					action.Flags = append(action.Flags, fmt.Sprintf("ticked while blocker %s is open", edge))
+				}
+			}
 			continue
 		}
-		action.Held = len(action.Prose) > 0 || now.Before(action.After) || action.AfterInvalid
+		if path := cycle(waits, action.Name); path != nil {
+			action.Flags = append(action.Flags, fmt.Sprintf("blocked in a cycle, %s, which no tick can free", strings.Join(path, " → ")))
+		}
+		for _, reason := range action.Prose {
+			head, _, _ := strings.Cut(reason, ";")
+			words := strings.Fields(head)
+			if len(words) > 1 && !slices.ContainsFunc(words, func(word string) bool { _, ok := local[word]; return !ok }) {
+				action.Flags = append(action.Flags, fmt.Sprintf("blocked: %q reads as prose; separate its names with commas", strings.TrimSpace(head)))
+			}
+		}
+		action.Held = len(action.Prose) > 0 || now.Before(action.After) || action.AfterInvalid != ""
 		if !action.After.IsZero() && !now.Before(action.After) {
 			action.Flags = append(action.Flags, fmt.Sprintf("after: %s has passed; drop it", action.After.Local().Format("2006-01-02 15:04 -07:00")))
 		}
 		for _, edge := range action.Edges {
-			state := local[edge.Name]
-			if edge.Plan != "" {
-				state = lookup(edge)
-			}
-			switch state {
+			switch state(edge) {
 			case BlockerMissing:
 				action.Held = true
 				action.Flags = append(action.Flags, fmt.Sprintf("blocker %s does not exist", edge))
@@ -448,6 +545,55 @@ func (p *Plan) claim(line string, number int) {
 	}
 }
 
+// A tab reaches the next multiple of four, as CommonMark has it.
+func column(line string) int {
+	width := 0
+	for _, character := range line {
+		switch character {
+		case ' ':
+			width++
+		case '\t':
+			width += 4 - width%4
+		default:
+			return width
+		}
+	}
+	return width
+}
+
+func continues(line string) bool {
+	trimmed := strings.TrimSpace(line)
+	return trimmed != "" && line != trimmed && !strings.HasPrefix(trimmed, "- ") && !otherList.MatchString(trimmed) && stepFence("", trimmed, 0) == ""
+}
+
+func cutFold(line string, prefix string) (string, bool) {
+	if len(line) < len(prefix) || !strings.EqualFold(line[:len(prefix)], prefix) {
+		return line, false
+	}
+	return line[len(prefix):], true
+}
+
+// The names from start back to itself, or nil when start is in no cycle.
+func cycle(waits map[string][]string, start string) []string {
+	seen := map[string]bool{}
+	var walk func(name string, path []string) []string
+	walk = func(name string, path []string) []string {
+		for _, next := range waits[name] {
+			if next == start {
+				return append(path, next)
+			}
+			if !seen[next] {
+				seen[next] = true
+				if found := walk(next, append(path, next)); found != nil {
+					return found
+				}
+			}
+		}
+		return nil
+	}
+	return walk(start, []string{start})
+}
+
 func daysOld(age time.Duration) string {
 	if count := int(age / (24 * time.Hour)); count != 1 {
 		return fmt.Sprintf("%d days", count)
@@ -478,9 +624,13 @@ func parseAfter(value string) (time.Time, error) {
 }
 
 // A fence closes only on its own character, at least as long, with nothing after; a backtick in a backtick opener's info string makes it inline code.
-func stepFence(open string, line string) string {
+// Four columns of indent past base, its list item's content, make neither opener nor closer, as CommonMark has it.
+func stepFence(open string, line string, base int) string {
 	trimmed := strings.TrimSpace(line)
 	if trimmed == "" || (trimmed[0] != '`' && trimmed[0] != '~') {
+		return open
+	}
+	if column(line)-base >= 4 {
 		return open
 	}
 	rest := strings.TrimLeft(trimmed, trimmed[:1])
@@ -497,4 +647,25 @@ func stepFence(open string, line string) string {
 		return ""
 	}
 	return open
+}
+
+// An unclosed backtick run hides the rest of the line: a wrapped code span closes on a later one.
+func withoutCode(line string) string {
+	var kept strings.Builder
+	for line != "" {
+		start := strings.IndexByte(line, '`')
+		if start < 0 {
+			kept.WriteString(line)
+			break
+		}
+		kept.WriteString(line[:start])
+		run := line[start : start+len(line[start:])-len(strings.TrimLeft(line[start:], "`"))]
+		rest := line[start+len(run):]
+		end := strings.Index(rest, run)
+		if end < 0 {
+			break
+		}
+		line = rest[end+len(run):]
+	}
+	return kept.String()
 }
