@@ -60,6 +60,8 @@ func TestWriteStatsCreditsSeverityAndSharedFindingsAndTimesRuns(t *testing.T) {
 		statsRecord(`"scope":"branch",`, "["+statsFinding(``, "bugs", ``, "fixed")+"]", "full"),
 		statsRecord(`"duration":600,`, "["+statsFinding(`"also_raised_by":["prose"],`, "bugs", `"severity":"defect",`, "fixed")+","+statsFinding(``, "prose", `"severity":"nit",`, "refuted")+","+statsFinding(``, "conventions", `"severity":"blocker",`, "deliberate")+"]", "full"),
 		statsRecord(`"duration":120,"scope":"delta",`, "[]", "small"),
+		statsRecord(`"duration":0,"scope":"delta",`, "[]", "small"),
+		statsRecord(`"duration":-30,"scope":"delta",`, "[]", "full"),
 	)
 
 	output := writeStats(t, logPath, 30)
@@ -68,11 +70,25 @@ func TestWriteStatsCreditsSeverityAndSharedFindingsAndTimesRuns(t *testing.T) {
 		"bugs                  0       1        0    0        1       1",
 		"conventions           1       0        0    0        0       0",
 		"prose                 0       1        0    0        0       1",
-		"Scope: uncommitted 1, delta 1, branch 1.",
-		"Duration, first freeze to log line: median 6.0m over 2 of 3 checkpoints (full 10.0m, small 2.0m); longest 10.0m",
+		"Scope: uncommitted 1, delta 3, branch 1.",
+		"Duration, the freeze that opened the run to log line: median 6.0m over 2 of 5 checkpoints (full 10.0m, small 2.0m); longest 10.0m",
+		"Duration of 0 seconds or less, left out of the median: 2 checkpoints; 1 carry none",
 	} {
 		require.Contains(t, strings.Split(output, "\n"), line, output)
 	}
+}
+
+func TestWriteStatsLeavesTheMedianOutWhenNoDurationIsAboveZero(t *testing.T) {
+	logPath := writeStatsLog(t,
+		statsRecord(`"duration":0,`, "[]", "small"),
+		statsRecord(``, "[]", "full"),
+	)
+
+	output := writeStats(t, logPath, 30)
+
+	require.Contains(t, output, "\nDuration of 0 seconds or less, left out of the median: 1 checkpoints; 1 carry none\n")
+	require.NotContains(t, output, "median 0")
+	require.NotContains(t, output, "no checkpoint carries one")
 }
 
 func TestWriteStatsNamesTheLogWhenTheWindowIsEmpty(t *testing.T) {

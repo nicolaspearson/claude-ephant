@@ -248,23 +248,32 @@ func Report(w io.Writer, runs []Run) {
 
 	var durations []float64
 	byMode := map[string][]float64{}
+	unmeasured := 0
 	for _, run := range runs {
-		if run.Timed {
+		switch {
+		case run.Timed && run.Duration <= 0:
+			unmeasured++
+		case run.Timed:
 			durations = append(durations, float64(run.Duration))
 			byMode[run.Mode] = append(byMode[run.Mode], float64(run.Duration))
 		}
 	}
-	if len(durations) == 0 {
+	if len(durations) == 0 && unmeasured == 0 {
 		fmt.Fprintln(w, "Duration: no checkpoint carries one")
 		return
 	}
-	var medians []string
-	for _, mode := range []string{"full", "small"} {
-		if len(byMode[mode]) > 0 {
-			medians = append(medians, fmt.Sprintf("%s %.1fm", mode, Median(byMode[mode])/60))
+	if len(durations) > 0 {
+		var medians []string
+		for _, mode := range []string{"full", "small"} {
+			if len(byMode[mode]) > 0 {
+				medians = append(medians, fmt.Sprintf("%s %.1fm", mode, Median(byMode[mode])/60))
+			}
 		}
+		fmt.Fprintf(w, "Duration, the freeze that opened the run to log line: median %.1fm over %d of %d checkpoints (%s); longest %.1fm\n", Median(durations)/60, len(durations), len(runs), strings.Join(medians, ", "), slices.Max(durations)/60)
 	}
-	fmt.Fprintf(w, "Duration, first freeze to log line: median %.1fm over %d of %d checkpoints (%s); longest %.1fm\n", Median(durations)/60, len(durations), len(runs), strings.Join(medians, ", "), slices.Max(durations)/60)
+	if unmeasured > 0 {
+		fmt.Fprintf(w, "Duration of 0 seconds or less, left out of the median: %d checkpoints; %d carry none\n", unmeasured, len(runs)-len(durations)-unmeasured)
+	}
 }
 
 func ReportReviews(w io.Writer, runs []Run) {

@@ -51,7 +51,7 @@ func Base(ctx context.Context, root string) (string, error) {
 	return strings.TrimRight(base, "\n"), nil
 }
 
-// Freeze writes the diff for the reviewers, the delta since the last record and the fingerprint for the re-review check, and opens the run. A freeze inside an open run keeps its clock unless StartsRun, so a re-review's freeze, or one after the record, does not reset the duration.
+// Freeze writes the diff for the reviewers, the delta since the last record and the fingerprint for the re-review check, and opens the run. A freeze keeps the run's clock unless StartsRun or the window has passed since the last freeze, so a re-review's freeze, or one after the record, does not reset the duration.
 func Freeze(ctx context.Context, options FreezeOptions) (string, error) {
 	root := options.Root
 	if _, err := ReviewedFile(ctx, root); err != nil {
@@ -328,10 +328,13 @@ func openRun(ctx context.Context, root string, options FreezeOptions) error {
 	if err != nil {
 		return err
 	}
-	if _, err := os.Stat(run + ".started"); options.StartsRun || err != nil {
+	// `.started` holds the run's start and, by its mtime, the last freeze: `record` ends the run but keeps the clock.
+	if info, err := os.Stat(run + ".started"); options.StartsRun || err != nil || lapsed(info.ModTime()) {
 		if err := os.WriteFile(run+".started", []byte(strconv.FormatInt(time.Now().Unix(), 10)+"\n"), 0o600); err != nil {
 			return err
 		}
+	} else if err := os.Chtimes(run+".started", time.Now(), time.Now()); err != nil {
+		return err
 	}
 	if err := os.WriteFile(run+".frozen", []byte(strings.Join(options.Paths, "\n")+"\n"), 0o600); err != nil {
 		return err

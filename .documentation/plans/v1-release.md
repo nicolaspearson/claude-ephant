@@ -1310,7 +1310,7 @@ keep.
     -d)`, `checkpoint-stats.md`'s Duration bullet against `openRun` in
     `internal/checkpoint`, `TRACKERS.md`'s open states, `review/SKILL.md` step
     12 against `GITLAB.md` step 3, and plan-audit's §0 topic
-- [ ] checkpoint-correctness: `ele checkpoint` reports and records what was
+- [x] checkpoint-correctness: `ele checkpoint` reports and records what was
   reviewed
   - done when each defect below has a test that fails before its fix, or the
     user rules it out of scope
@@ -1497,11 +1497,32 @@ keep.
     and exit 1 on a terminal or other character device, pass non-JSON and a
     payload past 1 MiB with 0; `freeze` refuses a path whose first segment is
     `.git` in any case; each with a test that went red with its fix removed
-  - next: group 6, the 2026-11-02 duration rulings, none built as of
-    2026-11-05: `openRun` keeps `.started` past the two-hour window; `stats`
+  - group 6, the 2026-11-02 duration rulings, none built as of 2026-11-05: `openRun` keeps `.started` past the two-hour window; `stats`
     puts 0-second and negative durations in the median; the skill does not
     forbid chaining the `--start` freeze with `log`; `log --help`, `stats`,
     `log`'s refusal, `checkpoint-stats.md` and the spec say "first freeze"
+  - as of 2026-11-05 (abf02ce): group 6 re-derived: `openRun` rewrites
+    `.started` only with `--start` or none present, and `record` ends the run
+    leaving `.started`, so nothing marks when its window lapsed; `Report`'s
+    duration median takes every timed run; the skill's §1 says only the
+    opening freeze passes `--start` and §12 shows `log` alone, chaining
+    unmentioned; "first freeze" is in `log --help`, `Validate`'s refusal,
+    `Report`'s duration line, `checkpoint-stats.md` and the spec's log fields
+  - ruled 2026-11-06, out of scope: a test of the skill's ban on chaining the
+    `--start` freeze with `log`, which is prose; a tracked file replaced by a
+    fifo or other non-regular file, which still hashes a constant; a test of a
+    crash between `Record`'s renames, its state-last order left to the copy's
+    hash check
+  - asserted in the checkpoint-correctness commit: a freeze two hours after the
+    run's last freeze, left open or recorded, restarts the clock, and one inside
+    the window keeps it and moves the window; `stats` leaves durations of 0
+    seconds or less out of the median and counts them, and the untimed runs, on
+    a line of their own; each with a test that went red with its fix removed,
+    in `internal/checkpoint` under `task check FORCE=1`; the skill forbids
+    chaining the opening freeze with `log`, and `log --help`, `log`'s refusal,
+    `stats`, `checkpoint-stats.md` and the spec say "the freeze that opened the
+    run"; groups 1 to 5 hold the rest, each line above, less what the
+    2026-11-06 ruling put out of scope
 - [ ] plan-parser-warnings: `ele plan` parses or warns on every line form it now
   holds or drops in silence
   - done when each line form below is parsed or drawn as a warning by `ele plan
@@ -1992,7 +2013,7 @@ keep.
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: readme-guides, checkpoint-correctness, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
+  - blocked: readme-guides, plan-parser-warnings, ticket-robust, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`

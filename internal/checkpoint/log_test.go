@@ -223,7 +223,7 @@ func TestProblemsRefusesARecordTheStatsWouldMisread(t *testing.T) {
 		{"checkpoint with reviewed", with(t, func(record map[string]any) { record["reviewed"] = "0123456789abcdef0123456789abcdef01234567" }), "reviewed belongs to a review scope; leave it out"},
 		{"checkpoint with target", with(t, func(record map[string]any) { record["target"] = "!12" }), "target belongs to a review scope; leave it out"},
 		{"checkpoint without mutations", with(t, func(record map[string]any) { delete(record, "mutations") }), "mutations.run is not a whole number"},
-		{"duration supplied", with(t, func(record map[string]any) { record["duration"] = 60 }), "duration is derived from the first freeze; leave it out"},
+		{"duration supplied", with(t, func(record map[string]any) { record["duration"] = 60 }), "duration is derived from the freeze that opened the run; leave it out"},
 		{"empty stdin", "", "no record on stdin"},
 		{"finding not an object", with(t, func(record map[string]any) { record["findings"] = []any{"x"} }), "findings[0] is not an object"},
 		{"finding without source", with(t, func(record map[string]any) { finding(record)["source"] = "" }), "findings[0] has no source"},

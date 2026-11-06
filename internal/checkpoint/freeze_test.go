@@ -224,7 +224,7 @@ func TestFreezeKeepsTheRunsClockUnlessItStartsARun(t *testing.T) {
 	require.NoError(t, err)
 
 	freeze(t, root, FreezeOptions{}, "main.go")
-	require.FileExists(t, run+".started", "the first freeze starts the clock")
+	require.FileExists(t, run+".started", "the freeze that opens the run starts the clock")
 	require.NoError(t, os.WriteFile(run+".started", []byte("1\n"), 0o600))
 	freeze(t, root, FreezeOptions{}, "main.go")
 	requireStarted(t, run, "1")
@@ -235,14 +235,29 @@ func TestFreezeKeepsTheRunsClockUnlessItStartsARun(t *testing.T) {
 	freeze(t, root, FreezeOptions{}, "main.go")
 	requireStarted(t, run, "1")
 
-	old := time.Now().Add(-3 * time.Hour)
-	require.NoError(t, os.Chtimes(run+".open", old, old))
-	freeze(t, root, FreezeOptions{}, "main.go")
-	requireStarted(t, run, "1")
-
 	freeze(t, root, FreezeOptions{StartsRun: true}, "main.go")
-	started := readFile(t, run+".started")
-	require.NotEqual(t, "1\n", started, "--start opens a new run")
+	require.NotEqual(t, "1\n", readFile(t, run+".started"), "--start opens a new run")
+
+	for name, end := range map[string]func(){
+		"left open": func() {},
+		"recorded":  func() { require.NoError(t, Record(context.Background(), root, session)) },
+	} {
+		require.NoError(t, os.WriteFile(run+".started", []byte("1\n"), 0o600))
+		freeze(t, root, FreezeOptions{}, "main.go")
+		end()
+		within := time.Now().Add(-119 * time.Minute)
+		require.NoError(t, os.Chtimes(run+".started", within, within))
+		freeze(t, root, FreezeOptions{}, "main.go")
+		requireStarted(t, run, "1")
+		info, statErr := os.Stat(run + ".started")
+		require.NoError(t, statErr)
+		require.WithinDuration(t, time.Now(), info.ModTime(), time.Minute, "a freeze kept in the run moves its window")
+
+		past := time.Now().Add(-121 * time.Minute)
+		require.NoError(t, os.Chtimes(run+".started", past, past))
+		freeze(t, root, FreezeOptions{}, "main.go")
+		require.NotEqual(t, "1\n", readFile(t, run+".started"), "a freeze after a run %s past its window restarts the clock", name)
+	}
 
 	_, err = Freeze(context.Background(), FreezeOptions{Against: "HEAD", OutDir: t.TempDir(), Paths: []string{"main.go"}, Root: root})
 	require.NoError(t, err, "a freeze with no session still writes its diff")

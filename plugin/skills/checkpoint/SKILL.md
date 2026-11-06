@@ -87,11 +87,11 @@ root alone implies.
 
 **The run.** This freeze opens the run, and the Stop hook treats this session's
 checkpoint as in progress while it is open. Only this freeze passes `--start`:
-it starts the run's clock, which a run abandoned earlier in the session would
-otherwise keep; every later freeze, one after `record` included, keeps the clock
-until §12's log. Each freeze keeps the run open for two hours; §11's `record` or
-Stopping early's `close` ends it. A run is this session's alone: another
-session's checkpoint of the same repository neither ends nor times it.
+it starts the clock, which an earlier abandoned run would otherwise keep; a
+later freeze, one after `record` included, keeps it until §12's log unless two
+hours passed since the last. Never chain this freeze with `log`, which times it
+0. Each freeze keeps the run open for two hours; `record` or `close` ends it.
+Another session's checkpoint of the same repository neither ends nor times it.
 `record` refuses without an open run of this session: none frozen, closed, a
 last freeze over two hours old, or `CLAUDE_CODE_SESSION_ID` unset.
 

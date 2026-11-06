@@ -294,7 +294,8 @@ recorded, and 1 when anything changed since, none ran, nothing is changed, or
 over 200 paths are changed, past the fingerprint's cap.
 `freeze` writes each path's diff against `HEAD`, or `--base`, into `<dir>` with
 a fingerprint, says how many dirty paths past 200 went unfingerprinted, and
-opens or extends the session's run, `--start` restarting its clock. It takes
+opens or extends the session's run, `--start`, or a freeze two hours after the
+last, restarting its clock. It takes
 each path literally, never as a glob, diffs its bytes, never a textconv, and
 refuses a directory or an untracked symlink to one, an untracked path inside a
 nested repository, a path inside `.git`, a path not relative to the root as git

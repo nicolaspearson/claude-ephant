@@ -111,7 +111,7 @@ func Problems(input io.Reader) (map[string]any, []string, error) {
 	}
 	var problems []string
 	if _, supplied := record["duration"]; supplied {
-		problems = append(problems, "duration is derived from the first freeze; leave it out")
+		problems = append(problems, "duration is derived from the freeze that opened the run; leave it out")
 	}
 	review := IsReview(record)
 	if review {

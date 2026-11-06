@@ -156,21 +156,23 @@ func Open(ctx context.Context, root string, session string) bool {
 	if err != nil {
 		return false
 	}
-	minutes := defaultOpenMinutes
-	if setting := os.Getenv("CHECKPOINT_OPEN_MINUTES"); setting != "" {
-		if minutes, err = strconv.Atoi(setting); err != nil {
-			return false
-		}
-	}
 	info, err := os.Stat(run + ".open")
-	if err != nil {
-		return false
-	}
-	if time.Since(info.ModTime()) >= time.Duration(minutes)*time.Minute {
+	if err != nil || lapsed(info.ModTime()) {
 		return false
 	}
 	owner, err := os.ReadFile(run + ".open")
 	return err == nil && strings.TrimRight(string(owner), "\n") == session
+}
+
+func lapsed(since time.Time) bool {
+	minutes := defaultOpenMinutes
+	if setting := os.Getenv("CHECKPOINT_OPEN_MINUTES"); setting != "" {
+		var err error
+		if minutes, err = strconv.Atoi(setting); err != nil {
+			return true
+		}
+	}
+	return time.Since(since) >= time.Duration(minutes)*time.Minute
 }
 
 func OptedOut(ctx context.Context, root string, session string, moved []string) bool {
