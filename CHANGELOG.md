@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.14.0](https://github.com/nicolaspearson/claude-ephant/compare/v0.13.0...v0.14.0) (2026-11-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* **checkpoint:** checkpoint stats takes only --since, and log drops notes; skills and docs move to both (rename-cutover)
+
+### Features
+
+* **checkpoint:** checkpoint stats takes only --since, and log drops notes; skills and docs move to both (rename-cutover) ([b9c5cc1](https://github.com/nicolaspearson/claude-ephant/commit/b9c5cc1fce8b6b36dec585268f54f5ac7322a963))
+* **cli:** ele --version, -v and help &lt;command&gt;; ele events' keys pinned and big integers kept (cli-lock, part 1) ([ca89e9f](https://github.com/nicolaspearson/claude-ephant/commit/ca89e9f40607912de60ba37df091020458cc03bf))
+* **profile:** sync and status take in a CLAUDE_CONFIG_DIR profile outside ~/.claude and ~/.claude-*, skipping one whose folder name another profile holds (config-dir) ([c814608](https://github.com/nicolaspearson/claude-ephant/commit/c81460852a3c93efdf87a547d76e0b9e019acb61))
+
+
+### Bug Fixes
+
+* **checkpoint:** freeze names why it refuses a call and refuses paths under .git, and gate and snapshot refuse a terminal (checkpoint-correctness, part 5) ([abf02ce](https://github.com/nicolaspearson/claude-ephant/commit/abf02ce9ae7d3f694022879cde1bbcf85e5cef73))
+* **checkpoint:** freeze refuses an untracked path inside a nested repository and diffs without textconv, and the skill names the basename clash (checkpoint-correctness, part 2b) ([1c9efb6](https://github.com/nicolaspearson/claude-ephant/commit/1c9efb68978e3c60cc2a28d76f903373f4e7cb92))
+* **checkpoint:** freeze takes paths literally, refuses directories, paths not as git prints them and a scratchpad another root froze into, and keeps the last diff when it fails (checkpoint-correctness, part 2) ([1a17bc3](https://github.com/nicolaspearson/claude-ephant/commit/1a17bc3870c96419ea257e15e22a77e4a4fb278b))
+* **checkpoint:** optout refuses a glob matching over half the paths, freeze sweeps week-old run and opt-out leftovers, record writes through tmp names of its own, and a run stays open the full window (checkpoint-correctness, part 4) ([2dcae27](https://github.com/nicolaspearson/claude-ephant/commit/2dcae274de1a606045f40897971bdc3227444794))
+* **checkpoint:** record holds only the frozen paths and refuses one moved since the freeze, and a tree past the 200-path cap reads as not covered (checkpoint-correctness, part 1) ([c862351](https://github.com/nicolaspearson/claude-ephant/commit/c862351783302b39ba39346e53793b6e38747442))
+* **checkpoint:** the checkpoint state drops ele's own data directory before its path cap, so ELE_HOME inside a checkout never blocks the gate (gate-data-dir) ([8c43f0c](https://github.com/nicolaspearson/claude-ephant/commit/8c43f0c330c51baa6c850bc66b050577f68c80d3))
+* **checkpoint:** the fingerprint takes a symlink by its link text, survives odd names and sees staged files before the first commit, and freeze refuses what it cannot diff (checkpoint-correctness, part 3) ([afad02a](https://github.com/nicolaspearson/claude-ephant/commit/afad02aecdea17d74ab8e428d7bebf13f7513fa7))
+* **checkpoint:** the stop gate weighs only what the turn wrote, and passes a commit offered for later and a progress count (gate-false-blocks) ([1bc968b](https://github.com/nicolaspearson/claude-ephant/commit/1bc968b5baa0d0d35754a35360af9bb259b38368))
+* **cli:** --project on a project several owners hold takes the working directory's owner where it is one of them (project-owner) ([a0d5bd7](https://github.com/nicolaspearson/claude-ephant/commit/a0d5bd7cec68405ffe26d91aabdf68c3b07c0c02))
+* **cli:** typed dates are local days, plan front matter warns instead of failing, and the docs say so (cli-lock, part 2) ([d92b3c0](https://github.com/nicolaspearson/claude-ephant/commit/d92b3c072049a4180f8a78ef701de5f9169b808f))
+* **hooks:** both Stop hooks keep a turn going through additionalContext, not a block Claude Code shows as an error, and transcripts read it as a hook block (block-as-error) ([462f54f](https://github.com/nicolaspearson/claude-ephant/commit/462f54fe0a14836565d7078047446a5eebbe90a7))
+* **notes:** notes survive what Write accepts and a hand edit leaves: long lines, escaping names, linked writes and locked rewrites (notes-robust) ([ef75b0e](https://github.com/nicolaspearson/claude-ephant/commit/ef75b0e923ccf0a5936f8444b0b78c321df926d1))
+* **notes:** notes survive what Write accepts and a hand edit leaves: long lines, escaping names, linked writes and locked rewrites (notes-robust) ([e886fac](https://github.com/nicolaspearson/claude-ephant/commit/e886fac93ac909c1022b185ff7b191ee48bd44da))
+* **plan:** pickup's already-done step runs the checkpoint in branch scope from the previous tick's commit, which proposes the tick (skill-fixes) ([b1ae484](https://github.com/nicolaspearson/claude-ephant/commit/b1ae484d3e33be6d34c64f3ac8a64df0f3f10d2e))
+* **profile:** notes name a relative CLAUDE_CONFIG_DIR by its absolute path, a sync skip counts as an entry, and the specs say what the name check compares (config-dir) ([1eb56a7](https://github.com/nicolaspearson/claude-ephant/commit/1eb56a70038bebe0d20be36a7fbbdea99e52a32c))
+* **profile:** notes name a symlinked CLAUDE_CONFIG_DIR as sync does, and one whose name another profile holds by its path (config-dir-names) ([ff01a60](https://github.com/nicolaspearson/claude-ephant/commit/ff01a60a908c95ee1f38ada7c4fee30ab7b78240))
+* **redact:** redaction holds to what data-and-privacy promises, Parse redacts every entry kind, and the index rebuilds (redact-promise) ([111ed91](https://github.com/nicolaspearson/claude-ephant/commit/111ed91901011204e51a0c0c8c5ad1c7e8c72980))
+* **release:** publish refuses an old or suffixed draft, tap renders only the latest, and the README installs @&lt;tag&gt; (release-safety) ([4c9a912](https://github.com/nicolaspearson/claude-ephant/commit/4c9a912b7f24165e48771bc3b55a280be66f6aba))
+* **skills:** checkpoint lists new directories' files, only the checkpoint ticks plan work, mktemp paths survive Bash calls, and audit, review and stats wording matches the code (skill-fixes) ([0f77c38](https://github.com/nicolaspearson/claude-ephant/commit/0f77c38397150899389b3fa0008c4b1fdb8b03d1))
+* **stop-check:** a stop's transcript scan stops after 10 seconds and resumes at the next, holding the notes ask until it catches up (first-scan-timeout) ([e260d60](https://github.com/nicolaspearson/claude-ephant/commit/e260d605452702fb07c78af06a53d2791daacbf3))
+* **stop-check:** a stop's transcript scan stops after 10 seconds and resumes at the next, holding the notes ask until it catches up (first-scan-timeout) ([8f61644](https://github.com/nicolaspearson/claude-ephant/commit/8f6164493abcf016011d6a8e253ba389f2314fa0))
+* **store:** the index and its backup copy are 0600 whatever the data directory's mode (index-private) ([55fdeed](https://github.com/nicolaspearson/claude-ephant/commit/55fdeeda19b86b278b00af5cc28c72ab1ad745de))
+* **sync:** one bad file stops no sync; it is skipped, named and counted until a sync skips none (sync-robust) ([a60dd9b](https://github.com/nicolaspearson/claude-ephant/commit/a60dd9b5613802f4a510c347a87e873f82878fa8))
+* **ticket:** corpus --clean removes only what its manifest lists, and tracker detection reads the remote's host and never prints its credentials (ticket-clean, remote-secrets) ([0b691f4](https://github.com/nicolaspearson/claude-ephant/commit/0b691f48f2d96a7903e19d88124474208370d12d))
+
 ## [0.13.0](https://github.com/nicolaspearson/claude-ephant/compare/v0.12.0...v0.13.0) (2026-11-02)
 
 
