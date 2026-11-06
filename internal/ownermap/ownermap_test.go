@@ -1,6 +1,7 @@
 package ownermap
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -77,4 +78,55 @@ func TestSaveThenLoadRoundTrips(t *testing.T) {
 	loaded, err := Load(path)
 	require.NoError(t, err)
 	require.Equal(t, OwnerMap{Owners: []string{"corp"}, Paths: map[string]string{"/w/corp": "corp"}, Projects: map[string]string{"a": "corp"}}, loaded)
+}
+
+func TestReadExpandsAPathRuleUnderHome(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	path := filepath.Join(t.TempDir(), "owner-map.json")
+	require.NoError(t, os.WriteFile(path, []byte(`{"owners": ["corp"], "paths": {"~/code": "corp"}}`), 0o600))
+
+	loaded, err := Load(path)
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{filepath.Join(home, "code"): "corp"}, loaded.Paths)
+}
+
+func TestReadRefusesWhatOwnerCommandsRefuse(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	path := filepath.Join(t.TempDir(), "owner-map.json")
+	tests := []struct {
+		content string
+		message string
+		name    string
+	}{
+		{content: `{"owners": ["../x"]}`, message: `owner "../x" must be letters, digits, - and _, starting with a letter or digit`, name: "owner leaving the notes folder"},
+		{content: `{"owners": ["corp"], "projects": {"a/b": "corp"}}`, message: `project "a/b" must be a directory name, with no separator, control character or surrounding space`, name: "project with a separator"},
+		{content: `{"owners": ["corp"], "paths": {"code": "corp"}}`, message: `path rule "code" is relative; give the directory's absolute path, or one starting ~/`, name: "relative rule"},
+		{content: `{"owners": ["corp", "personal"], "paths": {"/a/b": "corp", "/a/b/": "personal"}}`, message: `path rules "/a/b" and "/a/b/" name one directory; keep one`, name: "rules cleaning to one key"},
+		{content: `{"owners": ["corp"], "paths": {"~code": "corp"}}`, message: `path rule "~code" is relative; give the directory's absolute path, or one starting ~/`, name: "tilde without slash"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			require.NoError(t, os.WriteFile(path, []byte(test.content), 0o600))
+			_, err := Load(path)
+			require.EqualError(t, err, "parse "+path+": "+test.message)
+		})
+	}
+}
+
+func TestSaveWritesEmptyListsAndLeavesNoTemporaryFile(t *testing.T) {
+	directory := t.TempDir()
+	path := filepath.Join(directory, "owner-map.json")
+	require.NoError(t, os.WriteFile(path+".tmp", []byte("someone else's"), 0o600))
+
+	require.NoError(t, Save(path, OwnerMap{}))
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.JSONEq(t, `{"owners": [], "paths": {}, "projects": {}}`, string(content))
+	other, err := os.ReadFile(path + ".tmp")
+	require.NoError(t, err)
+	require.Equal(t, "someone else's", string(other), "a fixed temporary name would be another writer's")
+	entries, err := os.ReadDir(directory)
+	require.NoError(t, err)
+	require.Len(t, entries, 2)
 }

@@ -403,7 +403,18 @@ func wellFormed(raw json.RawMessage) bool {
 }
 
 // A reader racing the write sees the old ledger or the new one, never half of either.
+// A rename over a symlink would replace the link, so the temporary file goes beside its target.
 func writeAtomically(path string, content []byte) error {
+	if target, err := os.Readlink(path); err == nil {
+		resolved, resolveErr := filepath.EvalSymlinks(path)
+		switch {
+		case resolveErr == nil:
+			target = resolved
+		case !filepath.IsAbs(target):
+			target = filepath.Join(filepath.Dir(path), target)
+		}
+		path = target
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}

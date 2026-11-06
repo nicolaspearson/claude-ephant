@@ -390,7 +390,7 @@ keep.
     it each say `/ele:review` is experimental
 - [ ] readme-guides: Sweep the README and every page under `docs/` against the
   code
-  - blocked: help-text, data-dir-edges, bashwork-reads
+  - blocked: help-text, bashwork-reads
   - done when each page's commands and flags are checked against `--help`,
     each behaviour it states is checked against the code or a run, and
     `task format`, `task lint` and `task lint-docs` pass
@@ -1678,8 +1678,14 @@ keep.
     reads a ledger line under either, and `record` rewrites it under the new
     key. As of 2026-11-06 the author's ledger held 390 lines, 100 of them
     ruled plan lines under folder-name keys, none on `v1-release`
-- [ ] data-dir-edges: The data directory, owner map and profiles hold up to hand
+- [x] data-dir-edges: The data directory, owner map and profiles hold up to hand
   edits and symlinks
+  - asserted in the data-dir-edges commit: each defect has a unit test at its
+    package boundary that went red against a mutation of its fix, or a ruling
+    rules it out (Linux move race, `OwnerOfPath` symlinks, `Save`'s lock,
+    `Current(".claudefoo")`); `docs/` and the specs say what stays and what is
+    refused; `task check FORCE=1` and `task audit` green on macOS, CI's ubuntu
+    run not yet seen
   - done when each defect below has a test that fails before its fix or the user
     rules it out, and `docs/` and the spec say what stays and what is refused,
     such as a relative `ELE_HOME`
@@ -1726,6 +1732,40 @@ keep.
     to `claude`, sharing its archive keys, and `Current(".claudefoo")` names
     one `Discover` never lists; a home holding `[` fails its `filepath.Glob`
     (probed)
+  - as of 2026-11-06 (8e0f6aa), premise check: confirmed in code, the ledger's
+    `writeAtomically` renaming over the path; `sync.log` appended by
+    `startSync` in `cmd/ele/sessionstart.go` and read whole by `status`;
+    `backupParts` copying all of `archive/` and `status`'s `dirSize` on it,
+    `archive/claude-mem/` still present on the author's machine; `design.md`'s
+    "printed, never parsed"; `resolve`'s `filepath.Abs` on `ELE_HOME`, pinned
+    by `datadir_test.go`; the Linux race, the stale process's write recreating
+    the old directory once `moveDue` turns false; `moveLog` returning ""
+    when both logs exist; `ownermap.Read` only cleaning path rules, so `~/code`
+    stays relative and `/a/b/` collides with `/a/b`, last in map order winning;
+    `OwnerOfPath` comparing raw strings; `Save` sorting a nil `Owners` to
+    `null` through a fixed `.tmp`; `Discover` globbing an unescaped home and
+    keeping both a profile and a link to it; `nameOf` giving `claude` for
+    `.claude-claude` and `.claude-`. Stale: `Save`'s only caller,
+    `writeOwnerChange` in `cmd/ele/owner.go`, holds the archive lock across
+    it; `Current(".claudefoo")` is listed since config-dir, `Discover` taking
+    a `CLAUDE_CONFIG_DIR` holding `projects/` as a profile. Not checked: an
+    owner `../x` becoming a notes folder end to end
+  - ruled 2026-11-06: the ledger follows a symlink, its temp file written
+    beside the target; the Linux move race is ruled out and named in the docs;
+    `moveLog` with both logs present leaves a notice naming both and keeps the
+    old; `ownermap.Read` expands a leading `~/` in a path rule and refuses any
+    other relative rule, an owner `owner add` would refuse, or two rules
+    cleaning to one key, every command failing with an error naming it;
+    `OwnerOfPath`'s symlinks are ruled out, `docs/owners.md` saying a hand
+    edit writes both forms as `/ele:setup` does; `Save` writes `[]` and `{}`
+    through a unique temp file, its lock ruled out; a profile linked to
+    another is listed once, under the one whose path is its real path, twice
+    archived transcripts left; `.claude-claude` and `.claude-` are skipped as
+    a taken name; `Discover` lists the home with `os.ReadDir`, not `Glob`;
+    `Current(".claudefoo")` is ruled out as stale
+  - ruled 2026-11-06, at the checkpoint: `ownermap.Read` also refuses a
+    project entry `ele owner project` would refuse; `ELE_HOME=~/`, the home
+    directory itself, stays allowed, as an absolute `$HOME` is
 - [ ] help-text: `--help` matches the code
   - done when each help line below says what the code does, and
     `docs/commands.md` follows it
@@ -2120,7 +2160,7 @@ keep.
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: readme-guides, data-dir-edges, help-text, bashwork-reads, ci-hardening, eval-fixes
+  - blocked: readme-guides, help-text, bashwork-reads, ci-hardening, eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`

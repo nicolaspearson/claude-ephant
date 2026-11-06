@@ -335,8 +335,9 @@ hits on glab, 500 on gh.
 
 `ticket ledger record` adds the audit's `--records` for the corpus's
 `--manifest`, keeping one line per item and text, and replaces the file whole,
-so an interrupted write leaves the old ledger; `rulings` prints each earlier
-ruling on the manifest's items once, and whether its text changed since;
+so an interrupted write leaves the old ledger, writing through a symlinked
+ledger to its target; `rulings` prints each earlier ruling on the manifest's
+items once, and whether its text changed since;
 `--ledger` names the ledger file, `logs/ticket-audits.jsonl` in the data
 directory by default.
 

@@ -26,8 +26,11 @@ import (
 	"github.com/nicolaspearson/claude-ephant/internal/redact"
 )
 
-// Bytes of the notes block, about 1.5k tokens; open questions may exceed it.
-const contextBudget = 6000
+const (
+	// Bytes of the notes block, about 1.5k tokens; open questions may exceed it.
+	contextBudget = 6000
+	syncLogCap    = 1 << 20
+)
 
 const (
 	// UTF-16 units, assumed from the docs' "characters". As of 2026-10-23 Claude
@@ -235,7 +238,11 @@ func startSync(dataDirectory string) error {
 	if err = os.MkdirAll(dataDirectory, 0o700); err != nil {
 		return err
 	}
-	logFile, err := os.OpenFile(filepath.Join(dataDirectory, "sync.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	logPath := filepath.Join(dataDirectory, "sync.log")
+	if err = rotateSyncLog(logPath); err != nil {
+		return err
+	}
+	logFile, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}
@@ -249,6 +256,21 @@ func startSync(dataDirectory string) error {
 		return err
 	}
 	return command.Process.Release()
+}
+
+// A sync still writing the rotated log keeps its descriptor, so its output lands in sync.log.1.
+func rotateSyncLog(path string) error {
+	info, err := os.Stat(path)
+	if errors.Is(err, fs.ErrNotExist) || (err == nil && info.Size() < syncLogCap) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if err = os.Rename(path, path+".1"); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	return nil
 }
 
 // Plain stdout reaches only the model; a systemMessage reaches the user.

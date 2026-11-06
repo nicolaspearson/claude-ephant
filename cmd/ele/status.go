@@ -30,7 +30,8 @@ const (
 	syncLogHeader = "--- background sync "
 	syncLogLocked = "--- locked "
 	// Two failed runs (header, lock and a one-line error each) and a running third's header and lock.
-	syncLogTail = 8
+	syncLogTail      = 8
+	syncLogTailBytes = 64 << 10
 )
 
 func age(elapsed time.Duration) string {
@@ -177,6 +178,28 @@ func sinceLastSync(log string, last time.Time) [][]string {
 	return kept
 }
 
+// Reports whether it cut the log, dropping the line the cut split.
+func readSyncLogTail(path string) (string, bool, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", false, err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return "", false, err
+	}
+	offset := max(0, info.Size()-syncLogTailBytes)
+	content, err := io.ReadAll(io.NewSectionReader(file, offset, info.Size()-offset))
+	if err != nil || offset == 0 {
+		return string(content), false, err
+	}
+	if _, rest, found := strings.Cut(string(content), "\n"); found {
+		return rest, true, nil
+	}
+	return string(content), true, nil
+}
+
 func stats(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
 	flags := newFlagSet("stats", stderr)
 	if err := flags.Parse(args); err != nil || flags.NArg() > 0 {
@@ -321,7 +344,7 @@ func writeStats(ctx context.Context, stdout io.Writer) error {
 		fmt.Fprintf(table, "Notes, %s\t%s\n", owner, listCounts(kinds))
 	}
 
-	archiveSize, err := dirSize(filepath.Join(dataDirectory, "archive"))
+	archiveSize, err := dirSize(filepath.Join(dataDirectory, "archive", "transcripts"))
 	if err != nil {
 		return err
 	}
@@ -388,22 +411,23 @@ func writeStatus(stdout io.Writer, now time.Time) error {
 		}
 	}
 
-	log, err := os.ReadFile(filepath.Join(dataDirectory, "sync.log"))
+	log, cut, err := readSyncLogTail(filepath.Join(dataDirectory, "sync.log"))
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
 		fmt.Fprintln(stdout, "\nNo background sync has written sync.log.")
 	case err != nil:
 		fmt.Fprintf(stdout, "\nsync.log unreadable: %v\n", err)
-	case strings.TrimSpace(string(log)) == "":
+	case strings.TrimSpace(log) == "":
 		fmt.Fprintln(stdout, "\nsync.log is empty.")
-	case readErr != nil || parseErr != nil:
-		lines := strings.Split(strings.TrimRight(string(log), "\n"), "\n")
+	// A cut tail with no header lost the newest run's, so its lines alone are shown.
+	case readErr != nil || parseErr != nil || (cut && !slices.ContainsFunc(strings.Split(log, "\n"), isSyncLogHeader)):
+		lines := strings.Split(strings.TrimRight(log, "\n"), "\n")
 		fmt.Fprintln(stdout, "\nTail of sync.log, newest last:")
 		for _, line := range lines[max(0, len(lines)-syncLogTail):] {
 			fmt.Fprintf(stdout, "  %s\n", line)
 		}
 	default:
-		runs := sinceLastSync(string(log), last)
+		runs := sinceLastSync(log, last)
 		if len(runs) == 0 {
 			fmt.Fprintln(stdout, "\nsync.log holds nothing since the last successful sync.")
 			return nil

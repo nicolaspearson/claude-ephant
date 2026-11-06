@@ -75,7 +75,16 @@ index so every session is filed under its new owner. `--no-sync` skips it; the
 next sync rebuilds instead.
 
 The map is `owner-map.json` in the data directory and can be edited by hand.
-ele notices a changed map at the next sync and rebuilds the same way.
+ele notices a changed map at the next sync and rebuilds the same way. A path
+rule may start with `~/`, and the next `ele owner` write saves it as the
+absolute path. ele refuses a hand edit that `ele owner` would refuse: another
+relative rule, an owner name other than letters, digits, `-` and `_`, a project
+entry that is not a directory name, or two rules for one directory, such as
+`/a/b` and `/a/b/`. Every command and hook that reads the map, `ele owner`
+included, then fails with an error naming the entry until you fix the file by
+hand, while `ele status` shows the error on its `Here` row. Rules match the
+directory as your shell reached it, without resolving symlinks, so where
+`pwd -P` prints another path, add the rule in both forms, as `/ele:setup` does.
 
 ## Crossing owners
 

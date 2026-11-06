@@ -633,3 +633,24 @@ func TestWriteSessionStartWarnsWhenSyncIsStale(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, strings.HasPrefix(output.String(), "ele has no record of a successful sync"+tail), output.String())
 }
+
+func TestRotateSyncLogKeepsOneFullLogAside(t *testing.T) {
+	dataDirectory := t.TempDir()
+	path := filepath.Join(dataDirectory, "sync.log")
+	writeFile(t, path, "short\n")
+
+	require.NoError(t, rotateSyncLog(path))
+	require.FileExists(t, path, "a log under the cap stays")
+	require.NoFileExists(t, path+".1")
+
+	full := strings.Repeat("x", syncLogCap-1) + "\n"
+	writeFile(t, path, full)
+	writeFile(t, path+".1", "older\n")
+	require.NoError(t, rotateSyncLog(path))
+	require.NoFileExists(t, path)
+	content, err := os.ReadFile(path + ".1")
+	require.NoError(t, err)
+	require.Equal(t, full, string(content), "one kept, the older one replaced")
+
+	require.NoError(t, rotateSyncLog(path), "no log is nothing to rotate")
+}

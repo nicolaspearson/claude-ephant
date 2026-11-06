@@ -11,14 +11,19 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
 	"github.com/nicolaspearson/claude-ephant/internal/dto"
+	"github.com/nicolaspearson/claude-ephant/internal/notes"
 )
 
 // Fingerprint of a missing map, so creating one counts as a change.
 const absent = "absent"
+
+// Owner becomes a folder name under notes/.
+var ownerShape = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
 
 type OwnerMap struct {
 	Owners   []string          `json:"owners"`
@@ -82,9 +87,33 @@ func Read(path string) (OwnerMap, string, error) {
 	if ownerMap.Projects == nil {
 		ownerMap.Projects = map[string]string{}
 	}
+	for _, owner := range ownerMap.Owners {
+		if err := ValidOwner(owner); err != nil {
+			return OwnerMap{}, "", fmt.Errorf("parse %s: %w", path, err)
+		}
+	}
+	for _, project := range slices.Sorted(maps.Keys(ownerMap.Projects)) {
+		if err := ValidProject(project); err != nil {
+			return OwnerMap{}, "", fmt.Errorf("parse %s: %w", path, err)
+		}
+	}
+	home, homeErr := os.UserHomeDir()
 	paths := make(map[string]string, len(ownerMap.Paths))
-	for rule, owner := range ownerMap.Paths {
-		paths[filepath.Clean(rule)] = owner
+	written := map[string]string{}
+	for _, rule := range slices.Sorted(maps.Keys(ownerMap.Paths)) {
+		directory := rule
+		if rest, ok := strings.CutPrefix(rule, "~/"); ok && homeErr == nil {
+			directory = filepath.Join(home, rest)
+		}
+		if !filepath.IsAbs(directory) {
+			return OwnerMap{}, "", fmt.Errorf("parse %s: path rule %q is relative; give the directory's absolute path, or one starting ~/", path, rule)
+		}
+		directory = filepath.Clean(directory)
+		if earlier, taken := written[directory]; taken {
+			return OwnerMap{}, "", fmt.Errorf("parse %s: path rules %q and %q name one directory; keep one", path, earlier, rule)
+		}
+		written[directory] = rule
+		paths[directory] = ownerMap.Paths[rule]
 	}
 	ownerMap.Paths = paths
 	return ownerMap, fingerprint(content), nil
@@ -92,17 +121,47 @@ func Read(path string) (OwnerMap, string, error) {
 
 func Save(path string, ownerMap OwnerMap) error {
 	ownerMap.Owners = slices.Sorted(slices.Values(ownerMap.Owners))
+	if ownerMap.Owners == nil {
+		ownerMap.Owners = []string{}
+	}
+	if ownerMap.Paths == nil {
+		ownerMap.Paths = map[string]string{}
+	}
+	if ownerMap.Projects == nil {
+		ownerMap.Projects = map[string]string{}
+	}
 	content, err := json.MarshalIndent(ownerMap, "", "  ")
 	if err != nil {
 		return fmt.Errorf("encode owner map: %w", err)
 	}
-	temporary := path + ".tmp"
-	if err := os.WriteFile(temporary, append(content, '\n'), 0o600); err != nil {
+	temporary, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*.tmp")
+	if err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
-	if err := os.Rename(temporary, path); err != nil {
-		_ = os.Remove(temporary)
+	_, err = temporary.Write(append(content, '\n'))
+	if closeErr := temporary.Close(); err == nil {
+		err = closeErr
+	}
+	if err == nil {
+		err = os.Rename(temporary.Name(), path)
+	}
+	if err != nil {
+		_ = os.Remove(temporary.Name())
 		return fmt.Errorf("write %s: %w", path, err)
+	}
+	return nil
+}
+
+func ValidOwner(owner string) error {
+	if !ownerShape.MatchString(owner) {
+		return fmt.Errorf("owner %q must be letters, digits, - and _, starting with a letter or digit", owner)
+	}
+	return nil
+}
+
+func ValidProject(project string) error {
+	if project == "" || strings.TrimSpace(project) != project || strings.ContainsRune(project, filepath.Separator) || !notes.ValidProject(project) {
+		return fmt.Errorf("project %q must be a directory name, with no separator, control character or surrounding space", project)
 	}
 	return nil
 }

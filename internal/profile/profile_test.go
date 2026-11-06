@@ -117,8 +117,8 @@ func TestDiscoverListsAConfigDirectoryOnceWhenAnotherProfileSharesItsName(t *tes
 
 	roots, skipped, err := Discover(home, filepath.Join(home, ".claude"))
 	require.NoError(t, err)
-	require.Empty(t, skipped)
-	require.Len(t, roots, 2)
+	require.Equal(t, []Root{{Directory: filepath.Join(home, ".claude"), Name: "claude"}}, roots)
+	require.Equal(t, []string{"profile " + filepath.Join(home, ".claude-") + ": its name claude is taken by " + filepath.Join(home, ".claude")}, skipped)
 }
 
 func TestDiscoverSkipsAConfigDirectoryWhoseNameIsTaken(t *testing.T) {
@@ -144,4 +144,51 @@ func TestDiscoverIgnoresAConfigDirectoryWithoutProjects(t *testing.T) {
 		require.Empty(t, skipped)
 		require.Empty(t, roots)
 	}
+}
+
+func TestDiscoverSkipsAHomeProfileWhoseNameIsTaken(t *testing.T) {
+	home := t.TempDir()
+	for _, directory := range []string{".claude/projects", ".claude-/projects", ".claude-claude/projects"} {
+		require.NoError(t, os.MkdirAll(filepath.Join(home, directory), 0o700))
+	}
+
+	roots, skipped, err := Discover(home, "")
+	require.NoError(t, err)
+	require.Equal(t, []Root{{Directory: filepath.Join(home, ".claude"), Name: "claude"}}, roots)
+	require.Equal(t, []string{
+		"profile " + filepath.Join(home, ".claude-") + ": its name claude is taken by " + filepath.Join(home, ".claude"),
+		"profile " + filepath.Join(home, ".claude-claude") + ": its name claude is taken by " + filepath.Join(home, ".claude"),
+	}, skipped)
+}
+
+func TestDiscoverListsALinkedProfileOnceUnderItsRealPath(t *testing.T) {
+	home := t.TempDir()
+	for _, directory := range []string{".claude/projects", ".claude-main/projects"} {
+		require.NoError(t, os.MkdirAll(filepath.Join(home, directory), 0o700))
+	}
+	require.NoError(t, os.Symlink(filepath.Join(home, ".claude"), filepath.Join(home, ".claude-work")))
+	require.NoError(t, os.Symlink(filepath.Join(home, ".claude-main"), filepath.Join(home, ".claude-alias")))
+
+	roots, skipped, err := Discover(home, "")
+	require.NoError(t, err)
+	require.Empty(t, skipped, "a link is the same profile, not a skip")
+	require.Equal(t, []Root{
+		{Directory: filepath.Join(home, ".claude"), Name: "claude"},
+		{Directory: filepath.Join(home, ".claude-main"), Name: "main"},
+	}, roots)
+	require.Equal(t, "claude", Current(home, filepath.Join(home, ".claude-work")))
+	require.Equal(t, "main", Current(home, filepath.Join(home, ".claude-alias")))
+}
+
+func TestDiscoverReadsAHomeHoldingGlobCharacters(t *testing.T) {
+	home := filepath.Join(t.TempDir(), "a[b*")
+	require.NoError(t, os.MkdirAll(filepath.Join(home, ".claude-corp", "projects"), 0o700))
+
+	roots, _, err := Discover(home, "")
+	require.NoError(t, err)
+	require.Equal(t, []Root{{Directory: filepath.Join(home, ".claude-corp"), Name: "corp"}}, roots)
+
+	roots, _, err = Discover(filepath.Join(t.TempDir(), "missing"), "")
+	require.NoError(t, err)
+	require.Empty(t, roots)
 }

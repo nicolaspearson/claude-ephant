@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -82,6 +83,16 @@ func TestRunStatsOnAFreshInstall(t *testing.T) {
 	require.Contains(t, output, "The index is empty.\n")
 	require.Regexp(t, `On disk +archive 0 B, index 0 B, notes 0 B\n`, output)
 	require.NoDirExists(t, dataDirectory)
+}
+
+func TestRunStatsLeavesOutTheRetiredClaudeMemArchive(t *testing.T) {
+	dataDirectory := filepath.Join(t.TempDir(), "data")
+	t.Setenv("ELE_HOME", dataDirectory)
+	writeFile(t, filepath.Join(dataDirectory, "archive", "claude-mem", "observations.jsonl"), "retired\n")
+
+	output, code := runCommand(t, "stats")
+	require.Equal(t, 0, code, output)
+	require.Regexp(t, `On disk +archive 0 B, index 0 B, notes 0 B\n`, output)
 }
 
 func TestRunStatusReportsSyncOwnerAndPlugin(t *testing.T) {
@@ -217,4 +228,53 @@ func TestWriteStatusShowsAgeAndTheSyncLogSinceTheLastSuccess(t *testing.T) {
 	var future bytes.Buffer
 	require.NoError(t, writeStatus(&future, time.Date(2026, 10, 15, 9, 0, 0, 0, time.UTC)))
 	require.Regexp(t, `Last sync +2026-10-15T10:00:00Z \(in the future; check the clock\)\n`, future.String())
+}
+
+func TestReadSyncLogTailStartsOnALine(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sync.log")
+	writeFile(t, path, "one\n")
+	tail, cut, err := readSyncLogTail(path)
+	require.NoError(t, err)
+	require.Equal(t, "one\n", tail)
+	require.False(t, cut)
+
+	writeFile(t, path, strings.Repeat("x", syncLogTailBytes+10))
+	tail, cut, err = readSyncLogTail(path)
+	require.NoError(t, err)
+	require.True(t, cut)
+	require.Len(t, tail, syncLogTailBytes, "a cut with no newline after it keeps the line")
+
+	writeFile(t, path, strings.Repeat("old line\n", syncLogTailBytes/9+10)+"--- background sync 2026-10-15T11:00:00Z\nele: newest\n")
+	tail, cut, err = readSyncLogTail(path)
+	require.NoError(t, err)
+	require.True(t, cut)
+	require.LessOrEqual(t, len(tail), syncLogTailBytes)
+	require.True(t, strings.HasPrefix(tail, "old line\n"), "the first partial line is dropped")
+	require.True(t, strings.HasSuffix(tail, "ele: newest\n"))
+}
+
+func TestWriteStatusShowsTheTailWhenTheNewestRunOutgrowsIt(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	writeFile(t, filepath.Join(home, "data", "last-sync"), "2026-10-15T10:00:00Z\n")
+	writeFile(t, filepath.Join(home, "data", "sync.log"), "--- background sync 2026-10-15T11:00:00Z\n"+strings.Repeat("goroutine frame\n", syncLogTailBytes/16+10)+"panic: last\n")
+
+	var output bytes.Buffer
+	require.NoError(t, writeStatus(&output, time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC)))
+	require.Contains(t, output.String(), "\nTail of sync.log, newest last:\n")
+	require.Contains(t, output.String(), "  panic: last\n")
+	require.NotContains(t, output.String(), "holds nothing since the last successful sync")
+}
+
+func TestWriteStatusFindsNothingNewInACutTailOfOldRuns(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	writeFile(t, filepath.Join(home, "data", "last-sync"), "2026-10-15T10:00:00Z\n")
+	run := "--- background sync 2026-10-15T09:00:00Z\n--- locked 2026-10-15T09:00:00Z\nele: an old failure\n"
+	writeFile(t, filepath.Join(home, "data", "sync.log"), strings.Repeat(run, syncLogTailBytes/len(run)+10))
+
+	var output bytes.Buffer
+	require.NoError(t, writeStatus(&output, time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC)))
+	require.Contains(t, output.String(), "\nsync.log holds nothing since the last successful sync.\n")
+	require.NotContains(t, output.String(), "an old failure")
 }

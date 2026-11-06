@@ -9,7 +9,6 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -20,9 +19,6 @@ import (
 	"github.com/nicolaspearson/claude-ephant/internal/notes"
 	"github.com/nicolaspearson/claude-ephant/internal/ownermap"
 )
-
-// Owner becomes a folder name under notes/.
-var ownerShape = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
 
 type ownerChange struct {
 	apply     func(ownerMap *ownermap.OwnerMap, arguments []string) (string, error)
@@ -87,8 +83,8 @@ func ownerCommand(ctx context.Context, args []string, stdout io.Writer, stderr i
 
 func addOwner(ownerMap *ownermap.OwnerMap, arguments []string) (string, error) {
 	owner := arguments[0]
-	if !ownerShape.MatchString(owner) {
-		return "", fmt.Errorf("owner %q must be letters, digits, - and _, starting with a letter or digit", owner)
+	if err := ownermap.ValidOwner(owner); err != nil {
+		return "", err
 	}
 	if slices.Contains(ownerMap.Owners, owner) {
 		return "", fmt.Errorf("owner-map.json already lists owner %q", owner)
@@ -113,7 +109,7 @@ func addPath(ownerMap *ownermap.OwnerMap, arguments []string) (string, error) {
 
 func addProject(ownerMap *ownermap.OwnerMap, arguments []string) (string, error) {
 	project, owner := arguments[0], arguments[1]
-	if err := validProjectName(project); err != nil {
+	if err := ownermap.ValidProject(project); err != nil {
 		return "", err
 	}
 	if err := listedOwner(*ownerMap, owner); err != nil {
@@ -293,13 +289,6 @@ func removeProject(ownerMap *ownermap.OwnerMap, arguments []string) (string, err
 	}
 	delete(ownerMap.Projects, project)
 	return fmt.Sprintf("Removed project %s%s.", project, was(previous)), nil
-}
-
-func validProjectName(project string) error {
-	if project == "" || strings.TrimSpace(project) != project || strings.ContainsRune(project, filepath.Separator) || !notes.ValidProject(project) {
-		return fmt.Errorf("project %q must be a directory name, with no separator, control character or surrounding space", project)
-	}
-	return nil
 }
 
 // Holds the archive lock from reading the map to saving it: a rebuild empties the directories table, a sync must not

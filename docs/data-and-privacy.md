@@ -14,6 +14,10 @@ Everything lives in one data directory: by default
 `~/Library/Application Support/claude-ephant/` on macOS, and on Linux
 `$XDG_DATA_HOME/claude-ephant/`, or `~/.local/share/claude-ephant/` when
 `XDG_DATA_HOME` is unset. `ELE_HOME` moves it; `ele status` prints where it is.
+`ELE_HOME` must be an absolute path or start with `~/`. ele refuses any other
+relative value, and every command and hook fails with an error naming it until
+you fix it, because hooks run in each project's directory and a relative value
+would give each project its own store.
 
 Earlier releases kept Linux data under the macOS path too. The first
 `ele` command after upgrading moves that directory to the new one, once, when
@@ -23,7 +27,10 @@ ele keeps using the old path and says so at each session start until you move it
 by hand or set `ELE_HOME` to it. To run an older `ele` after the move, set
 `ELE_HOME` to the new path: an older binary looks only in the old one. Set
 `XDG_DATA_HOME` the same way in your shell and in Claude Code, or leave it
-unset in both: each looks only where its own value points.
+unset in both: each looks only where its own value points. A command that
+started just before the move can still write to the old path; ele does not
+guard that moment, so anything that command wrote stays in the recreated old
+directory, unused.
 
 ```text
 claude-ephant/
@@ -42,8 +49,11 @@ claude-ephant/
   plans/           item names of closed plans
   stop-check/      the Stop hook's state per session
   sync-skipped     files and profiles the last sync could not archive or index, until it skips none
-  sync.log         output of background syncs
+  sync.log         output of background syncs; at 1 MiB it moves to sync.log.1, one kept
 ```
+
+An `archive/claude-mem/` folder, left by earlier releases, is neither read nor
+backed up, and you can delete it.
 
 ele never writes its data into a repository. Plans are the exception by design:
 they are files you keep in the repository they describe.
@@ -52,8 +62,11 @@ The checkpoint log and the ticket-audit ledger live in `logs/`. Releases before
 1.0 kept them in `~/.claude/logs/`; the first `ele` command after upgrading
 moves each one, once, when the new one does not exist yet, and the next session
 start tells you. With `ELE_HOME` set, ele does not move them; each session
-start names the old file until you move it to `logs/` yourself. `CHECKPOINT_LOG`
-skips the checkpoint log's move.
+start names the old file until you move it to `logs/` yourself. When both the
+old and the new file exist, ele merges neither: each session start names both
+until you merge the old one into the new one and delete it. `CHECKPOINT_LOG`
+skips the checkpoint log's move. A symlinked `logs/ticket-audits.jsonl` stays a
+link, and its target gets each record.
 
 The Stop hook reads each session's transcript from where it last stopped, kept
 in `stop-check/`. It stops reading after about 10 seconds a stop, a third of
@@ -85,6 +98,13 @@ beside `~/.claude-work`, is skipped, and `ele status` lists it. A note written w
 not yet holding sessions, names its profile by the folder's full path, so it
 never reads as the other profile's; one written through a symlink to a profile
 names that profile.
+
+A `~/.claude-*` that links to another profile, such as `~/.claude-work` linking
+to `~/.claude`, is the same profile, archived once under the folder that is not
+a link, or under `~/.claude` when it is one of them. Transcripts an earlier
+release archived twice under the link's name stay. A folder whose name another
+profile already has, `~/.claude-claude` or a bare `~/.claude-` beside
+`~/.claude`, is skipped, and `ele status` lists it.
 
 ### The index
 

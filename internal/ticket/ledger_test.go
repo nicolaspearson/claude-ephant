@@ -226,3 +226,66 @@ func writeManifest(t *testing.T, directory string) string {
 	require.NoError(t, os.WriteFile(path, manifest, 0o600))
 	return path
 }
+
+func TestRecordWritesThroughASymlinkedLedger(t *testing.T) {
+	for _, test := range []struct {
+		existing bool
+		name     string
+		relative bool
+	}{
+		{existing: true, name: "absolute link"},
+		{name: "dangling link", relative: true},
+		{existing: true, name: "relative link", relative: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			directory := t.TempDir()
+			ledgerPath := filepath.Join(directory, "logs", "ticket-audits.jsonl")
+			target := filepath.Join(directory, "kept", "ledger.jsonl")
+			require.NoError(t, os.MkdirAll(filepath.Dir(ledgerPath), 0o700))
+			require.NoError(t, os.MkdirAll(filepath.Dir(target), 0o700))
+			if test.existing {
+				writeLedger(t, target, `{"audited":"2026-10-01T10:00:00+00:00","hash":"aaa","key":"`+firstKey+`","methods":[],"rulings":[]}`)
+			}
+			link := target
+			if test.relative {
+				link = filepath.Join("..", "kept", "ledger.jsonl")
+			}
+			require.NoError(t, os.Symlink(link, ledgerPath))
+
+			_, err := record(t, directory, `[{"key":"`+secondKey+`","methods":[],"rulings":[]}]`, ledgerPath)
+
+			require.NoError(t, err)
+			info, err := os.Lstat(ledgerPath)
+			require.NoError(t, err)
+			require.NotZero(t, info.Mode()&os.ModeSymlink, "the link stays a link")
+			written, err := os.ReadFile(target)
+			require.NoError(t, err)
+			require.Contains(t, string(written), secondKey)
+			require.Equal(t, test.existing, strings.Contains(string(written), firstKey))
+			entries, err := os.ReadDir(filepath.Dir(ledgerPath))
+			require.NoError(t, err)
+			require.Len(t, entries, 1, "no temporary file left beside the link")
+		})
+	}
+}
+
+func TestRecordResolvesARelativeLinkFromTheLogsDirectoryItsLinkReaches(t *testing.T) {
+	directory := t.TempDir()
+	logs := filepath.Join(directory, "store", "deep", "logs")
+	target := filepath.Join(directory, "store", "deep", "kept", "ledger.jsonl")
+	require.NoError(t, os.MkdirAll(logs, 0o700))
+	require.NoError(t, os.MkdirAll(filepath.Dir(target), 0o700))
+	writeLedger(t, target, `{"audited":"2026-10-01T10:00:00+00:00","hash":"aaa","key":"`+firstKey+`","methods":[],"rulings":[]}`)
+	require.NoError(t, os.Symlink(logs, filepath.Join(directory, "logs")))
+	ledgerPath := filepath.Join(directory, "logs", "ticket-audits.jsonl")
+	require.NoError(t, os.Symlink(filepath.Join("..", "kept", "ledger.jsonl"), ledgerPath))
+
+	_, err := record(t, directory, `[{"key":"`+secondKey+`","methods":[],"rulings":[]}]`, ledgerPath)
+
+	require.NoError(t, err)
+	written, err := os.ReadFile(target)
+	require.NoError(t, err)
+	require.Contains(t, string(written), firstKey)
+	require.Contains(t, string(written), secondKey)
+	require.NoDirExists(t, filepath.Join(directory, "kept"), "`..` is the link's real directory's parent")
+}

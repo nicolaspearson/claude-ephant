@@ -177,8 +177,11 @@ func moveDue(legacy string, xdg string) bool {
 // Links, not renames: a rename would replace a log another first use moved or a write created.
 func moveLog(old string, directory string, file string) string {
 	current := filepath.Join(directory, "logs", file)
-	if !exists(old) || exists(current) {
+	if !exists(old) {
 		return ""
+	}
+	if exists(current) {
+		return leaveBothNotice(old, directory, current)
 	}
 	err := os.MkdirAll(filepath.Dir(current), 0o700)
 	if err == nil {
@@ -196,23 +199,43 @@ func moveLog(old string, directory string, file string) string {
 	return leaveNotice(directory, fmt.Sprintf("ele moved %s to %s.", old, current))
 }
 
+// A link whose old name could not be removed leaves two names for one file, with nothing to merge.
+func leaveBothNotice(old string, directory string, current string) string {
+	if oldInfo, err := os.Stat(old); err == nil {
+		if currentInfo, err := os.Stat(current); err == nil && os.SameFile(oldInfo, currentInfo) {
+			return leaveNotice(directory, fmt.Sprintf("ele found %s, a second name for %s; remove it.", old, current))
+		}
+	}
+	return leaveNotice(directory, fmt.Sprintf("ele found %s beside %s; it reads and writes only the new one, so merge the old one into it by hand, then remove it.", old, current))
+}
+
 func pointAtLog(old string, directory string, file string) string {
 	current := filepath.Join(directory, "logs", file)
-	if !exists(old) || exists(current) {
+	if !exists(old) {
 		return ""
+	}
+	if exists(current) {
+		return leaveBothNotice(old, directory, current)
 	}
 	return leaveNotice(directory, fmt.Sprintf("ELE_HOME is set, so ele did not move %s; it reads and writes only %s, so move it there by hand to keep its history.", old, current))
 }
 
 func resolve(goos string) (string, error) {
-	if override := os.Getenv("ELE_HOME"); override != "" {
-		absolute, err := filepath.Abs(override)
-		if err != nil {
-			return "", fmt.Errorf("resolve ELE_HOME %s: %w", override, err)
-		}
-		return absolute, nil
-	}
+	override := os.Getenv("ELE_HOME")
 	home, err := os.UserHomeDir()
+	if override != "" {
+		if rest, ok := strings.CutPrefix(override, "~/"); ok {
+			if err != nil {
+				return "", fmt.Errorf("resolve ELE_HOME %q: %w", override, err)
+			}
+			return filepath.Join(home, rest), nil
+		}
+		// Hooks run in each project's directory, so a relative store would be one per project.
+		if !filepath.IsAbs(override) {
+			return "", fmt.Errorf("ELE_HOME %q is relative: set it to an absolute path or one starting ~/", override)
+		}
+		return filepath.Clean(override), nil
+	}
 	if err != nil {
 		return "", fmt.Errorf("resolve data dir: %w", err)
 	}

@@ -31,6 +31,7 @@ func TestRunBackupCopiesTheDataDirectoryAndTheIndex(t *testing.T) {
 	writeFile(t, filepath.Join(data, "logs", "checkpoints.jsonl"), `{"scope":"diff"}`+"\n")
 	writeFile(t, filepath.Join(data, "logs", "ticket-audits.jsonl"), `{"key":"k"}`+"\n")
 	writeFile(t, filepath.Join(data, "mining", "cache", "checkpoint-runs.jsonl"), "{}\n")
+	writeFile(t, filepath.Join(data, "archive", "claude-mem", "observations.jsonl"), "retired\n")
 	target := filepath.Join(home, "backups", "2026-10-17")
 
 	output, code := runCommand(t, "backup", target)
@@ -54,6 +55,7 @@ func TestRunBackupCopiesTheDataDirectoryAndTheIndex(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, archived)
 	for _, path := range []string{
+		filepath.Join("archive", "claude-mem", "observations.jsonl"),
 		filepath.Join("archive", "transcripts", ".lock"),
 		"last-sync",
 		filepath.Join("notes", "personal", "20261017-aaaaaa.md.123.tmp"),
