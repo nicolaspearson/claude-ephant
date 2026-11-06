@@ -390,7 +390,7 @@ keep.
     it each say `/ele:review` is experimental
 - [ ] readme-guides: Sweep the README and every page under `docs/` against the
   code
-  - blocked: help-text, bashwork-reads
+  - blocked: bashwork-reads
   - done when each page's commands and flags are checked against `--help`,
     each behaviour it states is checked against the code or a run, and
     `task format`, `task lint` and `task lint-docs` pass
@@ -1766,7 +1766,12 @@ keep.
   - ruled 2026-11-06, at the checkpoint: `ownermap.Read` also refuses a
     project entry `ele owner project` would refuse; `ELE_HOME=~/`, the home
     directory itself, stays allowed, as an absolute `$HOME` is
-- [ ] help-text: `--help` matches the code
+- [x] help-text: `--help` matches the code
+  - asserted in the help-text commit: `ele backup --help`, `ele status --help`
+    and `ele reminder list --help`, and the `ele --help` rows for backup and
+    status, print what `backupParts`, `writeStatus` and `remindersHere`
+    produce, read against the code at the CLI boundary; `docs/commands.md` says the same; no test pins
+    the wording
   - done when each help line below says what the code does, and
     `docs/commands.md` follows it
   - 2026-10-30, from audit-cmd: help text off the code. `backup`'s purpose and
@@ -1774,6 +1779,15 @@ keep.
     omits everywhere reminders, which `remindersHere` lists; `docs/commands.md`'s
     `status` line omits the running sync, the options off their defaults and
     the sync log tail
+  - as of 2026-11-06 (70c3edf): each claim holds. `backupParts` lists `logs`;
+    `cmd/ele/help.go`'s `backup` overview and purpose lines and
+    `docs/commands.md` do not, though `docs/data-and-privacy.md`'s Backup
+    section names the checkpoint log and ticket-audit ledger. `remindersHere`
+    keeps any reminder not project-scoped, everywhere ones included; the
+    `reminder list` purpose line and `docs/commands.md` name only global ones.
+    `writeStatus` prints Sync running and Config rows; `help.go`'s `status`
+    purpose line and `docs/commands.md` omit both, and its overview line omits
+    the sync log too
 - [ ] bashwork-reads: Read-only `ele` commands draw no notes ask
   - done when each command below reads as not work, by a test, and
     `stop-check.md`'s "What it reads" lists it
@@ -2160,7 +2174,7 @@ keep.
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: readme-guides, help-text, bashwork-reads, ci-hardening, eval-fixes
+  - blocked: readme-guides, bashwork-reads, ci-hardening, eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`

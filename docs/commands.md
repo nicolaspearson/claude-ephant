@@ -98,11 +98,12 @@ ele reminder close [--owner <name>] [--project <name>] <id>...
 ele reminder reopen [--owner <name>] [--project <name>] <id>...
 ```
 
-Open reminders for the project and the owner's global ones, soonest due first;
-`--all` adds closed and superseded ones, and `--colour` highlights the list, for
-`! ele reminder list --colour`, unless the colour option is off or `NO_COLOR` is
-set. `close` marks reminders done, or re-arms a nudge; `reopen` opens them
-again, so the start block shows them from their due date.
+Open reminders for the project, the owner's global ones and the everywhere ones,
+soonest due first; `--all` adds closed and superseded ones, and `--colour`
+highlights the list, for `! ele reminder list --colour`, unless the colour
+option is off or `NO_COLOR` is set. `close` marks reminders done, or re-arms a
+nudge; `reopen` opens them again, so the start block shows them from their due
+date.
 
 ## Plans
 
@@ -202,12 +203,13 @@ and `--background` starts it detached and returns. A file it cannot read is
 skipped and named, and the rest synced; the start block says how many until a
 sync skips none. `reindex` rebuilds the index from the archive and notes.
 `status` says whether ele is working here: the data directory, the sync state
-and anything the last sync skipped, the owner here, the plugin in each profile
-and the sync log. `stats` counts what the index holds and its disk use. `version` prints
-the release tag stamped at build, else the version Go stamped, or `devel`.
-`backup` copies the archive, notes, forgotten notes, mining runs, config, owner
-map, closed plans' item names and the index into a new or empty directory; see
-[Data and privacy](data-and-privacy.md#backup).
+and anything the last sync skipped, whether a sync is running, the owner here,
+the options off their defaults, the plugin in each profile and the sync log.
+`stats` counts what the index holds and its disk use. `version` prints the
+release tag stamped at build, else the version Go stamped, or `devel`. `backup`
+copies the archive, notes, forgotten notes, the checkpoint log and ticket-audit
+ledger, mining runs, config, owner map, closed plans' item names and the index
+into a new or empty directory; see [Data and privacy](data-and-privacy.md#backup).
 
 ```text
 ele owner add [--move] [--move-to <owner>] [--no-sync] <name>

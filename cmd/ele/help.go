@@ -41,10 +41,10 @@ History
 Index
   sync            archive transcripts and update the index
   reindex         rebuild the index from the archive and notes
-  status          data directory, sync state, owner here, plugins
+  status          data directory, sync state, owner here, config, plugins, sync log
   stats           index counts and disk use
   version         the release tag this binary was built from, the version Go stamped, or devel; also --version and -v
-  backup          copy the archive, notes, forgotten notes, mining runs, config, owner map, closed plans and index elsewhere
+  backup          copy the archive, notes, forgotten notes, logs, mining runs, config, owner map, closed plans and index elsewhere
   owner           add an owner, or add or remove a path rule or project entry
 
 Config
@@ -82,7 +82,7 @@ Hooks
 ele <command> --help says what each flag does.`
 
 var purposes = map[string]string{
-	"backup":               "Copy the archive, notes, forgotten notes, mining runs, config, owner map, closed plans' item names and the index into a new or empty directory.",
+	"backup":               "Copy the archive, notes, forgotten notes, the checkpoint log and ticket-audit ledger, mining runs, config, owner map, closed plans' item names and the index into a new or empty directory.",
 	"checkpoint base":      "Print the merge-base of HEAD with its upstream, else with origin/HEAD, for a branch checkpoint; refuses with neither or with no shared history.",
 	"checkpoint check":     "Exit 0 when every changed path is what the last checkpoint recorded, staged or committed since included; 1 when anything changed since, none ran, nothing is changed, or over 200 paths are changed.",
 	"checkpoint close":     "End this session's open checkpoint run without a record, stopping its clock.",
@@ -125,12 +125,12 @@ var purposes = map[string]string{
 	"remember":             "Save a note that later sessions start with; a reminder, from its --due date or time; with --every, a nudge, again that long after each close.",
 	"reminder":             "List, close or reopen reminders; save one with ele remember --kind reminder --due <YYYY-MM-DD[THH:MM]>, or --every <interval> for a nudge.",
 	"reminder close":       "Mark open reminders done or dropped, so the start block stops showing them; a nudge is re-armed for its interval instead.",
-	"reminder list":        "Open reminders for the project and the owner's global ones, soonest due first.",
+	"reminder list":        "Open reminders for the project, the owner's global ones and the everywhere ones, soonest due first.",
 	"reminder reopen":      "Make closed reminders open, so the start block shows them again from their due date.",
 	"session-start":        "Print the SessionStart block and start a background sync.",
 	"show":                 "A session's entries, or the discussion a note came from.",
 	"stats":                "Index counts and disk use.",
-	"status":               "Data directory, sync state, the owner here, plugins and the sync log.",
+	"status":               "Data directory, the last sync and what it skipped, whether a sync is running, the owner here, the options off their defaults, plugins and the sync log.",
 	"stop-check":           "Read a Stop hook's input. Block once per stretch between checkpoints to ask for notes on unproposed work, and suggest /compact or a handoff once per 100k of context past the compact_hint_at option, unless it is 0; ask for no notes with the notes_ask option off. With --replay, print for each Stop of the archived main transcripts with a line in the window whether the hook as built would ask for notes, and why not when it would not.",
 	"sync":                 "Archive new transcripts and update the index.",
 	"ticket claims":        "Flag open GitHub tickets labelled wayfinder:map that grant themselves execution, and wayfinder:task tickets naming a source path; with numbers, only those tickets.",
