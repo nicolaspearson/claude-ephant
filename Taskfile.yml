@@ -230,8 +230,10 @@ tasks:
       - rumdl fmt .
 
   lint:
-    desc: "Check formatting, vet, catch shadowed variables, run staticcheck and shellcheck, and lint Markdown with rumdl."
+    desc: "Check formatting, vet, catch shadowed variables, run staticcheck, shellcheck and actionlint, and lint Markdown with rumdl."
     preconditions:
+      - sh: test -x {{.TOOLS}}/actionlint
+        msg: "actionlint is not installed — run: task setup-tools"
       - sh: command -v rumdl
         msg: "rumdl is not installed — brew install rumdl, or pip install rumdl"
       - sh: test -x {{.TOOLS}}/shadow
@@ -257,6 +259,8 @@ tasks:
       # Package doc comments not required.
       - "{{.TOOLS}}/staticcheck -checks=all,-ST1000 -f stylish -fail=all ./..."
       - shellcheck install.sh
+      # Also runs shellcheck on each workflow's run: blocks.
+      - "{{.TOOLS}}/actionlint"
       # Also fails a relative link to a missing file (MD057) or a heading it does not have (MD051).
       - rumdl check .
 

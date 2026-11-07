@@ -15,7 +15,7 @@ downloads the modules and installs the pinned Go tools the gates call
 built with the Go in use, since a tool built by an older Go reports nothing
 under a newer one; after a Go upgrade, run `task setup-tools` again.
 `shellcheck` and `rumdl` are installed by hand, with Homebrew or your package
-manager; CI pins rumdl 0.3.0.
+manager; CI pins rumdl 0.3.0, shellcheck 0.11.0 and Task 3.54.0.
 
 `task` with no target lists them all.
 
@@ -57,7 +57,8 @@ as new as the plugin.
 - `task format` formats Go and Markdown; `task precommit` formats, runs
   `check`, then rewrites with `gofmt -s` and `go fix`
 - `lint` runs `gofmt`, `go vet`, `shadow`, `staticcheck`, `shellcheck` on
-  `install.sh` and `rumdl`, which also fails a relative link to a missing file
+  `install.sh`, `actionlint` on the workflows, their `run:` blocks through
+  shellcheck, and `rumdl`, which also fails a relative link to a missing file
   or heading. `lint-docs` fails a `.go` or `.html` line-number citation, or a
   note id, under `docs/` or `.documentation/`: cite a package and an
   identifier, and describe what was observed in place of a note id
@@ -211,9 +212,12 @@ and the binary it needs only at the next release.
 ### Install script
 
 `install.sh` is POSIX `sh` needing `curl`, `tar` and `sha256sum` or `shasum`,
-not `gh`. It downloads the latest release, or `ELE_VERSION`'s, checks it
-against `checksums.txt`, and installs into `~/.local/bin` (`ELE_INSTALL_DIR`
-overrides), warning rather than failing when that is not on `PATH`.
+not `gh`. It downloads the latest release, or `ELE_VERSION`'s, its `v`
+optional, over https only, checks it against `checksums.txt`, and installs into
+`~/.local/bin` (`ELE_INSTALL_DIR` overrides), warning rather than failing when
+that is not on `PATH`. The binary is renamed into place, so a kill mid-install
+leaves the old one and at most a stray `.ele.new` beside it, and the download
+is removed on an interrupt as on exit.
 
 ### Homebrew tap
 

@@ -43,12 +43,14 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          # go.mod because objects belong to a toolchain version.
-          key: go-build-v1-${{ runner.os }}-${{ hashFiles('go.sum', 'go.mod') }}
-          restore-keys: go-build-v1-${{ runner.os }}-
+          # go.mod because objects belong to a toolchain version; the commit because an exact hit never saves.
+          key: go-build-v1-${{ runner.os }}-${{ hashFiles('go.sum', 'go.mod') }}-${{ github.sha }}
+          restore-keys: |
+            go-build-v1-${{ runner.os }}-${{ hashFiles('go.sum', 'go.mod') }}-
+            go-build-v1-${{ runner.os }}-
       - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
         with:
-          version: 3.x
+          version: 3.54.0
           repo-token: ${{ github.token }}
       # Sound as a key only because the tool versions are pinned there. Go too:
       # a tool built by an older Go loads nothing under a newer one.
@@ -64,6 +66,14 @@ jobs:
       # Pinned: at the latest release the same commit passes today and fails tomorrow when rumdl ships a rule.
       - name: Install rumdl
         run: pipx install rumdl==0.3.0
+      # Pinned: the runner image's shellcheck moves with the image, so the same commit passes today and fails tomorrow.
+      - name: Install shellcheck
+        run: |
+          curl --proto '=https' -fsSL -o "$RUNNER_TEMP/shellcheck.tar.xz" \
+            https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz
+          echo "8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198  $RUNNER_TEMP/shellcheck.tar.xz" | sha256sum -c -
+          tar -xJf "$RUNNER_TEMP/shellcheck.tar.xz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/shellcheck-v0.11.0" >> "$GITHUB_PATH"
       # Forced: the restored build cache would otherwise serve last run's test results.
       - name: Check
         run: task check FORCE=1

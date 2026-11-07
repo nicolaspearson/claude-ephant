@@ -1872,6 +1872,27 @@ keep.
     runner image. Its Go build cache key is go.sum and go.mod alone, so after
     the first run for a go.sum every run hits it exactly, never saves, and
     rebuilds whatever changed since that first run
+  - as of 2026-11-07 (24488c9): premises hold. `install.sh` `main` sets only
+    `trap 'rm -rf "$work"' EXIT` and installs with `install -m 0755`; its
+    `curl` calls take no `--proto`; `ELE_VERSION` goes into the URL as given,
+    and release tags are `v`-prefixed (`v0.12.0` to `v0.14.0`). Under dash, a
+    SIGTERM to a probe of that trap leaves its work directory (exit 143), and
+    adding `trap 'exit …' INT TERM HUP` removes it (probed). GNU `install`
+    unlinking before it writes: not checked. `ci.yml` sets Task `3.x`, keys the
+    build cache on `hashFiles('go.sum', 'go.mod')` with no per-run part, and
+    installs no shellcheck; `lint` runs `shellcheck install.sh` alone and no
+    actionlint. actionlint 1.7.12 passes on the three workflows today. No doc
+    names actionlint; README and CONTRIBUTING's Install script section call
+    `ELE_VERSION` a release tag
+  - as of 2026-11-07: `install.sh` probed under dash: `ELE_VERSION=0.14.0`
+    and `v0.14.0` both install, and SIGTERM after `mktemp` leaves no work
+    directory, one left with the TERM trap removed; actionlint 1.7.12 runs in
+    `task lint`, red on a mutated `ci.yml`; `ci.yml` pins Task 3.54.0 and
+    shellcheck 0.11.0 by sha256 and keys the build cache per commit, none of
+    it yet run in Actions
+  - next: on this change's first CI run, see setup-task install 3.54.0, the
+    shellcheck step's `sha256sum -c` print OK and actionlint pass in Check,
+    and a later run's build cache step save; then tick
 - [ ] eval-fixes: The evals grade what they name
   - done when each grader below fails the runs it should and passes the rest,
     `recipe`'s Audit Command bullet checks a relative path as a file, and the

@@ -59,7 +59,7 @@ The `ele` plugin adds the skills and hooks that use the binary:
    Or with the install script, which checks the download against the release's
    `checksums.txt` and puts `ele` in `~/.local/bin`, saying so if that is not
    on `PATH`. `ELE_INSTALL_DIR` picks another directory, `ELE_VERSION` a
-   release tag:
+   release tag, its `v` optional:
 
    ```sh
    curl -fsSL https://raw.githubusercontent.com/nicolaspearson/claude-ephant/main/install.sh | sh

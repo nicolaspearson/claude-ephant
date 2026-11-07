@@ -1,5 +1,5 @@
 #!/bin/sh
-# ELE_VERSION: a release tag, default the latest. ELE_INSTALL_DIR: default ~/.local/bin.
+# ELE_VERSION: a release tag, its v optional, default the latest. ELE_INSTALL_DIR: default ~/.local/bin.
 set -eu
 
 repository=nicolaspearson/claude-ephant
@@ -27,7 +27,11 @@ main() {
 	name="ele_${os}_${arch}"
 
 	if [ -n "${ELE_VERSION:-}" ]; then
-		base="https://github.com/$repository/releases/download/$ELE_VERSION"
+		case $ELE_VERSION in
+		v*) version=$ELE_VERSION ;;
+		*) version=v$ELE_VERSION ;;
+		esac
+		base="https://github.com/$repository/releases/download/$version"
 	else
 		base="https://github.com/$repository/releases/latest/download"
 	fi
@@ -35,8 +39,12 @@ main() {
 
 	work=$(mktemp -d)
 	trap 'rm -rf "$work"' EXIT
-	curl -fsSL -o "$work/$name.tar.gz" "$base/$name.tar.gz" || fail "could not download $base/$name.tar.gz"
-	curl -fsSL -o "$work/checksums.txt" "$base/checksums.txt" || fail "could not download $base/checksums.txt"
+	# dash runs no EXIT trap on a signal unless the signal's trap exits.
+	trap 'exit 129' HUP
+	trap 'exit 130' INT
+	trap 'exit 143' TERM
+	curl --proto '=https' -fsSL -o "$work/$name.tar.gz" "$base/$name.tar.gz" || fail "could not download $base/$name.tar.gz"
+	curl --proto '=https' -fsSL -o "$work/checksums.txt" "$base/checksums.txt" || fail "could not download $base/checksums.txt"
 
 	expected=$(awk -v file="$name.tar.gz" '$2 == file { print $1 }' "$work/checksums.txt")
 	if command -v sha256sum >/dev/null; then
@@ -52,7 +60,9 @@ main() {
 
 	tar -xzf "$work/$name.tar.gz" -C "$work"
 	mkdir -p "$directory"
-	install -m 0755 "$work/$name/ele" "$directory/ele"
+	# Same-directory rename: atomic, so the old ele survives a kill.
+	install -m 0755 "$work/$name/ele" "$directory/.ele.new"
+	mv -f "$directory/.ele.new" "$directory/ele"
 
 	if installed=$("$directory/ele" version 2>/dev/null); then
 		echo "Installed ele $installed at $directory/ele"
