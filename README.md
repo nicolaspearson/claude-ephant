@@ -37,7 +37,8 @@ The `ele` plugin adds the skills and hooks that use the binary:
 
 - Claude Code 2.1.163 or later, the first to read the context the Stop hooks
   keep a turn going with
-- `gh` or `glab`, for `/ele:ticket-audit`; `/ele:ticket-claims` needs `gh`.
+- `gh` or `glab`, for `/ele:ticket-audit` and `/ele:review`;
+  `/ele:ticket-claims` needs `gh`.
   Log in with `gh auth login` or `glab auth login` first
 - `git`
 - Go, at the version in `go.mod`, only to install with `go install`
@@ -86,9 +87,10 @@ The `ele` plugin adds the skills and hooks that use the binary:
 ## Quick start
 
 1. Name an owner and the directories whose sessions are theirs. A session in no
-   owner's directory starts with a line saying so instead of notes; run
-   `/ele:setup` there, which proposes the `ele owner` commands that map it and
-   runs them once you approve. See [Owners](docs/owners.md)
+   owner's directory starts with a line saying so, and only the notes made
+   with `--everywhere`; run `/ele:setup` there, which proposes the `ele owner`
+   commands that map it and runs them once you approve. See
+   [Owners](docs/owners.md)
 2. Work in a session under that directory. When a decision is made, say
    "remember that…", or approve a note ele proposes after a stretch of work; see
    [Notes](docs/notes-and-recall.md#notes)
@@ -117,9 +119,14 @@ each does.
   off
 - **`compact_hint_at`**, 150000: context tokens from which ele suggests
   `/compact` or a handoff; 0 turns it off
+- **`lone_handoff_pending`**, off: keeps a lone handoff pending until you pick
+  or drop it, instead of showing it once
 - **`notes_ask`**, on: asks for notes once per stretch of work
+- **`recipe_dir`**, empty: a folder an approved recipe is written to once,
+  linked from each profile
 - **`recipes`**, on: `/ele:wrap` offers a procedure the session ran as a skill
 - **`reminders`**, on: shows due reminders at session start
+- **`review_voice`**, empty: your own voice file for `/ele:review`'s comments
 
 ## Update
 

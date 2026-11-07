@@ -13,9 +13,11 @@ one of them, and otherwise needs `--owner`.
 
 A `YYYY-MM-DD` you type to `--since`, `--until` or `--due`, or write in a
 plan's `after:`, is a day on your clock, from its local midnight, as is a
-number of days back such as `7d`, which `--since` alone takes; ele stores times
-in UTC and turns the day into UTC before comparing. `--due`'s time is local
-too; `--until`'s RFC 3339 time and `after:`'s `HH:MMZ` carry their offset.
+number of days back such as `7d`, which the `--since` of `recall`, `events`,
+`usage` and `checkpoint stats` takes; ele stores times in UTC and turns the day
+into UTC before comparing. `--due`'s time is local too; an RFC 3339 time, which
+`stop-check --replay`'s `--since` and `--until` take, and `after:`'s `HH:MMZ`
+carry their offset.
 `ele show --at` takes a stored stamp as printed, in UTC. A note keeps both: its
 `date` is the local day it was written, its `time` the UTC moment, and
 handoffs, flags and plans listed newest first are ordered by `time`.
@@ -237,7 +239,8 @@ ele config unset [--owner <name>] <key>
 
 `list` and `get` show values for the owner here: the owner's override, else the
 global value, else the default, and `list` also shows any stored key no option
-takes. A `config.json` that does not parse reads as defaults, said on stderr.
+takes. A `config.json` that does not parse, or holds a known option of the
+wrong kind, reads as defaults, said on stderr.
 `set` and `unset` change the global value unless `--owner` names one, and refuse
 inside a Claude Code session; `unset` lets the next level down apply. See
 [Options](data-and-privacy.md#options).
@@ -252,7 +255,9 @@ each.
 | `ele session-start`                             | SessionStart hook: the block a session opens with  |
 | `ele stop-check`                                | Stop hook: the notes ask and the context size hint; `--replay` replays it, under [History](#history) |
 | `ele checkpoint gate`, `ele checkpoint snapshot` | Stop and UserPromptSubmit hooks: the checkpoint gate |
-| `ele checkpoint base`, `check`, `close`, `density`, `freeze`, `hash`, `log`, `optout`, `record` | `/ele:checkpoint` |
+| `ele checkpoint base`, `close`, `density`, `freeze`, `hash`, `optout`, `record` | `/ele:checkpoint` |
+| `ele checkpoint check`                          | `/ele:checkpoint` and `/ele:wrap`                  |
+| `ele checkpoint log`                            | `/ele:checkpoint` and `/ele:review`                |
 | `ele checkpoint stats [--since <YYYY-MM-DD\|Nd>]` | `/ele:checkpoint-stats`                            |
 | `ele ticket corpus`, `ele ticket ledger`        | `/ele:ticket-audit` and `/ele:plan-audit`          |
 | `ele ticket claims`                             | `/ele:ticket-claims`                               |
@@ -296,22 +301,25 @@ recorded, and 1 when anything changed since, none ran, nothing is changed, or
 over 200 paths are changed, past the fingerprint's cap.
 `freeze` writes each path's diff against `HEAD`, or `--base`, into `<dir>` with
 a fingerprint, says how many dirty paths past 200 went unfingerprinted, and
-opens or extends the session's run, `--start`, or a freeze two hours after the
-last, restarting its clock. It takes
-each path literally, never as a glob, diffs its bytes, never a textconv, and
-refuses a directory or an untracked symlink to one, an untracked path inside a
-nested repository, a path inside `.git`, a path not relative to the root as git
-prints it, one holding a newline, a repository with no commit yet, and a `<dir>`
-holding another root's checkpoint files. A file git's attributes mark binary
-still diffs as binary. A call missing its root, `<dir>`, `--base` commit or
-paths prints the reason before the synopsis. `hash` prints the
-fingerprint of the changed paths, a symlink hashed by its link text as git
-does, for comparing with a freeze's.
+opens or extends the session's run for two hours; `--start`, or a freeze two
+hours after the last, restarts its clock. It takes each path literally, never
+as a glob, diffs its bytes, never a textconv, and refuses a root that is not a
+repository, a `--base` that is not a commit, a path with no change, an
+untracked path that is not a file, a directory or an untracked symlink to one,
+an untracked path inside a nested repository, a path inside `.git`, a path not
+relative to the root as git prints it, one holding a newline, a repository with
+no commit yet, and a `<dir>` holding another root's checkpoint files. A file
+git's attributes mark binary still diffs as binary. A call missing its root,
+`<dir>`, `--base` commit or paths prints the reason before the synopsis. `hash`
+prints the fingerprint of the changed paths, a symlink hashed by its link text
+as git does, for comparing with a freeze's.
 `record` marks what the run froze as reviewed, as its last freeze saw it, and
 ends the run, refusing when a frozen path moved since that freeze;
 `close` ends it without a record. `log` appends a checkpoint's or review's
 record, read on stdin. `optout` exempts paths matching each glob from the gate
-for the session, refusing a glob that matches over half the repository's paths.
+for the session, refusing an absolute glob, one with a `.`, `..` or empty
+segment, one matching any path such as `*` or `**`, and one matching over half
+the repository's tracked and untracked paths.
 Every freeze sweeps abandoned runs' files, crashed records' tmp files, and
 sessions' opt-outs and baselines, once untouched for 7 days; a record stays.
 `density` measures the comment share of the diff since `--ref`. `gate` and

@@ -92,14 +92,15 @@ block ele prints for its project and owner:
 
 1. Pending handoffs, on startup and `/clear` only
 2. Active plans, with the next item
-3. Reminders due today or earlier
+3. Reminders that have come due: from their date's local midnight, or from
+   their date and time
 4. Every open question, then decisions and facts, newest first. Decisions and
    facts are held to about 1,500 tokens, oldest cut first; questions are cut
    only when the whole block grows too long for Claude Code to show
 5. A closing line counting what was not shown and how to search
 
-`ele context` prints every live note for the project with no budget, for when
-the block cut some.
+`ele context` prints every open question, decision and fact for the project,
+and its pending handoffs, with no budget, for when the block cut some.
 
 ## Recall
 

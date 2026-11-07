@@ -388,11 +388,23 @@ keep.
   - asserted in the commit carrying this tick: `mr-review`'s `review-skill`
     is unticked, and `docs/review.md`'s opening and the README's line linking
     it each say `/ele:review` is experimental
-- [ ] readme-guides: Sweep the README and every page under `docs/` against the
+- [x] readme-guides: Sweep the README and every page under `docs/` against the
   code
   - done when each page's commands and flags are checked against `--help`,
     each behaviour it states is checked against the code or a run, and
     `task format`, `task lint` and `task lint-docs` pass
+  - asserted in the readme-guides commit: `README.md` and the 9 pages under
+    `docs/` were read whole and each command, flag and behaviour they state
+    was checked against a clone build's `--help` for all 54 commands and the
+    code under `cmd/`, `internal/` and `plugin/`; the 30 discrepancies the
+    sweep found and the 10 the checkpoint review raised are fixed; facts about
+    Claude Code itself (the 2.1.163 floor, `/plugin marketplace update` and
+    `/reload-plugins`, the `Stop hook feedback:` label, `cleanupPeriodDays`)
+    are named unchecked as not ele's behaviour; `task format`, `task lint` and
+    `task lint-docs` pass
+  - as of 2026-11-07: the pages are `README.md` and the 9 files `find docs
+    -type f` lists; the three task targets exist in
+    `Taskfile.yml`
 - [x] cli-docs: Sweep `docs/commands.md` against every `ele <command> --help`
   - done when every command and flag `ele --help` lists has its row, each
     row's description matches its `--help`, no row names one that is gone, and
@@ -2204,7 +2216,7 @@ keep.
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: readme-guides, ci-hardening, eval-fixes
+  - blocked: ci-hardening, eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`

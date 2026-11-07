@@ -23,9 +23,11 @@ name.
    comments, hidden markup and invisible characters are stripped first. A closed
    or merged MR is refused unless you say to review it anyway
 2. **Reviews** a copy of the head tree, extracted into the session scratchpad,
-   never your clone. A bugs reviewer and a conventions reviewer run in parallel,
-   and a spec reviewer when there is a spec. They can read and search the copy
-   and nothing else: none can run a command, so none runs the change's code
+   never your clone. A bugs reviewer and a conventions reviewer, from
+   checkpoint's own files, run in parallel, the conventions one running its
+   Conventions pass only, and a spec reviewer when there is a spec. Their only
+   tools are Read, Grep and Glob, pointed at the copy: none can run a command,
+   so none runs the change's code
 3. **Filters** what they find: anything not on the change's lines, already
    raised in a discussion or reported by a failing job is dropped and counted.
    What is left is classified as a blocker, a defect, a question or minor, and
@@ -59,8 +61,10 @@ the exact commit reviewed; otherwise you get Raw Markdown and Skip.
 ## Comments in your voice
 
 Each comment opens with a [Conventional Comments](https://conventionalcomments.org/)
-label, `issue (blocking, bug):` for a blocker, `issue (non-blocking, test):` for
-a defect, `question:` for a question, and is worded from a voice file. The
+label, `issue (blocking, <kind>):` for a blocker, `issue (non-blocking, <kind>):`
+for a defect, `question:` for a question, and `suggestion (non-blocking,
+<kind>):` or `nitpick (non-blocking, <kind>):` for a minor one, the kind being
+bug, convention, security, spec or test. Each is worded from a voice file. The
 shipped one proposes rather than instructs, gives the input and the wrong output
 rather than "might break", and says what it could not check. Point
 `review_voice` at your own, per owner if your work and personal reviews should

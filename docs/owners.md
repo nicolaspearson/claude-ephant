@@ -45,7 +45,8 @@ in this order:
 
 A session matching neither has no owner. It is still archived and indexed, but
 default recall leaves it out, and its sessions start with a line saying no owner
-covers the directory and naming `/ele:setup`, instead of notes.
+covers the directory and naming `/ele:setup`, and only [everywhere
+notes](notes-and-recall.md#saving-one) show there.
 
 ## Changing the map
 
@@ -59,8 +60,8 @@ covers the directory and naming `/ele:setup`, instead of notes.
 
 Each prints the projects that change owner. It refuses a relative path, an
 unlisted owner or a rule that is not there. It also refuses while a sync is
-running, and before the first sync has finished: run it again once the sync is
-done.
+running, and while an index exists that no sync under this version of ele has
+finished; with no index yet, it goes ahead. Run it again once the sync is done.
 
 Notes belong to an owner too. When a change moves a project to another owner,
 the command refuses while that project has notes under the old one, and says
@@ -78,13 +79,14 @@ The map is `owner-map.json` in the data directory and can be edited by hand.
 ele notices a changed map at the next sync and rebuilds the same way. A path
 rule may start with `~/`, and the next `ele owner` write saves it as the
 absolute path. ele refuses a hand edit that `ele owner` would refuse: another
-relative rule, an owner name other than letters, digits, `-` and `_`, a project
-entry that is not a directory name, or two rules for one directory, such as
-`/a/b` and `/a/b/`. Every command and hook that reads the map, `ele owner`
-included, then fails with an error naming the entry until you fix the file by
-hand, while `ele status` shows the error on its `Here` row. Rules match the
-directory as your shell reached it, without resolving symlinks, so where
-`pwd -P` prints another path, add the rule in both forms, as `/ele:setup` does.
+relative rule, an owner name other than letters, digits, `-` and `_` starting
+with a letter or digit, a project entry that is not a directory name, or two
+rules for one directory, such as `/a/b` and `/a/b/`. Every command and hook
+that reads the map, `ele owner` included, then fails with an error naming the
+entry until you fix the file by hand, while `ele status` shows the error on its
+`Here` row. Rules match the directory as your shell reached it, without
+resolving symlinks, so where `pwd -P` prints another path, add the rule in both
+forms, as `/ele:setup` does.
 
 ## Crossing owners
 

@@ -41,7 +41,7 @@ claude-ephant/
   forgotten.lock   held while ele moves a forgotten note
   last-sync        when the last sync succeeded
   logs/            checkpoints.jsonl and ticket-audits.jsonl
-  mining/          checkpoint mining judgments
+  mining/          mining judgments of checkpoint runs and review cycles
   move-notice      the data directory and log moves' outcomes, until a session shows them
   notes/           notes, one Markdown file each, by owner
   notes.lock       held while ele rewrites or moves a note
@@ -85,8 +85,8 @@ state lives in `claude-checkpoint/` under the system temporary directory.
 Claude Code deletes old transcripts after its `cleanupPeriodDays` setting. ele
 copies every profile's transcripts, under `~/.claude`, `~/.claude-*` and
 `CLAUDE_CONFIG_DIR`, into `archive/` as they grow, so it keeps what Claude Code
-deletes. It syncs in the background when a session starts and ends, and before
-each recall.
+deletes. It syncs in the background when a session starts, clears, compacts
+and ends, and in the foreground before each recall.
 
 A profile elsewhere, such as a temporary `CLAUDE_CONFIG_DIR`, is archived by
 the syncs that run under it: its own sessions' hooks, or a shell exporting the

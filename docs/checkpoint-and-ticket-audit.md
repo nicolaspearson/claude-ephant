@@ -34,8 +34,10 @@ The conventions reviewer reads your `CLAUDE.md`, under `$CLAUDE_CONFIG_DIR` or
 
 When a turn changed files and claims the work is done, but no checkpoint was
 reported, ele's Stop hook keeps the turn going once and points Claude at
-`/ele:checkpoint`. It goes out the same way as the notes ask, which your
-terminal shows as `Stop hook feedback:`, not as a hook error.
+`/ele:checkpoint`. A checkpoint run still open, a turn that ran the checkpoint
+skill, or a reply naming both a quality and a prose pass also lets the turn
+end. It goes out the same way as the notes ask, which your terminal shows as
+`Stop hook feedback:`, not as a hook error.
 Mid-task work, an investigation or a turn waiting on you is not a checkpoint,
 and Claude says so rather than running one.
 
@@ -50,7 +52,8 @@ in "once the suite passes, you can commit". "Now done; two are left" reports
 progress, not done work.
 
 When you say a change needs no checkpoint, Claude exempts its paths for the
-session with `ele checkpoint optout`. To turn the gate off entirely:
+session with `ele checkpoint optout`. To turn the gate off entirely, in a
+terminal outside Claude Code, since `config set` refuses inside a session:
 
 ```sh
 ele config set checkpoint_gate false
