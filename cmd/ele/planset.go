@@ -175,11 +175,14 @@ func (s planSet) clashes(relative string, parsed plan.Plan) []string {
 }
 
 // The first plan of that name holding the item answers: active plans, then closed ones newest first.
+// An unchecked plan still counts as a plan of this project; a set never loaded counts every plan as known, so none reads as absent.
 func (s planSet) lookup(edge plan.Edge) plan.Blocker {
+	known := s.active == nil || slices.ContainsFunc(s.unchecked, func(unchecked uncheckedPlan) bool { return planBase(unchecked.path) == edge.Plan })
 	for _, relative := range s.activePaths {
 		if planBase(relative) != edge.Plan {
 			continue
 		}
+		known = true
 		if at := slices.IndexFunc(s.active[relative].Actions, func(item plan.Item) bool { return item.Name == edge.Name }); at >= 0 {
 			if s.active[relative].Actions[at].Done {
 				return plan.BlockerDone
@@ -191,12 +194,16 @@ func (s planSet) lookup(edge plan.Edge) plan.Blocker {
 		if planBase(stored.Path) != edge.Plan {
 			continue
 		}
+		known = true
 		if at := slices.IndexFunc(stored.Items, func(item plan.StoredItem) bool { return item.Name == edge.Name }); at >= 0 {
 			if stored.Items[at].Done {
 				return plan.BlockerDone
 			}
 			return plan.BlockerAbandoned
 		}
+	}
+	if !known {
+		return plan.BlockerNoPlan
 	}
 	return plan.BlockerMissing
 }

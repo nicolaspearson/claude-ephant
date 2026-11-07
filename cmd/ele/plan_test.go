@@ -279,6 +279,50 @@ func TestRunPlanShowFreesAnItemOnceAnotherPlansBlockerIsTicked(t *testing.T) {
 	require.Equal(t, "Plan other.md: 1 open, 0 blocked, 0 done, 0 in the inbox.\n1 warning; ele plan check other.md lists it.\nFlagged:\n- wire: Wire\n  flag: blocker build/commands is done; drop it from blocked:\nNext, line 5:\n- [ ] wire: Wire\n  blocked: build/commands\n", output)
 }
 
+func TestRunPlanCheckSaysAPlanInAnotherRepositoryCannotBlockAndTakesItsWaitAsProse(t *testing.T) {
+	home := recallFixture(t)
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	platform := filepath.Join(home, "w", "corp", "platform")
+	require.NoError(t, os.MkdirAll(filepath.Join(platform, ".git"), 0o700))
+	writeFile(t, filepath.Join(platform, "ordinal.md"), "---\nkind: plan\n---\n## Actions\n- [ ] fallback: Fallback\n")
+	writeFile(t, filepath.Join(gateway, "closed.md"), "---\nkind: plan\n---\n## Actions\n- [x] closed: Closed\n")
+	writeFile(t, filepath.Join(gateway, "gone.md"), "---\nkind: plan\n---\n## Actions\n- [ ] gone: Gone\n")
+	writeFile(t, filepath.Join(gateway, "reporting.md"), "---\nkind: plan\n---\n## Actions\n- [ ] report: Report\n  - done when x\n  - blocked: ordinal/fallback\n"+
+		"- [ ] unloaded: Unloaded\n  - done when x\n  - blocked: gone/gone\n"+
+		"- [ ] lacking: Lacking\n  - done when x\n  - blocked: closed/nope\n"+
+		"- [ ] waits: Waits\n  - done when x\n  - blocked: fallback in the platform's ordinal plan deployed; remove once it is\n- [ ] Close\n")
+	t.Chdir(platform)
+	output, code := runCommand(t, "plan", "start", "ordinal.md")
+	require.Equal(t, 0, code, output)
+	t.Chdir(gateway)
+	for _, path := range []string{"closed.md", "gone.md", "reporting.md"} {
+		output, code = runCommand(t, "plan", "start", path)
+		require.Equal(t, 0, code, output)
+	}
+	output, code = runCommand(t, "plan", "done", "closed.md")
+	require.Equal(t, 0, code, output)
+	require.NoError(t, os.Remove(filepath.Join(gateway, "gone.md")))
+
+	output, code = runCommand(t, "plan", "check", "reporting.md")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "Plan reporting.md: 3 warnings.\n"+
+		"- line 5: report: blocker ordinal/fallback names no started or closed plan of this project; start that plan, or write a wait on another repository's plan as prose, with no comma before its semicolon\n"+
+		"- line 8: unloaded: blocker gone/gone does not exist\n"+
+		"- line 11: lacking: blocker closed/nope does not exist\n", output)
+}
+
+func TestRunPlanCheckOutsideAnyOwnerCallsAnotherPlansBlockerMissing(t *testing.T) {
+	home := recallFixture(t)
+	stray := filepath.Join(home, "w", "stray")
+	require.NoError(t, os.MkdirAll(filepath.Join(stray, ".git"), 0o700))
+	writeFile(t, filepath.Join(stray, "reporting.md"), "---\nkind: plan\n---\n## Actions\n- [ ] report: Report\n  - done when x\n  - blocked: other/item\n- [ ] Close\n")
+	t.Chdir(stray)
+
+	output, code := runCommand(t, "plan", "check", "reporting.md")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "- line 5: report: blocker other/item does not exist\n", output)
+}
+
 func TestRunPlanShowNamesAMalformedAfterAsTheReason(t *testing.T) {
 	home := recallFixture(t)
 	gateway := filepath.Join(home, "w", "corp", "gateway")

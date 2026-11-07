@@ -45,6 +45,8 @@ type Blocker int
 const (
 	// First, so a name absent from a lookup map reads as missing.
 	BlockerMissing Blocker = iota
+	// A plan name this project has not started, closed or failed to read: a draft, or a plan in another repository.
+	BlockerNoPlan
 	// An item a closed plan never ticked.
 	BlockerAbandoned
 	BlockerDone
@@ -526,6 +528,9 @@ func (p Plan) Resolve(now time.Time, lookup Lookup) Plan {
 			case BlockerMissing:
 				action.Held = true
 				action.Flags = append(action.Flags, fmt.Sprintf("blocker %s does not exist", edge))
+			case BlockerNoPlan:
+				action.Held = true
+				action.Flags = append(action.Flags, fmt.Sprintf("blocker %s names no started or closed plan of this project; start that plan, or write a wait on another repository's plan as prose, with no comma before its semicolon", edge))
 			case BlockerAbandoned:
 				action.Held = true
 				action.Flags = append(action.Flags, fmt.Sprintf("blocker %s is in a closed plan and was never done", edge))

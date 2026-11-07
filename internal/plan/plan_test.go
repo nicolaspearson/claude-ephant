@@ -348,6 +348,14 @@ func TestResolveHoldsAnItemOnAMissingBlockerAndFlagsIt(t *testing.T) {
 	require.Equal(t, []string{"blocker typo does not exist", "blocker gone/item does not exist"}, resolved.Actions[0].Flags)
 }
 
+func TestResolveHoldsAnItemOnABlockerInAPlanThisProjectLacksAndSaysWhereItsWaitGoes(t *testing.T) {
+	plan, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n- [ ] a: A\n  blocked: elsewhere/item\n"))
+	require.NoError(t, err)
+	resolved := plan.Resolve(time.Now(), func(Edge) Blocker { return BlockerNoPlan })
+	require.True(t, resolved.Actions[0].Held)
+	require.Equal(t, []string{"blocker elsewhere/item names no started or closed plan of this project; start that plan, or write a wait on another repository's plan as prose, with no comma before its semicolon"}, resolved.Actions[0].Flags)
+}
+
 func TestResolveHoldsAnItemOnAClosedPlansUntickedItemAndFlagsIt(t *testing.T) {
 	plan, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n- [ ] a: A\n  blocked: closed/item\n"))
 	require.NoError(t, err)

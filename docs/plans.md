@@ -4,7 +4,7 @@ A plan is a fixed list of work, done one item a session, with ele carrying your
 place across `/clear`. It is a Markdown file in the repository it changes, under
 `.documentation/plans/`, so it is reviewed and versioned with the code. The
 file is the list and its checkboxes are the state: ele stores only which plans
-are active.
+are active, and, once one closes, its item names and which were ticked.
 
 A plan is not a tracker. It has no assignees, and ele writes no tickets.
 
@@ -105,9 +105,14 @@ created: 2026-10-23
   with a short kebab-case name, written once and never changed, and carries a
   `done when` line saying what will be observable once it is done
 - **`blocked:`** names the items an item waits on, in this plan or
-  `<plan>/<name>` in another; a reason may follow a `;`. **`after: <date>`**
-  holds an item until then: `YYYY-MM-DD` is local midnight, and
-  `YYYY-MM-DD HH:MMZ` a UTC time. An `after:` in neither form holds its item
+  `<plan>/<name>` in another of the same project, `<plan>` being that plan's
+  file name without `.md`; a reason may follow a `;`. ele reads only the plans
+  this project has started or closed, so `ele plan check` flags a `<plan>` it
+  has neither of: start a draft it names, and write a wait on a plan in another
+  repository as prose, with no comma before its `;`, deleting the line once the
+  wait is over. **`after: <date>`** holds an item until then: `YYYY-MM-DD` is
+  local midnight, and `YYYY-MM-DD HH:MMZ` a UTC time. An `after:` in neither
+  form holds its item
   and draws an `ele plan check` warning until fixed. Either matches in any
   case, and a `blocked:` list ending in a comma, before any `;`, carries on to
   the next indented line that is not a list item or a fence, holds no `:` and
@@ -121,9 +126,14 @@ created: 2026-10-23
   past the text of the bullet it sits under, a tab counting to the next
   multiple of four, is no fence, as CommonMark has it. `ele plan show` lists a malformed `after:` as written under
   its blocked item
+- **A file ele cannot parse** is refused whole by `start`, `show` and
+  `check`: a first line that is not `---`, front matter that never closes,
+  holds `created`, `kind` or `spec` twice or a line that is not `key: value`, a
+  `kind` other than `plan`, no `## Actions`, one name on two items, or two
+  `after:` lines on one item
 - **Progress** goes in the item's body as dated lines, `as of <date>: …` or
   `next: …`, so a session stopping mid-item needs no handoff. A tick carries
-  one line saying what was checked, and at which commit
+  one line saying what was asserted, at which boundary and at which commit
 - **No ele data**: a note or session id resolves only in its author's data
   directory, so a plan line describes what was observed, and a note the plan
   depends on moves into it; `ele plan check` warns on a note id, a session
@@ -165,7 +175,7 @@ otherwise a dated progress line. Both are written only on your approval.
 ```sh
 ele plan show               # the active plan: counts, previous item, blocked items, next item
 ele plan list               # every active plan of the project
-ele plan check              # warnings: stale dates, done blockers, old inbox items, missing name or done-when, ele data cited, closing ticked early, lines it cannot read
+ele plan check              # warnings: stale dates, blockers done or missing, cycles, ticked over an open blocker, old or undated inbox items, missing name or done-when, name clashes, ele data cited, ready to close, closing ticked early, lines it cannot read
 ```
 
 ## Auditing plans
