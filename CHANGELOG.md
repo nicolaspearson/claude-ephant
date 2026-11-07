@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.14.1](https://github.com/nicolaspearson/claude-ephant/compare/v0.14.0...v0.14.1) (2026-11-07)
+
+
+### Bug Fixes
+
+* **checkpoint:** a freeze two hours after the last restarts the clock, stats leave 0-second durations out of the median, and the skill forbids chaining the opening freeze with log (checkpoint-correctness, part 6) ([ce862b3](https://github.com/nicolaspearson/claude-ephant/commit/ce862b332361c31da9f882def52cb6551a443759))
+* **cli:** backup, reminder list and status help name logs/, everywhere reminders, the running sync and options off their defaults (help-text) ([cd03a46](https://github.com/nicolaspearson/claude-ephant/commit/cd03a46629ab508ed9ee31d2416e3f01ccb8a5c1))
+* **datadir:** ELE_HOME refuses a relative value past ~/, sync.log rotates at 1 MiB and status reads its tail, a hand-edited owner map is checked as ele owner checks it, a linked profile is archived once, and the ticket ledger writes through a symlink (data-dir-edges) ([70c3edf](https://github.com/nicolaspearson/claude-ephant/commit/70c3edf453705af0e5fa716a62ba9bd081017432))
+* **plan:** a blocked: list ending in a comma never takes a line holding a colon or starting done when (plan-parser-warnings) ([ad4eeba](https://github.com/nicolaspearson/claude-ephant/commit/ad4eeba396cf5517748ba0c8d6f76a981df9caef))
+* **plan:** a blocker naming no started or closed plan of the project says to start that draft or write a wait on another repository's plan as prose, and stays missing outside any owner ([c02c151](https://github.com/nicolaspearson/claude-ephant/commit/c02c1510064b598432e7ce176ca329d4d3220202))
+* **plan:** ele plan check warns on every line form the parser held or dropped in silence, Next leaves the closing action for last, and Previous follows renames and reverts (plan-parser-warnings) ([19f66d4](https://github.com/nicolaspearson/claude-ephant/commit/19f66d498637055c5f010df533abc1bae79c2e8e))
+* **stopcheck:** read-only ele commands and checkpoint record and log are not work, a quoted heredoc on a plain line reads as stdin, and $'…' keeps its escaped quotes (bashwork-reads) ([c17361e](https://github.com/nicolaspearson/claude-ephant/commit/c17361e254fc0f61e5569abd8115e82a53482eb5))
+* **ticket:** claims names each ticket it skips, plan keys follow the origin with the folder key as an alias, the corpus reads plans as plan.Parse does, the ledger is rewritten whole, and page caps warn (ticket-robust) ([8e0f6aa](https://github.com/nicolaspearson/claude-ephant/commit/8e0f6aa010bbb1352e9006a160bcdf8ecbf1c883))
+
 ## [0.14.0](https://github.com/nicolaspearson/claude-ephant/compare/v0.13.0...v0.14.0) (2026-11-05)
 
 
