@@ -12,8 +12,8 @@ var (
 	assignment = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*=`)
 	// Reads, or ele's own bookkeeping, which changes no repository file. Nil takes any subcommand.
 	eleNotWork = map[string][]string{
-		"checkpoint": {"check", "hash"},
-		"config":     {"get"},
+		"checkpoint": {"base", "check", "density", "hash", "log", "record", "stats"},
+		"config":     {"get", "list"},
 		"context":    nil,
 		"events":     nil,
 		"flag":       nil,
@@ -22,7 +22,9 @@ var (
 		"recall":     nil,
 		"reminder":   {"close", "list", "reopen"},
 		"show":       nil,
+		"stats":      nil,
 		"status":     nil,
+		"usage":      nil,
 		"version":    nil,
 	}
 	findWrites = []string{"-delete", "-exec", "-execdir", "-fls", "-fprint", "-fprint0", "-fprintf", "-ok", "-okdir"}
@@ -30,11 +32,17 @@ var (
 	// A quoted delimiter keeps the body literal; anything after it on the line is an argument or redirect.
 	heredocHead = regexp.MustCompile(`^cat <<-? *('[^'\n]+'|"[^"\n]+") *$`)
 	loopWords   = []string{"!", "do", "done", "elif", "else", "fi", "if", "then", "until", "while", "{", "}"}
+	plainName   = regexp.MustCompile(`^('([A-Za-z_][A-Za-z0-9_]*)'|"([A-Za-z_][A-Za-z0-9_]*)")([ \t\n;&|<>]|$)`)
 	plainReads  = []string{"[", "basename", "cat", "cd", "cut", "date", "diff", "dirname", "echo", "find", "grep", "head", "jq", "ls", "nl", "printf", "pwd", "rg", "sed", "sort", "stat", "tail", "test", "uniq", "wc"}
 	// Prints, deletes from the output, quits or substitutes with / and no w or e flag; sed's w and e write and run.
 	sedPrint = regexp.MustCompile(`^(((\d+|\$|/[^/]*/)(,(\d+|\$|/[^/]*/))?)?[dpq=]|s/([^/\\]|\\.)*/([^/\\]|\\.)*/[gpiI0-9]*)$`)
 	variable = regexp.MustCompile(`^\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?`)
 )
+
+type pendingHeredoc struct {
+	delimiter string
+	strip     bool
+}
 
 type shellScan struct {
 	assigned map[string]string
@@ -61,6 +69,22 @@ func besideNotes(command string) (other bool, work bool) {
 // Defaults to work: a command it cannot read whole may write.
 func commandIsWork(command string) bool {
 	return scanIsWork(command, simpleCommandIsWork)
+}
+
+// The index of the last character of the first line from offset on that closes a heredoc of this delimiter.
+func delimiterLine(runes []rune, offset int, delimiter string, strip bool) (int, bool) {
+	for line := range strings.SplitSeq(string(runes[offset:]), "\n") {
+		text := line
+		if strip {
+			text = strings.TrimLeft(text, "\t")
+		}
+		length := len([]rune(line))
+		if text == delimiter {
+			return offset + length - 1, true
+		}
+		offset += length + 1
+	}
+	return 0, false
 }
 
 func eleIsWork(args []string) bool {
@@ -141,19 +165,7 @@ func heredocEnd(runes []rune, start int) (int, bool) {
 	if len(delimiter) == 0 || newline < 0 {
 		return 0, false
 	}
-	offset := index + newline + 1
-	for line := range strings.SplitSeq(string(runes[offset:]), "\n") {
-		text := line
-		if strip {
-			text = strings.TrimLeft(text, "\t")
-		}
-		length := len([]rune(line))
-		if text == string(delimiter) {
-			return offset + length - 1, true
-		}
-		offset += length + 1
-	}
-	return 0, false
+	return delimiterLine(runes, index+newline+1, string(delimiter), strip)
 }
 
 // The body of the $( or backtick substitution at start, and the index of its closing character.
@@ -218,6 +230,55 @@ func nestedBody(runes []rune, start int) (string, int, bool) {
 	return "", 0, false
 }
 
+// No \, backtick, bracket, brace or parenthesis, no quote left open on its line and no $ but one starting a plain
+// variable: nothing that can carry a line past its newline, or hide a << from the scan, in either shell.
+func plainLines(runes []rune) bool {
+	for index := 0; index < len(runes); index++ {
+		switch character := runes[index]; {
+		case character == '\'' || character == '"':
+			closing := slices.IndexFunc(runes[index+1:], func(next rune) bool { return next == character || next == '\n' })
+			if closing < 0 || runes[index+1+closing] != character {
+				return false
+			}
+			if character == '"' && !plainLines(runes[index+1:index+1+closing]) {
+				return false
+			}
+			index += closing + 1
+		case character == '$':
+			if index+1 >= len(runes) || !strings.ContainsRune("ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz", runes[index+1]) {
+				return false
+			}
+		case strings.ContainsRune("\\`()[]{}", character):
+			return false
+		}
+	}
+	return true
+}
+
+// The delimiter of a << whose delimiter is a quoted plain name, whether it strips tabs, and the index of its closing
+// quote. Only where the command up to the end of its line is plain, so the shell's body starts at that line's end too.
+func quotedHeredoc(runes []rune, start int) (heredoc pendingHeredoc, delimiterEnd int, ok bool) {
+	index := start + 2
+	if index < len(runes) && runes[index] == '-' {
+		heredoc.strip = true
+		index++
+	}
+	for index < len(runes) && runes[index] == ' ' {
+		index++
+	}
+	match := plainName.FindStringSubmatch(string(runes[index:]))
+	if match == nil {
+		return heredoc, 0, false
+	}
+	heredoc.delimiter = match[2] + match[3]
+	delimiterEnd = index + len(heredoc.delimiter) + 1
+	lineEnd := len(runes)
+	if newline := slices.Index(runes[delimiterEnd:], '\n'); newline >= 0 {
+		lineEnd = delimiterEnd + newline
+	}
+	return heredoc, delimiterEnd, plainLines(runes[:lineEnd])
+}
+
 func safeTarget(target string) bool {
 	switch {
 	case target == "/dev/null" || target == "&1" || target == "&2" || target == "&-":
@@ -235,17 +296,19 @@ func scanIsWork(command string, isWork func(words []string) bool) bool {
 		return true
 	}
 	return slices.ContainsFunc(scan.targets, func(target string) bool { return !safeTarget(target) }) ||
-		slices.ContainsFunc(scan.nested, func(body string) bool { return !heredocCat(body) && commandIsWork(body) }) ||
+		slices.ContainsFunc(scan.nested, commandIsWork) ||
 		slices.ContainsFunc(scan.commands, isWork)
 }
 
-// Simple commands split at ; & | ( ) and newlines, with redirect targets and substitution bodies apart. False for a
-// heredoc, whose body a quote can carry past its delimiter; an unclosed quote or substitution; a >& to a file; or a
-// redirect with no target, as a process substitution's is.
+// Simple commands split at ; & | ( ) and newlines, with redirect targets and substitution bodies apart, and the body of
+// a heredoc whose delimiter is quoted skipped as literal stdin. False for any other heredoc: an unquoted delimiter,
+// whose body expands, a here-string, or a body with no closing line; an unclosed quote or substitution; a >& to a file;
+// or a redirect with no target, as a process substitution's is.
 func scanShell(command string) (shellScan, bool) {
 	scan := shellScan{assigned: map[string]string{}}
 	runes := []rune(command)
 	var current []string
+	var heredocs []pendingHeredoc
 	var word strings.Builder
 	inWord, redirect, output := false, false, false
 	endWord := func() {
@@ -328,6 +391,18 @@ func scanShell(command string) (shellScan, bool) {
 				return scan, false
 			}
 			inWord, i = true, j
+		case character == '$' && next(i) == '\'':
+			j := i + 2
+			for ; j < len(runes) && runes[j] != '\''; j++ {
+				if runes[j] == '\\' {
+					j++
+				}
+			}
+			if j >= len(runes) {
+				return scan, false
+			}
+			word.WriteString(string(runes[i+2 : j]))
+			inWord, i = true, j
 		case character == '`' || character == '$' && next(i) == '(':
 			end, ok := substitute(i)
 			if !ok {
@@ -344,7 +419,14 @@ func scanShell(command string) (shellScan, bool) {
 			endWord()
 		case character == '>' || character == '<' || character == '&' && next(i) == '>':
 			if character == '<' && next(i) == '<' {
-				return scan, false
+				heredoc, delimiterEnd, ok := quotedHeredoc(runes, i)
+				if !ok {
+					return scan, false
+				}
+				endWord()
+				heredocs = append(heredocs, heredoc)
+				i = delimiterEnd
+				continue
 			}
 			if inWord && strings.Trim(word.String(), "0123456789") == "" {
 				word.Reset()
@@ -380,12 +462,23 @@ func scanShell(command string) (shellScan, bool) {
 				return scan, false
 			}
 			endCommand()
+			// A body starts after the newline ending its logical line, which a continuation or quote can push past the <<.
+			if character == '\n' {
+				for _, heredoc := range heredocs {
+					last, found := delimiterLine(runes, i+1, heredoc.delimiter, heredoc.strip)
+					if !found {
+						return scan, false
+					}
+					runes = slices.Concat(runes[:i+1], runes[last+1:])
+				}
+				heredocs = nil
+			}
 		default:
 			word.WriteRune(character)
 			inWord = true
 		}
 	}
-	if redirect && !inWord {
+	if redirect && !inWord || len(heredocs) > 0 {
 		return scan, false
 	}
 	endCommand()

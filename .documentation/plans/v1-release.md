@@ -390,7 +390,6 @@ keep.
     it each say `/ele:review` is experimental
 - [ ] readme-guides: Sweep the README and every page under `docs/` against the
   code
-  - blocked: bashwork-reads
   - done when each page's commands and flags are checked against `--help`,
     each behaviour it states is checked against the code or a run, and
     `task format`, `task lint` and `task lint-docs` pass
@@ -1788,7 +1787,17 @@ keep.
     `writeStatus` prints Sync running and Config rows; `help.go`'s `status`
     purpose line and `docs/commands.md` omit both, and its overview line omits
     the sync log too
-- [ ] bashwork-reads: Read-only `ele` commands draw no notes ask
+- [x] bashwork-reads: Read-only `ele` commands draw no notes ask
+  - asserted in the bashwork-reads commit: TestCommandIsWork reads
+    `ele checkpoint base|density|log|record|stats`, `ele config list`,
+    `ele stats` and `ele usage` as not work, and a heredoc with a quoted
+    plain-name delimiter as stdin when the command up to its line's end is
+    plain, its feeding command and a line after its closing delimiter still
+    judged; each form a review found carrying a line past its newline or
+    hiding a `<<`, and `$'\''` hiding a command, reads as work; TestAdvance
+    asks no notes for a `log` outside a review; each went red with its entry
+    removed or its rule mutated; `stop-check.md`'s What it reads lists each
+    command
   - done when each command below reads as not work, by a test, and
     `stop-check.md`'s "What it reads" lists it
   - 2026-10-30, from audit-cmd: `bashwork`'s read list (`eleNotWork`) leaves
@@ -1804,6 +1813,27 @@ keep.
     gate-false-blocks named this cost in its re-measure and left it open.
     Should `record` and `log`, its heredoc included, read as not work, given
     the gate and the notes ask both read `commandIsWork`?
+  - as of 2026-11-06 (cd03a46): each claim holds. `eleNotWork` lists none of
+    the four reads nor `record` or `log`; `scanShell` returns not-ok on any
+    heredoc outside a substitution, and `heredocCat` excuses only
+    `$(cat <<'X' … X)`
+  - ruled 2026-11-06, at pickup: `checkpoint record` and `log` read as not
+    work, as they write only ele's data directory; `scanShell` reads any
+    heredoc whose delimiter is quoted, its body literal stdin and the command
+    it feeds judged as usual, an unquoted delimiter staying work, rather than
+    excusing `log` alone, which would leave every other reader fed a heredoc
+    refused; `checkpoint base` and `density`, both reads, join the list
+  - ruled 2026-11-07, at the checkpoint: reading any quoted heredoc needs a
+    shell parser, as three review rounds found a write hidden in a skipped
+    body through `\`, quotes spanning lines, `${`, `$[`, `((`, `$'`, zsh's
+    `=(`, a delimiter running past its quote or holding `\`, and a `<<` that
+    is literal text. So a heredoc reads only when its delimiter is a quoted
+    plain name and the command up to the end of its line holds no `\`,
+    backtick, bracket, brace or parenthesis, no quote left open on its line
+    and no `$` but one starting a plain variable; anything else is work.
+    Rejected: patching each case, as each round missed some. The scanner's
+    `$'…'` misread, which hid a command at cd03a46 with no heredoc, is fixed
+    in this item
 - [ ] ci-hardening: CI lints what it ships and pins what it runs
   - done when CI runs actionlint, pins Task and shellcheck, and keys its build
     cache so a changed build saves; `install.sh` cleans up on a signal, accepts
@@ -2174,7 +2204,7 @@ keep.
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: readme-guides, bashwork-reads, ci-hardening, eval-fixes
+  - blocked: readme-guides, ci-hardening, eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`

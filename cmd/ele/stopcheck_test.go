@@ -130,7 +130,7 @@ func TestAdvance(t *testing.T) {
 		{events: []dto.TranscriptEvent{{Kind: transcript.EventSkill, Name: "ele:remember", Timestamp: "2026-10-20T10:00:00.000Z"}}, from: stopState{NotesProposed: "2026-10-20T09:00:00.000Z", Pending: true}, name: "a proposal keeps its time", want: stopState{NotesProposed: "2026-10-20T10:00:00.000Z", Proposing: true}},
 		{entries: tool("Bash: ele checkpoint log /w <<'EOF'\n{}\nEOF", "Edit: main.go"), from: stopState{InReview: true}, name: "an edit after a review's log is work", want: stopState{MidTask: true, Pending: true}},
 		{entries: tool("Edit: main.go"), name: "an edit is work", want: stopState{MidTask: true, Pending: true}},
-		{entries: tool("Bash: ele checkpoint log /w <<'EOF'\n{}\nEOF"), name: "an ele checkpoint log outside a review is work", want: stopState{MidTask: true, Pending: true}},
+		{entries: tool("Bash: ele checkpoint log /w <<'EOF'\n{}\nEOF"), name: "an ele checkpoint log outside a review is not work", want: stopState{MidTask: true}},
 		{entries: tool("Bash: cd /w && ele remember --kind fact \"x\""), from: stopState{Pending: true}, name: "an ele remember after cd && proposes", want: stopState{}},
 		{entries: tool("Bash: cd /w; ele remember --kind fact \"x\""), from: stopState{Pending: true}, name: "an ele remember after cd ; proposes", want: stopState{}},
 		{entries: tool("Bash: ele remember fact \"x\""), from: stopState{MidTask: true, Pending: true}, name: "an ele remember command proposes", want: stopState{MidTask: true}},
