@@ -76,6 +76,6 @@ jobs:
           echo "$RUNNER_TEMP/shellcheck-v0.11.0" >> "$GITHUB_PATH"
       # Forced: the restored build cache would otherwise serve last run's test results.
       - name: Check
-        run: task check FORCE=1
+        run: shellcheck --version && task check FORCE=1
       - name: Audit dependencies
         run: task audit

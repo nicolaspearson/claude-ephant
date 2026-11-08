@@ -11,9 +11,10 @@ task setup
 ```
 
 downloads the modules and installs the pinned Go tools the gates call
-(`task setup-tools` alone reinstalls them). The gates check that each tool was
-built with the Go in use, since a tool built by an older Go reports nothing
-under a newer one; after a Go upgrade, run `task setup-tools` again.
+(`task setup-tools` alone reinstalls them). The gates check that each tool
+loading Go packages was built with the Go in use, since one built by an older
+Go reports nothing under a newer one; after a Go upgrade, run
+`task setup-tools` again.
 `shellcheck` and `rumdl` are installed by hand, with Homebrew or your package
 manager; CI pins rumdl 0.3.0, shellcheck 0.11.0 and Task 3.54.0.
 

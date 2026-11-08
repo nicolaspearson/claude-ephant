@@ -1890,9 +1890,13 @@ keep.
     `task lint`, red on a mutated `ci.yml`; `ci.yml` pins Task 3.54.0 and
     shellcheck 0.11.0 by sha256 and keys the build cache per commit, none of
     it yet run in Actions
-  - next: on this change's first CI run, see setup-task install 3.54.0, the
-    shellcheck step's `sha256sum -c` print OK and actionlint pass in Check,
-    and a later run's build cache step save; then tick
+  - as of 2026-11-07 (57d84b0, its Release run on push): setup-task
+    installed v3.54.0; the shellcheck tarball's `sha256sum -c` printed OK;
+    actionlint ran in `task lint` within Check, which passed; the build cache
+    missed its per-commit key, restored from the go.sum prefix and saved under
+    the new key, so a changed build saves. Which shellcheck actionlint ran was
+    not shown, so Check now prints `shellcheck --version` first
+  - next: on the next CI run, see Check print shellcheck 0.11.0; then tick
 - [ ] eval-fixes: The evals grade what they name
   - done when each grader below fails the runs it should and passes the rest,
     `recipe`'s Audit Command bullet checks a relative path as a file, and the
