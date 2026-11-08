@@ -1846,7 +1846,16 @@ keep.
     Rejected: patching each case, as each round missed some. The scanner's
     `$'…'` misread, which hid a command at cd03a46 with no heredoc, is fixed
     in this item
-- [ ] ci-hardening: CI lints what it ships and pins what it runs
+- [x] ci-hardening: CI lints what it ships and pins what it runs
+  - asserted in the ci-hardening commit, work in 57d84b0 and 58ee5a7: Check
+    run 42446873091, a pull_request on the release-please PR (head 3200f5d,
+    58ee5a7 plus CHANGELOG.md and the manifest), passed: setup-task installed
+    v3.54.0, the shellcheck tarball's `sha256sum -c` printed OK, Check printed
+    shellcheck 0.11.0 and `task lint` ran actionlint after it, and the build
+    cache restored 58ee5a7's key through the go.sum prefix and saved under the
+    merge commit's; `install.sh`'s signal cleanup, `v`-less version and rename
+    were probed under macOS dash only, and `--proto '=https'` is in the code,
+    its refusal of http not probed
   - done when CI runs actionlint, pins Task and shellcheck, and keys its build
     cache so a changed build saves; `install.sh` cleans up on a signal, accepts
     a version without its `v`, replaces the binary through a rename and limits
@@ -1893,10 +1902,10 @@ keep.
   - as of 2026-11-07 (57d84b0, its Release run on push): setup-task
     installed v3.54.0; the shellcheck tarball's `sha256sum -c` printed OK;
     actionlint ran in `task lint` within Check, which passed; the build cache
-    missed its per-commit key, restored from the go.sum prefix and saved under
-    the new key, so a changed build saves. Which shellcheck actionlint ran was
-    not shown, so Check now prints `shellcheck --version` first
-  - next: on the next CI run, see Check print shellcheck 0.11.0; then tick
+    missed its per-commit key, restored the old go.sum-only key through the OS
+    prefix and saved under the new key, so a changed build saves. Which
+    shellcheck actionlint ran was not shown, so Check now prints
+    `shellcheck --version` first
 - [ ] eval-fixes: The evals grade what they name
   - done when each grader below fails the runs it should and passes the rest,
     `recipe`'s Audit Command bullet checks a relative path as a file, and the
@@ -2241,7 +2250,7 @@ keep.
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: ci-hardening, eval-fixes
+  - blocked: eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`
