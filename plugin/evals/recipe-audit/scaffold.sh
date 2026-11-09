@@ -6,7 +6,7 @@ mkdir -p "$data"
 printf '{"owners": ["eval"], "paths": {"%s": "eval", "%s": "eval"}}\n' "$PWD" "$(pwd -P)" > "$data/owner-map.json"
 printf '{"notes_ask": false}\n' > "$data/config.json"
 
-# In the workspace: the eval sandbox denies reads of CLAUDE_CONFIG_DIR.
+# In the workspace: the eval sandbox denies reads of CLAUDE_CONFIG_DIR (as of 2026-10-28).
 # certbotx is on no PATH, ele recall has no --fuzzy, and go1.21 is older than the installed Go.
 # Go 1.11 after the steps is history, not a pin, so it is no finding.
 # git log -h leaves out --oneline; the package runners' packages are made up; forge's entry file names no subcommand.

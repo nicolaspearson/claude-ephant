@@ -5,7 +5,7 @@ data="$HOME/Library/Application Support/claude-ephant"
 mkdir -p "$data"
 printf '{"owners": ["eval"], "paths": {"%s": "eval", "%s": "eval"}, "projects": {"%s": "eval"}}\n' "$PWD" "$(pwd -P)" "$(basename "$PWD")" > "$data/owner-map.json"
 printf '{"checkpoint_gate": false, "notes_ask": false}\n' > "$data/config.json"
-# No git init: git cannot run in the eval sandbox, so a repository would go unread.
+# No git init: the session cannot run /usr/bin/git in the eval sandbox (as of 2026-10-31, claude 2.1.308).
 
 mkdir -p .documentation/specs docs/adr
 cat > go.mod <<'GO'

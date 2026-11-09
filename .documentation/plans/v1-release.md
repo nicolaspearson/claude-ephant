@@ -1907,10 +1907,11 @@ keep.
     shellcheck actionlint ran was not shown, so Check now prints
     `shellcheck --version` first
 - [ ] eval-fixes: The evals grade what they name
-  - done when each grader below fails the runs it should and passes the rest,
-    `recipe`'s Audit Command bullet checks a relative path as a file, and the
-    scaffolds' sandbox claims agree and carry their date, checked by an eval run
-    the user asks for
+  - done when `recipe`'s Command bullet sends a relative path `command -v`
+    prints to the file and Script checks, `recipe-audit`'s no-edit graders
+    fail a `sed -i` or `perl -pi` on a `SKILL.md`, seen red, and the
+    scaffolds' sandbox claims agree and carry their date, checked by an eval
+    run the user asks for
   - 2026-10-30, from skills-audit: evals. `recipe`'s Audit Command bullet
     stops checking anything `command -v` prints that is not an absolute path,
     which the relative `./tools/forge/bin/forge` is, so `recipe-audit`'s
@@ -1924,6 +1925,43 @@ keep.
     HOME, and `setup-maps` relies on it; recipe-audit, recipe-writes-dir and
     plan-new-review also state undated claims about the sandbox's denials.
     Which holds, as of a run?
+  - as of 2026-11-08 (cfa59c6), premise check: `reports-script-holds` is
+    gone; `recipe-audit`'s `reports-script` is now an `llm` judge that forge's
+    `migrate`, `--dry-run` and `--target` are no finding, which passes whether
+    forge is read or skipped. The skill half holds: `recipe`'s Command bullet
+    still calls anything `command -v` prints but an absolute path found with
+    nothing more run, and `command -v ./bin/f` prints `./bin/f` in bash and
+    zsh, so a relative script falls there, against the Script bullet that
+    reads a `#!` file's source. Only a script the skill ships is checked for
+    the file
+  - as of 2026-11-08 (cfa59c6): `recipe-audit`'s `no-edit` matches only Edit
+    and `no-shell-write` only `>`, `>>`, `tee`, `cp`, `install` and `mv`
+    onto a `SKILL.md`, so `sed -i` and `perl -pi` still pass both
+  - as of 2026-11-08 (cfa59c6): `wrap-recipe`'s `proposes` is now a regex on
+    the draft's front matter or `SKILL.md` path, and its ask moved to `asks`,
+    the same regex on the reply as `wrap-asks`'s; CONTRIBUTING's Evals section
+    says AskUserQuestion does not load in the sandbox, so no sibling accepts a
+    question-tool ask. Nothing left to fix here
+  - as of 2026-11-08: a fact noted 2026-10-31 on claude 2.1.308 answers
+    git: a session in the sandbox cannot run Apple's `/usr/bin/git` shim, as
+    xcrun cannot write its cache, while `scaffold.sh` runs outside the sandbox
+    and its git works. `plan-new-review`'s comment holds for the session; the
+    wrap cases' "git otherwise roots at the sandbox HOME" needs a caller
+    other than the session: ele's hooks run git (package `checkpoint`'s
+    state), and whether they run inside the sandbox is not checked. The
+    sandbox claims in `plan-new-review`, `recipe-audit` and
+    `recipe-writes-dir`'s scaffolds and the wrap cases' four were undated
+  - as of 2026-11-08: `recipe`'s Command bullet sends a path `command -v`
+    prints, relative or absolute, to Script or Subcommand and flag; the four
+    identical `no-shell-write` graders match a `sed`, `gsed` or `perl` in-place
+    edit of a `SKILL.md` at command position, its option before or after the
+    script, and not a quoted mention, a `-M` option or another file's edit
+    beside a read, by a 53-case node probe the HEAD pattern fails 32 of, each
+    of eight mutations seen red; the scaffolds' sandbox claims agree and carry
+    their date. No eval run yet
+  - next: on the user's go, run `recipe-audit`, `recipe-asks`, `wrap-recipe`
+    and `wrap-recipe-off`, and settle whether ele's hooks run git inside the
+    sandbox
 
 ### Nice to have
 
