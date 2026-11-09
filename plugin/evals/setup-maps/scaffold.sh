@@ -7,4 +7,5 @@ set -euo pipefail
 data="$HOME/Library/Application Support/claude-ephant"
 mkdir -p "$data"
 printf '{"notes_ask": false}\n' > "$data/config.json"
+# The skill finds the root by its .git directory, not by running git.
 git init -q

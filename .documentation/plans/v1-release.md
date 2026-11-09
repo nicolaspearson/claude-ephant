@@ -1906,7 +1906,16 @@ keep.
     prefix and saved under the new key, so a changed build saves. Which
     shellcheck actionlint ran was not shown, so Check now prints
     `shellcheck --version` first
-- [ ] eval-fixes: The evals grade what they name
+- [x] eval-fixes: The evals grade what they name
+  - asserted in the eval-fixes commit, work in 6cc1fcb and fc7aefc: the
+    user's eval run of 2026-11-09 on the clone's `./plugin`, three runs a
+    case: `recipe-asks`, `wrap-recipe` and `wrap-recipe-off` passed every
+    grader every run, `recipe-audit` every grader but the `llm` judge
+    `reports-no-false-project` on one run whose reply lists the claim under
+    Holds (inbox); `recipe-audit`'s replies read forge's `lib/cli.js` under
+    the Command rule; no run made a `sed -i` or `perl -pi` edit, so the
+    graders' red side rests on the 2026-11-08 probe; whether ele's hooks run
+    git in the sandbox moved to the inbox
   - done when `recipe`'s Command bullet sends a relative `#!` path `command -v`
     prints to Script and runs nothing for any other relative path,
     `recipe-audit`'s no-edit graders fail a `sed -i` or `perl -pi` on a
@@ -1960,10 +1969,7 @@ keep.
   - as of 2026-11-09: `recipe`'s Command bullet sends a relative path
     `command -v` prints to Script when it starts with `#!`, any other relative
     path having nothing run, as the user ruled, and the spec and
-    `docs/recipes.md` say so. No eval run yet
-  - next: on the user's go, run `recipe-audit`, `recipe-asks`, `wrap-recipe`
-    and `wrap-recipe-off`, and settle whether ele's hooks run git inside the
-    sandbox
+    `docs/recipes.md` say so
 
 ### Nice to have
 
@@ -2262,6 +2268,10 @@ keep.
     count Write calls only; `links` needs `.claude-a` literally in `ln -s`;
     `flag-saves`'s `reports` wants a note id with no error alternative; the
     forge fixture's comment describes npm
+  - as of 2026-11-09: `reports-findings` is gone; its Go 1.21 claim is
+    `reports-stale-pin`'s, a regex on `go 1.21` that still needs a Go newer
+    than 1.21.0 installed. `reports-partial-help` is now an `llm` judge that
+    `--oneline` is no finding, so its `man git-log` point no longer holds
 - [ ] atomic-helpers: One internal package holds the atomic write and the file
   lock, and the notes temp sweep covers `forgotten/`
   - done when `cmd/ele`'s `writeAtomically` and `internal/mining`'s copy, and
@@ -2290,7 +2300,6 @@ keep.
 
 - [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
-  - blocked: eval-fixes
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`
@@ -2300,6 +2309,18 @@ keep.
   .documentation/plans/v1-release.md`, and delete this plan
 
 ## Inbox
+
+- 2026-11-09, from the eval-fixes eval run: `recipe-audit`'s
+  `reports-no-false-project`, an `llm` judge, voted FAIL FAIL PASS on a run
+  whose reply lists `ele recall --project <name>` under Holds; make it a
+  regex, as CONTRIBUTING's grader rule prefers
+- 2026-11-09, from the eval-fixes eval run: whether ele's hooks run git
+  inside the eval sandbox is unsettled. A kept run's trace records only the
+  SessionStart hook; its sealed home, opened with `chmod 700` on the kept
+  directory and `sealed`, holds a stub `.git` (no index or objects), so git
+  from the working directory roots there without the scaffold's repository,
+  and a `stop-check` record, so the Stop hook ran, but that record holds no git
+  output. A hook that logs its own git call would settle it
 
 ## Out of scope
 
