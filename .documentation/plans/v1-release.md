@@ -1907,11 +1907,11 @@ keep.
     shellcheck actionlint ran was not shown, so Check now prints
     `shellcheck --version` first
 - [ ] eval-fixes: The evals grade what they name
-  - done when `recipe`'s Command bullet sends a relative path `command -v`
-    prints to the file and Script checks, `recipe-audit`'s no-edit graders
-    fail a `sed -i` or `perl -pi` on a `SKILL.md`, seen red, and the
-    scaffolds' sandbox claims agree and carry their date, checked by an eval
-    run the user asks for
+  - done when `recipe`'s Command bullet sends a relative `#!` path `command -v`
+    prints to Script and runs nothing for any other relative path,
+    `recipe-audit`'s no-edit graders fail a `sed -i` or `perl -pi` on a
+    `SKILL.md`, seen red, and the scaffolds' sandbox claims agree and carry
+    their date, checked by an eval run the user asks for
   - 2026-10-30, from skills-audit: evals. `recipe`'s Audit Command bullet
     stops checking anything `command -v` prints that is not an absolute path,
     which the relative `./tools/forge/bin/forge` is, so `recipe-audit`'s
@@ -1951,14 +1951,16 @@ keep.
     state), and whether they run inside the sandbox is not checked. The
     sandbox claims in `plan-new-review`, `recipe-audit` and
     `recipe-writes-dir`'s scaffolds and the wrap cases' four were undated
-  - as of 2026-11-08: `recipe`'s Command bullet sends a path `command -v`
-    prints, relative or absolute, to Script or Subcommand and flag; the four
-    identical `no-shell-write` graders match a `sed`, `gsed` or `perl` in-place
-    edit of a `SKILL.md` at command position, its option before or after the
-    script, and not a quoted mention, a `-M` option or another file's edit
-    beside a read, by a 53-case node probe the HEAD pattern fails 32 of, each
-    of eight mutations seen red; the scaffolds' sandbox claims agree and carry
-    their date. No eval run yet
+  - as of 2026-11-08: the four identical `no-shell-write` graders match a
+    `sed`, `gsed` or `perl` in-place edit of a `SKILL.md` at command position,
+    its option before or after the script, and not a quoted mention, a `-M`
+    option or another file's edit beside a read, by a 53-case node probe the
+    HEAD pattern fails 32 of, each of eight mutations seen red; the
+    scaffolds' sandbox claims agree and carry their date
+  - as of 2026-11-09: `recipe`'s Command bullet sends a relative path
+    `command -v` prints to Script when it starts with `#!`, any other relative
+    path having nothing run, as the user ruled, and the spec and
+    `docs/recipes.md` say so. No eval run yet
   - next: on the user's go, run `recipe-audit`, `recipe-asks`, `wrap-recipe`
     and `wrap-recipe-off`, and settle whether ele's hooks run git inside the
     sandbox
