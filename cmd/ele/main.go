@@ -68,6 +68,7 @@ const usage = `usage:
   ele reminder reopen [--owner <name>] [--project <name>] <id>...
   ele session-start [--no-sync]
   ele show [--around <text> | --at <time>] [--context <n>] <session>
+  ele show [--all] [--from <n>] <session>
   ele show --note <id> [--context <n>]
   ele stats
   ele status

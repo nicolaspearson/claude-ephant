@@ -1973,9 +1973,27 @@ keep.
 
 ### Nice to have
 
-- [ ] show-paging: `ele show` pages through a whole session
+- [x] show-paging: `ele show` pages through a whole session
+  - asserted in the show-paging commit:
+    `TestRunShowPagesFromAnEntryOrPrintsThemAll`, through `run` as the CLI,
+    pages 40 entries: a plain `ele show` stops within the 8,000-byte budget
+    naming the next `--from`, `--from` starts there, `--all` prints every entry
+    unclipped and one to a line past the budget, and eight pairings with
+    `--around`, `--at`, `--context` or `--note` are refused; nine mutations of
+    `show` each turned it red. A clone build on a real 393-entry session ended
+    `--from 3` with the `--from 41` that continues. `design.md`,
+    `docs/commands.md` and `docs/notes-and-recall.md` name both flags
   - done when a flag prints entries from a given one, or all, and
     `design.md` and `docs/commands.md` name it
+  - as of 2026-11-09: `ele show <session>` prints from entry 1 until its
+    8,000-byte budget runs out, then ends "narrow with --around and
+    --context", with no way to the next entry (`show` in `cmd/ele/recall.go`);
+    `design.md` rules out making the budget an option
+  - as of 2026-11-09, ruled by the user: `--from <n>`, n the 1-based entry
+    number the header prints, stays within the budget and a cut-off names the
+    next `--from`; it is refused with `--around`, `--at`, `--note` or
+    `--context`. `--all` prints every entry, from 1 or `--from`, with no
+    budget and no per-entry clip, the one exception the spec names
 - [ ] scratch-log: Checkpoint runs over a repository under a temp or
   scratchpad path stay out of the stats
   - done when a test, seen red, leaves such a run out of
@@ -1996,6 +2014,13 @@ keep.
   ten fixture cases with planted defects
   - done when, run through `task eval` when the user asks, the suites pass,
     each case seen failing on a skill with its check removed
+- [ ] false-project-regex: `recipe-audit`'s `reports-no-false-project` is a
+  regex, not an `llm` judge
+  - done when the grader is a regex, probed red and green over the saved
+    replies, and checked by an eval run the user asks for
+  - 2026-11-09, from the eval-fixes eval run: the judge voted FAIL FAIL PASS
+    on a run whose reply lists `ele recall --project <name>` under Holds;
+    CONTRIBUTING's grader rule prefers a regex
 - [ ] redact-extras: Redact the secret shapes the docs do not promise, and stop
   over-matching counts
   - done when each shape below is ruled in or out by the user, those in are
@@ -2310,10 +2335,6 @@ keep.
 
 ## Inbox
 
-- 2026-11-09, from the eval-fixes eval run: `recipe-audit`'s
-  `reports-no-false-project`, an `llm` judge, voted FAIL FAIL PASS on a run
-  whose reply lists `ele recall --project <name>` under Holds; make it a
-  regex, as CONTRIBUTING's grader rule prefers
 - 2026-11-09, from the eval-fixes eval run: whether ele's hooks run git
   inside the eval sandbox is unsettled. A kept run's trace records only the
   SessionStart hook; its sealed home, opened with `chmod 700` on the kept

@@ -25,7 +25,7 @@ import (
 	"github.com/nicolaspearson/claude-ephant/internal/ownermap"
 )
 
-// About 2k tokens at four bytes each: the most one recall or show adds to a session's context, every line counted.
+// About 2k tokens at four bytes each: the most one recall or show adds to a session's context, every line counted, but show --all.
 const outputBudget = 8000
 
 const (
@@ -350,19 +350,28 @@ func recall(ctx context.Context, args []string, stdout io.Writer, stderr io.Writ
 
 func show(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
 	flags := newFlagSet("show", stderr)
+	all := flags.Bool("all", false, "every entry, from the first or --from, whole and with no output limit")
 	at := flags.String("at", "", "centre on the first entry at or after this time, such as an event's timestamp")
 	around := flags.String("around", "", "centre on the first entry containing this text")
 	window := flags.Int("context", 4, "entries either side of --around or --at, or of each part of a note's discussion (1 there unless set); when nothing matches a note, twice this many before it")
+	from := flags.Int("from", 1, "start at this entry, numbered as the heading prints them")
 	noteID := flags.String("note", "", "open the session a note came from, at its discussion")
 	positional, err := parseInterspersed(flags, args)
 	if err != nil {
 		return rejectCall(flags, err, stdout, stderr)
 	}
-	if (*noteID == "" && len(positional) != 1) || (*noteID != "" && (len(positional) != 0 || *around != "" || *at != "")) || (*around != "" && *at != "") {
+	set := map[string]bool{}
+	flags.Visit(func(given *flag.Flag) { set[given.Name] = true })
+	paged := set["from"] || *all
+	if (*noteID == "" && len(positional) != 1) || (*noteID != "" && (len(positional) != 0 || *around != "" || *at != "" || paged)) || (*around != "" && *at != "") || (paged && (*around != "" || *at != "" || set["context"])) {
 		return rejectCall(flags, nil, stdout, stderr)
 	}
 	if *window < 0 {
 		fmt.Fprintln(stderr, "ele: --context must be 0 or more")
+		return 2
+	}
+	if *from < 1 {
+		fmt.Fprintln(stderr, "ele: --from must be 1 or more")
 		return 2
 	}
 	searchIndex, err := openIndex()
@@ -407,11 +416,9 @@ func show(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer
 	}
 	if *noteID != "" {
 		neighbours := 1
-		flags.Visit(func(set *flag.Flag) {
-			if set.Name == "context" {
-				neighbours = *window
-			}
-		})
+		if set["context"] {
+			neighbours = *window
+		}
 		anchors, matched := discussionRegions(entries, note, 2*neighbours)
 		if len(anchors) == 0 {
 			fmt.Fprintf(stderr, "ele: no entry in session %s precedes note %s; the session id may be incomplete, or its transcript not yet synced (ele sync)\n", note.Session, note.ID)
@@ -428,7 +435,11 @@ func show(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer
 		writeDiscussion(stdout, entries, note, regions)
 		return 0
 	}
-	start, end := 0, len(entries)
+	if *from > len(entries) {
+		fmt.Fprintf(stderr, "ele: session %s has %s; --from %d is past them\n", entries[0].Session, plural(len(entries), "entry", "entries"), *from)
+		return 1
+	}
+	start, end := *from-1, len(entries)
 	if *around != "" {
 		needle := strings.ToLower(*around)
 		// A note shares words with its discussion; prefer the discussion.
@@ -467,12 +478,16 @@ func show(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer
 	heading := present(first.Session, first.Owner, first.Project, first.Profile)
 	written := len(fmt.Sprintf("Session %s · entries %d–%d of %d\n", heading, len(entries), len(entries), len(entries)))
 	line := func(i int) string {
-		return fmt.Sprintf("%s  %-12s %s\n", entries[i].Timestamp, entries[i].Kind, clip(entries[i].Text, textLimit))
+		limit := textLimit
+		if *all {
+			limit = len(entries[i].Text)
+		}
+		return fmt.Sprintf("%s  %-12s %s\n", entries[i].Timestamp, entries[i].Kind, clip(entries[i].Text, limit))
 	}
 	var lines []string
 	for i := start; i < end; i++ {
 		next := line(i)
-		if written+len(next) > outputBudget-trailerRoom {
+		if !*all && written+len(next) > outputBudget-trailerRoom {
 			break
 		}
 		lines = append(lines, next)
@@ -480,8 +495,12 @@ func show(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer
 	}
 	fmt.Fprintf(stdout, "Session %s · entries %d–%d of %d\n", heading, start+1, start+len(lines), len(entries))
 	fmt.Fprint(stdout, strings.Join(lines, ""))
-	if hidden := end - start - len(lines); hidden > 0 {
+	hidden := end - start - len(lines)
+	switch {
+	case hidden > 0 && (*around != "" || *at != ""):
 		fmt.Fprintf(stdout, "… %s not shown; narrow with --around and --context\n", plural(hidden, "more entry", "more entries"))
+	case hidden > 0:
+		fmt.Fprintf(stdout, "… %s not shown; ele show %s --from %d continues\n", plural(hidden, "more entry", "more entries"), first.Session[:min(len(first.Session), sessionPrefix)], start+len(lines)+1)
 	}
 	return 0
 }

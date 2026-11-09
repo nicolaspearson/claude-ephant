@@ -143,11 +143,16 @@ day or a number of days back, as `7d`. `--limit` caps the matches, 20 by default
 
 ```text
 ele show [--around <text> | --at <time>] [--context <n>] <session>
+ele show [--all] [--from <n>] <session>
 ele show --note <id> [--context <n>]
 ```
 
 A session's entries, centred on the first containing `--around`'s text or at or
 after `--at`'s time, with `--context` entries either side, 4 by default.
+Without either, entries from the first, or from entry `--from` as the heading
+numbers them, until the output limit, about 2k tokens; a cut-off line names
+the `--from` that continues. `--all` prints every entry from there, whole and
+with no limit, for reading a whole session or saving it to a file.
 `--note` opens the session a note came from at its discussion, with 1 entry
 either side of each part of it unless `--context` is set, and twice that many
 before the note when nothing matches it.

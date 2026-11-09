@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -326,6 +328,79 @@ func TestRunShowCentresOnAMatch(t *testing.T) {
 	output, code = runCommand(t, "show", "abc", "--context", "-1")
 	require.Equal(t, 2, code)
 	require.Contains(t, output, "--context must be 0 or more")
+}
+
+func TestRunShowPagesFromAnEntryOrPrintsThemAll(t *testing.T) {
+	home := recallFixture(t)
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	var transcript strings.Builder
+	for minute := range 40 {
+		text := fmt.Sprintf("entry %02d %s", minute+1, strings.Repeat("long ", 150))
+		if minute == 0 {
+			text += "\nsecond line"
+		}
+		fmt.Fprintf(&transcript, `{"type":"user","cwd":%q,"sessionId":"long1","timestamp":"2026-10-15T11:%02d:00Z","uuid":"u%02d","message":{"content":%q}}`+"\n", gateway, minute, minute, text)
+	}
+	writeFile(t, filepath.Join(home, ".claude", "projects", "-gateway", "long1.jsonl"), transcript.String())
+	output, code := runCommand(t, "sync")
+	require.Equal(t, 0, code, output)
+
+	output, code = runCommand(t, "show", "long1")
+	require.Equal(t, 0, code, output)
+	match := regexp.MustCompile(`entries 1–(\d+) of 40\n`).FindStringSubmatch(output)
+	require.NotNil(t, match, output)
+	shown, err := strconv.Atoi(match[1])
+	require.NoError(t, err)
+	require.Less(t, shown, 40)
+	require.Contains(t, output, fmt.Sprintf("; ele show long1 --from %d continues\n", shown+1))
+	require.LessOrEqual(t, len(output), outputBudget)
+
+	output, code = runCommand(t, "show", "long1", "--from", strconv.Itoa(shown+1))
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, fmt.Sprintf("entries %d–", shown+1))
+	require.Contains(t, output, fmt.Sprintf("prompt       entry %02d long", shown+1))
+	require.NotContains(t, output, fmt.Sprintf("entry %02d long", shown))
+	require.LessOrEqual(t, len(output), outputBudget)
+
+	output, code = runCommand(t, "show", "long1", "--from", "40")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "entries 40–40 of 40\n")
+	require.NotContains(t, output, "continues")
+
+	output, code = runCommand(t, "show", "long1", "--all")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "entries 1–40 of 40\n")
+	require.Contains(t, output, "entry 01 "+strings.Repeat("long ", 150)+"second line\n")
+	require.Contains(t, output, "entry 40 ")
+	require.NotContains(t, output, "not shown")
+	require.Greater(t, len(output), outputBudget)
+
+	output, code = runCommand(t, "show", "long1", "--all", "--from", "39")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "entries 39–40 of 40\n")
+	require.NotContains(t, output, "entry 38 ")
+
+	output, code = runCommand(t, "show", "long1", "--from", "41")
+	require.Equal(t, 1, code, output)
+	require.Contains(t, output, "ele: session long1 has 40 entries; --from 41 is past them")
+
+	output, code = runCommand(t, "show", "long1", "--from", "0")
+	require.Equal(t, 2, code, output)
+	require.Contains(t, output, "--from must be 1 or more")
+
+	for _, call := range [][]string{
+		{"show", "--note", "20261015-aaaaaa", "--all"},
+		{"show", "--note", "20261015-aaaaaa", "--from", "2"},
+		{"show", "long1", "--all", "--around", "entry"},
+		{"show", "long1", "--all", "--at", "2026-10-15T11:00:00Z"},
+		{"show", "long1", "--all", "--context", "1"},
+		{"show", "long1", "--from", "1", "--around", "entry"},
+		{"show", "long1", "--from", "2", "--at", "2026-10-15T11:00:00Z"},
+		{"show", "long1", "--from", "2", "--context", "1"},
+	} {
+		output, code = runCommand(t, call...)
+		require.Equal(t, 2, code, "%v: %s", call, output)
+	}
 }
 
 func TestRunShowCentresOnTheDiscussionNotItsNote(t *testing.T) {

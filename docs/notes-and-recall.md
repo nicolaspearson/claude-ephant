@@ -141,7 +141,10 @@ are archived but not indexed, so automated runs do not flood the results.
 
 `ele show <session>` prints a session's entries; a unique prefix of its id is
 enough. `--around <text>` centres on the first entry containing the text, and
-`--context <n>` sets how many entries show either side.
+`--context <n>` sets how many entries show either side. Without `--around` or `--at`, it
+prints from the first entry, or from `--from <n>`, until its output limit, and
+its last line names the `--from` that continues; `--all` prints the whole
+session, every entry in full.
 
 `ele show --note <id>` opens the session a note came from at the discussion that
 produced it. In the block a session starts with, a note from a recorded session
