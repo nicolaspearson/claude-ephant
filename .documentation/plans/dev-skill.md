@@ -150,7 +150,7 @@ use them where it reads code or weighs designs in the main session.
     cites, 8 files to read, a Not checked list and 7 dated recall findings
     with no note or session id; the run predates the Commands rewording,
     which the done-when does not cover
-- [ ] architect-agent: Write `plugin/agents/architect.md` and
+- [x] architect-agent: Write `plugin/agents/architect.md` and
   `plugin/reference/architect.md`, and add the agent to design.md's Names table
   and Integration list
   - done when, in a `task dev` session, `ele:architect` is listed as an agent
@@ -158,6 +158,20 @@ use them where it reads code or weighs designs in the main session.
     repository that invites a helper script and doc comments, returns a single
     committed design naming the files it changes, with no file in a language
     the repository does not use and no comment restating code
+  - as of 2026-11-11: design.md's Names table has an Agents row
+    (`.documentation/specs/design.md:17`) and the Integration list is its
+    `plugin/` file line (`:181`), each listing `ele:explorer` alphabetically,
+    so `ele:architect` goes first in both; `plugin/agents/explorer.md` and
+    `plugin/reference/explorer.md` are the pattern to follow
+  - asserted in the architect-agent commit: in a `task dev` session
+    `ele:architect` resolved as an agent type and its `agent` event was
+    recorded; given a minimal-change constraint and a task to regenerate
+    design.md's Agents row with documented exported functions, it returned one
+    design in an existing Go package naming the files it changes, no new file,
+    and two one-line doc comments each stating a contract; it used only Glob,
+    Grep and Read; the run predates the checkpoint's rewording of the reference
+    file's Rules and Costs and of the agent body, which the done-when does not
+    cover
 - [ ] checkpoint-done-when: Checkpoint quotes a done-when the user confirmed in
   the session as it quotes a plan item, with the task and chosen design, and
   runs the spec reviewer on it; update `checkpoint/SKILL.md` §2, §3's What was
@@ -177,7 +191,7 @@ use them where it reads code or weighs designs in the main session.
   `.documentation/specs/dev.md` and `docs/dev.md`, and add `/ele:dev` to
   design.md's Names table and Integration list, the README's skill list and
   `docs/commands.md`
-  - blocked: architect-agent, checkpoint-done-when
+  - blocked: checkpoint-done-when
   - done when `task check FORCE=1` passes, and one `/ele:dev` run in a
     `task dev` session, on a small task in this repository with a real design
     choice, goes from intake to checkpoint with `ele:explorer`,
@@ -204,7 +218,6 @@ use them where it reads code or weighs designs in the main session.
   puts a design question meeting the architectural test, the designs not
   chosen becoming `rejected:` lines; update the Plans section of design.md and
   `docs/plans.md`
-  - blocked: architect-agent
   - done when one `/ele:plan new` run in a `task dev` session with an
     architectural Decision shows two `ele:architect` launches in
     `ele events --kind agent`, each design they returned appears in the draft
@@ -217,6 +230,13 @@ use them where it reads code or weighs designs in the main session.
     launch in
     `ele events --kind agent` and the item's dated premise lines carry its
     `file:line` cites
+- [ ] explorer-commands: Reword `plugin/reference/explorer.md`'s Commands,
+  which says "their sync writes ele's own data" of `ele recall`, `ele context`
+  and `ele show` though only `ele recall` syncs, to "recall's sync writes ele's
+  own data, not the repository"
+  - from the explorer-agent checkpoint's re-review, 2026-11-11
+  - done when the file says so, and one `ele:explorer` launch in a `task dev`
+    session uses only Glob, Grep, Read and the Bash commands Commands lists
 - [ ] Fold each Decision through `/ele:plan-audit close
   .documentation/plans/dev-skill.md`, propose each out-of-scope line as a
   `decision` through `/ele:remember`, run `ele plan done
