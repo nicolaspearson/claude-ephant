@@ -221,6 +221,11 @@ use them where it reads code or weighs designs in the main session.
   - next: the user runs `/ele:plan new` in a `task dev` session and reads
     `ele events --kind agent` for `ele:explorer` launches before the first
     round, then runs `task eval -- ./plugin`
+  - as of 2026-11-11: the user's `task eval -- ./plugin` run failed
+    `plan-new-review`'s `explores` grader, the session reading the scaffold's
+    few files itself and launching no `ele:explorer`; its other five graders
+    passed. Grounding now launches explorers however small the repository,
+    the session reading no code before the first round
 - [ ] plan-decision-architects: `/ele:plan` `new` and `convert` launch two
   `ele:architect` agents under different constraints before the round that
   puts a design question meeting the architectural test, the designs not
