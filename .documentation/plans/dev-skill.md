@@ -123,7 +123,7 @@ use them where it reads code or weighs designs in the main session.
 
 ## Actions
 
-- [ ] explorer-agent: Write `plugin/agents/explorer.md` and
+- [x] explorer-agent: Write `plugin/agents/explorer.md` and
   `plugin/reference/explorer.md`, and add the agent to design.md's Names table
   and Integration list
   - done when, in a `task dev` session, `ele:explorer` is listed as an agent
@@ -131,6 +131,25 @@ use them where it reads code or weighs designs in the main session.
     answer has a recall hit returns `file:line` cites, a list of files to
     read, a "not checked" line or the statement that it has none, and the
     recall finding with no note or session id
+  - as of 2026-11-11: the three agents' frontmatter matches Context
+    (`plugin/agents/*.md`, lines 4–5 of each); design.md's Names table holds
+    no agents row, so adding one lists all four agents; its Integration list
+    is the `plugin/` file line under Integration
+  - as of 2026-11-11: an `agent` event records the subagent type, and as
+    reviewer files only `reviewers/<name>.md` (`internal/transcript`'s
+    `reviewerFile`), so `reference/explorer.md` in a brief is not recorded;
+    the done-when needs only the type
+  - as of 2026-11-11: stop-check counts a subagent's Edit, NotebookEdit and
+    Write as work, not its Bash (`cmd/ele`'s `subagentWorkTools`), so an
+    explorer's reads raise no notes ask
+  - as of 2026-11-11: no `docs/` page lists the agents outside the skill using
+    each, so this item changes no user doc
+  - asserted in the explorer-agent commit: in a `task dev` session
+    `ele:explorer` resolved as an agent type and its `agent` event was
+    recorded; its report on how ele records agent launches gave `file:line`
+    cites, 8 files to read, a Not checked list and 7 dated recall findings
+    with no note or session id; the run predates the Commands rewording,
+    which the done-when does not cover
 - [ ] architect-agent: Write `plugin/agents/architect.md` and
   `plugin/reference/architect.md`, and add the agent to design.md's Names table
   and Integration list
@@ -158,7 +177,7 @@ use them where it reads code or weighs designs in the main session.
   `.documentation/specs/dev.md` and `docs/dev.md`, and add `/ele:dev` to
   design.md's Names table and Integration list, the README's skill list and
   `docs/commands.md`
-  - blocked: explorer-agent, architect-agent, checkpoint-done-when
+  - blocked: architect-agent, checkpoint-done-when
   - done when `task check FORCE=1` passes, and one `/ele:dev` run in a
     `task dev` session, on a small task in this repository with a real design
     choice, goes from intake to checkpoint with `ele:explorer`,
@@ -176,7 +195,6 @@ use them where it reads code or weighs designs in the main session.
 - [ ] plan-grounding-explorers: `/ele:plan` `new` and `convert` launch
   `ele:explorer` agents for the facts each round rests on; update the Plans
   section of design.md and `docs/plans.md`
-  - blocked: explorer-agent
   - done when one `/ele:plan new` run in a `task dev` session shows
     `ele:explorer` launches before its first round in
     `ele events --kind agent`, and the user's `task eval -- ./plugin` run
@@ -195,7 +213,6 @@ use them where it reads code or weighs designs in the main session.
 - [ ] pickup-premise-explorer: `/ele:plan` pickup's premise check launches an
   `ele:explorer` to re-derive the item's claims about code; update the Plans
   section of design.md and `docs/plans.md`
-  - blocked: explorer-agent
   - done when one pickup in a `task dev` session shows an `ele:explorer`
     launch in
     `ele events --kind agent` and the item's dated premise lines carry its
