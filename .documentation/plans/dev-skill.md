@@ -244,6 +244,12 @@ use them where it reads code or weighs designs in the main session.
 
 ## Inbox
 
+- 2026-11-11, from the architect-agent checkpoint's re-review:
+  `plugin/reference/architect.md`'s language rule excludes "fixtures and
+  generated files" from the Glob, which an agent with only Glob cannot tell by
+  path; name path patterns (e.g. `*_gen.go`, `*.pb.go`, `fixtures/`) or drop
+  the two words
+
 ## Out of scope
 
 - `ele:ticket-audit` and `ele:plan-audit` moving to `ele:explorer`: their
