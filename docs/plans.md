@@ -11,15 +11,17 @@ A plan is not a tracker. It has no assignees, and ele writes no tickets.
 ## Starting one
 
 `/ele:plan new <name>` writes a plan with you. Claude first reads the
-repository's accepted ADRs, which settle what they decide, and looks up the
-facts each question rests on. It then asks what the conversation has not
+repository's accepted ADRs, which settle what they decide, and has up to three
+`ele:explorer` agents look up the facts each question rests on, in the code
+and in earlier sessions. It then asks what the conversation has not
 settled, in rounds, each question with a recommended answer. It writes the
 file, with what the plan must deliver as `## Requirements` in your words, then
 runs the review loop, and on your approval starts the plan.
 
 `/ele:plan convert <spec>` turns a spec's open items into plans: it checks each
 item against the code, drafts plans grouped by what ships together, runs the
-review loop over the drafts and proposes them.
+review loop over the drafts and proposes them. Its check of the items, and the
+facts its questions rest on, also come from `ele:explorer` agents.
 
 ### The review loop
 

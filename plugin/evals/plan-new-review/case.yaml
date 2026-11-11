@@ -1,6 +1,6 @@
 schema_version: "1.1"
 name: plan-new-review
-description: /ele:plan new reads the accepted ADR, drafts the plan without the item the ADR rules out, runs at least two audit and review passes over the draft, and does not start the plan unapproved
+description: /ele:plan new reads the accepted ADR, grounds its rounds with ele:explorer agents, drafts the plan without the item the ADR rules out, runs at least two audit and review passes over the draft, and does not start the plan unapproved
 runs: 1
 execution:
   max_turns: 150

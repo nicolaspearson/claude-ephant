@@ -213,6 +213,14 @@ use them where it reads code or weighs designs in the main session.
     `ele:explorer` launches before its first round in
     `ele events --kind agent`, and the user's `task eval -- ./plugin` run
     passes `plan-new-review`'s graders
+  - as of 2026-11-11: `/ele:plan`'s Grounding and convert step 2, design.md's
+    Plans section and `docs/plans.md` send the rounds' fact-finding to
+    `ele:explorer` agents, at most 3, `general-purpose` where the type is not
+    listed; `plan-new-review` gains an `explores` grader requiring an
+    `ele:explorer` launch; `task check FORCE=1` and `task audit` pass
+  - next: the user runs `/ele:plan new` in a `task dev` session and reads
+    `ele events --kind agent` for `ele:explorer` launches before the first
+    round, then runs `task eval -- ./plugin`
 - [ ] plan-decision-architects: `/ele:plan` `new` and `convert` launch two
   `ele:architect` agents under different constraints before the round that
   puts a design question meeting the architectural test, the designs not
