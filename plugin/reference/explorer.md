@@ -6,15 +6,20 @@ it. It edits nothing.
 
 ## Commands
 
-Search and read files with Glob, Grep and Read, not with `grep`, `ls`, `cat` or
-`head` in Bash. Bash runs only:
+Read a file with Read, never `cat`, `head`, `tail` or `sed` in Bash, with or
+without Grep and Glob. Search with Grep and Glob. Give every Bash command
+absolute paths; never `cd`. The first Bash command is `ele recall`, before any
+code is read. Bash runs only:
 
 - `ele recall`, `ele context` and `ele show`, for what earlier sessions decided
-  or observed; their sync writes ele's own data, not the repository
+  or observed, and `ele show --note <id>` for the discussion a note came from;
+  recall's sync writes ele's own data, not the repository
 - git's read commands: `status`, `diff`, `log`, `show`, `blame`, `grep`,
   `ls-files`, `branch --show-current`
+- where Grep or Glob is missing, `grep -rn`, `find` and `ls`, for searching
+  only
 
-Either may capture its output to a file under `$TMPDIR`. Never a git write, a
+Any may capture its output to a file under `$TMPDIR`. Never a git write, a
 command that changes a file in the repository, or a cluster, cloud or other
 live-infrastructure command: `kubectl`, `helm`, `aws`, `terraform`, `docker`
 against a remote host, or a wrapper, alias or task target reaching one. Where

@@ -290,13 +290,20 @@ use them where it reads code or weighs designs in the main session.
     numbers in a plan, and mark one claim not checked; with only this change
     on HEAD, `task check FORCE=1`'s lint-docs, unused, tidy-check and test
     passed, and its lint in the working tree
-- [ ] explorer-commands: Reword `plugin/reference/explorer.md`'s Commands,
+- [x] explorer-commands: Reword `plugin/reference/explorer.md`'s Commands,
   which says "their sync writes ele's own data" of `ele recall`, `ele context`
   and `ele show` though only `ele recall` syncs, to "recall's sync writes ele's
   own data, not the repository"
   - from the explorer-agent checkpoint's re-review, 2026-11-11
   - done when the file says so, and one `ele:explorer` launch in a `task dev`
     session uses only Glob, Grep, Read and the Bash commands Commands lists
+  - asserted in the explorer-commands commit: Commands says recall's sync
+    writes ele's own data, lists `grep -rn`, `find` and `ls` as the fallback
+    where Grep or Glob is missing, and names `ele show --note <id>`; one
+    `ele:explorer` launch in a `task dev` session (sonnet, the agent definition
+    carrying the tool rules, before the review's rewording of the same rules)
+    used Read, `ele recall` first, and grep in Bash with absolute paths after
+    Grep proved missing: no `cd`, `sed`, `cat` or `head`
 - [ ] architect-language-rule: Drop "fixtures and generated files" from
   `plugin/reference/architect.md`'s language rule, which an agent with only
   Glob cannot tell by path; vendored code, `node_modules` and `testdata` stay
@@ -314,9 +321,10 @@ use them where it reads code or weighs designs in the main session.
   2's rounds, before drafting; a design question raised later, as an `open`
   review-loop finding or in `convert` step 5's re-audit round, is asked
   without architects (ruled 2026-11-12)
-- 2026-11-12, from the pickup-premise-explorer checkpoint:
-  `plugin/reference/explorer.md`'s Commands needs a fallback for a session
-  without Grep or Glob, and says a note id takes `ele show --note`
+- 2026-11-12, from the explorer-commands checkpoint:
+  `plugin/agents/checkpoint-reviewer.md` and `plugin/agents/architect.md` carry
+  no tool rules; the explorer kept to Read and absolute paths only once its
+  agent definition held them
 
 ## Out of scope
 
