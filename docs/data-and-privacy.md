@@ -131,12 +131,27 @@ start block shows a secret:
 
 - Known token formats become `[redacted:<kind>]`: Anthropic and OpenAI keys,
   GitHub tokens, GitLab tokens (`glpat-`, `glrt-`, `gldt-`, `glptt-`,
-  `glcbt-`, `glft-`, `gloas-`), AWS access key IDs, JWTs and PEM private keys
+  `glcbt-`, `glft-`, `gloas-`), AWS access key IDs, Slack tokens (`xoxb-` and
+  the like), Stripe secret and restricted keys (`sk_` and `rk_`, live and
+  test), Google API keys (`AIza…`), npm tokens (`npm_`), JWTs and PEM private
+  keys, one cut off before its `END` line included
+- A bearer token, `Bearer <token>`, becomes `Bearer [redacted:bearer]`, and a
+  password in a URL, `scheme://user:pass@host`, becomes
+  `scheme://user:[redacted:url]@host`
 - The value of any `key=value` or `key: value` whose key looks secret becomes
   `[redacted:assignment]`: JSON keys, escaped JSON inside a quoted command
   (`\"password\":\"…\"`) and hyphenated header names such as `X-Api-Key`
-  included. A quoted value runs to its closing quote up to 4 KiB away, across
-  lines; one never closed in that span is redacted to the end of its line
+  included. A key looks secret when it holds `secret`, `token`, `password`,
+  `passwd`, `passphrase`, `credential`, `api_key`, `private_key` or
+  `access_key`. A quoted value runs to its closing quote up to 4 KiB away,
+  across lines; one never closed in that span is redacted to the end of its
+  line
+- The value after a command-line flag whose name looks secret, as in
+  `--password hunter2`, becomes `[redacted:flag]`; a flag naming the secret
+  or where it lives, such as `--secret-id` or `--password-file`, and a
+  `--no-` flag keep what follows
+- A count of tokens stays: a key ending in `tokens` with a number alone, such
+  as `"max_tokens": 4096` or `--max-tokens 4096`, is not redacted
 
 `ele mine --digests` writes each unit's digest, an excerpt of its transcript
 redacted as above (prompts, earlier asks, subagent briefs, Bash commands, edited

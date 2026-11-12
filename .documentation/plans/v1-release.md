@@ -2078,8 +2078,22 @@ keep.
   - 2026-11-09, from the eval-fixes eval run: the judge voted FAIL FAIL PASS
     on a run whose reply lists `ele recall --project <name>` under Holds;
     CONTRIBUTING's grader rule prefers a regex
-- [ ] redact-extras: Redact the secret shapes the docs do not promise, and stop
+- [x] redact-extras: Redact the secret shapes the docs do not promise, and stop
   over-matching counts
+  - asserted in the redact-extras commit: `TestRedact` redacts each ruled-in
+    shape (Bearer, URL credentials with or without a user, Slack, Stripe,
+    Google and npm tokens, a cut PEM block over newlines, escaped newlines or
+    spaces, a secret flag's plain, quoted, escaped-quoted and unclosed value,
+    passphrase and credential keys, a bracketed value), keeps counts ending in
+    `tokens` with a number alone, and leaves prose, `--secret-id`-style flags
+    and a URL port alone; each case seen red against the old code or by
+    mutating the rule it covers; `index.Version` 17 rebuilds the index so old
+    entries are re-scrubbed
+  - left out on purpose: a bearer token is taken only when it holds a digit or
+    symbol, so "Bearer authentication" stays prose and an all-letter token
+    passes; lower-case `bearer` and `Authorization: Basic`, not ruled; a raw
+    `@` inside a URL password leaks its tail; a cut key's last line under 16
+    characters stays
   - done when each shape below is ruled in or out by the user, those in are
     redacted by a test, and `max_tokens`-style counts survive
   - 2026-10-30, from audit-index: secret shapes `redact` misses that the docs
@@ -2092,6 +2106,30 @@ keep.
   - 2026-10-30, from audit-index: `redact` over-matches counts: `"max_tokens":
     4096` becomes `[redacted:assignment]` (checked), as do `input_tokens: 123`
     and prose like `total tokens: 500`, so recall loses numbers
+  - as of 2026-11-12, probed through `redact.Redact` before the change:
+    unchanged were
+    `Authorization: Bearer <opaque>`, `--api-key s3cr3t` and
+    `--password hunter2` (space-separated; `--api-key=s3cr3t` is redacted),
+    `postgres://user:pass@host` and `https://bob:hunter2@host`, `passphrase`
+    and `credential` keys, Slack `xoxb-`, Stripe `sk_live_` and `rk_live_`,
+    Google `AIza` and npm `npm_` tokens, a PEM block with no `END` line, and
+    `password=[notredacted]secret`; `"password": "ab\"cdefgh"` is redacted
+    whole, so the escaped-quote tail does not leak in that form.
+    `"max_tokens": 4096`, `input_tokens: 123` and `total tokens: 500` each
+    become `[redacted:assignment]`, as `assignment`'s key matches `TOKEN`
+    anywhere, `tokens` included
+  - as of 2026-11-12, before the change: `index.Version` was 16, and the
+    Secrets section of
+    `design.md` says a pattern change bumps it, so already-indexed text is
+    scrubbed or restored
+  - as of 2026-11-12, ruled by the user: all in: `Authorization: Bearer`,
+    URL credentials (the user name kept), Slack, Stripe, Google and npm
+    tokens, a PEM block with no `END` line, a space-separated value after a
+    secret flag such as `--password`, `passphrase` and `credential` keys, and
+    the skip narrowed to a value already `[redacted:<label>]`; a key ending in
+    `tokens` whose value is digits alone is left as is, while `token: 123456`
+    and a `tokens` list stay redacted. The escaped-quote tail is out: it did
+    not reproduce
 - [ ] mining-robust: One bad mining line or unit stops no listing or report
   - done when each defect below has a test that fails before its fix, or the
     user rules it out
