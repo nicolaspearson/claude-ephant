@@ -323,13 +323,13 @@ use them where it reads code or weighs designs in the main session.
   - done when `plugin/skills/plan/SKILL.md`'s Designs,
     `.documentation/specs/design.md` and `docs/plans.md` all say so
   - asserted in the designs-rounds-scope commit: `/ele:plan`'s Designs and
-    design.md's Plans bullet say architects run only in `new` step 1's and
+    design.md's Plans line say architects run only in `new` step 1's and
     `convert` step 2's rounds, and that a design question raised once a draft
     exists (an `open` review-loop finding, `convert` step 5's re-audit) is
-    asked without them, design.md giving the reason; docs/plans.md says the
-    last without step numbers; `convert`
-    step 2 now settles the items' design questions in SKILL.md and design.md,
-    so its rounds can launch architects as docs/plans.md says
+    asked without them, both giving the reason; docs/plans.md states the
+    rule without step numbers; `convert` step 2 now settles the items' design
+    questions in SKILL.md and design.md, so its rounds can launch architects
+    as docs/plans.md says
 - [x] reviewer-tool-rules: List a recent `ele:checkpoint-reviewer` launch's
   tool calls from its transcript; where it read files through `cat` or `sed`,
   used `cd` or gave relative paths, add tool rules to
@@ -349,7 +349,7 @@ use them where it reads code or weighs designs in the main session.
     probe's Bash writes; one `ele:checkpoint-reviewer` launch in a headless `claude -p --plugin-dir` run with the clone's
     plugin used Read, `git -C` with an absolute path and Grep, no `cd`, `sed`
     or `cat`; the Grep-missing fallback and a probe were not exercised
-- [ ] designs-rounds-wording: In `plugin/skills/plan/SKILL.md`'s Designs and
+- [x] designs-rounds-wording: In `plugin/skills/plan/SKILL.md`'s Designs and
   design.md's Plans line, replace "since it refines a design already chosen"
   and "since by then it refines a design already chosen", which overclaim,
   because such a question can concern a design not yet in `## Decisions`, with
@@ -362,6 +362,15 @@ use them where it reads code or weighs designs in the main session.
   - from the reviewer-tool-rules launch check's review of the
     designs-rounds-scope commit, 2026-11-12
   - done when the four files say so
+  - asserted in the designs-rounds-wording commit: SKILL.md's Designs and
+    design.md's Plans line give the reason "since by then a draft exists whose
+    design the question can be weighed against", dropping, by the user's
+    rulings, the cost half (the sentence before states it) and "the user has
+    seen" (the review loop asks `open` findings before showing a draft);
+    docs/plans.md's `convert` paragraph says it asks the items' design
+    questions in rounds before drafting; designs-rounds-scope's tick line is
+    rewrapped, says "Plans line" and "states the rule"; a grep of plugin/,
+    docs/ and .documentation/ found no other copy of the old reason
 - [ ] architect-search-fallback: Say in `plugin/reference/architect.md`'s
   language rule that where Glob and Grep are both missing, leaving only Read,
   the design names no new file in a language it has not seen in the files it

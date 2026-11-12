@@ -25,10 +25,11 @@ your words, then runs the review loop, and on your approval starts the plan.
 `/ele:plan convert <spec>` turns a spec's open items into plans: it checks each
 item against the code, drafts plans grouped by what ships together, runs the
 review loop over the drafts and proposes them. Its check of the items, and the
-facts its questions rest on, also come from `ele:explorer` agents, and its
-design questions get `ele:architect` designs as `new`'s do. A design question
-raised once a draft exists, by the review loop or by `convert`'s re-audit after
-you change a draft, is asked without architects.
+facts its questions rest on, also come from `ele:explorer` agents. It asks the
+items' design questions in rounds before drafting, and they get
+`ele:architect` designs as `new`'s do. A design question raised once a draft
+exists, by the review loop or by `convert`'s re-audit after you change a draft,
+is asked without architects.
 
 ### The review loop
 
