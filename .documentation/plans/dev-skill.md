@@ -330,7 +330,7 @@ use them where it reads code or weighs designs in the main session.
     last without step numbers; `convert`
     step 2 now settles the items' design questions in SKILL.md and design.md,
     so its rounds can launch architects as docs/plans.md says
-- [ ] reviewer-tool-rules: List a recent `ele:checkpoint-reviewer` launch's
+- [x] reviewer-tool-rules: List a recent `ele:checkpoint-reviewer` launch's
   tool calls from its transcript; where it read files through `cat` or `sed`,
   used `cd` or gave relative paths, add tool rules to
   `plugin/agents/checkpoint-reviewer.md` fitting its Bash needs, such as
@@ -339,6 +339,16 @@ use them where it reads code or weighs designs in the main session.
   - done when the item describes what the listed launch ran, and either rules
     are added and one launch keeps to them, or the launch broke none and the
     item says so
+  - asserted in the reviewer-tool-rules commit: of three
+    `ele:checkpoint-reviewer` launches on the installed release, one used only
+    Read, one ran `cd` twice and read with `sed -n` on relative paths, one read
+    with `sed -n` on absolute paths, the session's subagents finding Grep
+    missing; the
+    agent definition now carries the explorer's Read, search-fallback and
+    absolute-path rules, plus a line, by the user's ruling, allowing a scratch
+    probe's Bash writes; one `ele:checkpoint-reviewer` launch in a headless `claude -p --plugin-dir` run with the clone's
+    plugin used Read, `git -C` with an absolute path and Grep, no `cd`, `sed`
+    or `cat`; the Grep-missing fallback and a probe were not exercised
 - [ ] architect-search-fallback: Say in `plugin/reference/architect.md`'s
   language rule that where Glob and Grep are both missing, leaving only Read,
   the design names no new file in a language it has not seen in the files it
@@ -351,6 +361,14 @@ use them where it reads code or weighs designs in the main session.
   .documentation/plans/dev-skill.md`, and delete this plan
 
 ## Inbox
+
+- 2026-11-12, from the reviewer-tool-rules launch check, a review of the
+  designs-rounds-scope commit: the reason "refines a design already chosen"
+  overclaims, as an `open` finding or a re-audit question can concern a design
+  not yet in `## Decisions`; `docs/plans.md`'s `convert` paragraph never says
+  `convert` asks design questions in rounds; and that item's tick line wraps
+  inside "`convert` step 2", says "Plans bullet" where the item says "Plans
+  line", and its "says the last" is unclear
 
 ## Out of scope
 
