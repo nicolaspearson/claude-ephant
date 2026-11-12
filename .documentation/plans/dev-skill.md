@@ -233,7 +233,7 @@ use them where it reads code or weighs designs in the main session.
     at 985b956 the user's `task eval -- ./plugin --case plan-new-review`
     passed all six graders, run as that one case since no other case runs
     `/ele:plan`
-- [ ] plan-decision-architects: `/ele:plan` `new` and `convert` launch two
+- [x] plan-decision-architects: `/ele:plan` `new` and `convert` launch two
   `ele:architect` agents under different constraints before the round that
   puts a design question meeting the architectural test, the designs not
   chosen becoming `rejected:` lines; update the Plans section of design.md and
@@ -243,6 +243,32 @@ use them where it reads code or weighs designs in the main session.
     `ele events --kind agent`, each design they returned appears in the draft
     as the chosen design or a `rejected:` line, and the user's `task eval -- ./plugin` run passes
     `plan-new-review`'s graders
+  - as of 2026-11-12, before this item's change: the architectural test is
+    plan-audit Close mode's Architectural bullet, adopted from
+    domain-modeling in `plugin/reference/plan-practices.md`'s Decision
+    records; the plan skill's Grounding, format and `new` step 2 are where a
+    launch and its `rejected:` lines fit; design.md's Plans section carries
+    Grounding in its `/ele:plan` bullets, and `docs/plans.md`'s Starting one
+    named explorers but no architects
+  - as of 2026-11-12: `plugin/reference/architect.md` already says another
+    architect may design the same task under another constraint and the
+    session compares them, and its Report ends in Costs, the source of a
+    `rejected:` line's "because"; `plugin/agents/architect.md` is opus with
+    Glob, Grep and Read
+  - as of 2026-11-12: `plan-new-review`'s tally scenario
+    (`plugin/evals/plan-new-review/case.yaml`) holds no decision passing the
+    architectural test (`--lines` and `--json` are reversible, `--url` is
+    ruled out by the ADR), so its graders guard against regression only and
+    the live run is what shows the architects
+  - asserted in the plan-decision-architects commit: in a `task dev` session,
+    `/ele:plan new cross-repo-blockers` launched two `ele:architect` agents in
+    one message after its first round, under a smallest-change and a
+    robust-identity constraint, by that session's agent events; the
+    smallest-change design became the draft's first Decision and the
+    remote-identity design its `rejected:` line; a run on a reversible parsing
+    fix launched none; the user's `task eval -- ./plugin --case
+    plan-new-review` passed all six graders, its scenario holding no
+    architectural question
 - [ ] pickup-premise-explorer: `/ele:plan` pickup's premise check launches an
   `ele:explorer` to re-derive the item's claims about code; update the Plans
   section of design.md and `docs/plans.md`
@@ -257,6 +283,11 @@ use them where it reads code or weighs designs in the main session.
   - from the explorer-agent checkpoint's re-review, 2026-11-11
   - done when the file says so, and one `ele:explorer` launch in a `task dev`
     session uses only Glob, Grep, Read and the Bash commands Commands lists
+- [ ] architect-language-rule: Drop "fixtures and generated files" from
+  `plugin/reference/architect.md`'s language rule, which an agent with only
+  Glob cannot tell by path; vendored code, `node_modules` and `testdata` stay
+  - from the architect-agent checkpoint's re-review, 2026-11-11
+  - done when the rule's exclusions name only what a path shows
 - [ ] Fold each Decision through `/ele:plan-audit close
   .documentation/plans/dev-skill.md`, propose each out-of-scope line as a
   `decision` through `/ele:remember`, run `ele plan done
@@ -264,11 +295,11 @@ use them where it reads code or weighs designs in the main session.
 
 ## Inbox
 
-- 2026-11-11, from the architect-agent checkpoint's re-review:
-  `plugin/reference/architect.md`'s language rule excludes "fixtures and
-  generated files" from the Glob, which an agent with only Glob cannot tell by
-  path; name path patterns (e.g. `*_gen.go`, `*.pb.go`, `fixtures/`) or drop
-  the two words
+- 2026-11-12, from the plan-decision-architects checkpoint: say in
+  `/ele:plan`'s Designs that it covers only `new` step 1's and `convert` step
+  2's rounds, before drafting; a design question raised later, as an `open`
+  review-loop finding or in `convert` step 5's re-audit round, is asked
+  without architects (ruled 2026-11-12)
 
 ## Out of scope
 

@@ -15,14 +15,18 @@ repository's accepted ADRs, which settle what they decide, and has up to three
 `ele:explorer` agents look up the facts each question rests on, in the code
 and in earlier sessions, however small the repository. It then asks what the
 conversation has not settled, in rounds, each question with a recommended
-answer. It writes the file, with what the plan must deliver as
-`## Requirements` in your words, then runs the review loop, and on your
-approval starts the plan.
+answer. Before a design question that is hard to reverse, surprising without
+context and the result of a real trade-off, two `ele:architect` agents each
+design it under a different constraint, and you pick one of their designs or
+another answer; each design not chosen goes in the plan as a `rejected:` line.
+It writes the file, with what the plan must deliver as `## Requirements` in
+your words, then runs the review loop, and on your approval starts the plan.
 
 `/ele:plan convert <spec>` turns a spec's open items into plans: it checks each
 item against the code, drafts plans grouped by what ships together, runs the
 review loop over the drafts and proposes them. Its check of the items, and the
-facts its questions rest on, also come from `ele:explorer` agents.
+facts its questions rest on, also come from `ele:explorer` agents, and its
+design questions get `ele:architect` designs as `new`'s do.
 
 ### The review loop
 
