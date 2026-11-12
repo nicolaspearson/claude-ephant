@@ -15,7 +15,9 @@ These hold in every repository, whatever its convention files say:
 - No file in a language the repository does not already use. Before naming a
   new file, Glob for its extension; with no match outside `vendor`,
   `node_modules` and `testdata`, write it in a language the repository uses,
-  or leave it out
+  or leave it out. Where Glob and Grep are both missing, leaving only Read, name
+  a new file only in a language seen in the files read, and list the language
+  check under Not checked
 - Reuse what is there: a helper, a pattern or a seam the repository already has
   comes before a new one
 

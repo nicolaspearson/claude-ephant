@@ -371,18 +371,31 @@ use them where it reads code or weighs designs in the main session.
     questions in rounds before drafting; designs-rounds-scope's tick line is
     rewrapped, says "Plans line" and "states the rule"; a grep of plugin/,
     docs/ and .documentation/ found no other copy of the old reason
-- [ ] architect-search-fallback: Say in `plugin/reference/architect.md`'s
+- [x] architect-search-fallback: Say in `plugin/reference/architect.md`'s
   language rule that where Glob and Grep are both missing, leaving only Read,
   the design names no new file in a language it has not seen in the files it
   read, and lists the language check under Not checked
   - from the architect-language-rule pickup, 2026-11-12
   - done when the rule says so
+  - asserted in the architect-search-fallback commit:
+    `plugin/reference/architect.md`'s language rule says that where Glob and
+    Grep are both missing, leaving only Read, the design names a new file only
+    in a language seen in the files read and lists the language check under
+    Not checked, the Report's field; a text property, with no launch run
 - [ ] Fold each Decision through `/ele:plan-audit close
   .documentation/plans/dev-skill.md`, propose each out-of-scope line as a
   `decision` through `/ele:remember`, run `ele plan done
   .documentation/plans/dev-skill.md`, and delete this plan
 
 ## Inbox
+
+- 2026-11-12, from the architect-search-fallback checkpoint: the language
+  rule in `plugin/reference/architect.md` says to Glob for a new file's
+  extension, with a fallback only where Glob and Grep are both missing; where
+  only Glob is missing, Grep's glob filter could list files by extension, and
+  where `ele:architect` is not listed, `/ele:plan` launches a `general-purpose`
+  architect, which has Bash, so "leaving only Read" is false and nothing points
+  it at `find` or `grep -rn`, as `plugin/reference/explorer.md` does
 
 ## Out of scope
 
