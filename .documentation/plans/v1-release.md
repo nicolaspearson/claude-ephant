@@ -2004,10 +2004,31 @@ keep.
     `os.TempDir()`, symlinks resolved, or under `/tmp` or `/private/tmp`,
     and `ele checkpoint stats` prints one line counting those left out when
     there are any, apart from the unreadable count
-- [ ] rumdl-pin: `task lint` and `task format` refuse a rumdl version other
+- [x] rumdl-pin: `task lint` and `task format` refuse a rumdl version other
   than CI's pin
+  - asserted in the rumdl-pin commit: `task format` and `task lint` run with
+    `RUMDL_VERSION=0.3.0` exited 201 printing "rumdl is not 0.3.0, the version
+    CI pins — run: task setup-rumdl", and `task check FORCE=1`, `lint`
+    included, passed against the pinned 0.3.2; CONTRIBUTING's setup section
+    says so. `task setup-rumdl` stopped at its pipx precondition here, so a
+    full run, its post-install check included, is unobserved until CI runs it
   - done when a mismatched version fails the precondition with the pinned one
     named, and CONTRIBUTING says so
+  - as of 2026-11-12: CI's `Install rumdl` step in `.github/workflows/ci.yml`
+    is the only holder of the pin, `pipx install rumdl==0.3.0`;
+    CONTRIBUTING's setup paragraph repeats 0.3.0 in prose
+  - as of 2026-11-12: `Taskfile.yml`'s `format` and `lint` check only
+    `command -v rumdl`, their message suggesting `brew install rumdl`, which
+    installs the latest; no precondition compares any tool's version to a pin,
+    the nearest pattern being the `go version` build check against
+    `GO_VERSION`
+  - as of 2026-11-12: the Go tools' pins live once, in
+    `Taskfile.tools.yml`'s `setup-tools`, which CI runs and keys its cache on;
+    rumdl, shellcheck and Task are pinned in `ci.yml` alone
+  - as of 2026-11-12: local `rumdl --version` prints `rumdl 0.3.2`, so the
+    check would refuse this machine's install on landing; Homebrew offers only
+    its stable rumdl, 0.3.3, and this machine's `PATH` puts `/opt/homebrew/bin`
+    ahead of pipx's `~/.local/bin`
 - [ ] sdk-cli: Index `sdk-cli` sessions while `sdk-ts` stays out
   - done when a test, seen red, indexes an `sdk-cli` session and skips an
     `sdk-ts` one, and `design.md`'s SDK entrypoint line and
@@ -2019,6 +2040,13 @@ keep.
   ten fixture cases with planted defects
   - done when, run through `task eval` when the user asks, the suites pass,
     each case seen failing on a skill with its check removed
+  - 2026-11-09, from the eval-fixes eval run: whether ele's hooks run git
+    inside the eval sandbox is unsettled. A kept run's trace records only the
+    SessionStart hook; its sealed home, opened with `chmod 700` on the kept
+    directory and `sealed`, holds a stub `.git` (no index or objects), so git
+    from the working directory roots there without the scaffold's repository,
+    and a `stop-check` record, so the Stop hook ran, but that record holds no
+    git output. A hook that logs its own git call would settle it
 - [ ] false-project-regex: `recipe-audit`'s `reports-no-false-project` is a
   regex, not an `llm` judge
   - done when the grader is a regex, probed red and green over the saved
@@ -2339,14 +2367,6 @@ keep.
   .documentation/plans/v1-release.md`, and delete this plan
 
 ## Inbox
-
-- 2026-11-09, from the eval-fixes eval run: whether ele's hooks run git
-  inside the eval sandbox is unsettled. A kept run's trace records only the
-  SessionStart hook; its sealed home, opened with `chmod 700` on the kept
-  directory and `sealed`, holds a stub `.git` (no index or objects), so git
-  from the working directory roots there without the scaffold's repository,
-  and a `stop-check` record, so the Stop hook ran, but that record holds no git
-  output. A hook that logs its own git call would settle it
 
 ## Out of scope
 

@@ -224,7 +224,9 @@ tasks:
     desc: "Format Go source and Markdown."
     preconditions:
       - sh: command -v rumdl
-        msg: "rumdl is not installed — brew install rumdl, or pip install rumdl"
+        msg: "rumdl is not installed — run: task setup-rumdl"
+      - sh: '[ "$(rumdl --version | cut -d" " -f2)" = "{{.RUMDL_VERSION}}" ]'
+        msg: "rumdl is not {{.RUMDL_VERSION}}, the version CI pins — run: task setup-rumdl"
     cmds:
       - gofmt -w .
       - rumdl fmt .
@@ -235,7 +237,9 @@ tasks:
       - sh: test -x {{.TOOLS}}/actionlint
         msg: "actionlint is not installed — run: task setup-tools"
       - sh: command -v rumdl
-        msg: "rumdl is not installed — brew install rumdl, or pip install rumdl"
+        msg: "rumdl is not installed — run: task setup-rumdl"
+      - sh: '[ "$(rumdl --version | cut -d" " -f2)" = "{{.RUMDL_VERSION}}" ]'
+        msg: "rumdl is not {{.RUMDL_VERSION}}, the version CI pins — run: task setup-rumdl"
       - sh: test -x {{.TOOLS}}/shadow
         msg: "shadow is not installed — run: task setup-tools"
       - sh: '[ "$(go version {{.TOOLS}}/shadow | cut -d" " -f2)" = "{{.GO_VERSION}}" ]'

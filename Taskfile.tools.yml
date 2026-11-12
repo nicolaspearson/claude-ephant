@@ -1,6 +1,27 @@
 version: "3"
 
+vars:
+  # Pinned: at the latest release the same commit passes today and fails tomorrow when rumdl ships a rule. format and lint refuse another version.
+  RUMDL_VERSION: 0.3.2
+
 tasks:
+  setup-rumdl:
+    desc: "Install the pinned rumdl with pipx; Homebrew installs only the latest."
+    preconditions:
+      - sh: command -v pipx
+        msg: "pipx is not installed — brew install pipx, or your package manager's"
+    cmds:
+      - pipx install --force rumdl=={{.RUMDL_VERSION}}
+      # Another rumdl ahead of pipx's bin directory on PATH, such as Homebrew's, would leave format and lint refusing.
+      - |
+        if ! command -v rumdl > /dev/null; then
+          echo "rumdl is not on PATH — run: pipx ensurepath"
+          exit 1
+        fi
+        if [ "$(rumdl --version | cut -d" " -f2)" != "{{.RUMDL_VERSION}}" ]; then
+          echo "$(command -v rumdl) is not {{.RUMDL_VERSION}} and precedes pipx's on PATH; remove it (a Homebrew one: brew uninstall rumdl)"
+          exit 1
+        fi
   setup-tools:
     desc: "Install the Go tooling the lint, unused and audit gates use."
     # Pinned: at @latest the same commit passes today and fails tomorrow when a linter ships a release.

@@ -15,8 +15,14 @@ downloads the modules and installs the pinned Go tools the gates call
 loading Go packages was built with the Go in use, since one built by an older
 Go reports nothing under a newer one; after a Go upgrade, run
 `task setup-tools` again.
-`shellcheck` and `rumdl` are installed by hand, with Homebrew or your package
-manager; CI pins rumdl 0.3.0, shellcheck 0.11.0 and Task 3.54.0.
+
+`task setup-rumdl` installs rumdl at the version `Taskfile.tools.yml` pins,
+with pipx, as CI does; it needs pipx. Homebrew installs only the latest, so
+remove a Homebrew rumdl, which would shadow pipx's on `PATH`. `task format` and
+`task lint` refuse any other version, naming the pinned one, since another
+rumdl's rules can fail a commit CI passes. `shellcheck` is installed by hand,
+with Homebrew or your package manager; CI pins shellcheck 0.11.0 and Task
+3.54.0.
 
 `task` with no target lists them all.
 

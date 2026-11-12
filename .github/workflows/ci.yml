@@ -63,9 +63,8 @@ jobs:
       - name: Install tooling
         if: steps.tooling.outputs.cache-hit != 'true'
         run: task setup-tools
-      # Pinned: at the latest release the same commit passes today and fails tomorrow when rumdl ships a rule.
       - name: Install rumdl
-        run: pipx install rumdl==0.3.0
+        run: task setup-rumdl
       # Pinned: the runner image's shellcheck moves with the image, so the same commit passes today and fails tomorrow.
       - name: Install shellcheck
         run: |
