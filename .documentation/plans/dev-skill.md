@@ -349,6 +349,19 @@ use them where it reads code or weighs designs in the main session.
     probe's Bash writes; one `ele:checkpoint-reviewer` launch in a headless `claude -p --plugin-dir` run with the clone's
     plugin used Read, `git -C` with an absolute path and Grep, no `cd`, `sed`
     or `cat`; the Grep-missing fallback and a probe were not exercised
+- [ ] designs-rounds-wording: In `plugin/skills/plan/SKILL.md`'s Designs and
+  design.md's Plans line, replace "since it refines a design already chosen"
+  and "since by then it refines a design already chosen", which overclaim,
+  because such a question can concern a design not yet in `## Decisions`, with
+  "since by then the user has seen a draft whose design the question can be
+  weighed against, and each architect is a full design run"; in
+  `docs/plans.md`'s `convert` paragraph, say `convert` asks the items' design
+  questions in rounds; in this plan, reword designs-rounds-scope's tick line:
+  rewrap "`convert` step 2", say "Plans line" as its item does, and replace
+  "says the last" with "states the rule"
+  - from the reviewer-tool-rules launch check's review of the
+    designs-rounds-scope commit, 2026-11-12
+  - done when the four files say so
 - [ ] architect-search-fallback: Say in `plugin/reference/architect.md`'s
   language rule that where Glob and Grep are both missing, leaving only Read,
   the design names no new file in a language it has not seen in the files it
@@ -361,14 +374,6 @@ use them where it reads code or weighs designs in the main session.
   .documentation/plans/dev-skill.md`, and delete this plan
 
 ## Inbox
-
-- 2026-11-12, from the reviewer-tool-rules launch check, a review of the
-  designs-rounds-scope commit: the reason "refines a design already chosen"
-  overclaims, as an `open` finding or a re-audit question can concern a design
-  not yet in `## Decisions`; `docs/plans.md`'s `convert` paragraph never says
-  `convert` asks design questions in rounds; and that item's tick line wraps
-  inside "`convert` step 2", says "Plans bullet" where the item says "Plans
-  line", and its "says the last" is unclear
 
 ## Out of scope
 
