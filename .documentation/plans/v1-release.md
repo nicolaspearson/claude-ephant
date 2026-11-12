@@ -2064,8 +2064,15 @@ keep.
     record in its session as an `attributes` entry; stamping at sync was
     turned down, as the sync binary is not the hook's after an upgrade or
     `task install` between them
-- [ ] false-project-regex: `recipe-audit`'s `reports-no-false-project` is a
+- [x] false-project-regex: `recipe-audit`'s `reports-no-false-project` is a
   regex, not an `llm` judge
+  - asserted in the false-project-regex commit: the grader is a `regex` with
+    `match: not_contains`; a node probe of 44 cases passed, the 3 saved
+    replies and all 9 of this session's eval replies green, the line moved
+    under Findings and findings headings holding a holds word red; the user's
+    eval run of `recipe-audit` (3 runs) passed every grader with
+    /ele:recipe audit's fixed headings, before the grader took a heading's
+    tail or number, which only the probe covers
   - done when the grader is a regex, probed red and green over the saved
     replies, and checked by an eval run the user asks for
   - 2026-11-09, from the eval-fixes eval run: the judge voted FAIL FAIL PASS

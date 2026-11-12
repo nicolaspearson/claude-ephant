@@ -63,6 +63,8 @@ only those:
   that ignores an unknown flag would run the step. A compiled tool on your
   `PATH`, or named by an absolute path, that ignores its flags still runs once
 
-Each finding comes with the line it is on; where the fix is clear, Claude shows
-the line before and after and edits the skill only once you approve. Without
-paths, plugin skills and claude.ai's synced skills are left out.
+The report for each skill has the same four sections: Findings, Holds, Not
+checked and Proposed fixes. Each finding comes with the line it is on; where
+the fix is clear, Claude shows the line before and after and edits the skill
+only once you approve. Without paths, plugin skills and claude.ai's synced
+skills are left out.
