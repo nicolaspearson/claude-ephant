@@ -26,7 +26,9 @@ your words, then runs the review loop, and on your approval starts the plan.
 item against the code, drafts plans grouped by what ships together, runs the
 review loop over the drafts and proposes them. Its check of the items, and the
 facts its questions rest on, also come from `ele:explorer` agents, and its
-design questions get `ele:architect` designs as `new`'s do.
+design questions get `ele:architect` designs as `new`'s do. A design question
+raised once a draft exists, by the review loop or by `convert`'s re-audit after
+you change a draft, is asked without architects.
 
 ### The review loop
 

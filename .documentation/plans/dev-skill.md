@@ -314,7 +314,7 @@ use them where it reads code or weighs designs in the main session.
     shows; "vendored code" became `vendor`, by the user's ruling, to meet the
     done-when; a grep of plugin/, docs/ and .documentation/ found no other copy
     of the list
-- [ ] designs-rounds-scope: Say in `/ele:plan`'s Designs, design.md's Plans
+- [x] designs-rounds-scope: Say in `/ele:plan`'s Designs, design.md's Plans
   line on it and `docs/plans.md`, that architects run only before `new` step
   1's and `convert` step 2's rounds; a design question raised later, as an
   `open` review-loop finding or in `convert` step 5's re-audit round, is asked
@@ -322,6 +322,14 @@ use them where it reads code or weighs designs in the main session.
   - from the plan-decision-architects checkpoint, ruled 2026-11-12
   - done when `plugin/skills/plan/SKILL.md`'s Designs,
     `.documentation/specs/design.md` and `docs/plans.md` all say so
+  - asserted in the designs-rounds-scope commit: `/ele:plan`'s Designs and
+    design.md's Plans bullet say architects run only in `new` step 1's and
+    `convert` step 2's rounds, and that a design question raised once a draft
+    exists (an `open` review-loop finding, `convert` step 5's re-audit) is
+    asked without them, design.md giving the reason; docs/plans.md says the
+    last without step numbers; `convert`
+    step 2 now settles the items' design questions in SKILL.md and design.md,
+    so its rounds can launch architects as docs/plans.md says
 - [ ] reviewer-tool-rules: List a recent `ele:checkpoint-reviewer` launch's
   tool calls from its transcript; where it read files through `cat` or `sed`,
   used `cd` or gave relative paths, add tool rules to
