@@ -44,7 +44,7 @@ Index
   status          data directory, sync state, owner here, config, plugins, sync log
   stats           index counts and disk use
   version         the release tag this binary was built from, the version Go stamped, or devel; also --version and -v
-  backup          copy the archive, notes, forgotten notes, logs, mining runs, config, owner map, closed plans and index elsewhere
+  backup          copy the archive, notes, forgotten notes, hook versions, logs, mining runs, config, owner map, closed plans and index elsewhere
   owner           add an owner, or add or remove a path rule or project entry
 
 Config
@@ -82,7 +82,7 @@ Hooks
 ele <command> --help says what each flag does.`
 
 var purposes = map[string]string{
-	"backup":               "Copy the archive, notes, forgotten notes, the checkpoint log and ticket-audit ledger, mining runs, config, owner map, closed plans' item names and the index into a new or empty directory.",
+	"backup":               "Copy the archive, notes, forgotten notes, each session's hook versions, the checkpoint log and ticket-audit ledger, mining runs, config, owner map, closed plans' item names and the index into a new or empty directory.",
 	"checkpoint base":      "Print the merge-base of HEAD with its upstream, else with origin/HEAD, for a branch checkpoint; refuses with neither or with no shared history.",
 	"checkpoint check":     "Exit 0 when every changed path is what the last checkpoint recorded, staged or committed since included; 1 when anything changed since, none ran, nothing is changed, or over 200 paths are changed.",
 	"checkpoint close":     "End this session's open checkpoint run without a record, stopping its clock.",

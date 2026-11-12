@@ -573,6 +573,18 @@ func runCheckpointStats(t *testing.T, args ...string) (string, int) {
 	return output.String(), code
 }
 
+func TestCheckpointHooksRecordTheRunningVersion(t *testing.T) {
+	data := t.TempDir()
+	t.Setenv("ELE_HOME", data)
+	t.Chdir(t.TempDir())
+
+	snapshotHook(t)
+
+	recorded, err := os.ReadFile(filepath.Join(data, "hook-versions", hookSession))
+	require.NoError(t, err)
+	require.Regexp(t, `^\S+\tdevel\n$`, string(recorded))
+}
+
 func runGit(t *testing.T, root string, args ...string) {
 	t.Helper()
 	output, err := exec.Command("git", append([]string{"-C", root, "-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "commit.gpgsign=false"}, args...)...).CombinedOutput()

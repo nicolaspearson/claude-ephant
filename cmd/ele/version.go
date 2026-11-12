@@ -4,7 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path/filepath"
 	"runtime/debug"
+	"time"
+
+	"github.com/nicolaspearson/claude-ephant/internal/datadir"
+	"github.com/nicolaspearson/claude-ephant/internal/hookversion"
 )
 
 // Stamped by the release build: -ldflags "-X main.version=<tag>".
@@ -19,6 +24,16 @@ func buildVersion(stamped string, info *debug.BuildInfo) string {
 	default:
 		return "devel"
 	}
+}
+
+// Failure dropped: the record only labels events, never worth failing a hook.
+func recordHookVersion(session string) {
+	dataDirectory, err := datadir.Path()
+	if err != nil {
+		return
+	}
+	info, _ := debug.ReadBuildInfo()
+	_ = hookversion.Record(filepath.Join(dataDirectory, hookversion.Directory), session, buildVersion(version, info), time.Now())
 }
 
 func versionCommand(_ context.Context, args []string, stdout io.Writer, stderr io.Writer) int {

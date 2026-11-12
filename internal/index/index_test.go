@@ -14,6 +14,7 @@ import (
 
 	"github.com/nicolaspearson/claude-ephant/internal/archive"
 	"github.com/nicolaspearson/claude-ephant/internal/dto"
+	"github.com/nicolaspearson/claude-ephant/internal/hookversion"
 	"github.com/nicolaspearson/claude-ephant/internal/ownermap"
 )
 
@@ -128,7 +129,7 @@ func TestUpdateStopsOnACancelledContextRatherThanSkippingTheRest(t *testing.T) {
 	cancelled, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	summary, err := index.Update(cancelled, archiveDirectory, NewProjects(ownermap.OwnerMap{}))
+	summary, err := index.Update(cancelled, archiveDirectory, NewProjects(ownermap.OwnerMap{}), hookversion.Open(t.TempDir()))
 
 	require.ErrorIs(t, err, context.Canceled)
 	require.Empty(t, summary.Skipped)
@@ -274,7 +275,7 @@ func update(t *testing.T, index *Index, projects string, archiveDirectory string
 	defer unlock()
 	_, err = archive.Sync([]archive.Source{{Directory: projects, Profile: "claude"}}, archiveDirectory)
 	require.NoError(t, err)
-	summary, err := index.Update(context.Background(), archiveDirectory, NewProjects(ownerMap))
+	summary, err := index.Update(context.Background(), archiveDirectory, NewProjects(ownerMap), hookversion.Open(filepath.Join(filepath.Dir(archiveDirectory), hookversion.Directory)))
 	require.NoError(t, err)
 	return summary
 }

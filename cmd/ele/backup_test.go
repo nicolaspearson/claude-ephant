@@ -26,6 +26,7 @@ func TestRunBackupCopiesTheDataDirectoryAndTheIndex(t *testing.T) {
 	home := recallFixture(t)
 	data := filepath.Join(home, "data")
 	writeFile(t, filepath.Join(data, "forgotten", "personal", "20261017-bbbbbb.md"), "a forgotten note\n")
+	writeFile(t, filepath.Join(data, "hook-versions", "s1"), "2026-10-17T10:00:00Z\tv1.0.0\n")
 	writeFile(t, filepath.Join(data, "notes", "personal", "20261017-aaaaaa.md"), "a note\n")
 	writeFile(t, filepath.Join(data, "notes", "personal", "20261017-aaaaaa.md.123.tmp"), "half")
 	writeFile(t, filepath.Join(data, "logs", "checkpoints.jsonl"), `{"scope":"diff"}`+"\n")
@@ -39,6 +40,7 @@ func TestRunBackupCopiesTheDataDirectoryAndTheIndex(t *testing.T) {
 
 	for _, path := range []string{
 		filepath.Join("forgotten", "personal", "20261017-bbbbbb.md"),
+		filepath.Join("hook-versions", "s1"),
 		filepath.Join("logs", "checkpoints.jsonl"),
 		filepath.Join("logs", "ticket-audits.jsonl"),
 		filepath.Join("mining", "cache", "checkpoint-runs.jsonl"),

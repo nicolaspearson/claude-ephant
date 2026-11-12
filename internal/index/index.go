@@ -14,6 +14,7 @@ import (
 
 	"github.com/nicolaspearson/claude-ephant/internal/archive"
 	"github.com/nicolaspearson/claude-ephant/internal/dto"
+	"github.com/nicolaspearson/claude-ephant/internal/hookversion"
 	"github.com/nicolaspearson/claude-ephant/internal/ownermap"
 	"github.com/nicolaspearson/claude-ephant/internal/store"
 	"github.com/nicolaspearson/claude-ephant/internal/transcript"
@@ -83,7 +84,7 @@ CREATE INDEX IF NOT EXISTS events_session_kind ON events (session, kind, timesta
 CREATE VIRTUAL TABLE IF NOT EXISTS entries_fts USING fts5(text, content='entries', content_rowid='id');`
 
 // Version is bumped when the schema or what sync derives changes; an index holding another version is rebuilt.
-const Version = "15"
+const Version = "16"
 
 type Index struct {
 	db       *sql.DB
@@ -163,7 +164,7 @@ func (x *Index) ProjectDirectories(ctx context.Context) ([]dto.ProjectDirectory,
 }
 
 // Update expects the caller to hold the archive lock.
-func (x *Index) Update(ctx context.Context, directory string, projects *Projects) (Summary, error) {
+func (x *Index) Update(ctx context.Context, directory string, projects *Projects, versions *hookversion.Log) (Summary, error) {
 	var summary Summary
 	err := filepath.WalkDir(directory, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
@@ -180,7 +181,7 @@ func (x *Index) Update(ctx context.Context, directory string, projects *Projects
 		if err != nil {
 			return err
 		}
-		file, err := x.updateFile(ctx, path, filepath.ToSlash(relative), projects)
+		file, err := x.updateFile(ctx, path, filepath.ToSlash(relative), projects, versions)
 		// A cancelled run would skip every file left; it stops instead.
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ctxErr
@@ -201,7 +202,7 @@ func (x *Index) Update(ctx context.Context, directory string, projects *Projects
 	return summary, err
 }
 
-func (x *Index) updateFile(ctx context.Context, path string, relative string, projects *Projects) (Summary, error) {
+func (x *Index) updateFile(ctx context.Context, path string, relative string, projects *Projects, versions *hookversion.Log) (Summary, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return Summary{}, err
@@ -256,6 +257,11 @@ func (x *Index) updateFile(ctx context.Context, path string, relative string, pr
 		for position, event := range events {
 			if strings.HasPrefix(event.Entrypoint, "sdk-") {
 				continue
+			}
+			if event.Kind == transcript.EventHookBlock || event.Kind == transcript.EventInjection {
+				if version := versions.At(event.SessionID, event.Timestamp); version != "" {
+					event.Attributes["eleVersion"] = version
+				}
 			}
 			project, owner := projects.Resolve(event.WorkingDirectory)
 			written, writeErr := writer.writeEvent(ctx, event, eventPlace{directory: event.WorkingDirectory, owner: owner, position: position, profile: profile, project: project, source: relative, subagent: subagent})

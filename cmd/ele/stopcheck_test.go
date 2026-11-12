@@ -210,6 +210,17 @@ func TestRemoveStaleStopStateKeepsAWeek(t *testing.T) {
 	require.NoError(t, removeStaleStopState(t.TempDir(), now), "no state directory yet")
 }
 
+func TestRunStopCheckRecordsTheRunningVersion(t *testing.T) {
+	run := newStopCheckRun(t)
+	run.prompt()
+
+	run.stop(run.gateway, false)
+
+	recorded, err := os.ReadFile(filepath.Join(run.home, "data", "hook-versions", run.session))
+	require.NoError(t, err)
+	require.Regexp(t, `^\S+\tdevel\n$`, string(recorded))
+}
+
 func TestRunStopCheckAsksForNotesOncePerStretch(t *testing.T) {
 	run := newStopCheckRun(t)
 	block := stopOutput{HookSpecificOutput: continueWith(rememberReason)}

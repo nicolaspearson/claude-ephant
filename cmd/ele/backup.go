@@ -12,10 +12,11 @@ import (
 
 	"github.com/nicolaspearson/claude-ephant/internal/archive"
 	"github.com/nicolaspearson/claude-ephant/internal/datadir"
+	"github.com/nicolaspearson/claude-ephant/internal/hookversion"
 	"github.com/nicolaspearson/claude-ephant/internal/store"
 )
 
-var backupParts = []string{filepath.Join("archive", "transcripts"), "config.json", "forgotten", "logs", "mining", "notes", "owner-map.json", "plans"}
+var backupParts = []string{filepath.Join("archive", "transcripts"), "config.json", "forgotten", hookversion.Directory, "logs", "mining", "notes", "owner-map.json", "plans"}
 
 func backup(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
 	flags := newFlagSet("backup", stderr)

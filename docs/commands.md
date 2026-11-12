@@ -169,7 +169,10 @@ the newest 200 by default; `--limit 0` prints all. `--kind` keeps one kind:
 hook, an injection's with its matcher as `PostToolUse:Edit`, or `skills` for
 the skill list. `--during <skill>` keeps only events inside a run of that skill
 or command. `--owner`, `--project`, `--session` and `--since` narrow to one
-owner, project, session or window; `--no-sync` reads without syncing first.
+owner, project, session or window; `--no-sync` reads without syncing first. A
+hook block or injection carries `eleVersion` in its attributes: the ele that
+session was running at the time, as its hooks recorded it, which is not always
+the hook that made the event. Events from before ele recorded it have none.
 
 ```text
 ele usage [--owner <name>] [--project <name>] [--since <YYYY-MM-DD|Nd>] [--no-sync]
@@ -214,9 +217,10 @@ and anything the last sync skipped, whether a sync is running, the owner here,
 the options off their defaults, the plugin in each profile and the sync log.
 `stats` counts what the index holds and its disk use. `version` prints the
 release tag stamped at build, else the version Go stamped, or `devel`. `backup`
-copies the archive, notes, forgotten notes, the checkpoint log and ticket-audit
-ledger, mining runs, config, owner map, closed plans' item names and the index
-into a new or empty directory; see [Data and privacy](data-and-privacy.md#backup).
+copies the archive, notes, forgotten notes, each session's hook versions, the
+checkpoint log and ticket-audit ledger, mining runs, config, owner map, closed
+plans' item names and the index into a new or empty directory; see
+[Data and privacy](data-and-privacy.md#backup).
 
 ```text
 ele owner add [--move] [--move-to <owner>] [--no-sync] <name>

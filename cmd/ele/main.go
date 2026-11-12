@@ -13,6 +13,7 @@ import (
 
 	"github.com/nicolaspearson/claude-ephant/internal/archive"
 	"github.com/nicolaspearson/claude-ephant/internal/datadir"
+	"github.com/nicolaspearson/claude-ephant/internal/hookversion"
 	"github.com/nicolaspearson/claude-ephant/internal/index"
 	"github.com/nicolaspearson/claude-ephant/internal/notes"
 	"github.com/nicolaspearson/claude-ephant/internal/ownermap"
@@ -260,7 +261,7 @@ func syncAll(ctx context.Context, stdout io.Writer, wait bool, rebuild bool) err
 			return err
 		}
 	}
-	indexed, err := searchIndex.Update(ctx, archiveDirectory, index.NewProjects(ownerMap))
+	indexed, err := searchIndex.Update(ctx, archiveDirectory, index.NewProjects(ownerMap), hookversion.Open(filepath.Join(dataDirectory, hookversion.Directory)))
 	if err != nil {
 		return err
 	}

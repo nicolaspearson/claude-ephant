@@ -29,6 +29,19 @@ func TestRunSessionStartOutsideAnyOwner(t *testing.T) {
 	require.Equal(t, "ele shows no notes here: no owner in owner-map.json covers "+elsewhere+". /ele:setup maps it; /ele:recall needs --owner <name> or --all.\n", output)
 }
 
+func TestRunSessionStartRecordsTheRunningVersion(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	var output bytes.Buffer
+
+	code := sessionStart(context.Background(), []string{"--no-sync"}, strings.NewReader(`{"session_id":"s1","source":"startup"}`), &output, &output)
+
+	require.Equal(t, 0, code, output.String())
+	recorded, err := os.ReadFile(filepath.Join(home, "data", "hook-versions", "s1"))
+	require.NoError(t, err)
+	require.Regexp(t, `^\S+\tdevel\n$`, string(recorded))
+}
+
 func TestRunSessionStartShowsAnEverywhereNoteInEverySession(t *testing.T) {
 	home := recallFixture(t)
 	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))

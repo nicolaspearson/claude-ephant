@@ -336,6 +336,7 @@ func checkpointStats(ctx context.Context, args []string, stdin io.Reader, stdout
 func readCheckpointHook(ctx context.Context, stdin io.Reader) (hookInput, string, string, bool) {
 	var input hookInput
 	readHookInput(stdin, &input)
+	recordHookVersion(input.SessionID)
 	root, err := checkpoint.Root(ctx, ".")
 	if err != nil || root == "" {
 		return input, "", "", false

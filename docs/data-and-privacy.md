@@ -39,6 +39,7 @@ claude-ephant/
   ele.db           the search index
   forgotten/       notes ele forget moved out
   forgotten.lock   held while ele moves a forgotten note
+  hook-versions/   the ele version each session's hooks ran, one file a session
   last-sync        when the last sync succeeded
   logs/            checkpoints.jsonl and ticket-audits.jsonl
   mining/          mining judgments of checkpoint runs and review cycles
@@ -154,11 +155,11 @@ notes included. Keep secrets out of notes.
 ele backup <dir>
 ```
 
-Copies the archive, notes, forgotten notes, the checkpoint log and ticket-audit
-ledger, mining data, config, owner map, closed plans' item names and a
-consistent copy of the index into `<dir>`, which must be empty or not exist. It
-refuses a directory inside the data directory or inside a git checkout. The
-index copy is `0600`, as the index is.
+Copies the archive, notes, forgotten notes, each session's hook versions, the
+checkpoint log and ticket-audit ledger, mining data, config, owner map, closed
+plans' item names and a consistent copy of the index into `<dir>`, which must
+be empty or not exist. It refuses a directory inside the data directory or
+inside a git checkout. The index copy is `0600`, as the index is.
 
 ## Options
 

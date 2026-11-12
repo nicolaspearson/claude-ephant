@@ -2029,9 +2029,41 @@ keep.
     check would refuse this machine's install on landing; Homebrew offers only
     its stable rumdl, 0.3.3, and this machine's `PATH` puts `/opt/homebrew/bin`
     ahead of pipx's `~/.local/bin`
-- [ ] build-version: Record the running ele version in each hook event
+- [x] build-version: Record the running ele version in each hook event
+  - asserted in the build-version commit:
+    `TestUpdateGivesHookEventsTheEleVersionRunningThen` gives `hook-block` and
+    `injection` events, through `index.Update`, the version a session's
+    `hook-versions` file held at or before each, and none to a skill; a
+    scratch build's `ele events --kind hook-block` over a fixture transcript
+    and record printed `"eleVersion":"v1.0.0"`; session-start, stop-check and
+    the checkpoint snapshot hook each wrote the record in tests; `design.md`'s
+    `ele events` section and `docs/commands.md` say so. A real session's hooks
+    writing it is unobserved until `task install`
   - done when an indexed hook event carries the version, `ele events` prints
     it, and `design.md`'s `ele events` section and `docs/commands.md` say so
+  - as of 2026-11-12: `hook-block` and `injection` events are rebuilt at sync
+    by `transcript` from lines Claude Code writes; a line carries Claude
+    Code's `version`, and a `stop_hook_summary` line each hook's command and
+    duration, but nothing holds ele's build, and ele's hook output text holds
+    no version
+  - as of 2026-11-12: ele writes at hook time only the stop-check state file,
+    which `removeStaleStopState` deletes after 7 days, and `checkpoint.HookLog`
+    lines, written only when the gate blocks; neither carries a version, and
+    the index reads neither
+  - as of 2026-11-12: `buildVersion` in `cmd/ele` gives the release tag, else
+    the version Go stamped, or `devel`; a clone build in a git checkout prints
+    a pseudo-version such as `v0.14.2-0.20261112101505-c04968bb93fb+dirty`,
+    seen by building one; `internal/index` cannot read it unless passed it
+  - as of 2026-11-12: `design.md`'s `ele events` section pins the output keys
+    as an API from 1.0; an `attributes` entry adds no top-level key. Any new
+    column or derived attribute needs `index.Version` bumped from 15
+  - as of 2026-11-12, ruled by the user: each ele hook records its time and
+    version in its session's file under `hook-versions/` when the version
+    changes, the hook's name left out as nothing reads it, and sync gives each
+    `hook-block` and `injection` event the version of the nearest earlier
+    record in its session as an `attributes` entry; stamping at sync was
+    turned down, as the sync binary is not the hook's after an upgrade or
+    `task install` between them
 - [ ] checkpoint-evals: Eval suites for checkpoint and ticket-audit, five to
   ten fixture cases with planted defects
   - done when, run through `task eval` when the user asks, the suites pass,

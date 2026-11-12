@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/nicolaspearson/claude-ephant/internal/dto"
+	"github.com/nicolaspearson/claude-ephant/internal/hookversion"
 	"github.com/nicolaspearson/claude-ephant/internal/ownermap"
 )
 
@@ -86,6 +87,38 @@ func TestUpdateIndexesEventsThatEntriesLack(t *testing.T) {
 	_, total, err = index.Events(context.Background(), dto.EventQuery{})
 	require.NoError(t, err)
 	require.Zero(t, total)
+}
+
+func TestUpdateGivesHookEventsTheEleVersionRunningThen(t *testing.T) {
+	root := t.TempDir()
+	projects := filepath.Join(root, "projects")
+	line := func(minute string, body string) string {
+		return `{"cwd":"/w","entrypoint":"cli","sessionId":"s1","timestamp":"2026-10-15T10:` + minute + `:00.500Z","uuid":"u` + minute + `",` + body + "}\n"
+	}
+	write(t, filepath.Join(projects, "-w", "s1.jsonl"),
+		line("00", `"type":"attachment","attachment":{"type":"hook_additional_context","hookEvent":"SessionStart","hookName":"SessionStart","content":["notes"]}`)+
+			line("01", `"type":"attachment","attachment":{"type":"hook_additional_context","hookEvent":"Stop","hookName":"Stop","content":["Files changed this turn."]}`)+
+			line("02", `"type":"assistant","message":{"content":[{"type":"tool_use","name":"Skill","input":{"skill":"checkpoint"}}]}`)+
+			line("03", `"type":"attachment","attachment":{"type":"hook_additional_context","hookEvent":"Stop","hookName":"Stop","content":["Ask for notes."]}`))
+	versions := filepath.Join(root, hookversion.Directory)
+	require.NoError(t, hookversion.Record(versions, "s1", "v1.0.0", time.Date(2026, 10, 15, 10, 0, 0, 0, time.UTC)))
+	require.NoError(t, hookversion.Record(versions, "s1", "devel", time.Date(2026, 10, 15, 10, 2, 30, 0, time.UTC)))
+	index := open(t, filepath.Join(root, "ele.db"))
+
+	update(t, index, projects, filepath.Join(root, "archive"), ownermap.OwnerMap{})
+
+	events, _, err := index.Events(context.Background(), dto.EventQuery{})
+	require.NoError(t, err)
+	got := map[string]any{}
+	for _, event := range events {
+		got[event.Kind+" "+event.Timestamp] = event.Attributes["eleVersion"]
+	}
+	require.Equal(t, map[string]any{
+		"hook-block 2026-10-15T10:01:00.500Z": "v1.0.0",
+		"hook-block 2026-10-15T10:03:00.500Z": "devel",
+		"injection 2026-10-15T10:00:00.500Z":  "v1.0.0",
+		"skill 2026-10-15T10:02:00.500Z":      nil,
+	}, got)
 }
 
 func TestUpdateKeysEventsByLineAndPlace(t *testing.T) {

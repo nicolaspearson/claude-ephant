@@ -411,6 +411,7 @@ func stopCheck(ctx context.Context, args []string, stdin io.Reader, stdout io.Wr
 		fmt.Fprintln(stderr, "ele: stop-check reads a Stop hook's JSON on stdin, with session_id, transcript_path and cwd")
 		return 1
 	}
+	recordHookVersion(hook.SessionID)
 	dataDirectory, err := datadir.Path()
 	if err != nil {
 		fmt.Fprintf(stderr, "ele: %v\n", err)

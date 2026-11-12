@@ -75,12 +75,13 @@ func noteSource(note notes.Note) string {
 	return "note " + note.ID + " of " + written
 }
 
-func hookSource(input io.Reader) string {
+func hookSource(input io.Reader) (source string, session string) {
 	var hook struct {
-		Source string `json:"source"`
+		SessionID string `json:"session_id"`
+		Source    string `json:"source"`
 	}
 	readHookInput(input, &hook)
-	return hook.Source
+	return hook.Source, hook.SessionID
 }
 
 func liveNotes(all []notes.Note, project string) (questions []notes.Note, others []notes.Note) {
@@ -200,7 +201,8 @@ func sessionStart(ctx context.Context, args []string, stdin io.Reader, stdout io
 		return 1
 	}
 	now := time.Now()
-	source := hookSource(stdin)
+	source, session := hookSource(stdin)
+	recordHookVersion(session)
 	var block strings.Builder
 	if source == "compact" {
 		fmt.Fprintf(&block, "This session compacted at %s; what came before that is a summary, not the conversation.\n", now.UTC().Format(time.RFC3339))
