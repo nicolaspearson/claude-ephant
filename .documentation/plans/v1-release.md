@@ -2029,10 +2029,6 @@ keep.
     check would refuse this machine's install on landing; Homebrew offers only
     its stable rumdl, 0.3.3, and this machine's `PATH` puts `/opt/homebrew/bin`
     ahead of pipx's `~/.local/bin`
-- [ ] sdk-cli: Index `sdk-cli` sessions while `sdk-ts` stays out
-  - done when a test, seen red, indexes an `sdk-cli` session and skips an
-    `sdk-ts` one, and `design.md`'s SDK entrypoint line and
-    `docs/data-and-privacy.md` say so
 - [ ] build-version: Record the running ele version in each hook event
   - done when an indexed hook event carries the version, `ele events` prints
     it, and `design.md`'s `ele events` section and `docs/commands.md` say so
@@ -2390,3 +2386,8 @@ keep.
 - `freeze` passing `--text` for a file git's attributes mark `-diff` or
   `binary`: such a file diffs as binary, as the spec and `freeze --help` say
   (ruled 2026-11-05, from checkpoint-correctness group 2b's review)
+- Indexing `sdk-cli` sessions while `sdk-ts` stays out: none of the 6
+  `sdk-cli` sessions in the user's profiles as of 2026-11-12 was found to hold
+  the user's work; the three first prompts read ask for a one-word reply or are
+  eval-shaped, so indexing them adds noise to recall and events (ruled
+  2026-11-12, from sdk-cli's premise check)
