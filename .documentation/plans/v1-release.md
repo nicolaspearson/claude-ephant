@@ -25,33 +25,12 @@ keep.
 
 ## Context
 
-- As of 2026-10-29: the latest release is v0.11.0, and release PR #12 for
-  0.12.0 is open
-- As of 2026-10-29: `internal/datadir`'s `Path` returns
-  `~/Library/Application Support/claude-ephant` on every OS, `ELE_HOME`
-  overriding it; `.documentation/specs/design.md`'s default data dir row and
-  `docs/data-and-privacy.md` say the same
-- As of 2026-10-29: `internal/transcript`'s `Truncate` cuts text at
-  `inputLimit` (300 runes) before `internal/index`'s writer redacts it: tool
-  input, an agent description, a hook block reason and a reply among its
-  callers; a tool error's text is redacted before its cut
-- As of 2026-10-29: `release.yml` runs on push to `main` only, and its publish
-  job runs only when the release's commit is the one the run checked; no Task
-  target or CI job runs actionlint
-- As of 2026-10-29: `release-please-config.json` sets `bump-minor-pre-major`;
+- As of 2026-11-12: the latest release is v0.14.1, and release PR #17 for
+  0.15.0 is open
+- As of 2026-11-12: `release-please-config.json` sets `bump-minor-pre-major`;
   a `Release-As: 1.0.0` commit footer, or `release-as` under `packages["."]`,
-  makes the release PR cut 1.0.0
-- As of 2026-10-29: the README says releases carry macOS and Linux binaries
-  for amd64 and arm64, and no page under `docs/` states a compatibility promise
-- As of 2026-10-29: the checkpoint log's `notes` counts are required by
-  `ele checkpoint log` and read by `ele checkpoint stats`; not checked whether
-  any logged run carries a non-zero count
-- As of 2026-10-29: `internal/index`'s `Version` marks the index, which is
-  rebuilt from the archive when its version differs
-- As of 2026-10-29: `plugin/skills/checkpoint/SKILL.md` is 506 lines; the
-  plugin holds 13 skills, 3 agents, 2 commands and 3 reference files
-- As of 2026-10-29: the README and `docs/` were last rewritten for users in a
-  plan closed 2026-10-25
+  makes the release PR cut 1.0.0. Not checked: the footer route against
+  release-please's docs this round
 - Not checked: the stop-gate false-block rates, the first-scan timing and the
   recall fallback's `--owner` failure, each taken from an earlier session's
   report; their items re-measure first
@@ -1994,11 +1973,37 @@ keep.
     next `--from`; it is refused with `--around`, `--at`, `--note` or
     `--context`. `--all` prints every entry, from 1 or `--from`, with no
     budget and no per-entry clip, the one exception the spec names
-- [ ] scratch-log: Checkpoint runs over a repository under a temp or
+- [x] scratch-log: Checkpoint runs over a repository under a temp or
   scratchpad path stay out of the stats
+  - asserted in the scratch-log commit:
+    `TestWriteStatsLeavesOutRunsOverATemporaryRepository`, through
+    `checkpoint.WriteStats` over a written log, failed before the change (5
+    checkpoints counted, no notice) and under two mutations (TMPDIR's resolved
+    root dropped; the path-boundary check dropped), and passes restored;
+    `task check FORCE=1` and `task audit` green; the spec's Log bullet,
+    `docs/checkpoint-and-ticket-audit.md` and `/ele:checkpoint-stats` say so.
+    On Linux `/tmp` covers the symlink case, so only a macOS run proves it
   - done when a test, seen red, leaves such a run out of
     `ele checkpoint stats`, and `.documentation/specs/checkpoint-and-ticket-audit.md` and
     `docs/checkpoint-and-ticket-audit.md` say so
+  - as of 2026-11-12: `checkpoint.Append` stamps each line's `repository`
+    with the git toplevel and appends every run; `checkpoint.Load`, under
+    `ele checkpoint stats`, drops only unreadable lines, lines before
+    `--since` and replaced runs, so a scratch run is counted
+  - as of 2026-11-12: no Go helper tests whether a path is temporary;
+    `bashwork.go`'s `safeTarget` holds the only `/tmp`/`/private/tmp` prefix
+    test, for Bash redirect targets. Not checked: what `os.TempDir()` and
+    `git rev-parse --show-toplevel` return for a scratchpad repository here
+  - as of 2026-11-12: `log_test.go` and `cmd/ele/checkpoint_test.go` build
+    their repositories under `t.TempDir()` and assert the logged
+    `repository`, so a skip in `Append` keyed on the temp dir turns them red
+  - as of 2026-11-12: neither the spec's log paragraph nor the docs page's
+    "What checkpoints found" mentions temp or scratchpad runs
+  - as of 2026-11-12, ruled by the user: every run is still logged;
+    `checkpoint.Load` leaves out a run whose `repository` is under
+    `os.TempDir()`, symlinks resolved, or under `/tmp` or `/private/tmp`,
+    and `ele checkpoint stats` prints one line counting those left out when
+    there are any, apart from the unreadable count
 - [ ] rumdl-pin: `task lint` and `task format` refuse a rumdl version other
   than CI's pin
   - done when a mismatched version fails the precondition with the pinned one

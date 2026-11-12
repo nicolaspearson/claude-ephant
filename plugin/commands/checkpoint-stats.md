@@ -19,7 +19,8 @@ ele checkpoint stats --since <argument>
 
 The checkpoints from before
 the log starts are not in it: `ele mine --report` reports them, from the
-judgments `/ele:mine` stored.
+judgments `/ele:mine` stored. Runs over a repository under a temp directory,
+fixtures rather than work, are left out, and the report counts them.
 
 Report what each section says about the skill, not the code:
 

@@ -67,7 +67,10 @@ The copies of reviewed files stay under `~/.claude/cache/`, whatever
 `CLAUDE_CONFIG_DIR` says.
 `/ele:checkpoint-stats [YYYY-MM-DD|Nd]` reports from it: which reviewer found
 what, how much was refuted, what the re-review and the checks caught, and how
-long runs took. Use it to tune the skill, not to judge the code. Reviews of a merge
+long runs took. Use it to tune the skill, not to judge the code. A run over a
+repository under `$TMPDIR`, `/tmp` or `/private/tmp`, such as a test fixture in
+a session scratchpad, is logged but left out of the report, which says how many
+it left out. Reviews of a merge
 request or branch are logged there too and reported in a section of their own,
 with how often you skipped what the reviewers found and how many anchored
 comments each forge kept, moved or refused. A review logged again after a

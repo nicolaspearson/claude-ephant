@@ -11,6 +11,7 @@ import (
 	"maps"
 	"math"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -34,6 +35,7 @@ type Finding struct {
 type Loaded struct {
 	First      string
 	Runs       []Run
+	Temporary  int
 	Unreadable int
 }
 
@@ -73,6 +75,7 @@ func Load(path string, since time.Time) (Loaded, error) {
 		return loaded, err
 	}
 	defer file.Close()
+	temporary := temporaryRoots()
 	reader := bufio.NewReader(file)
 	for {
 		line, err := reader.ReadString('\n')
@@ -84,7 +87,11 @@ func Load(path string, since time.Time) (Loaded, error) {
 				if loaded.First == "" {
 					loaded.First = run.Date[:10]
 				}
-				if !when.Before(since) {
+				switch {
+				case when.Before(since):
+				case under(run.Repository, temporary):
+					loaded.Temporary++
+				default:
 					if run.Replaces {
 						loaded.Runs = dropReplaced(loaded.Runs, run)
 					}
@@ -391,6 +398,9 @@ func WriteStats(w io.Writer, logPath string, since time.Time) error {
 	if logged.Unreadable > 0 {
 		fmt.Fprintf(w, "%d log line%s unreadable or missing a field the report reads; skipped.\n\n", logged.Unreadable, plural(logged.Unreadable))
 	}
+	if logged.Temporary > 0 {
+		fmt.Fprintf(w, "%d run%s over a repository under a temp directory left out.\n\n", logged.Temporary, plural(logged.Temporary))
+	}
 	if len(checkpoints) > 0 {
 		Report(w, checkpoints)
 	}
@@ -546,6 +556,21 @@ func plural(count int) string {
 		return ""
 	}
 	return "s"
+}
+
+// The log holds git's physical toplevel: /tmp's and TMPDIR's symlink-resolved forms must match too.
+func temporaryRoots() []string {
+	roots := []string{"/private/tmp", "/tmp", filepath.Clean(os.TempDir())}
+	if resolved, err := filepath.EvalSymlinks(os.TempDir()); err == nil {
+		roots = append(roots, resolved)
+	}
+	return roots
+}
+
+func under(path string, roots []string) bool {
+	return path != "" && slices.ContainsFunc(roots, func(root string) bool {
+		return path == root || strings.HasPrefix(path, strings.TrimSuffix(root, "/")+"/")
+	})
 }
 
 func whole(count float64) string {

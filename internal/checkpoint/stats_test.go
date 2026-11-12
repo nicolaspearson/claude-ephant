@@ -213,6 +213,31 @@ func TestWriteStatsSaysWhenNoRunIsTimed(t *testing.T) {
 	require.Contains(t, output, "\nDuration: no checkpoint carries one\n")
 }
 
+func TestWriteStatsLeavesOutRunsOverATemporaryRepository(t *testing.T) {
+	temporary := t.TempDir()
+	resolved, err := filepath.EvalSymlinks(temporary)
+	require.NoError(t, err)
+	linked := filepath.Join(t.TempDir(), "linked")
+	require.NoError(t, os.Symlink(resolved, linked))
+	t.Setenv("TMPDIR", linked)
+	inRepository := func(repository string) string {
+		return statsRecord(`"repository":"`+repository+`",`, "[]", "full")
+	}
+	old := strings.Replace(inRepository("/tmp/fixture"), statsNow.Format(time.RFC3339), "2026-09-01T00:00:00Z", 1)
+	logPath := writeStatsLog(t,
+		old,
+		inRepository("/private/tmp/claude-501/project/session/scratchpad/fixture"),
+		inRepository("/tmp/fixture"),
+		inRepository(filepath.Join(resolved, "fixture")),
+		inRepository("/tmpfixture"),
+		inRepository("/Users/someone/repository"),
+	)
+
+	output := writeStats(t, logPath, 30)
+
+	require.True(t, strings.HasPrefix(output, "Since 2026-09-20: 2 checkpoints logged. The log starts 2026-09-01.\n\n3 runs over a repository under a temp directory left out.\n\nMode: full 2, small 0."), output)
+}
+
 func TestWriteStatsSkipsUnreadableLinesAndRunsBeforeTheWindow(t *testing.T) {
 	old := strings.Replace(statsRecord(``, "[]", "small"), statsNow.Format(time.RFC3339), "2026-09-01T00:00:00Z", 1)
 	logPath := writeStatsLog(t,
