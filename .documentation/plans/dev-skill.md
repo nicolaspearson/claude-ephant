@@ -206,7 +206,7 @@ use them where it reads code or weighs designs in the main session.
   - blocked: dev-skill
   - done when the case exists and the user's `task eval -- ./plugin` run passes
     its graders
-- [ ] plan-grounding-explorers: `/ele:plan` `new` and `convert` launch
+- [x] plan-grounding-explorers: `/ele:plan` `new` and `convert` launch
   `ele:explorer` agents for the facts each round rests on; update the Plans
   section of design.md and `docs/plans.md`
   - done when one `/ele:plan new` run in a `task dev` session shows
@@ -218,14 +218,21 @@ use them where it reads code or weighs designs in the main session.
     `ele:explorer` agents, at most 3, `general-purpose` where the type is not
     listed; `plan-new-review` gains an `explores` grader requiring an
     `ele:explorer` launch; `task check FORCE=1` and `task audit` pass
-  - next: the user runs `/ele:plan new` in a `task dev` session and reads
-    `ele events --kind agent` for `ele:explorer` launches before the first
-    round, then runs `task eval -- ./plugin`
   - as of 2026-11-11: the user's `task eval -- ./plugin` run failed
     `plan-new-review`'s `explores` grader, the session reading the scaffold's
     few files itself and launching no `ele:explorer`; its other five graders
     passed. Grounding now launches explorers however small the repository,
     the session reading no code before the first round
+  - as of 2026-11-11: at 985b956 the user's `task eval -- ./plugin --case
+    plan-new-review` passed all six graders, `explores` with one
+    `ele:explorer` launch; the live `task dev` run is still to do
+  - asserted in the plan-grounding-explorers commit: in a `task dev`
+    session, `/ele:plan new blocked-colon` launched two `ele:explorer`
+    agents, one on the code and one on the specs and docs, before its first
+    round's reply, by that session's agent and reply events in `ele events`;
+    at 985b956 the user's `task eval -- ./plugin --case plan-new-review`
+    passed all six graders, run as that one case since no other case runs
+    `/ele:plan`
 - [ ] plan-decision-architects: `/ele:plan` `new` and `convert` launch two
   `ele:architect` agents under different constraints before the round that
   puts a design question meeting the architectural test, the designs not
