@@ -2064,17 +2064,6 @@ keep.
     record in its session as an `attributes` entry; stamping at sync was
     turned down, as the sync binary is not the hook's after an upgrade or
     `task install` between them
-- [ ] checkpoint-evals: Eval suites for checkpoint and ticket-audit, five to
-  ten fixture cases with planted defects
-  - done when, run through `task eval` when the user asks, the suites pass,
-    each case seen failing on a skill with its check removed
-  - 2026-11-09, from the eval-fixes eval run: whether ele's hooks run git
-    inside the eval sandbox is unsettled. A kept run's trace records only the
-    SessionStart hook; its sealed home, opened with `chmod 700` on the kept
-    directory and `sealed`, holds a stub `.git` (no index or objects), so git
-    from the working directory roots there without the scaffold's repository,
-    and a `stop-check` record, so the Stop hook ran, but that record holds no
-    git output. A hook that logs its own git call would settle it
 - [ ] false-project-regex: `recipe-audit`'s `reports-no-false-project` is a
   regex, not an `llm` judge
   - done when the grader is a regex, probed red and green over the saved
@@ -2423,3 +2412,9 @@ keep.
   the user's work; the three first prompts read ask for a one-word reply or are
   eval-shaped, so indexing them adds noise to recall and events (ruled
   2026-11-12, from sdk-cli's premise check)
+- Eval suites for checkpoint and ticket-audit: as of 2026-10-31 (claude
+  2.1.308) the session cannot run `/usr/bin/git` in the eval sandbox, as
+  Apple's xcrun shim cannot write its cache, and the checkpoint skill's §1 runs
+  `ele checkpoint check`, `git status` and `ele checkpoint freeze`, each of
+  which runs git; ticket-audit needs a tracker through `gh` or `glab` (ruled
+  2026-11-12, from checkpoint-evals' premise check)
