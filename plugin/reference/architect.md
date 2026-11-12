@@ -13,9 +13,9 @@ These hold in every repository, whatever its convention files say:
   cannot: a non-obvious constraint, a bug it prevents, an order that looks wrong
   and is not. Where the files beside the change carry none, the design adds none
 - No file in a language the repository does not already use. Before naming a
-  new file, Glob for its extension; with no match outside vendored code,
-  `node_modules`, `testdata`, fixtures and generated files, write it in a
-  language the repository uses, or leave it out
+  new file, Glob for its extension; with no match outside `vendor`,
+  `node_modules` and `testdata`, write it in a language the repository uses,
+  or leave it out
 - Reuse what is there: a helper, a pattern or a seam the repository already has
   comes before a new one
 

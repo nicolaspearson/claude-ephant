@@ -304,11 +304,16 @@ use them where it reads code or weighs designs in the main session.
     carrying the tool rules, before the review's rewording of the same rules)
     used Read, `ele recall` first, and grep in Bash with absolute paths after
     Grep proved missing: no `cd`, `sed`, `cat` or `head`
-- [ ] architect-language-rule: Drop "fixtures and generated files" from
+- [x] architect-language-rule: Drop "fixtures and generated files" from
   `plugin/reference/architect.md`'s language rule, which an agent with only
   Glob cannot tell by path; vendored code, `node_modules` and `testdata` stay
   - from the architect-agent checkpoint's re-review, 2026-11-11
   - done when the rule's exclusions name only what a path shows
+  - asserted in the architect-language-rule commit: the language rule's
+    exclusions read `vendor`, `node_modules` and `testdata`, each a path Glob
+    shows; "vendored code" became `vendor`, by the user's ruling, to meet the
+    done-when; a grep of plugin/, docs/ and .documentation/ found no other copy
+    of the list
 - [ ] Fold each Decision through `/ele:plan-audit close
   .documentation/plans/dev-skill.md`, propose each out-of-scope line as a
   `decision` through `/ele:remember`, run `ele plan done
@@ -321,10 +326,14 @@ use them where it reads code or weighs designs in the main session.
   2's rounds, before drafting; a design question raised later, as an `open`
   review-loop finding or in `convert` step 5's re-audit round, is asked
   without architects (ruled 2026-11-12)
-- 2026-11-12, from the explorer-commands checkpoint:
-  `plugin/agents/checkpoint-reviewer.md` and `plugin/agents/architect.md` carry
-  no tool rules; the explorer kept to Read and absolute paths only once its
-  agent definition held them
+- 2026-11-12, from the architect-language-rule pickup:
+  `plugin/agents/checkpoint-reviewer.md` has Bash and carries no tool rules;
+  list a recent launch's tool calls from its transcript before writing any,
+  since its Bash needs (`git diff <ref>`) differ from the explorer's
+- 2026-11-12, from the architect-language-rule pickup:
+  `plugin/reference/architect.md`'s language rule says to Glob for a new file's
+  extension, but `ele:architect` has only Glob, Grep and Read, so in a session
+  where Glob and Grep are missing it cannot search and the rule has no fallback
 
 ## Out of scope
 
