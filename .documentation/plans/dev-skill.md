@@ -269,13 +269,27 @@ use them where it reads code or weighs designs in the main session.
     fix launched none; the user's `task eval -- ./plugin --case
     plan-new-review` passed all six graders, its scenario holding no
     architectural question
-- [ ] pickup-premise-explorer: `/ele:plan` pickup's premise check launches an
+- [x] pickup-premise-explorer: `/ele:plan` pickup's premise check launches an
   `ele:explorer` to re-derive the item's claims about code; update the Plans
   section of design.md and `docs/plans.md`
   - done when one pickup in a `task dev` session shows an `ele:explorer`
     launch in
     `ele events --kind agent` and the item's dated premise lines carry its
-    `file:line` cites
+    cites
+  - as of 2026-11-12, before this item's change: pickup's premise check
+    re-derived claims in the main session (`plugin/skills/plan/SKILL.md`
+    Pickup step 4's first bullet);
+    design.md's Plans section said so in its pickup bullet and
+    `docs/plans.md`'s Working through one in its pickup paragraph
+  - asserted in the pickup-premise-explorer commit: in a `task dev` session on
+    this change, `/ele:plan` pickup of v1-release's scratch-log launched one
+    `ele:explorer` after the yes to start, by that session's agent events, its
+    brief naming `plugin/reference/explorer.md`, both `CLAUDE.md` files, the
+    plan and the item quoted whole; the premise lines it wrote under
+    scratch-log cite packages and identifiers, this repository refusing line
+    numbers in a plan, and mark one claim not checked; with only this change
+    on HEAD, `task check FORCE=1`'s lint-docs, unused, tidy-check and test
+    passed, and its lint in the working tree
 - [ ] explorer-commands: Reword `plugin/reference/explorer.md`'s Commands,
   which says "their sync writes ele's own data" of `ele recall`, `ele context`
   and `ele show` though only `ele recall` syncs, to "recall's sync writes ele's
@@ -300,6 +314,9 @@ use them where it reads code or weighs designs in the main session.
   2's rounds, before drafting; a design question raised later, as an `open`
   review-loop finding or in `convert` step 5's re-audit round, is asked
   without architects (ruled 2026-11-12)
+- 2026-11-12, from the pickup-premise-explorer checkpoint:
+  `plugin/reference/explorer.md`'s Commands needs a fallback for a session
+  without Grep or Glob, and says a note id takes `ele show --note`
 
 ## Out of scope
 

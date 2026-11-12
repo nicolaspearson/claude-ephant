@@ -172,8 +172,9 @@ next item is already done in the commits and uncommitted changes since the last
 tick, and if so runs `/ele:checkpoint` over them to propose the tick. Once a
 tick is written it waits for you to commit it before checking the next item; if
 no tick is proposed, or you decline it, that item is the one in hand. Then it
-shows the item with related notes, and asks to start. Once you say yes, it re-checks what the
-item claims about the code before building on it, and triages the inbox.
+shows the item with related notes, and asks to start. Once you say yes, an
+`ele:explorer` agent re-checks what the item claims about the code before
+anything is built on it, and Claude triages the inbox.
 
 Once the work is done, `/ele:plan` runs `/ele:checkpoint`. When the change
 completes the item, the checkpoint proposes the tick with its evidence line;
