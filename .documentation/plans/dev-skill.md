@@ -382,20 +382,20 @@ use them where it reads code or weighs designs in the main session.
     Grep are both missing, leaving only Read, the design names a new file only
     in a language seen in the files read and lists the language check under
     Not checked, the Report's field; a text property, with no launch run
+- [ ] architect-search-tools: In `plugin/reference/architect.md`'s language
+  rule, say that where Glob is missing, the extension search runs through
+  Grep's glob filter, and where a launch has Bash, as the `general-purpose`
+  architect `/ele:plan` launches where `ele:architect` is not listed, through
+  `find` in Bash with absolute paths, for searching only; the Read-only
+  fallback then holds only where none of the three is there
+  - from the architect-search-fallback checkpoint, 2026-11-12
+  - done when the rule says so
 - [ ] Fold each Decision through `/ele:plan-audit close
   .documentation/plans/dev-skill.md`, propose each out-of-scope line as a
   `decision` through `/ele:remember`, run `ele plan done
   .documentation/plans/dev-skill.md`, and delete this plan
 
 ## Inbox
-
-- 2026-11-12, from the architect-search-fallback checkpoint: the language
-  rule in `plugin/reference/architect.md` says to Glob for a new file's
-  extension, with a fallback only where Glob and Grep are both missing; where
-  only Glob is missing, Grep's glob filter could list files by extension, and
-  where `ele:architect` is not listed, `/ele:plan` launches a `general-purpose`
-  architect, which has Bash, so "leaving only Read" is false and nothing points
-  it at `find` or `grep -rn`, as `plugin/reference/explorer.md` does
 
 ## Out of scope
 
