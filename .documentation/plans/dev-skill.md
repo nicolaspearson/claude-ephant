@@ -314,26 +314,35 @@ use them where it reads code or weighs designs in the main session.
     shows; "vendored code" became `vendor`, by the user's ruling, to meet the
     done-when; a grep of plugin/, docs/ and .documentation/ found no other copy
     of the list
+- [ ] designs-rounds-scope: Say in `/ele:plan`'s Designs, design.md's Plans
+  line on it and `docs/plans.md`, that architects run only before `new` step
+  1's and `convert` step 2's rounds; a design question raised later, as an
+  `open` review-loop finding or in `convert` step 5's re-audit round, is asked
+  without architects
+  - from the plan-decision-architects checkpoint, ruled 2026-11-12
+  - done when `plugin/skills/plan/SKILL.md`'s Designs,
+    `.documentation/specs/design.md` and `docs/plans.md` all say so
+- [ ] reviewer-tool-rules: List a recent `ele:checkpoint-reviewer` launch's
+  tool calls from its transcript; where it read files through `cat` or `sed`,
+  used `cd` or gave relative paths, add tool rules to
+  `plugin/agents/checkpoint-reviewer.md` fitting its Bash needs, such as
+  `git diff <ref>`, which differ from the explorer's
+  - from the architect-language-rule pickup, 2026-11-12
+  - done when the item describes what the listed launch ran, and either rules
+    are added and one launch keeps to them, or the launch broke none and the
+    item says so
+- [ ] architect-search-fallback: Say in `plugin/reference/architect.md`'s
+  language rule that where Glob and Grep are both missing, leaving only Read,
+  the design names no new file in a language it has not seen in the files it
+  read, and lists the language check under Not checked
+  - from the architect-language-rule pickup, 2026-11-12
+  - done when the rule says so
 - [ ] Fold each Decision through `/ele:plan-audit close
   .documentation/plans/dev-skill.md`, propose each out-of-scope line as a
   `decision` through `/ele:remember`, run `ele plan done
   .documentation/plans/dev-skill.md`, and delete this plan
 
 ## Inbox
-
-- 2026-11-12, from the plan-decision-architects checkpoint: say in
-  `/ele:plan`'s Designs that it covers only `new` step 1's and `convert` step
-  2's rounds, before drafting; a design question raised later, as an `open`
-  review-loop finding or in `convert` step 5's re-audit round, is asked
-  without architects (ruled 2026-11-12)
-- 2026-11-12, from the architect-language-rule pickup:
-  `plugin/agents/checkpoint-reviewer.md` has Bash and carries no tool rules;
-  list a recent launch's tool calls from its transcript before writing any,
-  since its Bash needs (`git diff <ref>`) differ from the explorer's
-- 2026-11-12, from the architect-language-rule pickup:
-  `plugin/reference/architect.md`'s language rule says to Glob for a new file's
-  extension, but `ele:architect` has only Glob, Grep and Read, so in a session
-  where Glob and Grep are missing it cannot search and the rule has no fallback
 
 ## Out of scope
 
