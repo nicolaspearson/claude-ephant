@@ -3,11 +3,10 @@ package ticket
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -19,6 +18,14 @@ const (
 	mapFinding  = "execution-map    grants itself execution, which later sessions read back as licence"
 	taskSuffix  = " — a task unblocks a decision, it does not deliver one"
 )
+
+type claimsTracker struct {
+	failure string
+	missing string
+	outside bool
+	remote  string
+	tickets []Ticket
+}
 
 func TestFindingsFlagsAMapGrantingItselfExecutionInAnyCase(t *testing.T) {
 	for body, want := range map[string][]string{
@@ -56,40 +63,40 @@ func TestTokensTreatsNonASCIILettersAsWordCharacters(t *testing.T) {
 }
 
 func TestWriteClaimsListsFlaggedTicketsByNumber(t *testing.T) {
-	root := trackedRepository(t, []Ticket{
+	tracker := newClaimsTracker(
 		labelled("touch internal/x.go", "wayfinder:task"),
-		{Body: "we carry execution", Labels: []Label{{Name: "wayfinder:map"}}, Number: 3, Title: "Map"},
-		{Body: "touch internal/y.go", Labels: []Label{{Name: "bug"}}, Number: 9, Title: "Bug"},
-	})
+		Ticket{Body: "we carry execution", Labels: []Label{{Name: "wayfinder:map"}}, Number: 3, Title: "Map"},
+		Ticket{Body: "touch internal/y.go", Labels: []Label{{Name: "bug"}}, Number: 9, Title: "Bug"},
+	)
 
-	stdout, stderr := writeClaims(t, root, nil, false)
+	stdout, stderr := writeClaims(t, tracker, nil, false)
 
 	require.Empty(t, stderr)
 	require.Equal(t, "2 open tickets are flagged.\n\n  #3 Map\n    "+mapFinding+"\n\n  #7 Task\n    typed-as-task    names internal/x.go"+taskSuffix+"\n\n"+closingText, stdout)
 
-	stdout, _ = writeClaims(t, root, []int{7, 9}, true)
-	require.True(t, strings.HasPrefix(stdout, "1 open tickets are flagged.\n\n  #7 Task\n"), stdout)
+	stdout, _ = writeClaims(t, tracker, []int{7, 9}, true)
+	require.True(t, strings.HasPrefix(stdout, "1 open ticket is flagged.\n\n  #7 Task\n"), stdout)
 }
 
 func TestWriteClaimsNamesEachAskedNumberItCouldNotCheck(t *testing.T) {
-	root := trackedRepository(t, []Ticket{
-		{Body: "clean", Number: 9, Title: "Bug"},
-		{Body: "touch internal/x.go", Labels: []Label{{Name: "wayfinder:task"}}, Number: 12, State: "CLOSED", Title: "Done"},
-		{Body: "clean", Number: 14, State: "MERGED", Title: "A pull request"},
-		{Body: "touch internal/x.go", Labels: []Label{{Name: "wayfinder:task"}}, Number: 7, Title: "Task"},
-	})
+	tracker := newClaimsTracker(
+		Ticket{Body: "clean", Number: 9, Title: "Bug"},
+		Ticket{Body: "touch internal/x.go", Labels: []Label{{Name: "wayfinder:task"}}, Number: 12, State: "CLOSED", Title: "Done"},
+		Ticket{Body: "clean", Number: 14, State: "MERGED", Title: "A pull request"},
+		Ticket{Body: "touch internal/x.go", Labels: []Label{{Name: "wayfinder:task"}}, Number: 7, Title: "Task"},
+	)
 
-	stdout, stderr := writeClaims(t, root, []int{9, 12, 99, 14, 12}, false)
+	stdout, stderr := writeClaims(t, tracker, []int{9, 12, 99, 14, 12}, false)
 
 	require.Empty(t, stdout, "no all-clear past a number left unchecked")
 	require.Equal(t, "Warning: #12 is closed, so its claims were not checked.\n"+
-		"Warning: #99 was not checked: GraphQL: Could not resolve to an issue or pull request with the number of 99.\n"+
+		"Warning: #99 was not checked: gh issue view 99 --json number,title,body,labels,state failed: GraphQL: Could not resolve to an issue or pull request with the number of 99.\n"+
 		"Warning: #14 is merged, so its claims were not checked.\n", stderr, "each number once")
 
-	stdout, _ = writeClaims(t, root, []int{7, 7}, true)
-	require.True(t, strings.HasPrefix(stdout, "1 open tickets are flagged.\n\n  #7 Task\n"), stdout)
+	stdout, _ = writeClaims(t, tracker, []int{7, 7}, true)
+	require.True(t, strings.HasPrefix(stdout, "1 open ticket is flagged.\n\n  #7 Task\n"), stdout)
 
-	stdout, stderr = writeClaims(t, root, []int{9}, false)
+	stdout, stderr = writeClaims(t, tracker, []int{9}, false)
 	require.Equal(t, "No open ticket is mistyped or grants itself execution.\n", stdout+stderr)
 }
 
@@ -98,40 +105,86 @@ func TestWriteClaimsWarnsWhenTheListReachesItsCap(t *testing.T) {
 	for index := range tickets {
 		tickets[index] = Ticket{Body: "clean", Number: index + 1, Title: "Bug"}
 	}
-	root := trackedRepository(t, tickets)
 
-	stdout, stderr := writeClaims(t, root, nil, true)
+	stdout, stderr := writeClaims(t, newClaimsTracker(tickets...), nil, true)
 
 	require.Empty(t, stdout)
 	require.Equal(t, "Warning: gh listed 500 open tickets, its cap, so any beyond were not checked; pass their numbers to check them.\n", stderr)
 }
 
 func TestWriteClaimsSaysWhyNothingWasChecked(t *testing.T) {
-	root := trackedRepository(t, nil)
+	tracker := newClaimsTracker()
 
-	stdout, stderr := writeClaims(t, root, nil, false)
+	stdout, stderr := writeClaims(t, tracker, nil, false)
 	require.Equal(t, "No open ticket is mistyped or grants itself execution.\n", stdout+stderr)
-	stdout, stderr = writeClaims(t, root, nil, true)
+	stdout, stderr = writeClaims(t, tracker, nil, true)
 	require.Empty(t, stdout+stderr)
 
-	t.Setenv("GH_FAIL", "HTTP 401: Bad credentials")
-	stdout, stderr = writeClaims(t, root, nil, true)
+	tracker.failure = "HTTP 401: Bad credentials"
+	stdout, stderr = writeClaims(t, tracker, nil, true)
 	require.Empty(t, stdout)
-	require.Equal(t, "Warning: the ticket claim check did not run: HTTP 401: Bad credentials\n", stderr)
+	require.Equal(t, "Warning: the ticket claim check did not run: gh issue list --state open --limit 500 --json number,title,body,labels failed: HTTP 401: Bad credentials\n", stderr)
 
 	for _, remote := range []string{"git@gitlab.com:x/y.git", "https://gitlab.com/mirrors/github.com-y.git"} {
-		runGit(t, root, "remote", "set-url", "origin", remote)
-		stdout, stderr = writeClaims(t, root, nil, false)
+		tracker.remote = remote
+		stdout, stderr = writeClaims(t, tracker, nil, false)
 		require.Equal(t, "No GitHub remote here, so there are no tickets to check.\n", stdout+stderr, remote)
 	}
-	t.Setenv("GH_FAIL", "")
-	runGit(t, root, "remote", "set-url", "origin", "git@github.com-work:x/y.git")
-	stdout, stderr = writeClaims(t, root, nil, false)
+	tracker.failure = ""
+	tracker.remote = "git@github.com-work:x/y.git"
+	stdout, stderr = writeClaims(t, tracker, nil, false)
 	require.Equal(t, "No open ticket is mistyped or grants itself execution.\n", stdout+stderr, "an ssh alias of github.com")
 
-	stdout, stderr = writeClaims(t, t.TempDir(), nil, true)
+	tracker.missing = "gh"
+	stdout, stderr = writeClaims(t, tracker, nil, false)
+	require.Equal(t, "No GitHub remote here, so there are no tickets to check.\n", stdout+stderr, "no gh to ask")
+
+	tracker.outside = true
+	stdout, stderr = writeClaims(t, tracker, nil, true)
 	require.Empty(t, stdout)
 	require.Equal(t, "Warning: the ticket claim check needs a git repository.\n", stderr)
+}
+
+func (tracker *claimsTracker) commands() Commands {
+	return Commands{
+		LookPath: func(file string) (string, error) {
+			if file == tracker.missing {
+				return "", exec.ErrNotFound
+			}
+			return "/bin/" + file, nil
+		},
+		Run: tracker.run,
+	}
+}
+
+func (tracker *claimsTracker) run(_ context.Context, name string, args ...string) (string, error) {
+	call := strings.Join(append([]string{name}, args...), " ")
+	switch {
+	case call == "git rev-parse --show-toplevel" && tracker.outside:
+		return "", errors.New("fatal: not a git repository")
+	case call == "git rev-parse --show-toplevel":
+		return "/repository\n", nil
+	case call == "git remote -v":
+		return "origin\t" + tracker.remote + " (fetch)\norigin\t" + tracker.remote + " (push)\n", nil
+	case name == "gh" && tracker.failure != "":
+		return "", fmt.Errorf("%s failed: %s", call, tracker.failure)
+	case name == "gh" && len(args) > 2 && args[0] == "issue" && args[1] == "view":
+		for _, ticket := range tracker.tickets {
+			if strconv.Itoa(ticket.Number) == args[2] {
+				return encode(ticket), nil
+			}
+		}
+		return "", fmt.Errorf("%s failed: GraphQL: Could not resolve to an issue or pull request with the number of %s.", call, args[2])
+	case name == "gh" && len(args) > 1 && args[0] == "issue" && args[1] == "list":
+		open := []Ticket{}
+		for _, ticket := range tracker.tickets {
+			if ticket.State == "OPEN" {
+				open = append(open, ticket)
+			}
+		}
+		return encode(open), nil
+	}
+	return "", fmt.Errorf("unexpected call: %s", call)
 }
 
 func labelled(body string, labels ...string) Ticket {
@@ -142,49 +195,21 @@ func labelled(body string, labels ...string) Ticket {
 	return ticket
 }
 
-func runGit(t *testing.T, root string, args ...string) {
-	t.Helper()
-	output, err := exec.Command("git", append([]string{"-C", root}, args...)...).CombinedOutput()
-	require.NoError(t, err, string(output))
-}
-
-// A gh on PATH that lists the open tickets and views any by number, or fails
-// with $GH_FAIL on stderr. A ticket with no state is open.
-func trackedRepository(t *testing.T, tickets []Ticket) string {
-	t.Helper()
-	root := t.TempDir()
-	runGit(t, root, "init", "-q")
-	runGit(t, root, "remote", "add", "origin", "git@github.com:x/y.git")
-	bin := t.TempDir()
-	var open []Ticket
+// A ticket with no state is open.
+func newClaimsTracker(tickets ...Ticket) *claimsTracker {
+	tracker := &claimsTracker{remote: "git@github.com:x/y.git"}
 	for _, ticket := range tickets {
 		if ticket.State == "" {
 			ticket.State = "OPEN"
 		}
-		if ticket.State == "OPEN" {
-			open = append(open, ticket)
-		}
-		viewed, err := json.Marshal(ticket)
-		require.NoError(t, err)
-		require.NoError(t, os.WriteFile(filepath.Join(bin, fmt.Sprintf("%d.json", ticket.Number)), viewed, 0o600))
+		tracker.tickets = append(tracker.tickets, ticket)
 	}
-	listed, err := json.Marshal(open)
-	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(filepath.Join(bin, "tickets.json"), listed, 0o600))
-	script := "#!/bin/sh\n[ -n \"$GH_FAIL\" ] && { echo \"$GH_FAIL\" >&2; exit 1; }\n" +
-		"if [ \"$2\" = view ]; then\n" +
-		"  [ -f '" + bin + "'/\"$3\".json ] || { echo \"GraphQL: Could not resolve to an issue or pull request with the number of $3.\" >&2; exit 1; }\n" +
-		"  exec cat '" + bin + "'/\"$3\".json\n" +
-		"fi\n" +
-		"cat '" + filepath.Join(bin, "tickets.json") + "'\n"
-	require.NoError(t, os.WriteFile(filepath.Join(bin, "gh"), []byte(script), 0o700))
-	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
-	return root
+	return tracker
 }
 
-func writeClaims(t *testing.T, directory string, numbers []int, quiet bool) (string, string) {
+func writeClaims(t *testing.T, tracker *claimsTracker, numbers []int, quiet bool) (string, string) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
-	WriteClaims(context.Background(), &stdout, &stderr, directory, numbers, quiet)
+	WriteClaims(context.Background(), &stdout, &stderr, tracker.commands(), numbers, quiet)
 	return stdout.String(), stderr.String()
 }

@@ -182,6 +182,16 @@ func ToolLine(name string, input map[string]any) string {
 	return name + ": " + primaryInput(input)
 }
 
+// Truncate collapses whitespace and cuts to 300 runes, redacting first: a token
+// the cut splits no longer matches a pattern.
+func Truncate(value string) string {
+	value = strings.Join(strings.Fields(redact.Redact(value)), " ")
+	if runes := []rune(value); len(runes) > inputLimit {
+		return string(runes[:inputLimit]) + "…"
+	}
+	return value
+}
+
 func harnessWritten(text string) bool {
 	trimmed := strings.TrimSpace(text)
 	for _, tag := range harnessTags {
@@ -203,16 +213,6 @@ func primaryInput(input map[string]any) string {
 		return ""
 	}
 	return Truncate(string(encoded))
-}
-
-// Truncate collapses whitespace and cuts to 300 runes, redacting first: a token
-// the cut splits no longer matches a pattern.
-func Truncate(value string) string {
-	value = strings.Join(strings.Fields(redact.Redact(value)), " ")
-	if runes := []rune(value); len(runes) > inputLimit {
-		return string(runes[:inputLimit]) + "…"
-	}
-	return value
 }
 
 func with(base Entry, kind string, text string) Entry {

@@ -597,6 +597,14 @@ func TestResolveHoldsAnItemUntilItsAfterDate(t *testing.T) {
 	require.False(t, plan.Resolve(time.Date(2026, 10, 23, 0, 0, 0, 0, time.Local), nil).Actions[1].Held)
 }
 
+func TestResolveWithNoLookupHoldsAnItemOnAnotherPlansBlocker(t *testing.T) {
+	plan, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n- [ ] a: A\n  blocked: other/item\n"))
+	require.NoError(t, err)
+	resolved := plan.Resolve(time.Now(), nil)
+	require.True(t, resolved.Actions[0].Held)
+	require.Equal(t, []string{"blocker other/item does not exist"}, resolved.Actions[0].Flags)
+}
+
 func TestWriteStoredLeavesAReaderOfTheEarlierFileItWhole(t *testing.T) {
 	directory := t.TempDir()
 	earlier, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n- [ ] a: A\n"))

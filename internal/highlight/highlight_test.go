@@ -24,6 +24,7 @@ func TestMessage(t *testing.T) {
 		name        string
 		text        string
 	}{
+		{name: "bidi controls dropped", highlighted: "abcd", text: "a\u202eb\u2067c\u2069\u061cd\u200f"},
 		{name: "blocked label", highlighted: "[b]Blocked:[/b]\n- Phase 2\n  [r]blocked:[/r] waits on the hook ports", text: "Blocked:\n- Phase 2\n  blocked: waits on the hook ports"},
 		{name: "blocked label needs an indent", highlighted: "line\n\nblocked: x", text: "line\n\nblocked: x"},
 		{name: "code span wins over the path and command inside it", highlighted: "run [c]`ele plan done a/b.md`[/c] now", text: "run `ele plan done a/b.md` now"},
@@ -35,10 +36,10 @@ func TestMessage(t *testing.T) {
 		{name: "ele's own warning", highlighted: "[y]ele could not find the checkout for 1 active plan: gone[/y]; more", text: "ele could not find the checkout for 1 active plan: gone; more"},
 		{name: "handoff header with its note dimmed", highlighted: "[b]Handoff from ele[/b], [d]note 20261019-301b5a of 2026-10-19 09:01Z, session 2be5afc9[/d], shown once:", text: "Handoff from ele, note 20261019-301b5a of 2026-10-19 09:01Z, session 2be5afc9, shown once:"},
 		{name: "headers", highlighted: "[b]Active plan from ele:[/b]\n[b]2 active plans from ele[/b], newest first:\n[b]3 handoffs from ele[/b], newest first\n[b]1 handoff from ele[/b], pending", text: "Active plan from ele:\n2 active plans from ele, newest first:\n3 handoffs from ele, newest first\n1 handoff from ele, pending"},
+		{name: "line and paragraph separators made newlines", highlighted: "a\nb\n", text: "a\u2028b\u2029"},
 		{name: "missing lone plan", highlighted: "[y]ele: plan a/b.md is not in this checkout[/y]; switch to its branch, or [c]ele plan done a/b.md[/c] closes it", text: "ele: plan a/b.md is not in this checkout; switch to its branch, or ele plan done a/b.md closes it"},
 		{name: "missing plan among several", highlighted: "- [y]plan b.md is not in this checkout[/y]; switch", text: "- plan b.md is not in this checkout; switch"},
 		{name: "note id alone", highlighted: "see [d]20261019-1ede12[/d] first", text: "see 20261019-1ede12 first"},
-		{name: "sub-day nudge's due time yellow and interval magenta", highlighted: "- [m]↻[/m] due [y]2026-10-22T15:05[/y], reminder [d]20261022-3abb91[/d], [m]every 5 minutes[/m]: Check.\n- [y]due[/y]  due [y]2026-10-22T09:30[/y], reminder [d]20261022-dddddd[/d] (project, [m]every 1 hour[/m]): Later.", text: "- ↻ due 2026-10-22T15:05, reminder 20261022-3abb91, every 5 minutes: Check.\n- due  due 2026-10-22T09:30, reminder 20261022-dddddd (project, every 1 hour): Later."},
 		{name: "nudge marker and interval magenta, due date yellow", highlighted: "- [m]↻[/m] due [y]2026-10-22[/y], reminder [d]20261022-3abb91[/d], [m]every 7 days[/m]: Run [c]/hook-stats[/c].", text: "- ↻ due 2026-10-22, reminder 20261022-3abb91, every 7 days: Run /hook-stats."},
 		{name: "path inside a URL stays plain", highlighted: "see http://x/y.md", text: "see http://x/y.md"},
 		{name: "path is not a slash command", highlighted: "under /private/tmp/x and http://host/a", text: "under /private/tmp/x and http://host/a"},
@@ -49,7 +50,9 @@ func TestMessage(t *testing.T) {
 		{name: "slash command before a curly apostrophe", highlighted: "run [c]/clear[/c]’s twin", text: "run /clear’s twin"},
 		{name: "slash command glued to a letter or digit stays plain", highlighted: "run /clearÉ and /clear2", text: "run /clearÉ and /clear2"},
 		{name: "stop-check hint", highlighted: "[b]Context 162k.[/b] Write a handoff ([c]/ele:handoff[/c]), then [c]/clear[/c]", text: "Context 162k. Write a handoff (/ele:handoff), then /clear"},
+		{name: "sub-day nudge's due time yellow and interval magenta", highlighted: "- [m]↻[/m] due [y]2026-10-22T15:05[/y], reminder [d]20261022-3abb91[/d], [m]every 5 minutes[/m]: Check.\n- [y]due[/y]  due [y]2026-10-22T09:30[/y], reminder [d]20261022-dddddd[/d] (project, [m]every 1 hour[/m]): Later.", text: "- ↻ due 2026-10-22T15:05, reminder 20261022-3abb91, every 5 minutes: Check.\n- due  due 2026-10-22T09:30, reminder 20261022-dddddd (project, every 1 hour): Later."},
 		{name: "uncommitted previous", highlighted: "[b]Previous:[/b] Item [d](uncommitted)[/d]", text: "Previous: Item (uncommitted)"},
+		{name: "zero-width joiner kept", highlighted: "👩\u200d💻", text: "👩\u200d💻"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

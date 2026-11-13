@@ -62,6 +62,18 @@ func TestParseEvents(t *testing.T) {
 			name:    "older Task tool with no type or description",
 		},
 		{
+			entries: 0,
+			events:  []dto.TranscriptEvent{event(EventHookBlock, "Stop", map[string]any{"changed": []string{"a.go", "b.go", "new.md"}, "reason": "Files changed this turn and no checkpoint was reported."})},
+			line:    `{"type":"user","isMeta":true,` + base + `,"message":{"content":"Stop hook feedback:\nFiles changed this turn and no checkpoint was reported.\n\nTracked, dirty: a.go b.go \nUntracked, new: new.md\nInvoke the checkpoint skill."}}`,
+			name:    "older stop hook block",
+		},
+		{
+			entries: 0,
+			events:  []dto.TranscriptEvent{event(EventHookBlock, "Stop", map[string]any{"changed": []string{"new.md"}, "reason": "Files changed this turn and no checkpoint was reported."})},
+			line:    `{"type":"user","isMeta":true,` + base + `,"message":{"content":"Stop hook feedback:\nFiles changed this turn and no checkpoint was reported.\n\nUntracked, new: new.md\nInvoke the checkpoint skill."}}`,
+			name:    "older stop hook block with only new files",
+		},
+		{
 			entries: 1,
 			events:  nil,
 			line:    `{"type":"assistant",` + base + `,"message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"go test ./..."}}]}}`,
@@ -108,18 +120,6 @@ func TestParseEvents(t *testing.T) {
 			events:  []dto.TranscriptEvent{event(EventHookBlock, "Stop", map[string]any{"changed": []string{"a.go", "docs/b.md"}, "reason": "Files changed this turn, and no checkpoint was reported."})},
 			line:    `{"type":"user","isMeta":true,` + base + `,"message":{"content":"Stop hook feedback:\n\nFiles changed this turn, and no checkpoint was reported.\n\nChanged: a.go docs/b.md\n\nInvoke the checkpoint skill."}}`,
 			name:    "stop hook block",
-		},
-		{
-			entries: 0,
-			events:  []dto.TranscriptEvent{event(EventHookBlock, "Stop", map[string]any{"changed": []string{"a.go", "b.go", "new.md"}, "reason": "Files changed this turn and no checkpoint was reported."})},
-			line:    `{"type":"user","isMeta":true,` + base + `,"message":{"content":"Stop hook feedback:\nFiles changed this turn and no checkpoint was reported.\n\nTracked, dirty: a.go b.go \nUntracked, new: new.md\nInvoke the checkpoint skill."}}`,
-			name:    "older stop hook block",
-		},
-		{
-			entries: 0,
-			events:  []dto.TranscriptEvent{event(EventHookBlock, "Stop", map[string]any{"changed": []string{"new.md"}, "reason": "Files changed this turn and no checkpoint was reported."})},
-			line:    `{"type":"user","isMeta":true,` + base + `,"message":{"content":"Stop hook feedback:\nFiles changed this turn and no checkpoint was reported.\n\nUntracked, new: new.md\nInvoke the checkpoint skill."}}`,
-			name:    "older stop hook block with only new files",
 		},
 		{
 			entries: 1,

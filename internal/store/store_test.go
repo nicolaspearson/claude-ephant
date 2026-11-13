@@ -98,7 +98,7 @@ func TestOpenReadOnlyNeverWrites(t *testing.T) {
 	require.Len(t, entries, 1)
 	require.NoError(t, os.Chmod(path, 0o400))
 
-	db, err := OpenReadOnly(path)
+	db, err := openReadOnly(path)
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, db.Close()) })
 

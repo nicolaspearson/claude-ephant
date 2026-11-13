@@ -8,6 +8,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestLoadNamesTheFirstBadOptionInByteOrderEveryTime(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	require.NoError(t, os.WriteFile(path, []byte(`{"reminders": "y", "colour": "x", "owners": {"b": {"recipes": 3}, "a": {"checkpoint_gate": "no"}}}`), 0o600))
+
+	for range 20 {
+		_, err := Load(path)
+		require.ErrorContains(t, err, ": colour: want a boolean")
+	}
+}
+
 func TestLoadReadsAMissingFileAsDefaults(t *testing.T) {
 	config, err := Load(filepath.Join(t.TempDir(), "config.json"))
 	require.NoError(t, err)
@@ -111,6 +121,20 @@ func TestSaveWritesThroughATemporaryFileOfItsOwn(t *testing.T) {
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 	require.Equal(t, "{\n  \"checkpoint_gate\": false\n}\n", string(content))
+}
+
+func TestSetOnAZeroConfigStoresTheValue(t *testing.T) {
+	var config Config
+
+	require.NoError(t, config.Set("checkpoint_gate", "", "false"))
+	require.NoError(t, config.Set("checkpoint_gate", "work", "true"))
+
+	value, err := config.Value("checkpoint_gate", "work")
+	require.NoError(t, err)
+	require.Equal(t, true, value.Value)
+	value, err = config.Value("checkpoint_gate", "")
+	require.NoError(t, err)
+	require.Equal(t, false, value.Value)
 }
 
 func TestSetRefusesAnUnknownOptionOrAValueOfTheWrongKind(t *testing.T) {

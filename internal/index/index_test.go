@@ -344,14 +344,14 @@ func rows(t *testing.T, index *Index) []row {
 	result, err := index.db.Query(`SELECT kind, owner, profile, project, session, source, subagent, text FROM entries ORDER BY source, id`)
 	require.NoError(t, err)
 	defer result.Close()
-	var rows []row
+	var entries []row
 	for result.Next() {
-		var r row
-		require.NoError(t, result.Scan(&r.Kind, &r.Owner, &r.Profile, &r.Project, &r.Session, &r.Source, &r.Subagent, &r.Text))
-		rows = append(rows, r)
+		var entry row
+		require.NoError(t, result.Scan(&entry.Kind, &entry.Owner, &entry.Profile, &entry.Project, &entry.Session, &entry.Source, &entry.Subagent, &entry.Text))
+		entries = append(entries, entry)
 	}
 	require.NoError(t, result.Err())
-	return rows
+	return entries
 }
 
 func runGit(t *testing.T, root string, args ...string) {

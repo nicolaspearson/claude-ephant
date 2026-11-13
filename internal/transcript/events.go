@@ -253,8 +253,7 @@ func tokenEvent(parsed line, base dto.TranscriptEvent) (dto.TranscriptEvent, boo
 	return base, true
 }
 
-// callLine lets sync name the call: a result line carries no tool name or input. A chain's failing command usually
-// reports last, hence the tail.
+// A chain's failing command usually reports last, hence errorTail.
 func toolErrorAttributes(parsed line, result block) map[string]any {
 	// Before either cut: a cut token no longer matches a pattern.
 	text := redact.Redact(resultText(result.Content))

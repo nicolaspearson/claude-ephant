@@ -24,10 +24,9 @@ const (
 
 var (
 	commitCommand = regexp.MustCompile(`(?i)git commit`)
-	// Only a turn claiming done is a checkpoint, and only its last text block counts: a done claim followed by more work is not one. As of 2026-10-07, over 7 days: 21 of 384 disputed blocks would still block, and 495 of the other 701.
-	doneClaim   = regexp.MustCompile(`(?i)git commit|ready (to|for) (commit|merge|review|ship)|(all|work is|that.s|now) done|is complete`)
-	laterCommit = regexp.MustCompile(`(?i)\b(once|after|when)\b[^.!?]*\byou can (then )?commit\b`)
-	nothingLeft = regexp.MustCompile(`(?i)\b(nothing|none|no|zero|0)\b[^.;,]*\b(left|remains?|to go)\b`)
+	doneClaim     = regexp.MustCompile(`(?i)git commit|ready (to|for) (commit|merge|review|ship)|(all|work is|that.s|now) done|is complete`)
+	laterCommit   = regexp.MustCompile(`(?i)\b(once|after|when)\b[^.!?]*\byou can (then )?commit\b`)
+	nothingLeft   = regexp.MustCompile(`(?i)\b(nothing|none|no|zero|0)\b[^.;,]*\b(left|remains?|to go)\b`)
 	// A pass label, not a fixed sentence: demanding the literal "quality review" and "prose audit" blocked turns that had just run the checkpoint.
 	prosePass    = regexp.MustCompile(`(?i)(prose|comments?)[[:space:]]*(audit|pass|review|sweep|—|-|:)`)
 	qualityPass  = regexp.MustCompile(`(?i)quality[[:space:]]*(review|pass|—|-|:)|bugs[[:space:]]+review`)
@@ -82,7 +81,7 @@ func Gate(ctx context.Context, input GateInput, stateFile string) string {
 	if !claimsDone(finalText(turn)) || anyLine(skillInvoked, withoutBash(turn)) {
 		return ""
 	}
-	// Both passes have to appear: naming one and skipping the other is the habit this exists to catch. What the prompt asked for does not count.
+	// Spoken text only: a prompt naming the quality and prose passes is not them run.
 	said := spokenText(turn)
 	if anyLine(qualityPass, said) && anyLine(prosePass, said) {
 		return ""

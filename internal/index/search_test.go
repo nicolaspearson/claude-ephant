@@ -114,7 +114,7 @@ func TestSessionReturnsOneSessionByPrefix(t *testing.T) {
 	require.Equal(t, "pin pydantic below 2.14", results[0].Text)
 
 	_, err = index.Session(context.Background(), "abc")
-	require.ErrorIs(t, err, ErrAmbiguousSession)
+	require.ErrorIs(t, err, errAmbiguousSession)
 
 	results, err = index.Session(context.Background(), "none")
 	require.NoError(t, err)

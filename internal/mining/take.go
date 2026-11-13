@@ -21,7 +21,7 @@ type Taken struct {
 }
 
 // Take stops the watermark before the first unit still unjudged, so a unit the pass missed stays listed.
-func Take(cache string, analysis string, prompt []byte, digest func(dto.MiningUnit) (string, error), judgments []byte, units []dto.MiningUnit) (Taken, error) {
+func Take(directory string, analysis string, prompt []byte, digest func(dto.MiningUnit) (string, error), judgments []byte, units []dto.MiningUnit) (Taken, error) {
 	known := map[[2]string]time.Time{}
 	byKey := map[[2]string]dto.MiningUnit{}
 	for _, unit := range units {
@@ -81,18 +81,18 @@ func Take(cache string, analysis string, prompt []byte, digest func(dto.MiningUn
 	if len(parsed) == 0 {
 		return Taken{}, errors.New("no judgments to store")
 	}
-	if _, err := SavePrompt(cache, prompt); err != nil {
+	if _, err := SavePrompt(directory, prompt); err != nil {
 		return Taken{}, err
 	}
-	added, err := Store(cache, analysis, parsed)
+	added, err := Store(directory, analysis, parsed)
 	if err != nil {
 		return Taken{}, err
 	}
-	watermark, err := Watermark(cache, analysis)
+	watermark, err := Watermark(directory, analysis)
 	if err != nil {
 		return Taken{}, err
 	}
-	held, err := Load(cache, analysis)
+	held, err := Load(directory, analysis)
 	if err != nil {
 		return Taken{}, err
 	}
@@ -113,7 +113,7 @@ func Take(cache string, analysis string, prompt []byte, digest func(dto.MiningUn
 		}
 	}
 	if raised.After(watermark) {
-		if err = Advance(cache, analysis, raised); err != nil {
+		if err = Advance(directory, analysis, raised); err != nil {
 			return Taken{}, err
 		}
 	}

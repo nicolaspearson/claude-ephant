@@ -89,17 +89,17 @@ func TestFingerprintSurvivesStagingAndMovesOnAnEdit(t *testing.T) {
 func TestMatchGlobMatchesAsBashDoes(t *testing.T) {
 	for glob, cases := range map[string]map[string]bool{
 		"*":           {"": true, "a/b": true},
-		"**x":         {"x": true, "ax": true, "xa": false},
-		"*.md":        {"a.md": true, "deck/a.md": true, "a.go": false},
-		"*a*b":        {"ab": true, "xaybz": false, "xaybzb": true, "ba": false},
+		"**x":         {"ax": true, "x": true, "xa": false},
+		"*.md":        {"a.go": false, "a.md": true, "deck/a.md": true},
+		"*a*b":        {"ab": true, "ba": false, "xaybz": false, "xaybzb": true},
 		"?*?":         {"a": false, "ab": true, "abc": true},
 		"[!]]":        {"]": false, "x": true},
 		"[!q]*":       {"q": false, "x": true},
-		"[]a]":        {"]": true, "a": true, "b": false},
-		"[a-c]?":      {"bz": true, "dz": false, "b": false},
 		"[[:digit:]]": {"7": true, "x": false},
-		`\*`:          {"*": true, "x": false},
+		"[]a]":        {"]": true, "a": true, "b": false},
+		"[a-c]?":      {"b": false, "bz": true, "dz": false},
 		"[x":          {"[x": true, "x": false},
+		`\*`:          {"*": true, "x": false},
 	} {
 		for text, want := range cases {
 			require.Equal(t, want, MatchGlob(glob, text), "%q against %q", glob, text)

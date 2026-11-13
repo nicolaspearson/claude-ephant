@@ -158,8 +158,8 @@ func Report(w io.Writer, runs []Run) {
 		}
 		table[key][finding.Verdict]++
 	}
-	keys := slices.SortedFunc(maps.Keys(table), func(a, b [3]string) int {
-		return cmp.Or(strings.Compare(a[0], b[0]), strings.Compare(a[1], b[1]), strings.Compare(a[2], b[2]))
+	keys := slices.SortedFunc(maps.Keys(table), func(left [3]string, right [3]string) int {
+		return cmp.Or(strings.Compare(left[0], right[0]), strings.Compare(left[1], right[1]), strings.Compare(left[2], right[2]))
 	})
 	for _, key := range keys {
 		verdicts := table[key]
@@ -342,8 +342,8 @@ func ReportReviews(w io.Writer, runs []Run) {
 	}
 	fmt.Fprintln(w, "\nAnchors sent, by forge and kind, with the forge's answer")
 	fmt.Fprintf(w, "%-8s %-6s %5s %5s %6s %8s\n", "forge", "kind", "sent", "kept", "moved", "refused")
-	places := slices.SortedFunc(maps.Keys(anchors), func(a, b place) int {
-		return cmp.Or(cmp.Compare(a.forge, b.forge), cmp.Compare(a.kind, b.kind))
+	places := slices.SortedFunc(maps.Keys(anchors), func(left place, right place) int {
+		return cmp.Or(cmp.Compare(left.forge, right.forge), cmp.Compare(left.kind, right.kind))
 	})
 	for _, key := range places {
 		counts := anchors[key]
@@ -364,7 +364,7 @@ func WriteMostCommon[K comparable](w io.Writer, keys []K, format func(K) string)
 		}
 		counts[at[key]].count++
 	}
-	slices.SortStableFunc(counts, func(a, b counted[K]) int { return b.count - a.count })
+	slices.SortStableFunc(counts, func(left counted[K], right counted[K]) int { return right.count - left.count })
 	for _, entry := range counts[:min(15, len(counts))] {
 		fmt.Fprintf(w, "  %s %d\n", format(entry.key), entry.count)
 	}

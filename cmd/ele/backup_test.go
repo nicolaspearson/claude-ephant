@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"os"
 	"path/filepath"
 	"slices"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/nicolaspearson/claude-ephant/internal/archive"
 	"github.com/nicolaspearson/claude-ephant/internal/notes"
-	"github.com/nicolaspearson/claude-ephant/internal/store"
 )
 
 func TestBackupCopiesNotesBeforePlans(t *testing.T) {
@@ -73,7 +73,7 @@ func TestRunBackupCopiesTheDataDirectoryAndTheIndex(t *testing.T) {
 	info, err := os.Stat(filepath.Join(target, "ele.db"))
 	require.NoError(t, err)
 	require.Equal(t, os.FileMode(0o600), info.Mode().Perm(), "the copy holds conversation text")
-	db, err := store.OpenReadOnly(filepath.Join(target, "ele.db"))
+	db, err := sql.Open("sqlite", "file:"+filepath.Join(target, "ele.db")+"?mode=ro")
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, db.Close()) })
 	var entries int

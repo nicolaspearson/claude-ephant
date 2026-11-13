@@ -17,11 +17,6 @@ func Open(path string) (*sql.DB, error) {
 	return open(path, "_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)")
 }
 
-// OpenReadOnly expects no writer and an empty -wal: immutable=1 skips locking and ignores the WAL.
-func OpenReadOnly(path string) (*sql.DB, error) {
-	return open(path, "immutable=1&mode=ro")
-}
-
 func open(path string, query string) (*sql.DB, error) {
 	absolute, err := filepath.Abs(path)
 	if err != nil {
@@ -41,6 +36,11 @@ func open(path string, query string) (*sql.DB, error) {
 		return nil, fmt.Errorf("open %s: %w", path, err)
 	}
 	return db, nil
+}
+
+// openReadOnly expects no writer and an empty -wal: immutable=1 skips locking and ignores the WAL.
+func openReadOnly(path string) (*sql.DB, error) {
+	return open(path, "immutable=1&mode=ro")
 }
 
 // SQLite creates -wal and -shm with the database's mode, so a 0600 database

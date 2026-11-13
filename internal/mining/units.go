@@ -86,25 +86,6 @@ func CheckpointRuns(events []dto.Event) ([]dto.MiningUnit, error) {
 	return sortedUnits(runs), nil
 }
 
-// ReviewCycles groups main-thread reviewer launches, then drops the cycle each subagent-era run covers: that run's judgment is the cycle's.
-func ReviewCycles(launches []dto.Event, runs []dto.MiningUnit) ([]dto.MiningUnit, error) {
-	cycles, err := reviewCycles(launches, runs)
-	if err != nil {
-		return nil, err
-	}
-	covers, err := coverage(cycles, runs, subagentEraAt)
-	if err != nil {
-		return nil, err
-	}
-	var uncovered []timedUnit
-	for index, cycle := range cycles {
-		if !slices.Contains(covers, index) {
-			uncovered = append(uncovered, cycle)
-		}
-	}
-	return sortedUnits(uncovered), nil
-}
-
 // Named holds back an open unit, as Pending does: Take refuses one.
 func Named(units []dto.MiningUnit, lines []byte) ([]dto.MiningUnit, Backlog, error) {
 	wanted := make(map[[2]string]bool, len(units))
@@ -176,6 +157,25 @@ func Pending(units []dto.MiningUnit, judgments []Judgment, watermark time.Time) 
 		}
 	}
 	return pending, backlog, nil
+}
+
+// ReviewCycles groups main-thread reviewer launches, then drops the cycle each subagent-era run covers: that run's judgment is the cycle's.
+func ReviewCycles(launches []dto.Event, runs []dto.MiningUnit) ([]dto.MiningUnit, error) {
+	cycles, err := reviewCycles(launches, runs)
+	if err != nil {
+		return nil, err
+	}
+	covers, err := coverage(cycles, runs, subagentEraAt)
+	if err != nil {
+		return nil, err
+	}
+	var uncovered []timedUnit
+	for index, cycle := range cycles {
+		if !slices.Contains(covers, index) {
+			uncovered = append(uncovered, cycle)
+		}
+	}
+	return sortedUnits(uncovered), nil
 }
 
 // Settle opens every unit of a session that wrote within settlePeriod of now, bounded or not: a digest reads the next human messages past its window.

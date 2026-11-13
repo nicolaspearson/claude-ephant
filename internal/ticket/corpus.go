@@ -189,8 +189,13 @@ func Corpus(ctx context.Context, stdout io.Writer, stderr io.Writer, commands Co
 		fmt.Fprintf(stderr, "ele: two plans share a file name, so one would overwrite the other: %s\n", strings.Join(duplicates, "; "))
 		return 1
 	}
+	planned := len(options.Plans) > 0
 	if len(entries) == 0 {
-		fmt.Fprintln(stderr, "ele: no tickets written")
+		nothing := "tickets"
+		if planned {
+			nothing = "plan items"
+		}
+		fmt.Fprintf(stderr, "ele: no %s written\n", nothing)
 		return 1
 	}
 	written := map[string][]byte{}
@@ -206,7 +211,11 @@ func Corpus(ctx context.Context, stdout io.Writer, stderr io.Writer, commands Co
 			return 1
 		}
 		written[entry.file] = collapsed
-		fmt.Fprintf(stdout, "#%-5s %-6s %s %s\n", entry.name, entry.state, entry.hash[:12], entry.title)
+		if planned {
+			fmt.Fprintf(stdout, "%s %-6s %s %s\n", entry.name, entry.state, entry.hash[:12], entry.title)
+		} else {
+			fmt.Fprintf(stdout, "#%-5s %-6s %s %s\n", entry.name, entry.state, entry.hash[:12], entry.title)
+		}
 	}
 	if err := os.WriteFile(filepath.Join(out, manifestName), manifest(entries), 0o644); err != nil {
 		fmt.Fprintf(stderr, "ele: %v\n", err)
@@ -218,10 +227,17 @@ func Corpus(ctx context.Context, stdout io.Writer, stderr io.Writer, commands Co
 	for _, name := range names {
 		digest.Write(written[name])
 	}
-	fmt.Fprintf(stdout, "\n%d ticket(s) in %s, raw bodies in %s\n", len(written), out, cleanPath(out+"/raw"))
+	counted := "ticket(s)"
+	switch {
+	case planned && len(written) == 1:
+		counted = "plan item"
+	case planned:
+		counted = "plan items"
+	}
+	fmt.Fprintf(stdout, "\n%d %s in %s, raw bodies in %s\n", len(written), counted, out, cleanPath(out+"/raw"))
 	fmt.Fprintf(stdout, "corpus: %s\n", strings.Join(names, " "))
 	fmt.Fprintf(stdout, "corpus hash: %s\n", hex.EncodeToString(digest.Sum(nil)))
-	if len(options.Plans) == 0 {
+	if !planned {
 		fmt.Fprintln(stdout, "\nblocked by, from each ticket's 'Blocked by' lines; native links are not fetched:")
 		fmt.Fprintln(stdout, strings.Join(blockerTable(entries), "\n"))
 	}
@@ -244,7 +260,7 @@ func SystemCommands() Commands {
 		command.Stdout, command.Stderr = &stdout, &stderr
 		if err := command.Run(); err != nil {
 			reason := trimWhitespace(stderr.String())
-			if exit := (*exec.ExitError)(nil); !errors.As(err, &exit) {
+			if exit := (*exec.ExitError)(nil); !errors.As(err, &exit) || reason == "" {
 				reason = err.Error()
 			}
 			return "", fmt.Errorf("%s failed: %s", strings.Join(append([]string{name}, args...), " "), reason)
@@ -683,8 +699,8 @@ func planItems(text string) []planEntry {
 	return entries
 }
 
-func planLocation(ctx context.Context, commands Commands, plan string) (string, string, string, error) {
-	absolute, err := filepath.Abs(plan)
+func planLocation(ctx context.Context, commands Commands, path string) (string, string, string, error) {
+	absolute, err := filepath.Abs(path)
 	if err != nil {
 		return "", "", "", err
 	}

@@ -113,6 +113,22 @@ func TestChildrenOfTakesBothSourcesAndNotesEachGap(t *testing.T) {
 	require.Equal(t, map[int]string{64: "is a sub-issue but never says 'Part of #87'", 87: "says 'Part of #87' but is not linked as a sub-issue", 90: "says 'Part of #87' but is not linked as a sub-issue"}, gaps)
 }
 
+func TestCleanPathDropsEmptyAndDotPartsOnly(t *testing.T) {
+	for path, want := range map[string]string{
+		"":          ".",
+		".":         ".",
+		"./":        ".",
+		"/":         "/",
+		"//":        "//",
+		"//host/x/": "//host/x",
+		"///x":      "/x",
+		"../a/../b": "../a/../b",
+		"a//./b/.":  "a/b",
+	} {
+		require.Equal(t, want, cleanPath(path), path)
+	}
+}
+
 func TestCompareMatchesTheBodyOrWithNoteAComment(t *testing.T) {
 	tracker := &fakeTracker{issues: map[int]fakeIssue{164: {body: "Hello\r\nworld\r\n", comments: []string{"first", "the new note\n"}, title: "Title"}}, remote: "git@github.com:owner/repo.git"}
 	for _, check := range []struct {
@@ -272,6 +288,20 @@ func TestCorpusKeysAnInboxItemOnItsTitleAndAnActionOnItsName(t *testing.T) {
 	}, fieldOf(entries, "key"))
 }
 
+func TestCorpusNamesAPlanItemWithNoHashAndCountsItsItems(t *testing.T) {
+	for text, want := range map[string]string{
+		"## Actions\n\n- [ ] ship-it: Ship\n": `^plan-01 open   [0-9a-f]{12} ship-it: Ship\n\n1 plan item in `,
+		corpusPlan:                            `^plan-01 closed [0-9a-f]{12} Build the thing\nplan-02 open   [0-9a-f]{12} Ship the thing\nplan-03 inbox  [0-9a-f]{12} An idea\n\n3 plan items in `,
+	} {
+		var stdout bytes.Buffer
+
+		code := Corpus(context.Background(), &stdout, &bytes.Buffer{}, (&fakeTracker{}).commands(), CorpusOptions{Out: t.TempDir(), Plans: []string{writePlan(t, text)}})
+
+		require.Equal(t, 0, code)
+		require.Regexp(t, want, stdout.String())
+	}
+}
+
 func TestCorpusRefusesADirectoryHoldingAnEarlierRunUnlessCleaned(t *testing.T) {
 	tracker := &fakeTracker{issues: map[int]fakeIssue{9: {title: "Nine"}}, remote: "git@github.com:owner/repo.git"}
 	for stale, count := range map[string]int{"99.md": 2, "manifest alone": 1, "raw/99.md": 2} {
@@ -303,6 +333,15 @@ func TestCorpusRefusesAManifestListingAnythingButACorpusFileName(t *testing.T) {
 
 		require.Equal(t, "ele: "+filepath.Join(out, manifestName)+" lists \""+listed+"\", not a corpus file name\n", stderr.String())
 	}
+}
+
+func TestCorpusRefusesAPlanWithNoItems(t *testing.T) {
+	var stderr bytes.Buffer
+
+	code := Corpus(context.Background(), &bytes.Buffer{}, &stderr, (&fakeTracker{}).commands(), CorpusOptions{Out: t.TempDir(), Plans: []string{writePlan(t, "## Context\n\n- nothing to do\n")}})
+
+	require.Equal(t, 1, code)
+	require.Equal(t, "ele: no plan items written\n", stderr.String())
 }
 
 func TestCorpusRefusesTwoPlanItemsWithOneKey(t *testing.T) {
@@ -536,6 +575,12 @@ func TestSequenceMatcherRatioAndDiffFollowAutojunkRules(t *testing.T) {
 	var diff bytes.Buffer
 	writeUnifiedDiff(&diff, splitLines("1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n", true), splitLines("1\n2\nthree\n4\n5\n6\n7\n8\n9\nten", true), "a", "b")
 	require.Equal(t, "--- a\n+++ b\n@@ -1,10 +1,10 @@\n 1\n 2\n-3\n+three\n 4\n 5\n 6\n 7\n 8\n 9\n-10\n+ten", diff.String())
+}
+
+func TestSystemCommandsNamesTheExitOfACommandThatSaysNothing(t *testing.T) {
+	_, err := SystemCommands().Run(context.Background(), "sh", "-c", "exit 3")
+
+	require.EqualError(t, err, "sh -c exit 3 failed: exit status 3")
 }
 
 func TestSplitLinesEndsALineAtEachUnicodeBreak(t *testing.T) {

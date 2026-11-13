@@ -147,13 +147,14 @@ func Load(path string) (Config, error) {
 			config.Owners[owner] = map[string]json.RawMessage{}
 		}
 	}
-	for scope, values := range config.scopes() {
-		for name, raw := range values {
+	scopes := config.scopes()
+	for _, scope := range slices.Sorted(maps.Keys(scopes)) {
+		for _, name := range slices.Sorted(maps.Keys(scopes[scope])) {
 			option, known := Lookup(name)
 			if !known {
 				continue
 			}
-			if _, err = decode(option, raw); err != nil {
+			if _, err = decode(option, scopes[scope][name]); err != nil {
 				return config, fmt.Errorf("parse %s: %s%s: %w", path, scope, name, err)
 			}
 		}
@@ -211,8 +212,14 @@ func (c *Config) Set(name string, owner string, text string) error {
 		return err
 	}
 	if owner == "" {
+		if c.Global == nil {
+			c.Global = map[string]json.RawMessage{}
+		}
 		c.Global[name] = encoded
 		return nil
+	}
+	if c.Owners == nil {
+		c.Owners = map[string]map[string]json.RawMessage{}
 	}
 	if c.Owners[owner] == nil {
 		c.Owners[owner] = map[string]json.RawMessage{}

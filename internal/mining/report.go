@@ -31,8 +31,8 @@ type finding struct {
 	AlsoRaisedBy         []string `json:"also_raised_by"`
 	Category             string   `json:"category"`
 	Origin               string   `json:"origin"`
-	RereviewKind         string   `json:"rereview_kind"`
 	ReraisesUserDecision bool     `json:"reraises_user_decision"`
+	RereviewKind         string   `json:"rereview_kind"`
 	Severity             string   `json:"severity"`
 	Source               string   `json:"source"`
 	Stage                string   `json:"stage"`
@@ -47,10 +47,6 @@ type judged struct {
 	result    result
 	session   string
 	timestamp string
-}
-
-func (unit judged) checkpoint() bool {
-	return unit.result.IsCheckpoint == nil || *unit.result.IsCheckpoint
 }
 
 type passCounts struct {
@@ -141,6 +137,10 @@ func checkResult(line []byte) error {
 	}
 	_, err := parsed.reported()
 	return err
+}
+
+func (unit judged) checkpoint() bool {
+	return unit.result.IsCheckpoint == nil || *unit.result.IsCheckpoint
 }
 
 func cut(text string, limit int) string {

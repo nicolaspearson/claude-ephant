@@ -484,10 +484,13 @@ func (p Plan) Resolve(now time.Time, lookup Lookup) Plan {
 		}
 	}
 	state := func(edge Edge) Blocker {
-		if edge.Plan != "" {
-			return lookup(edge)
+		switch {
+		case edge.Plan == "":
+			return local[edge.Name]
+		case lookup == nil:
+			return BlockerMissing
 		}
-		return local[edge.Name]
+		return lookup(edge)
 	}
 	waits := map[string][]string{}
 	for _, action := range p.Actions {

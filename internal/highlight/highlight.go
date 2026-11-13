@@ -77,10 +77,14 @@ var rules = []rule{
 	{accept: commandEnds, expression: regexp.MustCompile(`(?m)(?:^|[\s(])(/[a-z][a-z-]*(?::[a-z][a-z-]*)?)`), styles: []func(string) style{always(cyan)}},
 }
 
-// Message drops control characters, so a plan or note cannot send escape sequences; NO_COLOR leaves it uncoloured whatever coloured says.
+// Message drops control and bidi control characters and turns a line or paragraph separator into a newline, so a plan or
+// note cannot send escape sequences or reorder what the terminal shows; NO_COLOR leaves it uncoloured whatever coloured says.
 func Message(text string, coloured bool) string {
 	text = strings.Map(func(character rune) rune {
-		if character != '\n' && character != '\t' && unicode.IsControl(character) {
+		if unicode.In(character, unicode.Zl, unicode.Zp) {
+			return '\n'
+		}
+		if character != '\n' && character != '\t' && (unicode.IsControl(character) || unicode.Is(unicode.Bidi_Control, character)) {
 			return -1
 		}
 		return character
@@ -89,33 +93,33 @@ func Message(text string, coloured bool) string {
 		return text
 	}
 	var spans []span
-	for _, rule := range rules {
-		for _, match := range rule.expression.FindAllStringSubmatchIndex(text, -1) {
+	for _, matcher := range rules {
+		for _, match := range matcher.expression.FindAllStringSubmatchIndex(text, -1) {
 			groups := len(match)/2 - 1
 			for group := range max(groups, 1) {
 				start, end := match[0], match[1]
 				if groups > 0 {
 					start, end = match[2*group+2], match[2*group+3]
 				}
-				if start < 0 || rule.accept != nil && !rule.accept(text, end) {
+				if start < 0 || matcher.accept != nil && !matcher.accept(text, end) {
 					continue
 				}
-				candidate := span{end: end, start: start, style: rule.styles[min(group, len(rule.styles)-1)](text[start:end])}
+				candidate := span{end: end, start: start, style: matcher.styles[min(group, len(matcher.styles)-1)](text[start:end])}
 				if !slices.ContainsFunc(spans, func(taken span) bool { return candidate.start < taken.end && taken.start < candidate.end }) {
 					spans = append(spans, candidate)
 				}
 			}
 		}
 	}
-	slices.SortFunc(spans, func(a, b span) int { return a.start - b.start })
+	slices.SortFunc(spans, func(left span, right span) int { return left.start - right.start })
 	var out strings.Builder
 	at := 0
-	for _, span := range spans {
-		out.WriteString(text[at:span.start])
-		out.WriteString(span.style.open)
-		out.WriteString(text[span.start:span.end])
-		out.WriteString(span.style.close)
-		at = span.end
+	for _, styled := range spans {
+		out.WriteString(text[at:styled.start])
+		out.WriteString(styled.style.open)
+		out.WriteString(text[styled.start:styled.end])
+		out.WriteString(styled.style.close)
+		at = styled.end
 	}
 	out.WriteString(text[at:])
 	return out.String()

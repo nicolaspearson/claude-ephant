@@ -61,7 +61,7 @@ func ticketClaims(ctx context.Context, args []string, stdout io.Writer, stderr i
 		}
 		numbers = append(numbers, number)
 	}
-	ticket.WriteClaims(ctx, stdout, stderr, ".", numbers, *quiet)
+	ticket.WriteClaims(ctx, stdout, stderr, ticket.SystemCommands(), numbers, *quiet)
 	return 0
 }
 

@@ -37,7 +37,7 @@ func TestSyncArchivesSubagentTranscriptsAtTheirPath(t *testing.T) {
 
 	sync(t, projects, directory)
 	require.Equal(t, "x\n", read(t, Path(directory, "claude/-repo/session/subagents/agent-1.jsonl", 1)))
-	manifest, err := LoadManifest(directory)
+	manifest, err := loadManifest(directory)
 	require.NoError(t, err)
 	require.Len(t, manifest, 1)
 }
@@ -117,7 +117,7 @@ func TestSyncSkipsWhatItCannotReadAndArchivesTheRest(t *testing.T) {
 	require.Len(t, summary.Skipped, 2)
 	require.Contains(t, summary.Skipped[0], filepath.Join("-bad", "session.jsonl"), "a file it cannot open")
 	require.Contains(t, summary.Skipped[1], "-closed", "a directory it cannot list")
-	manifest, err := LoadManifest(directory)
+	manifest, err := loadManifest(directory)
 	require.NoError(t, err)
 	require.Contains(t, manifest, "claude/-good/session.jsonl", "the manifest is saved past a skipped file")
 }

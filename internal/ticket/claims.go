@@ -1,13 +1,11 @@
 package ticket
 
 import (
-	"bytes"
 	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"os/exec"
 	"regexp"
 	"slices"
 	"strconv"
@@ -67,21 +65,19 @@ func Findings(ticket Ticket) []string {
 }
 
 // WriteClaims never fails; it warns on stderr when the check cannot run.
-func WriteClaims(ctx context.Context, stdout io.Writer, stderr io.Writer, directory string, numbers []int, quiet bool) {
-	root, err := run(ctx, directory, "git", "rev-parse", "--show-toplevel")
-	if err != nil {
+func WriteClaims(ctx context.Context, stdout io.Writer, stderr io.Writer, commands Commands, numbers []int, quiet bool) {
+	if _, err := commands.Run(ctx, "git", "rev-parse", "--show-toplevel"); err != nil {
 		fmt.Fprintln(stderr, "Warning: the ticket claim check needs a git repository.")
 		return
 	}
-	root = strings.TrimSpace(root)
 	// Nothing to check against without a tracker, and asking costs a network call.
-	if !hasTracker(ctx, root) {
+	if !hasTracker(ctx, commands) {
 		if !quiet {
 			fmt.Fprintln(stdout, "No GitHub remote here, so there are no tickets to check.")
 		}
 		return
 	}
-	tickets, complete, err := openTickets(ctx, stderr, root, numbers)
+	tickets, complete, err := openTickets(ctx, stderr, commands, numbers)
 	if err != nil {
 		fmt.Fprintf(stderr, "Warning: the ticket claim check did not run: %v\n", err)
 		return
@@ -99,7 +95,11 @@ func WriteClaims(ctx context.Context, stdout io.Writer, stderr io.Writer, direct
 		return
 	}
 	slices.SortStableFunc(flagged, func(left Ticket, right Ticket) int { return left.Number - right.Number })
-	fmt.Fprintf(stdout, "%d open tickets are flagged.\n\n", len(flagged))
+	if len(flagged) == 1 {
+		fmt.Fprint(stdout, "1 open ticket is flagged.\n\n")
+	} else {
+		fmt.Fprintf(stdout, "%d open tickets are flagged.\n\n", len(flagged))
+	}
 	for _, ticket := range flagged {
 		fmt.Fprintf(stdout, "  #%d %s\n", ticket.Number, ticket.Title)
 		for _, line := range Findings(ticket) {
@@ -144,11 +144,11 @@ func hasLabel(ticket Ticket, name string) bool {
 	return slices.ContainsFunc(ticket.Labels, func(label Label) bool { return label.Name == name })
 }
 
-func hasTracker(ctx context.Context, root string) bool {
-	if _, err := exec.LookPath("gh"); err != nil {
+func hasTracker(ctx context.Context, commands Commands) bool {
+	if _, err := commands.LookPath("gh"); err != nil {
 		return false
 	}
-	remotes, _ := run(ctx, root, "git", "remote", "-v")
+	remotes, _ := commands.Run(ctx, "git", "remote", "-v")
 	for line := range strings.Lines(remotes) {
 		fields := strings.Fields(line)
 		if len(fields) < 2 {
@@ -161,9 +161,9 @@ func hasTracker(ctx context.Context, root string) bool {
 	return false
 }
 
-func openTickets(ctx context.Context, stderr io.Writer, root string, numbers []int) ([]Ticket, bool, error) {
+func openTickets(ctx context.Context, stderr io.Writer, commands Commands, numbers []int) ([]Ticket, bool, error) {
 	if len(numbers) == 0 {
-		listed, err := run(ctx, root, "gh", "issue", "list", "--state", "open", "--limit", strconv.Itoa(ticketListLimit), "--json", "number,title,body,labels")
+		listed, err := commands.Run(ctx, "gh", "issue", "list", "--state", "open", "--limit", strconv.Itoa(ticketListLimit), "--json", "number,title,body,labels")
 		if err != nil {
 			return nil, false, err
 		}
@@ -183,7 +183,7 @@ func openTickets(ctx context.Context, stderr io.Writer, root string, numbers []i
 		if slices.Contains(numbers[:index], number) {
 			continue
 		}
-		viewed, err := run(ctx, root, "gh", "issue", "view", strconv.Itoa(number), "--json", "number,title,body,labels,state")
+		viewed, err := commands.Run(ctx, "gh", "issue", "view", strconv.Itoa(number), "--json", "number,title,body,labels,state")
 		var ticket Ticket
 		if err == nil {
 			if err = json.Unmarshal([]byte(viewed), &ticket); err != nil {
@@ -202,19 +202,6 @@ func openTickets(ctx context.Context, stderr io.Writer, root string, numbers []i
 		}
 	}
 	return tickets, complete, nil
-}
-
-func run(ctx context.Context, directory string, name string, args ...string) (string, error) {
-	var stdout, stderr bytes.Buffer
-	command := exec.CommandContext(ctx, name, args...)
-	command.Dir, command.Stdout, command.Stderr = directory, &stdout, &stderr
-	if err := command.Run(); err != nil {
-		if message := strings.TrimSpace(stderr.String()); message != "" {
-			return "", fmt.Errorf("%s", message)
-		}
-		return "", err
-	}
-	return stdout.String(), nil
 }
 
 func tokens(text string) []string {

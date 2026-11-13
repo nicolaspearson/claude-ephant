@@ -18,6 +18,8 @@ import (
 	"github.com/nicolaspearson/claude-ephant/internal/atomicfile"
 )
 
+var analysisName = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
+
 // Judgment cannot be rebuilt from the archive, so the cache is a source of truth, not an index.
 type Judgment struct {
 	Classifier string          `json:"classifier"`
@@ -37,65 +39,13 @@ func (judgment Judgment) Inline() bool {
 	return err == nil && eraAt(at) == "inline"
 }
 
-func eraAt(at time.Time) string {
-	if at.Before(subagentEraAt) {
-		return "inline"
-	}
-	return "subagent"
-}
-
-var analysisName = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
-
-func checkAnalysis(analysis string) error {
-	if !analysisName.MatchString(analysis) {
-		return fmt.Errorf("analysis %q is not lowercase words joined by hyphens", analysis)
-	}
-	return nil
-}
-
 func Classifier(prompt []byte) string {
 	return fingerprint(prompt)
-}
-
-func fingerprint(content []byte) string {
-	sum := sha256.Sum256(content)
-	return hex.EncodeToString(sum[:])
 }
 
 func Load(directory string, analysis string) ([]Judgment, error) {
 	judgments, _, err := load(directory, analysis)
 	return judgments, err
-}
-
-// load returns each judgment's line as stored too, so Store rewrites it with keys this build does not declare.
-func load(directory string, analysis string) ([]Judgment, [][]byte, error) {
-	if err := checkAnalysis(analysis); err != nil {
-		return nil, nil, err
-	}
-	path := filepath.Join(directory, analysis+".jsonl")
-	content, err := os.ReadFile(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil, nil
-	}
-	if err != nil {
-		return nil, nil, err
-	}
-	var judgments []Judgment
-	var lines [][]byte
-	scanner := bufio.NewScanner(bytes.NewReader(content))
-	scanner.Buffer(nil, len(content)+1)
-	for line := 1; scanner.Scan(); line++ {
-		if len(bytes.TrimSpace(scanner.Bytes())) == 0 {
-			continue
-		}
-		var judgment Judgment
-		if err = json.Unmarshal(scanner.Bytes(), &judgment); err != nil {
-			return nil, nil, fmt.Errorf("%s line %d: %w", path, line, err)
-		}
-		judgments = append(judgments, judgment)
-		lines = append(lines, bytes.Clone(scanner.Bytes()))
-	}
-	return judgments, lines, scanner.Err()
 }
 
 // SavePrompt keeps the prompt beside the judgments, so a classifier hash stays readable after its source is gone.
@@ -166,4 +116,54 @@ func appendLine(content *bytes.Buffer, judgment Judgment) error {
 	content.Write(line)
 	content.WriteByte('\n')
 	return nil
+}
+
+func checkAnalysis(analysis string) error {
+	if !analysisName.MatchString(analysis) {
+		return fmt.Errorf("analysis %q is not lowercase words joined by hyphens", analysis)
+	}
+	return nil
+}
+
+func eraAt(at time.Time) string {
+	if at.Before(subagentEraAt) {
+		return "inline"
+	}
+	return "subagent"
+}
+
+func fingerprint(content []byte) string {
+	sum := sha256.Sum256(content)
+	return hex.EncodeToString(sum[:])
+}
+
+// load returns each judgment's line as stored too, so Store rewrites it with keys this build does not declare.
+func load(directory string, analysis string) ([]Judgment, [][]byte, error) {
+	if err := checkAnalysis(analysis); err != nil {
+		return nil, nil, err
+	}
+	path := filepath.Join(directory, analysis+".jsonl")
+	content, err := os.ReadFile(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil, nil
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	var judgments []Judgment
+	var lines [][]byte
+	scanner := bufio.NewScanner(bytes.NewReader(content))
+	scanner.Buffer(nil, len(content)+1)
+	for line := 1; scanner.Scan(); line++ {
+		if len(bytes.TrimSpace(scanner.Bytes())) == 0 {
+			continue
+		}
+		var judgment Judgment
+		if err = json.Unmarshal(scanner.Bytes(), &judgment); err != nil {
+			return nil, nil, fmt.Errorf("%s line %d: %w", path, line, err)
+		}
+		judgments = append(judgments, judgment)
+		lines = append(lines, bytes.Clone(scanner.Bytes()))
+	}
+	return judgments, lines, scanner.Err()
 }

@@ -148,17 +148,6 @@ func TestExtensionIgnoresLeadingDots(t *testing.T) {
 	}
 }
 
-func sourceLines(lines int, comments int) string {
-	var text strings.Builder
-	for index := range comments {
-		fmt.Fprintf(&text, "// comment %d\n", index)
-	}
-	for index := range lines - comments {
-		fmt.Fprintf(&text, "x%d := %d\n", index, index)
-	}
-	return text.String()
-}
-
 func densityRepository(t *testing.T, files map[string]string) string {
 	t.Helper()
 	root, _ := repository(t)
@@ -186,8 +175,13 @@ func measureDensity(t *testing.T, root string) string {
 	return output.String()
 }
 
-func writeFile(t *testing.T, root string, file string, content string) {
-	t.Helper()
-	require.NoError(t, os.MkdirAll(filepath.Dir(filepath.Join(root, file)), 0o700))
-	require.NoError(t, os.WriteFile(filepath.Join(root, file), []byte(content), 0o600))
+func sourceLines(lines int, comments int) string {
+	var text strings.Builder
+	for index := range comments {
+		fmt.Fprintf(&text, "// comment %d\n", index)
+	}
+	for index := range lines - comments {
+		fmt.Fprintf(&text, "x%d := %d\n", index, index)
+	}
+	return text.String()
 }

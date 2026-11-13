@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	// Enough lead over the habit compared with to be worth a second look, not one comment's noise on a short change.
-	densityLead          = 1.8
+	// Multiple of the file's or its peers' comment share worth a second look.
+	densityLead = 1.8
+	// One comment on a short change is noise.
 	minimumAddedComments = 2
 	// Below this a median is one or two files' taste, not a habit.
 	minimumPeers = 3
@@ -23,10 +24,10 @@ const (
 )
 
 var (
-	commentStarts = []string{"//", "#", "*", "/*", "--"}
+	commentStarts = []string{"#", "*", "--", "/*", "//"}
 
 	// Generated files are nobody's prose.
-	skipSuffixes = []string{"_mock.go", "_templ.go", ".pb.go", ".sql.go", ".gen.go", ".lock", ".json"}
+	skipSuffixes = []string{".gen.go", ".json", ".lock", ".pb.go", ".sql.go", "_mock.go", "_templ.go"}
 )
 
 type densityRow struct {

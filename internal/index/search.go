@@ -12,9 +12,9 @@ import (
 	"github.com/nicolaspearson/claude-ephant/internal/transcript"
 )
 
-var ErrAmbiguousSession = errors.New("session prefix matches more than one session")
-
 var Kinds = []string{KindNote, transcript.KindPrompt, transcript.KindHeadsUp, transcript.KindConversation, transcript.KindTool}
+
+var errAmbiguousSession = errors.New("session prefix matches more than one session")
 
 // Kinds rank before relevance: notes and the user's own words outrank what was said about them; a heads-up is Claude's words.
 const kindRank = `CASE
@@ -130,9 +130,9 @@ func (x *Index) Session(ctx context.Context, prefix string) ([]Result, error) {
 	case len(sessions) == 0:
 		return nil, nil
 	case len(sessions) > 3:
-		return nil, fmt.Errorf("%w: %s and more", ErrAmbiguousSession, strings.Join(sessions[:3], ", "))
+		return nil, fmt.Errorf("%w: %s and more", errAmbiguousSession, strings.Join(sessions[:3], ", "))
 	case len(sessions) > 1:
-		return nil, fmt.Errorf("%w: %s", ErrAmbiguousSession, strings.Join(sessions, ", "))
+		return nil, fmt.Errorf("%w: %s", errAmbiguousSession, strings.Join(sessions, ", "))
 	}
 
 	return x.SessionExactly(ctx, sessions[0])

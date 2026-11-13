@@ -339,7 +339,8 @@ func Reviewed(ctx context.Context, root string) bool {
 	return true
 }
 
-// ReviewedBytes is false where the copy no longer hashes to what the record says.
+// ReviewedBytes is the path of the copy of path the latest checkpoint reviewed, /dev/null for a deletion; false where no
+// copy can be trusted to be what was reviewed.
 func ReviewedBytes(ctx context.Context, root string, path string) (string, bool) {
 	file, err := ReviewedFile(ctx, root)
 	if err != nil {
@@ -440,7 +441,7 @@ func ValidateOptout(ctx context.Context, root string, globs ...string) error {
 		if MatchGlob("*/./*", wrapped) || MatchGlob("*/../*", wrapped) || MatchGlob("*//*", wrapped) {
 			return fmt.Errorf("'%s' has a \".\", \"..\" or empty path segment, which no repository path does; write paths as git prints them, e.g. deck/*", glob)
 		}
-		for _, probe := range []string{"q9x", "Z_0", "q9x/q9x/q9x.q9x", "Z_0/Z_0/Z_0.Z_0"} {
+		for _, probe := range []string{"Z_0", "Z_0/Z_0/Z_0.Z_0", "q9x", "q9x/q9x/q9x.q9x"} {
 			if MatchGlob(glob, probe) {
 				return fmt.Errorf("'%s' is too broad; name the paths", glob)
 			}

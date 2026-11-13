@@ -44,21 +44,6 @@ type Summary struct {
 	Skipped     []string
 }
 
-func LoadManifest(directory string) (Manifest, error) {
-	manifest := Manifest{}
-	content, err := os.ReadFile(filepath.Join(directory, "manifest.json"))
-	if errors.Is(err, fs.ErrNotExist) {
-		return manifest, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("read manifest: %w", err)
-	}
-	if err := json.Unmarshal(content, &manifest); err != nil {
-		return nil, fmt.Errorf("parse manifest: %w", err)
-	}
-	return manifest, nil
-}
-
 // Lock is advisory and blocks until released.
 func Lock(directory string) (func(), error) {
 	return atomicfile.Lock(filepath.Join(directory, ".lock"))
@@ -97,7 +82,7 @@ func SubagentDirectory(path string) string {
 
 // Sync expects the caller to hold the lock.
 func Sync(sources []Source, directory string) (Summary, error) {
-	manifest, err := LoadManifest(directory)
+	manifest, err := loadManifest(directory)
 	if err != nil {
 		return Summary{}, err
 	}
@@ -210,6 +195,21 @@ func appendMember(path string, chunk []byte, fresh bool) (int64, error) {
 		return 0, err
 	}
 	return written.Size(), nil
+}
+
+func loadManifest(directory string) (Manifest, error) {
+	manifest := Manifest{}
+	content, err := os.ReadFile(filepath.Join(directory, "manifest.json"))
+	if errors.Is(err, fs.ErrNotExist) {
+		return manifest, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read manifest: %w", err)
+	}
+	if err := json.Unmarshal(content, &manifest); err != nil {
+		return nil, fmt.Errorf("parse manifest: %w", err)
+	}
+	return manifest, nil
 }
 
 // rollback truncates appends to recorded files that a crash left past the saved manifest.
