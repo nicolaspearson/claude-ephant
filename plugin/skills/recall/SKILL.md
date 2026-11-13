@@ -1,6 +1,6 @@
 ---
-name: recall
 description: Search what was discussed in earlier Claude Code sessions. Use when the user asks "did we already…", or when a past decision, command or fix would save re-deriving it.
+name: recall
 ---
 
 # Recall

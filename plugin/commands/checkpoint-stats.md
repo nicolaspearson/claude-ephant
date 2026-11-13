@@ -1,4 +1,5 @@
 ---
+allowed-tools: Bash(ele checkpoint stats:*)
 description: What checkpoints found and which stage found it, to tune the ele:checkpoint skill
 disable-model-invocation: true
 ---
@@ -14,7 +15,7 @@ With one, a date `YYYY-MM-DD` or a number of days back `Nd`, a bare number `N`
 passed as `Nd`; any other form, ask the user for one of those:
 
 ```bash
-ele checkpoint stats --since <argument>
+ele checkpoint stats --since '<argument>'
 ```
 
 The checkpoints from before

@@ -1,7 +1,7 @@
 ---
-name: mine
 description: Classify the checkpoint runs and review cycles no earlier mining judged, or re-judge named ones, and store the judgments in ele's mining cache.
 disable-model-invocation: true
+name: mine
 ---
 
 # Mine

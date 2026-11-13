@@ -6,8 +6,6 @@ from their primary sources as of 2026-10-29, each with ele's verdict:
 - **Adopted**: a plan Decision or the user's ruling sets it; it names the
   item that will apply it until a skill section does, or the Inbox line
   holding it
-- **Proposed**: no Decision sets it; the item named rules on it before
-  applying it
 - **Rejected**: with the reason
 - **Already**: naming where ele does it today
 
@@ -35,12 +33,14 @@ IEEE 1028's anomaly classes are paywalled and not used here.
   [spec template](https://github.com/github/spec-kit/blob/main/templates/spec-template.md),
   [plan template](https://github.com/github/spec-kit/blob/main/templates/plan-template.md),
   [tasks template](https://github.com/github/spec-kit/blob/main/templates/tasks-template.md),
-  [constitution template](https://github.com/github/spec-kit/blob/main/templates/constitution-template.md)
+  [constitution template](https://github.com/github/spec-kit/blob/main/templates/constitution-template.md),
+  [spec-driven.md](https://github.com/github/spec-kit/blob/main/spec-driven.md)
 - ADRs: [Nygard, 2011](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions),
   [MADR template](https://github.com/adr/madr/blob/develop/template/adr-template.md),
   [MADR docs](https://github.com/adr/madr/blob/develop/docs/index.md),
   [adr.github.io](https://adr.github.io/)
-- mattpocock/skills: [grilling](https://github.com/mattpocock/skills/blob/main/skills/productivity/grilling/SKILL.md),
+- mattpocock/skills: [code-review](https://github.com/mattpocock/skills/blob/main/skills/engineering/code-review/SKILL.md),
+  [grilling](https://github.com/mattpocock/skills/blob/main/skills/productivity/grilling/SKILL.md),
   [to-spec](https://github.com/mattpocock/skills/blob/main/skills/engineering/to-spec/SKILL.md),
   [to-tickets](https://github.com/mattpocock/skills/blob/main/skills/engineering/to-tickets/SKILL.md),
   [implement-spec](https://github.com/mattpocock/skills/blob/main/skills/engineering/implement-spec/SKILL.md),

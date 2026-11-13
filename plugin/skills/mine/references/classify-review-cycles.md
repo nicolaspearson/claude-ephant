@@ -14,7 +14,7 @@ Digest layout:
 
 Rules: read-only. Write only your output file. Never copy a token or credential. No git write commands, no kubectl, helm or aws. No helper scripts on disk.
 
-For each digest, read it whole and write ONE JSON object per line to your output file:
+For each digest, read it whole and write ONE JSON object per line to your output file. The template below spreads one object over lines, with `//` notes for you; write each object on one line, without them:
 
 ```text
 {"session": "<line 1 session, exactly>", "timestamp": "<line 1 timestamp, exactly>",

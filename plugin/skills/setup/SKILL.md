@@ -1,6 +1,6 @@
 ---
-name: setup
 description: Set up ele after installing it, or in a directory no owner covers, by proposing the ele owner commands that map it and running them once the user approves. Use when the user asks to set up or configure ele, when the start block says no owner covers the directory, or when ele status names no owner here.
+name: setup
 ---
 
 # Setup
@@ -21,6 +21,8 @@ Read the `Here` line:
 
 Read `owner-map.json` in the `Data` directory for the owners already listed; a missing file lists none.
 
+Done when the `Here` line is read and the listed owners are known, or the directory is set up already.
+
 ## Propose
 
 With AskUserQuestion, loading it through ToolSearch if it is deferred, ask in one call:
@@ -35,15 +37,17 @@ Build the paths from the directory the `Here` line names, never from `git rev-pa
 
 An unlisted owner the map already names needs only the owner question: confirm the `ele owner add` it printed.
 
+Done when the user has picked an owner and a mapping, or declined.
+
 ## Run
 
 On approval, run the commands in order: `ele owner add <owner>` first for a new owner, then the mapping. Pass `--no-sync` to every one but the last: each write starts a background sync, whose lock refuses the next write.
 
-When one refuses with `a sync or backup holds the archive lock` or `no sync has completed`, run `ele sync` with the Bash tool's timeout at its maximum: it waits for a running sync, and a first sync over every transcript can take minutes. Then run the refused command once more. When the timeout cuts `ele sync` off, say a sync is still running and to run `/ele:setup` again once `ele status` shows none.
+When one refuses with `a sync or backup holds the archive lock` or `no sync has completed`, follow its row in `reference/errors.md` in the plugin root. When the timeout cuts `ele sync` off, say a sync is still running and to run `/ele:setup` again once `ele status` shows none.
 
 When the last command prints `nothing written` after an earlier one took `--no-sync`, run `ele sync --background`, so the earlier write is still synced.
 
-A refusal over notes a project has under another owner names `--move` and `--move-to <owner>`: show it and ask which, never pick one.
+A refusal over notes a project has under another owner names one flag: `--move`, refiling the notes with the project, or, where no single owner would cover them, `--move-to <owner>`. Show it and ask whether to rerun with it, and for `--move-to` which owner; never pick for the user.
 
 Then run `ele status` again.
 

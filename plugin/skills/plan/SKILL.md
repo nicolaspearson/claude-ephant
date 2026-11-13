@@ -1,8 +1,8 @@
 ---
-name: plan
-description: Work through a plan file one item a session, with ele carrying the place across /clear; pick up the active plan, write a new one, or convert a spec's open items into plans.
 argument-hint: "[new <name> | convert <spec>]"
+description: Work through a plan file one item a session, with ele carrying the place across /clear; pick up the active plan, write a new one, or convert a spec's open items into plans.
 disable-model-invocation: true
+name: plan
 ---
 
 # Plan
@@ -76,7 +76,7 @@ With no argument. Made for a return after days away, so trust nothing the plan s
 4. **Premise check.** On a yes, before building:
    - Re-derive each claim the item makes about code through one `ele:explorer` agent, reading no code yourself first: brief it as Grounding briefs one, its question the item quoted whole and the plan's path, its angle the item's claims about code. Each claim takes the explorer's cite, as `file:line` or, where the repository refuses line numbers in a plan, its package and identifier; a claim it lists under Not checked is marked "not checked"
    - Re-read each blocked item's reasons and propose removing those now settled
-   - Run `ele plan check <path>` and propose a fix for each warning: re-measure a stale `as of` line, drop a done blocker or a passed `after:`, add a missing name or done-when, untick a closing action ticked while another is open, triage an old inbox item at step 5, rewrite a line citing ele data (delete provenance, describe what was observed, move a dependency into the plan)
+   - Run `ele plan check <path>` and propose a fix for each warning: re-measure a stale `as of` line, drop a done blocker or a passed `after:`, add a missing name or done-when, untick a closing action ticked while another is open or the inbox holds items, triage an old inbox item at step 5, rewrite a line citing ele data (delete provenance, describe what was observed, move a dependency into the plan)
    - Check that a decision the item relies on lives in one place, and that a status or count it states is dated or derived
    - Write what you find under the item as dated lines
    - Where a finding makes the item's title or a `## Context` line wrong, propose the reword as its own question, the old text beside the new, and write it on approval. The yes to start is not approval for it. Declined, the finding stays a dated line only

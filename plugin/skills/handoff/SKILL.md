@@ -1,7 +1,7 @@
 ---
-name: handoff
-description: Write an ele handoff note that the session after /clear opens with, or, given list, show the project's pending and closed handoffs. Use when the user asks for a handoff note before /clear, rather than a handoff document for another agent, or asks what handoffs there are.
 argument-hint: "[list | what the next session is for]"
+description: Write an ele handoff note that the session after /clear opens with, or, given list, show the project's pending and closed handoffs. Use when the user asks for a handoff note before /clear, rather than a handoff document for another agent, or asks what handoffs there are.
+name: handoff
 ---
 
 # Handoff

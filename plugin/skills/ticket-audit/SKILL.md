@@ -1,6 +1,6 @@
 ---
-name: ticket-audit
 description: Audit a tracker's ticket map against the code for stale premises and contradictions. Use when about to pick up a ticket or close a map, or when asked for a ticket audit; for ele plans, use ele:plan-audit.
+name: ticket-audit
 ---
 
 Tracker writes are the user's to run; §9 says how.

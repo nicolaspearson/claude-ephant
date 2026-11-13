@@ -1,7 +1,7 @@
 ---
-name: plan-reviewer
 description: Reviewer subagent for the ele:plan skill, launched only by it, with a brief naming the reviewer file to follow and the draft plan to review.
 model: opus
+name: plan-reviewer
 tools: Glob, Grep, Read
 ---
 

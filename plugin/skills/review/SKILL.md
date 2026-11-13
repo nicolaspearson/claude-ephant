@@ -1,8 +1,8 @@
 ---
-name: review
-description: Review a merge request or pull request, a local branch or a commit with checkpoint's reviewers, and walk through its major findings, then any minor ones you pick, to publish, copy or skip. Uncommitted work is checkpoint's.
 argument-hint: "<!123 | #123 | MR or PR URL | branch | commit> [spec:<issue, URL or path>]"
+description: Review a merge request or pull request, a local branch or a commit with checkpoint's reviewers, and walk through its major findings, then any minor ones you pick, to publish, copy or skip. Uncommitted work is checkpoint's.
 disable-model-invocation: true
+name: review
 ---
 
 # Review

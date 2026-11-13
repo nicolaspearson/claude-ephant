@@ -1,7 +1,7 @@
 ---
-name: plan-audit
-description: Audit ele plans against the code and each other for stale premises, contradictions, waits nothing ends, inbox items to triage and plans ready to close. Use when about to pick up or close a plan, when plans feel stuck, or when asked for a plan audit; with close and a plan's path, when working its closing action.
 argument-hint: "[<path>... | drafts <path>... | close <path>]"
+description: Audit ele plans against the code and each other for stale premises, contradictions, waits nothing ends, inbox items to triage and plans ready to close. Use when about to pick up or close a plan, when plans feel stuck, or when asked for a plan audit; with close and a plan's path, when working its closing action.
+name: plan-audit
 ---
 
 A plan audit runs ticket-audit's engine over plans. `<ticket-audit>` is
@@ -33,8 +33,9 @@ ele plan check <path>
 Its warnings are mechanical and already found: a blocker done or missing, an
 `after:` date passed, an `as of` line past 14 days, an old or undated inbox
 item, an open action with no name or no done-when, a name another plan holds,
-a plan ready to close, a closing action ticked while another action is open.
-Report them as found by `ele plan check`; no method re-derives them.
+a plan ready to close, a closing action ticked while another action is open
+or while the inbox holds items, a line citing ele data. Report them as found by
+`ele plan check`; no method re-derives them.
 
 Done when every plan in scope is listed with its path and its check warnings, or
 "no warnings".

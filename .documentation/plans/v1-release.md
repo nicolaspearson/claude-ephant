@@ -2610,8 +2610,19 @@ keep.
     a missing requirement and drops Tests to mutate uncounted; the Errors
     tables and value lists are sorted; the checkpoint and review specs say
     the same
-  - next: the nits in groups, a checkpoint each: the other skills; evals and
-    CONTRIBUTING
+  - as of 2026-11-13: group 4 done, in the commit carrying this line: skill,
+    agent and command front matter alphabetised; setup's and remember's
+    missing done-whens; `.rumdl.toml`'s comment; plan-audit and plan pickup
+    now both list the inbox-at-close and ele-data warnings; `plan-practices.md` lists
+    its two missing sources and drops the unused Proposed verdict;
+    `errors.md` holds the archive-lock retry, which setup points at, and an
+    outcome-on-exit-0 row; flag's deferred-tool clause and `--at` needing
+    `--session`; `checkpoint-stats.md`'s `allowed-tools` and quoting;
+    setup's `--move` wording; the mining prompts' template note
+  - 2026-11-13, ruled by the user: handoff's two groups stay, as the
+    `handoff-list` eval's scaffold and grader pin them; the audit's handoff
+    nit is dropped
+  - next: the last group, a checkpoint: evals and CONTRIBUTING
 - [ ] audit-fixes: The audits' data and state defects the user ruled to fix
   - done when, each by a test seen red: `ele backup` copies while holding
     the notes and forgotten locks; `ele forget A B` forgets both when A

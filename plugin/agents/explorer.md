@@ -1,7 +1,7 @@
 ---
-name: explorer
 description: Explorer subagent for ele skills, launched only by them, with a brief naming the reference file to follow and the question to answer.
 model: sonnet
+name: explorer
 tools: Bash, Glob, Grep, Read
 ---
 

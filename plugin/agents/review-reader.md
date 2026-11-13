@@ -1,7 +1,7 @@
 ---
-name: review-reader
 description: Reviewer subagent for the ele:review skill, launched only by it, with a brief naming the reviewer file to follow and the tree to read.
 model: inherit
+name: review-reader
 tools: Glob, Grep, Read
 ---
 

@@ -5,7 +5,7 @@ disable = ["MD013"]
 exclude = ["CHANGELOG.md", "plugin/evals"]
 
 [per-file-ignores]
-# Prompts, not pages: the body opens after front matter with no title.
+# Prompts, not pages: a body need not open with a title.
 "plugin/{agents,commands,skills}/**/*.md" = ["MD041"]
 # The trailing space in `word: ` is the syntax the skill describes.
 "plugin/skills/plan/SKILL.md" = ["MD038"]

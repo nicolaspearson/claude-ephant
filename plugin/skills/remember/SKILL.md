@@ -1,6 +1,6 @@
 ---
-name: remember
 description: Save a decision, an open question, a dated fact or a reminder for a later date so later sessions start with it. Use when the user says "remember this", "we decided…" or "remind me on…", or a skill or ele's Stop hook asks for notes.
+name: remember
 ---
 
 # Remember
@@ -41,6 +41,8 @@ Done when each note written has the id `ele` printed reported, each reminder wit
 ## Before writing
 
 Read the note back as a stranger would, a month from now. If it needs the conversation to make sense, rewrite it.
+
+Done when the note makes sense with the conversation gone.
 
 ## Propose
 

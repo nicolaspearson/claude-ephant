@@ -1,7 +1,7 @@
 ---
-name: architect
 description: Architect subagent for ele skills, launched only by them, with a brief naming the reference file to follow, the task and the constraint to design under.
 model: opus
+name: architect
 tools: Glob, Grep, Read
 ---
 

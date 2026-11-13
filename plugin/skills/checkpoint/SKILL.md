@@ -1,6 +1,6 @@
 ---
-name: checkpoint
 description: Review work in subagents before it is reported done or ready to commit. Use when about to say work is done or ready to commit, or when the user asks for a checkpoint or pre-commit review.
+name: checkpoint
 ---
 
 The session that wrote the code does not review it. It knows what every line was

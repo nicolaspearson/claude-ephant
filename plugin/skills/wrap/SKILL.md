@@ -1,7 +1,7 @@
 ---
-name: wrap
-description: Wrap up a session by asking what to keep as notes, plan inbox items, progress lines or a recipe, which due reminders to close, and whether to hand off. Use when the user asks to wrap up or end a session, or asks "anything to remember or hand off?"; never start one unasked.
 argument-hint: "[what the next session is for]"
+description: Wrap up a session by asking what to keep as notes, plan inbox items, progress lines or a recipe, which due reminders to close, and whether to hand off. Use when the user asks to wrap up or end a session, or asks "anything to remember or hand off?"; never start one unasked.
+name: wrap
 ---
 
 # Wrap
