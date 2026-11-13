@@ -224,6 +224,19 @@ func TestRecordCoversTheFrozenBytesUntilTheyMove(t *testing.T) {
 	require.False(t, Reviewed(context.Background(), root), "clean tree")
 }
 
+func TestRecordDoesNotCoverAPathDirtiedAfterIt(t *testing.T) {
+	root := project(t)
+	writeFile(t, root, "main.go", "package main // one\n")
+	freeze(t, root, FreezeOptions{}, "main.go")
+	require.NoError(t, Record(context.Background(), root, session))
+	require.True(t, Reviewed(context.Background(), root))
+
+	writeFile(t, root, "new.go", "package main\n")
+
+	require.False(t, Reviewed(context.Background(), root), "a path no run froze, dirtied after the record")
+	require.False(t, Covered(context.Background(), root, state(t, root), []string{"new.go"}))
+}
+
 func TestRecordRefusesARunThatIsNotThisSessionsOpenOne(t *testing.T) {
 	root := project(t)
 	writeFile(t, root, "main.go", "package main // abandoned\n")

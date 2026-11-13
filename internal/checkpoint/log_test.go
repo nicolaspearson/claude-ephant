@@ -54,13 +54,14 @@ func TestAppendDropsNotesFromAnOlderSkill(t *testing.T) {
 
 func TestAppendKeepsTheFreezeTimeWhenTheLineIsNotWritten(t *testing.T) {
 	root, _ := repository(t)
-	marker, err := ReviewedFile(context.Background(), root)
+	t.Setenv(sessionVariable, "this-session")
+	run, err := RunFile(context.Background(), root, "this-session")
 	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(marker+".started", []byte("1\n"), 0o600))
+	require.NoError(t, os.WriteFile(run+".started", []byte("1\n"), 0o600))
 
 	require.Error(t, Append(context.Background(), root, map[string]any{}, t.TempDir(), time.Now()))
 
-	require.FileExists(t, marker+".started")
+	require.FileExists(t, run+".started")
 }
 
 func TestAppendKeysTheLineSortedAndCompact(t *testing.T) {
