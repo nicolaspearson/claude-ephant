@@ -29,6 +29,7 @@ handoffs, flags and plans listed newest first are ordered by `time`.
 | ----------------------- | ------------------------------------------------------------------------------------------------ |
 | `/ele:checkpoint`       | Review a change in subagents before it is reported done; see [Checkpoint](checkpoint-and-ticket-audit.md#checkpoint) |
 | `/ele:checkpoint-stats` | What checkpoints found and which stage found it, then reviews apart, over the last 30 days or since the date or `Nd` given |
+| `/ele:dev`              | Take a task too small for a plan from an agreed done-when to a checkpoint; see [Dev](dev.md) |
 | `/ele:flag`             | Flag a moment of the session as good or bad with why, or `list` the project's flags; see [Flags](notes-and-recall.md#flags) |
 | `/ele:handoff`          | Write the handoff the next session opens with, or `list` pending and closed ones; see [Handoffs](handoffs-and-reminders.md#handoffs) |
 | `/ele:mine`             | Judge past checkpoint runs and review cycles, for tuning the checkpoint skill                    |
@@ -122,8 +123,10 @@ ele plan done [--owner <name>] [--project <name>] <path|id>...
 naming each plan it could not check for one. `show` prints its counts, previous item,
 blocked items and next item, the project's active plan by default. `list` lists
 active plans; `--all` adds done and superseded ones. `check` lists a plan's
-warnings with their lines, every active plan's with no path, and exits 0 on
-warnings; `ele plan check --help` lists what it warns on. `done` closes plans
+warnings with their lines, every active plan's with no path, and exits 1 when
+any plan it checks has a warning or does not parse, so a gate can fail on it;
+an active plan missing from the checkout is not a warning.
+`ele plan check --help` lists what it warns on. `done` closes plans
 and keeps their item names, so run it from each plan's checkout once its last
 item is done; it closes a plan with items still open.
 Given a closed plan with no readable record of its names, `done` stores one from

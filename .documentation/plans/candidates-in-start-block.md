@@ -19,16 +19,20 @@ count candidates in one line and give their room back to the questions.
 1. The start block shows plan candidates as one line with their count and
    newest date, naming `/ele:plan-audit` and `ele context`
 2. Candidates no longer take room from the open-question list
-3. Both prefix forms in use today are recognised; the skills that write
+3. The prefix forms in use today are recognised; the skills that write
    candidates name one form, `Plan candidate:`
 
 ## Context
 
 - As of 2026-11-13: in claude-ephant, 53 open questions, 17 of them
   candidates: 8 start `Plan candidate:` and 9 start `Plan candidate
-  (<topic>),`. The start block listed 15 of the 53, from 2026-11-06 on, about
-  95% of its bytes; hyve-acquisition-gateway-api held 97 open questions and
-  14 candidates, horizon 46 and 7
+  (<topic>),`; one live horizon candidate starts `Plan candidate, <date>`,
+  a third form. The start block listed 15 of the 53, from 2026-11-06 on, their
+  lines about 95% of the block's bytes; hyve-acquisition-gateway-api held 97
+  open questions, 14 of them candidates, and horizon 46, 7 of them candidates
+- As of 2026-11-13: `internal/notes`' `problem` refuses a kind outside
+  `notes.Kinds`, so an `ele` that predates a kind reads its notes as invalid,
+  as `.documentation/specs/design.md` records for the `flag` kind
 - As of 2026-11-13: `cmd/ele` `liveNotes` sends every live `question` note to
   the questions list and the rest of the shown kinds to the others list, both
   newest first; `writeNotes` adds questions while they fit the room left under
@@ -47,9 +51,9 @@ count candidates in one line and give their room back to the questions.
 
 - A candidate stays a `question` note. `cmd/ele` recognises one when its
   text, trimmed, starts with `plan candidate` in any case, then optional
-  spaces and `:` or `(`, which takes both forms in use and no question that
-  only mentions the phrase; plan-audit's Plan candidates section states the
-  same rule. New candidates are written `Plan candidate:`
+  spaces and `:`, `(` or `,`, which takes the three forms in use and no
+  question that only mentions the phrase; plan-audit's Plan candidates
+  section states the same rule. New candidates are written `Plan candidate:`
   - rejected: a `candidate` note kind, migrated from the prefix on sync, with
     its own `ele context` block, `ele status` split and `ele plan start
     --supersedes`, because an older `ele` reads every candidate as invalid,
@@ -65,8 +69,8 @@ count candidates in one line and give their room back to the questions.
     notes is where it is read
 - `ele context` and `ele status` are unchanged: `ele context` still lists
   every candidate among the open questions, and `ele status` still counts them
-  as open questions, so its count and the start block's differ, which
-  count-line adds to the spec's SessionStart injection section
+  as open questions, so the two counts differ; count-line records the
+  difference in the spec's SessionStart injection section
 
 ## Actions
 
@@ -75,18 +79,24 @@ count candidates in one line and give their room back to the questions.
   same change states the match in plan-audit's Plan candidates section and
   updates `.documentation/specs/design.md`'s SessionStart injection and Plans
   sections and `docs/notes-and-recall.md`'s "What a session starts with"
-  - done when a test gives `writeNotes` candidates in both forms, case
-    variants and two questions that only mention the phrase, and asserts the
-    exact count line with the newest candidate's date and no candidate line;
-    others assert no line with no candidates, the header and line with
-    candidates as the only notes, and every real question kept, with an
-    "older questions not shown" count excluding candidates, under a room the
-    candidates would have filled; the matching cases went red with
-    `isPlanCandidate` returning false, and the only-mention and no-candidates
-    cases with it matching on `strings.Contains` and the line printed at a
-    count of 0; and the clone build, `echo '{"source":"resume"}' | go run
-    ./cmd/ele session-start --no-sync` in this repository, prints the count
-    line and no candidate's text
+  - done when `writeNotes` tests assert, each case seen red under the
+    mutation named for it:
+    - given candidates in all three forms, case variants and two questions
+      that only mention the phrase: the exact count line with the newest
+      candidate's date, and no candidate line (red with `isPlanCandidate`
+      returning false)
+    - with a room small enough that the candidates would crowd out a
+      question: every real question shown, and an "older questions not shown"
+      count without candidates (red with `isPlanCandidate` returning false)
+    - with candidates as the only notes: the header and the count line (red
+      with `isPlanCandidate` returning false)
+    - the two questions that only mention the phrase listed as questions (red
+      with `isPlanCandidate` matching on `strings.Contains`)
+    - no count line with no candidates (red with the line printed at a count
+      of 0)
+  - and, outside the tests, the clone build, `echo '{"source":"resume"}' | go
+    run ./cmd/ele session-start --no-sync` in this repository, prints the
+    count line and no candidate's text
 - [ ] Fold each Decision through `/ele:plan-audit close
   .documentation/plans/candidates-in-start-block.md`, propose each
   out-of-scope line as a `decision` through `/ele:remember`, run `ele plan

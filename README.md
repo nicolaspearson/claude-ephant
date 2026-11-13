@@ -26,6 +26,8 @@ The `ele` plugin adds the skills and hooks that use the binary:
   own
 - `/ele:checkpoint`, a review of the change in subagents before work is reported
   done, with a Stop hook that blocks a done claim made without one
+- `/ele:dev`, which takes a task too small for a plan from an agreed done-when
+  through explorers, questions and a chosen design to a checkpoint
 - `/ele:plan-audit`, for stale premises, contradictions, stuck waits and inbox
   triage across the active plans
 - `/ele:ticket-audit`, for stale premises and contradictions across a tracker's

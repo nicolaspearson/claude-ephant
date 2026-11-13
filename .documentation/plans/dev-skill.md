@@ -65,6 +65,20 @@ use them where it reads code or weighs designs in the main session.
 - Three approvals, then build: the user confirms the done-when, the answers to
   the question rounds, and the design where there is a real choice; after the
   last, the build runs unasked. Review is `ele:checkpoint`, then `ele:wrap`
+- Dev explores before it proposes the done-when, which opens the first
+  question round; every question's recommended answer is its first option,
+  labelled `(Recommended)`, each option carrying its evidence from the
+  explorers' findings, since a trial run's done-when rested on the task's
+  wording alone and its recommendations sat in the question text with the
+  options unranked (ruled 2026-11-13)
+  - rejected: proposing the done-when at intake, flagged as resting on the
+    task's wording, because the tests and pages that would show it done are
+    the explorers' to find
+- The user typing `/ele:dev` is the ask wrap's "never start one unasked"
+  needs, so dev runs `ele:wrap` once the checkpoint ends; wrap still asks
+  before each note, handoff or recipe it writes (ruled 2026-11-13)
+  - rejected: asking "wrap up now?" after the checkpoint, because the flow the
+    user started already ends there
 - A done-when the user confirmed in the session counts for checkpoint as a plan
   item does, so the spec reviewer runs; the brief quotes the task in the
   user's words, the done-when and the chosen design together, since the
@@ -219,6 +233,22 @@ use them where it reads code or weighs designs in the main session.
     Edit or Write before the user picks the design, a `decision` note
     proposed, and an `ele:wrap` after the checkpoint; the trial change is
     reverted unless the user keeps it
+  - as of 2026-11-13: none of the three files exists; design.md's Names
+    table Skills row and Integration list also leave out `/ele:review`,
+    `/ele:setup` and `/ele:flag`, and its "Two skills call `ele`" list names
+    only checkpoint and ticket-audit; `docs/commands.md`'s table is complete
+    and alphabetical; the README's "Skills at a glance" is free-form
+  - as of 2026-11-13: `internal/skilllint` exempts a
+    `disable-model-invocation` skill from "Use when", allows only
+    `references/`, `reviewers/`, `scripts/` and `assets/` beside `SKILL.md`,
+    and checks their code-span paths exist; no test lists skills against the
+    docs or design.md, and `plugin.json` lists no skills
+  - as of 2026-11-13: `.documentation/specs/review.md` is the one-skill spec
+    to follow, ending in `## In the plugin` with `Not doing:` lines;
+    `docs/review.md` the one-skill docs page
+  - as of 2026-11-13: no skill runs `ele:wrap`, whose description says never
+    to start one unasked; `cmd/ele` `proposalNames` counts an `ele:wrap`
+    skill event as a proposal for the Stop check
 - [ ] dev-size-eval: Add an eval case under `plugin/evals/` in which
   `/ele:dev` is handed a task spanning several sessions and tells the user to
   run `/ele:plan new`, with no Edit or Write

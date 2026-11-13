@@ -115,6 +115,7 @@ func checkPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.W
 			}
 		}
 		fmt.Fprint(stdout, redact.Redact(report.String()))
+		code = 1
 	}
 	return code
 }

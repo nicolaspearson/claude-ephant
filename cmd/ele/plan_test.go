@@ -45,7 +45,7 @@ func TestPlanSummaryRedactsTheNextTitleAndOmitsANextThatIsNone(t *testing.T) {
 	require.Equal(t, "blocked.md: 0 open, 1 blocked, 1 done, 0 in the inbox. 1 warning; ele plan check lists it.", planSummary(context.Background(), root, "blocked.md", planSet{}))
 }
 
-func TestRunPlanCheckListsEachActivePlansWarningsWithoutFailing(t *testing.T) {
+func TestRunPlanCheckListsEachActivePlansWarningsAndFailsOnAny(t *testing.T) {
 	home := recallFixture(t)
 	gateway := filepath.Join(home, "w", "corp", "gateway")
 	writeFile(t, filepath.Join(gateway, "clean.md"), "---\nkind: plan\n---\n## Actions\n- [ ] alpha: Alpha\n  done when it is\n- [ ] Close\n")
@@ -61,20 +61,30 @@ func TestRunPlanCheckListsEachActivePlansWarningsWithoutFailing(t *testing.T) {
 
 	stale := "Plan stale.md: 3 warnings.\n- line 5: as of 2026-10-01 is 20 days old; re-measure it\n- line 7: beta: no done when line\n- line 10: inbox item has no date; lead it with the date and where it came from\n"
 	output, code = runCommand(t, "plan", "check")
-	require.Equal(t, 0, code, output)
+	require.Equal(t, 1, code, output)
 	require.Contains(t, output, "Plan clean.md: no warnings, 2 items.\n")
 	require.Contains(t, output, stale)
+	output, code = runCommand(t, "plan", "check", "clean.md")
+	require.Equal(t, 0, code, output)
+	require.Equal(t, "Plan clean.md: no warnings, 2 items.\n", output)
 
 	writeFile(t, filepath.Join(gateway, "clash.md"), "---\nkind: plan\n---\n## Actions\n- [ ] beta: Again\n  done when it is\n- [ ] Close\n")
 	output, code = runCommand(t, "plan", "check", "clash.md")
-	require.Equal(t, 0, code, output)
+	require.Equal(t, 1, code, output)
 	require.Equal(t, "Plan clash.md: 1 warning.\n- item name \"beta\" is also in stale.md; item names are unique across active and closed plans\n", output, "a plan need not be started to be checked")
 
 	require.NoError(t, os.Remove(filepath.Join(gateway, "clean.md")))
 	output, code = runCommand(t, "plan", "check")
-	require.Equal(t, 0, code, output)
+	require.Equal(t, 1, code, output)
 	require.Contains(t, output, "plan clean.md is not in this checkout; switch to its branch, or ele plan done clean.md closes it.\n")
 	require.Contains(t, output, stale)
+	output, code = runCommand(t, "plan", "done", "stale.md")
+	require.Equal(t, 0, code, output)
+	output, code = runCommand(t, "plan", "check")
+	require.Equal(t, 0, code, "an active plan missing from the checkout is no warning: "+output)
+	require.Equal(t, "plan clean.md is not in this checkout; switch to its branch, or ele plan done clean.md closes it.\n", output)
+	output, code = runCommand(t, "plan", "start", "stale.md")
+	require.Equal(t, 0, code, output)
 
 	output, code = runCommand(t, "plan", "check", "clean.md")
 	require.Equal(t, 1, code)
@@ -93,7 +103,7 @@ func TestRunPlanCheckOutsideAnyOwnerCallsAnotherPlansBlockerMissing(t *testing.T
 	t.Chdir(stray)
 
 	output, code := runCommand(t, "plan", "check", "reporting.md")
-	require.Equal(t, 0, code, output)
+	require.Equal(t, 1, code, output)
 	require.Contains(t, output, "- line 5: report: blocker other/item does not exist\n", output)
 }
 
@@ -122,7 +132,7 @@ func TestRunPlanCheckSaysAPlanInAnotherRepositoryCannotBlockAndTakesItsWaitAsPro
 	require.NoError(t, os.Remove(filepath.Join(gateway, "gone.md")))
 
 	output, code = runCommand(t, "plan", "check", "reporting.md")
-	require.Equal(t, 0, code, output)
+	require.Equal(t, 1, code, output)
 	require.Contains(t, output, "Plan reporting.md: 3 warnings.\n"+
 		"- line 5: report: blocker ordinal/fallback names no started or closed plan of this project; start that plan, or write a wait on another repository's plan as prose, with no comma before its semicolon\n"+
 		"- line 8: unloaded: blocker gone/gone does not exist\n"+
@@ -155,12 +165,12 @@ func TestRunPlanCheckWarnsOnlyOnEleDataEleResolves(t *testing.T) {
 
 	warning := "cites ele data, which resolves only in its author's data directory; delete provenance, describe what was observed, and move a dependency into the plan, superseding its note\n"
 	output, code = runCommand(t, "plan", "check", "cites.md")
-	require.Equal(t, 0, code, output)
+	require.Equal(t, 1, code, output)
 	require.Equal(t, "Plan cites.md: 4 warnings.\n- line 7: "+warning+"- line 9: "+warning+"- line 10: "+warning+"- line 12: "+warning, output, "only the indexed session, its prefix, the saved note and the unsynced session's transcript resolve")
 
 	writeFile(t, filepath.Join(home, "data", "ele.db"), "not a database")
 	output, code = runCommand(t, "plan", "check", "cites.md")
-	require.Equal(t, 0, code, output)
+	require.Equal(t, 1, code, output)
 	require.Equal(t, "Plan cites.md: 7 warnings.\n- line 6: "+warning+"- line 7: "+warning+"- line 8: "+warning+"- line 9: "+warning+"- line 10: "+warning+"- line 11: "+warning+"- line 12: "+warning, output, "an unreadable index never silences the check")
 }
 
@@ -472,9 +482,9 @@ Next, line 12:
 - [ ] Commands
   next: done and list
 `, output)
-	for _, subcommand := range []string{"check", "show"} {
+	for subcommand, want := range map[string]int{"check": 1, "show": 0} {
 		output, code = runCommand(t, "plan", subcommand, ".documentation/plans/build.md")
-		require.Equal(t, 0, code, "the printed path from the checkout root resolves from a subdirectory: "+output)
+		require.Equal(t, want, code, "the printed path from the checkout root resolves from a subdirectory: "+output)
 		require.True(t, strings.HasPrefix(output, "Plan .documentation/plans/build.md: "), output)
 	}
 	outside := t.TempDir()
