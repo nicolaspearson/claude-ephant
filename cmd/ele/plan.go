@@ -102,7 +102,7 @@ func checkPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.W
 		}
 		_, warnings := plans.check(ctx, relative, parsed)
 		if len(warnings) == 0 {
-			fmt.Fprintf(stdout, "Plan %s: no warnings.\n", relative)
+			fmt.Fprintf(stdout, "Plan %s: no warnings, %s.\n", relative, plural(len(parsed.Actions), "item", "items"))
 			continue
 		}
 		var report strings.Builder

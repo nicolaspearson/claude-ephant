@@ -62,7 +62,7 @@ func TestRunPlanCheckListsEachActivePlansWarningsWithoutFailing(t *testing.T) {
 	stale := "Plan stale.md: 3 warnings.\n- line 5: as of 2026-10-01 is 20 days old; re-measure it\n- line 7: beta: no done when line\n- line 10: inbox item has no date; lead it with the date and where it came from\n"
 	output, code = runCommand(t, "plan", "check")
 	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "Plan clean.md: no warnings.\n")
+	require.Contains(t, output, "Plan clean.md: no warnings, 2 items.\n")
 	require.Contains(t, output, stale)
 
 	writeFile(t, filepath.Join(gateway, "clash.md"), "---\nkind: plan\n---\n## Actions\n- [ ] beta: Again\n  done when it is\n- [ ] Close\n")
