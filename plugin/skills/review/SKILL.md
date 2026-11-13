@@ -195,7 +195,8 @@ and 13.
 
 1. The bugs reviewer reports 80 confidence and above only; conventions and spec
    findings carry no score
-2. **Excluded**: pre-existing or on a line the change does not touch; what a
+2. **Excluded**: pre-existing or on a line the change does not touch, though a
+   spec finding of a missing requirement falls on no line and stays; what a
    failing pipeline job already reports, or a linter, typechecker or compiler
    would; silenced in the code with its reason; a behaviour change the
    description says is intended; lockfiles and generated files
@@ -223,7 +224,8 @@ and 13.
 Merge a finding two reviewers raised before verifying it. What a reviewer puts
 under its Questions heading is a **lead**, not a finding: neither classified nor
 verified, kept for step 10's second list with its `file:line`. The questions
-item 4 makes are findings, and are verified.
+item 4 makes are findings, and are verified. The bugs reviewer's Tests to
+mutate are neither: dropped uncounted, since a review mutates nothing.
 
 Done when every finding is excluded or raised with its reason, minor, refuted,
 or verified as a blocker, defect or question with its severity, and the leads
@@ -452,8 +454,8 @@ EOF
 - `verdict` of a second-list finding: as it verified
 - `verdict`: `confirmed`, verified and shown; `open`, shown as a question;
   `refuted`
-- `outcome`, on confirmed and open findings: `published`, `raw`, `skipped`,
-  `discarded` (added, then not sent), or `unanswered` (the user said that is
+- `outcome`, on confirmed and open findings: `discarded` (added, then not
+  sent), `published`, `raw`, `skipped`, or `unanswered` (the user said that is
   all, or the run stopped, before answering it)
 - `anchor`, on a `published` finding: `kind` `line`, `range` or `none`
   (unanchored), and unless `none`, `answer` from step 12's read-back: `kept`
@@ -477,5 +479,5 @@ rows added; stop and report in the running conversation.
 
 | Error contains | Class | One fix |
 | --- | --- | --- |
-| `Agent type '…review-reader' not found` | Plugin agent not loaded | Stop: a reviewer with Bash could run the tree's code; say the plugin needs reloading |
 | `401`, `403` or `not logged` from `gh` or `glab` | Forge auth | Stop; the user runs `gh auth login` or `glab auth login` |
+| `Agent type '…review-reader' not found` | Plugin agent not loaded | Stop: a reviewer with Bash could run the tree's code; say the plugin needs reloading |

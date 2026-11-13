@@ -366,8 +366,8 @@ what the fixes changed:
 One round: anything it finds is verified and then fixed or reported.
 
 §8 is done when every fingerprint matched with no held tick, or the re-reviewer
-reported on each
-reviewer file that applied and each of its findings has a verdict.
+reported on each reviewer file that applied and each finding has a verdict, and
+a gate run since the last fix to a file a §2 check reads ends as §6 requires.
 
 ## 9. Commit message
 
@@ -429,9 +429,9 @@ ele checkpoint record <root>
 A record taken before the fixes marks unreviewed bytes as reviewed, and the next
 checkpoint stops on it.
 
-It refuses without an open run of this session (§1, The run). Run §8's
-fingerprint check first, since a new freeze overwrites the saved fingerprint;
-then freeze the change list again and record.
+It refuses without an open run of this session (§1, The run). Check §8's
+fingerprint first, since a new freeze overwrites it; then freeze again, naming
+§8's second freeze's paths, or the change list if §8 skipped, and record.
 
 §11 is done when `record` prints `recorded: <root>` for every repository.
 
@@ -472,12 +472,12 @@ error here: §5, §6 and Stopping early handle it.
 
 | Error contains | Class | One fix |
 | --- | --- | --- |
-| `not covered: <root> has changed…` from `check`, exit 1 | Expected answer, not a failure | Go on with §1's status; never rerun |
+| `<path> is a directory`, `is inside the repository at` or `is neither tracked nor a file` from `freeze` | A directory, or an untracked path missing | Replace a directory with its files from §1's status, checkpointing a submodule or clone as its own repository; drop a missing one |
 | `Agent type '…checkpoint-reviewer' not found` | Plugin agent not loaded | Launch `general-purpose` with the same prompt |
 | `command not found: <tool>` in a §2 check | The check cannot run here | Report it unverified; no retry |
 | `have the change re-reviewed` from `record` | An edit after the last freeze, or a run with no saved fingerprint, unreviewed | Re-review it per §8, then freeze and record; never freeze and record alone |
-| `<path> is a directory`, `is inside the repository at` or `is neither tracked nor a file` from `freeze` | A directory, or an untracked path missing | Replace a directory with its files from §1's status, checkpointing a submodule or clone as its own repository; drop a missing one |
 | `holds the checkpoint files of` from `freeze` | Two repositories share a basename | Freeze this one into its own subdirectory of the scratchpad, and use that directory for its §8 hash |
+| `not covered: <root> has changed…` from `check`, exit 1 | Expected answer, not a failure | Go on with §1's status; never rerun |
 
 ## Stopping early
 

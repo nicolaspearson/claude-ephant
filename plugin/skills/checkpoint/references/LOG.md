@@ -12,7 +12,7 @@ The values each field of `ele checkpoint log`'s record takes.
 - `origin`: `change`, `earlier` (code older than the change), `fix` (introduced
   by a fix in this run).
 - `rereview`: `ran`, `skipped` (§8 found the fingerprint unmoved).
-- `scope`: `uncommitted`, `delta` (the freeze wrote a delta), `branch`.
+- `scope`: `branch`, `delta` (the freeze wrote a delta), `uncommitted`.
 - `severity`: `blocker` (wrong on the main path: wrong output, lost data, a broken
   build), `defect` (wrong only in a reachable edge case), `quality` (correct, but
   misleading a reader, untested, against a convention other than wording or

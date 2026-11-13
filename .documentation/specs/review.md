@@ -120,7 +120,9 @@ In order, before the user sees anything:
    `bugs.md` says; conventions and spec findings carry no score. Nothing is
    dropped here, and nothing below 80 reaches the parent to be counted
 2. Excluded:
-   - pre-existing, or on a line the change does not touch
+   - pre-existing, or on a line the change does not touch; a spec finding of
+     a missing requirement falls on no line and stays, since step 5 makes one
+     the change sets out to deliver a blocker
    - what a failing pipeline job already reports, or a linter, typechecker or
      compiler would
    - silenced in the code, a lint-ignore or a suppression with its reason
@@ -152,7 +154,9 @@ In order, before the user sees anything:
    a reviewer reports under its Questions heading is a lead, not a finding:
    neither classified nor verified, kept for the same list, and classified like
    a finding if taken further, before it is logged. The questions step 4 makes
-   are findings and are verified
+   are findings and are verified. The bugs reviewer's Tests to mutate, which
+   `bugs.md` lists for a checkpoint, are neither: dropped uncounted, since a
+   review mutates nothing and a count of them would read as findings dropped
 6. Verified by the parent against the tree, blockers, defects and questions
    only: the input traced through the code to the wrong output, by reading
    alone, never by running the tree. A refuted finding is never drafted, since a

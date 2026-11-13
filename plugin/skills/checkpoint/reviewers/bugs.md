@@ -4,7 +4,10 @@ Find what will break. You did not write this code and have not been told why it
 is right; read it adversarially.
 
 Run only a targeted probe the gate does not cover — a scratch reproduction, one
-test under a mutation — outside the repository's working tree.
+test under a mutation — outside the repository's working tree. Where the brief
+names the gate's log, read it once it ends in `gate exit`: a check failing on a
+line the change touched is a finding. Never wait on it: if it has not ended
+when you finish, say so under Questions.
 
 Comments belong to the conventions and prose reviewer. Report a false comment
 only where acting on it would make a caller write wrong code.

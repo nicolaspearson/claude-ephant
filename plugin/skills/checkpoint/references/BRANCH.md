@@ -21,4 +21,5 @@ Where its sections differ further:
 - §3: the brief names the base and the commit range, and that the prose
   reviewer runs `ele checkpoint density --ref <base> <root>`
 - §9: only the uncommitted part gets a commit; what is committed is already
-  there
+  there, so §9 is done when every uncommitted path on the change list appears
+  in exactly one printed commit, by §9's rename and `add` rules

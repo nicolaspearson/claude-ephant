@@ -7,8 +7,9 @@ reviewed, the rest — and both sides of a rename — against HEAD. It says how 
 paths changed since, and the mode it prints is the delta's. A branch freeze
 writes no delta.
 
-`0 changed`: nothing is new to review; say so, run `close` (`SKILL.md`, Stopping
-early), and stop.
+`0 changed` in every repository: nothing is new to review; say so, run `close`
+(`SKILL.md`, Stopping early) in each, and stop. In some only: run `close` in
+those, drop them from the checkpoint, and go on with the rest.
 
 The brief (§3) carries the delta diff too, and the rule that findings fall on
 lines the delta changes, the full diff being context; a finding outside it is

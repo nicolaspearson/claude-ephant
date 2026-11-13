@@ -2602,8 +2602,16 @@ keep.
     `GPL-3.0-or-later` on the user's ruling, as the bare GPLv3 text lets a
     recipient pick any version; a skill-lint test holds its description equal
     to the marketplace entry's
-  - next: the nits in groups, a checkpoint each: checkpoint and review
-    skills; the other skills; evals and CONTRIBUTING
+  - as of 2026-11-13: group 3 done, in the commit carrying this line: the
+    bugs reviewer reads the gate log; checkpoint §8 is done only once a gate
+    run after the last fix to a file a check reads ends as §6 requires, and
+    §11 freezes §8's paths; branch scope's §9, `PLAN.md`'s `plan check`, and
+    `0 changed` in one of several repositories are each stated; review keeps
+    a missing requirement and drops Tests to mutate uncounted; the Errors
+    tables and value lists are sorted; the checkpoint and review specs say
+    the same
+  - next: the nits in groups, a checkpoint each: the other skills; evals and
+    CONTRIBUTING
 - [ ] audit-fixes: The audits' data and state defects the user ruled to fix
   - done when, each by a test seen red: `ele backup` copies while holding
     the notes and forgotten locks; `ele forget A B` forgets both when A

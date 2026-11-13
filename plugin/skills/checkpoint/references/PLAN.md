@@ -32,8 +32,8 @@ Neither line cites ele data: a note id, a session id or prefix, or an `ele show`
 of one resolves only in its author's data directory. Say what was observed, not
 where; a session's evidence is described, never pointed at.
 
-Write it on approval, then run `ele plan check` and any CI check reading
-`.documentation/` over the plan file; a warning or failure on the written line is
-a finding. The plan file joins the change list, and the
+Write it on approval, then run `(cd <root> && ele plan check <path>)` and any
+CI check reading `.documentation/` over the plan file; a warning or failure on
+the written line is a finding. The plan file joins the change list, and the
 write counts as a fix for §8, which re-reviews it: a tick line is the claim a
 closure rests on, and its author does not review it.
