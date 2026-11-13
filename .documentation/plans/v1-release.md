@@ -2812,11 +2812,16 @@ keep.
 
 ### Release
 
-- [ ] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
+- [x] cut-v1: The user lands a `Release-As: 1.0.0` commit and merges the
   release PR
   - done when v1.0.0 is the latest release with its four tarballs and
     `checksums.txt`, the Tap job pushed its formula, and v1.0.0 installs from
     clean through `install.sh` and `brew`
+  - asserted 2026-11-13 from GitHub, at dae2b0a: v1.0.0 is Latest with four
+    tarballs and `checksums.txt`; Release run 43411919452 passed Build and
+    publish, Tap's formula push (homebrew-tap d621042, `ele v1.0.0`), and
+    installs printing v1.0.0 through `install.sh` on fresh macos-latest and
+    ubuntu-latest runners and through `brew` on macos-latest
 - [ ] Fold each Decision through `/ele:plan-audit close
   .documentation/plans/v1-release.md`, propose each out-of-scope line as a
   `decision` through `/ele:remember`, run `ele plan done
