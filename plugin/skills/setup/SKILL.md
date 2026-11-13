@@ -39,7 +39,7 @@ An unlisted owner the map already names needs only the owner question: confirm t
 
 On approval, run the commands in order: `ele owner add <owner>` first for a new owner, then the mapping. Pass `--no-sync` to every one but the last: each write starts a background sync, whose lock refuses the next write.
 
-When one refuses with `a sync holds the archive lock` or `no sync has completed`, run `ele sync` with the Bash tool's timeout at its maximum: it waits for a running sync, and a first sync over every transcript can take minutes. Then run the refused command once more. When the timeout cuts `ele sync` off, say a sync is still running and to run `/ele:setup` again once `ele status` shows none.
+When one refuses with `a sync or backup holds the archive lock` or `no sync has completed`, run `ele sync` with the Bash tool's timeout at its maximum: it waits for a running sync, and a first sync over every transcript can take minutes. Then run the refused command once more. When the timeout cuts `ele sync` off, say a sync is still running and to run `/ele:setup` again once `ele status` shows none.
 
 When the last command prints `nothing written` after an earlier one took `--no-sync`, run `ele sync --background`, so the earlier write is still synced.
 

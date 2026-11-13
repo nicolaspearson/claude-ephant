@@ -38,6 +38,7 @@ func TestRunTicketClaimsRefusesAnUnknownFlag(t *testing.T) {
 
 func TestRunTicketCorpusRefusesOptionsThatDoNotGoTogether(t *testing.T) {
 	for args, message := range map[string]string{
+		"--cli gh --plan p --out o":      "ele: --cli names a tracker, and --plan reads none\n",
 		"--cli jira --tickets 1 --out o": "ele: --cli \"jira\" is not glab or gh\n",
 		"--compare 1":                    "ele: --compare takes --expect and no corpus options\n",
 		"--compare 1 --expect e --clean": "ele: --compare takes --expect and no corpus options\n",
@@ -83,7 +84,11 @@ func TestRunTicketLedgerNeedsACommandAManifestAndForRecordTheRecords(t *testing.
 		require.Equal(t, 2, code, args)
 		require.True(t, strings.HasPrefix(output.String(), "ele ticket ledger record --manifest <file> --records <file> [--ledger <file>]\n"), output.String())
 	}
-	for args, message := range map[string]string{"record --manifest m.json": "ele: ticket ledger record needs --records\n", "rulings": "ele: ticket ledger needs --manifest\n"} {
+	for args, message := range map[string]string{
+		"record --manifest m.json": "ele: ticket ledger record needs --records\n",
+		"rulings":                  "ele: ticket ledger needs --manifest\n",
+		"rulings --manifest m.json --records r.json": "ele: ticket ledger rulings takes no --records\n",
+	} {
 		var output bytes.Buffer
 
 		code := ticketCommand(context.Background(), append([]string{"ledger"}, strings.Fields(args)...), &output, &output)

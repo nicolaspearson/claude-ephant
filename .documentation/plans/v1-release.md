@@ -2583,9 +2583,20 @@ keep.
     process group outlives the session, landing its file 12 seconds after
     the hook returned. Not probed: the id after an interactive `/clear`,
     left to the user
-  - next: the nits in groups, a checkpoint each: cmd and ticket flags;
-    Taskfile and manifests; checkpoint and review skills; the other skills;
-    evals and CONTRIBUTING
+  - as of 2026-11-13: group 1 done, in the commit carrying this line: the
+    owner lock message names backup, `recall --limit` below 1 is refused,
+    `ticket corpus` refuses `--cli` with `--plan` and `ledger rulings`
+    refuses `--records`, `checkpoint close` says when this session had no
+    run, `reminder close` says an unreadable done file makes the nudge due
+    now; `difflib.go` carries the PSF notice and a summary of changes, with
+    the agreement in `internal/ticket/LICENSE-PSF`; the ticket spec states
+    the ledger hash's stability
+  - 2026-11-13, ruled by the user: each release tarball also ships `LICENSE`
+    and `internal/ticket/LICENSE-PSF`, as the PSF agreement asks of a
+    derivative version, binaries included; in the Taskfile and manifests
+    group
+  - next: the nits in groups, a checkpoint each: Taskfile and manifests;
+    checkpoint and review skills; the other skills; evals and CONTRIBUTING
 - [ ] audit-fixes: The audits' data and state defects the user ruled to fix
   - done when, each by a test seen red: `ele backup` copies while holding
     the notes and forgotten locks; `ele forget A B` forgets both when A
@@ -2687,6 +2698,9 @@ keep.
   `stillLeft` ends `(remain|to go)\b`, so "two more remain" counts as work
   left but "one remains" does not, and a turn ending "done; one remains"
   reads as a done claim the gate sees nothing left against
+- 2026-11-13, from audit-tests' sort checkpoint: `internal/ticket`'s
+  `claims_test.go` and `ledger_test.go` hold test funcs out of byte order,
+  which the audits did not list
 
 ## Out of scope
 

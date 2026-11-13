@@ -85,6 +85,10 @@ func ticketCorpus(ctx context.Context, args []string, stdout io.Writer, stderr i
 		fmt.Fprintf(stderr, "ele: --cli %q is not glab or gh\n", *cli)
 		return 2
 	}
+	if *cli != "" && len(plans) > 0 {
+		fmt.Fprintln(stderr, "ele: --cli names a tracker, and --plan reads none")
+		return 2
+	}
 	mapped := 0
 	if *mapNumber != "" {
 		if mapped, err = strconv.Atoi(strings.TrimSpace(*mapNumber)); err != nil {
@@ -156,6 +160,10 @@ func ticketLedger(ctx context.Context, args []string, stdout io.Writer, stderr i
 			fmt.Fprintf(stderr, "ele: %v\n", err)
 			return 1
 		}
+	}
+	if positional[0] == "rulings" && *recordsPath != "" {
+		fmt.Fprintln(stderr, "ele: ticket ledger rulings takes no --records")
+		return 2
 	}
 	if positional[0] == "rulings" {
 		err = ticket.WriteRulings(stdout, expandHome(*manifestPath), expandHome(*ledgerPath))

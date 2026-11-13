@@ -142,9 +142,13 @@ func TestRunCheckpointGateFollowsTheRunTheRecordAndTheOptout(t *testing.T) {
 	require.Contains(t, turn(func() {
 		dirty(t, root)
 		freeze()
-		_, closed := runCheckpoint(t, "close", root)
+		output, closed := runCheckpoint(t, "close", root)
 		require.Equal(t, 0, closed)
+		require.Equal(t, "closed: "+root+"\n", output)
 	}), `"hookSpecificOutput"`, "close ended the run")
+	again, closedAgain := runCheckpoint(t, "close", root)
+	require.Equal(t, 0, closedAgain)
+	require.Equal(t, "closed: "+root+", no run was open\n", again)
 	require.Contains(t, turn(func() {
 		dirty(t, root)
 		t.Setenv("CLAUDE_CODE_SESSION_ID", "another-session")

@@ -284,6 +284,10 @@ func recall(ctx context.Context, args []string, stdout io.Writer, stderr io.Writ
 		fmt.Fprintln(stderr, "ele: pass --all or --owner, not both")
 		return 2
 	}
+	if *limit < 1 {
+		fmt.Fprintf(stderr, "ele: --limit %d is not a positive number\n", *limit)
+		return 2
+	}
 	from, err := parseSince(*since, time.Now())
 	if err != nil {
 		fmt.Fprintf(stderr, "ele: %v\n", err)

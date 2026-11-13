@@ -53,6 +53,13 @@ func TestRunReminderCloseReArmsANudge(t *testing.T) {
 	require.Equal(t, 0, code, output)
 	require.Contains(t, output, "- open  ↻ due "+week+", reminder "+nudge.ID+" (project, every 7 days)")
 
+	output, code = runCommand(t, "remember", "--kind", "reminder", "--every", "7", "--done-file", "never-written", "--session", "", "Run the unmarked check.")
+	require.Equal(t, 0, code, output)
+	unmarked := readRemembered(t, output)
+	output, code = runCommand(t, "reminder", "close", unmarked.ID)
+	require.Equal(t, 0, code, output)
+	require.Equal(t, "Closed reminder "+unmarked.ID+"; its done file cannot be read, so it is due again now.\n", output)
+
 	output, code = runCommand(t, "forget", nudge.ID)
 	require.Equal(t, 0, code, output)
 	output, code = runCommand(t, "reminder", "list", "--all")

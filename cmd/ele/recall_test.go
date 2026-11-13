@@ -148,6 +148,8 @@ func TestRunRecallRefusesBadScopeAndKinds(t *testing.T) {
 	}{
 		{args: []string{"--all", "--owner", "corp", "x"}, message: "pass --all or --owner, not both", name: "all with owner"},
 		{args: []string{"--kind", "tools", "x"}, message: `unknown kind "tools"`, name: "unknown kind"},
+		{args: []string{"--limit", "-1", "x"}, message: "--limit -1 is not a positive number", name: "negative limit"},
+		{args: []string{"--limit", "0", "x"}, message: "--limit 0 is not a positive number", name: "zero limit"},
 		{args: []string{"--owner", "corpe", "x"}, message: `unknown owner "corpe"; owner-map.json lists corp, personal`, name: "unknown owner"},
 	}
 	for _, test := range tests {

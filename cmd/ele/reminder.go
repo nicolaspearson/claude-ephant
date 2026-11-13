@@ -150,6 +150,9 @@ func reminderCommand(ctx context.Context, args []string, stdout io.Writer, stder
 				if note.Every == 0 {
 					return ""
 				}
+				if _, err := os.Stat(note.DoneFile); note.DoneFile != "" && err != nil {
+					return "; its done file cannot be read, so it is due again now"
+				}
 				return "; due again " + dueAfter(note.Every, now)
 			},
 			eligible: openReminders,

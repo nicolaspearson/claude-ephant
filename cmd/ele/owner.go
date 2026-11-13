@@ -299,7 +299,7 @@ func writeOwnerChange(ctx context.Context, dataDirectory string, change ownerCha
 		return ownerWrite{}, err
 	}
 	if !held {
-		return ownerWrite{}, errors.New("a sync holds the archive lock, so the index cannot yet say which projects change owner; ele status shows it, then retry")
+		return ownerWrite{}, errors.New("a sync or backup holds the archive lock, so the index cannot yet say which projects change owner; ele status shows it, then retry")
 	}
 	defer unlock()
 	mapPath := filepath.Join(dataDirectory, "owner-map.json")

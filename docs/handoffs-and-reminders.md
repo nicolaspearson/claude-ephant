@@ -81,7 +81,8 @@ ele remember --kind reminder --every 7 "Review open dependency updates"
 
 With no `--due`, a nudge is due today. `--done-file <path>` ties it to a file
 that something else writes when the work is done, such as a weekly report: the
-nudge is next due that long after the file last changed. An interval of whole
+nudge is next due that long after the file last changed, and due at once while
+the file cannot be read, which closing it says. An interval of whole
 days re-arms to a date, shown from the start of that day, and `24h` counts as
 one day; a shorter one re-arms to the minute, rounded up so it never shows
 early. A nudge never closes for

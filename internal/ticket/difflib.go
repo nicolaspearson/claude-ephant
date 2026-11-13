@@ -1,3 +1,10 @@
+// Ported from CPython's difflib: SequenceMatcher with no junk function and
+// autojunk on, its opcodes, grouped opcodes and ratio, and unified_diff's
+// output, translated to Go, generic over the compared element.
+//
+// Copyright (c) 2001 Python Software Foundation; All Rights Reserved.
+// Used under the PSF License Agreement, kept beside this file as LICENSE-PSF.
+
 package ticket
 
 import (

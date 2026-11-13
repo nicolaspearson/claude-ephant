@@ -205,7 +205,7 @@ func TestOwnerRefusesWhileASyncHoldsTheLock(t *testing.T) {
 
 	output, code := runCommand(t, "owner", "add-path", "/w", "corp", "--no-sync")
 	require.Equal(t, 1, code, output)
-	require.Contains(t, output, "a sync holds the archive lock")
+	require.Contains(t, output, "a sync or backup holds the archive lock")
 }
 
 func TestOwnerRefusesWhileTheIndexIsIncomplete(t *testing.T) {

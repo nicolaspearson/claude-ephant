@@ -139,8 +139,9 @@ Search past sessions and notes; every word must appear. `--owner` searches that
 owner, `--all` every owner, and `--project` only that project, under its own
 owner unless `--owner` or `--all` is given. `--kind` takes `note`, `prompt`,
 `heads-up`, `conversation` and `tool`, comma-separated. `--since` takes a local
-day or a number of days back, as `7d`. `--limit` caps the matches, 20 by default.
-`--no-sync` searches without syncing first.
+day or a number of days back, as `7d`. `--limit` caps the matches, 20 by
+default, and takes a positive number. `--no-sync` searches without syncing
+first.
 
 ```text
 ele show [--around <text> | --at <time>] [--context <n>] <session>
@@ -325,11 +326,12 @@ prints the fingerprint of the changed paths, a symlink hashed by its link text
 as git does, for comparing with a freeze's.
 `record` marks what the run froze as reviewed, as its last freeze saw it, and
 ends the run, refusing when a frozen path moved since that freeze;
-`close` ends it without a record. `log` appends a checkpoint's or review's
-record, read on stdin. `optout` exempts paths matching each glob from the gate
-for the session, refusing an absolute glob, one with a `.`, `..` or empty
-segment, one matching any path such as `*` or `**`, and one matching over half
-the repository's tracked and untracked paths.
+`close` ends it without a record, saying so when this session had no run
+there. `log` appends a checkpoint's or review's record, read on stdin.
+`optout` exempts paths matching each glob from the gate for the session,
+refusing an absolute glob, one with a `.`, `..` or empty segment, one matching
+any path such as `*` or `**`, and one matching over half the repository's
+tracked and untracked paths.
 Every freeze sweeps abandoned runs' files, crashed records' tmp files, and
 sessions' opt-outs and baselines, once untouched for 7 days; a record stays.
 `density` measures the comment share of the diff since `--ref`. `gate` and
@@ -347,7 +349,8 @@ narrowed by `--tickets`; a list of tickets with `--tickets`, comma-separated; or
 each Actions and Inbox item of the `--plan` files. `--clean` first removes the
 files an earlier corpus's manifest there lists; any other `.md` in `--out` is
 kept and refuses the run, since the corpus hash covers every `.md` there.
-`--cli` picks `glab` or `gh` over the one the remote names. `--compare`
+`--cli` picks `glab` or `gh` over the one the remote names, and is refused with
+`--plan`, which reads no tracker. `--compare`
 reads a ticket back after a write against the text in `--expect`, its body or,
 with `--note`, a comment. `ticket corpus` warns on stderr when a ticket's
 comments or a map's sub-issues reach 2,000, or a search reaches its cap: 2,000
@@ -357,7 +360,7 @@ hits on glab, 500 on gh.
 `--manifest`, keeping one line per item and text, and replaces the file whole,
 so an interrupted write leaves the old ledger, writing through a symlinked
 ledger to its target; `rulings` prints each earlier ruling on the manifest's
-items once, and whether its text changed since;
+items once, and whether its text changed since, and takes no `--records`;
 `--ledger` names the ledger file, `logs/ticket-audits.jsonl` in the data
 directory by default.
 

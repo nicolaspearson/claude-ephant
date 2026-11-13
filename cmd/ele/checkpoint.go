@@ -71,9 +71,19 @@ func checkpointCheck(ctx context.Context, args []string, _ io.Reader, stdout io.
 
 func checkpointClose(ctx context.Context, args []string, _ io.Reader, stdout io.Writer, stderr io.Writer) int {
 	return withCheckpointRoot(ctx, "checkpoint close", args, stdout, stderr, func(root string) int {
+		run, err := checkpoint.RunFile(ctx, root, checkpoint.Session())
+		if err != nil {
+			fmt.Fprintf(stderr, "ele: %v\n", err)
+			return 1
+		}
+		_, markerErr := os.Stat(run + ".open")
 		if err := checkpoint.Close(ctx, root, checkpoint.Session()); err != nil {
 			fmt.Fprintf(stderr, "ele: %v\n", err)
 			return 1
+		}
+		if markerErr != nil {
+			fmt.Fprintf(stdout, "closed: %s, no run was open\n", root)
+			return 0
 		}
 		fmt.Fprintf(stdout, "closed: %s\n", root)
 		return 0
