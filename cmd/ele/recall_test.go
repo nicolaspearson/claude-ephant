@@ -293,7 +293,7 @@ func TestRunReindexRebuildsFromTheArchiveAndNotes(t *testing.T) {
 }
 
 func TestRunShowCentresOnAMatch(t *testing.T) {
-	recallFixture(t)
+	home := recallFixture(t)
 
 	output, code := runCommand(t, "show", "abc", "--around", "WRAPPER", "--context", "0")
 	require.Equal(t, 0, code, output)
@@ -313,6 +313,24 @@ func TestRunShowCentresOnAMatch(t *testing.T) {
 	output, code = runCommand(t, "show", "abc", "--at", "2026-10-15T10:00", "--context", "0")
 	require.Equal(t, 0, code, output)
 	require.Contains(t, output, "entries 1–1 of 2")
+
+	output, code = runCommand(t, "show", "abc", "--at", "2026-10-15T09:00:30-01:00", "--context", "0")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "entries 2–2 of 2")
+
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	stamped := func(uuid string, timestamp string, text string) string {
+		return `{"type":"user","cwd":"` + gateway + `","sessionId":"ms3","timestamp":"` + timestamp + `","uuid":"` + uuid + `","message":{"content":"` + text + `"}}` + "\n"
+	}
+	writeFile(t, filepath.Join(home, ".claude", "projects", "-gateway", "ms3.jsonl"),
+		stamped("ms3-1", "2026-10-15T09:59:00Z", "before the second")+
+			stamped("ms3-2", "2026-10-15T10:00:00.500Z", "inside the second")+
+			stamped("ms3-3", "2026-10-15T10:01:00Z", "after the second"))
+	output, code = runCommand(t, "sync")
+	require.Equal(t, 0, code, output)
+	output, code = runCommand(t, "show", "ms3", "--at", "2026-10-15T10:00:00Z", "--context", "0")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "inside the second")
 
 	output, code = runCommand(t, "show", "abc", "--at", "2026-10-15T10:02:00Z")
 	require.Equal(t, 1, code)

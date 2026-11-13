@@ -300,14 +300,15 @@ func (x *Index) updateFile(ctx context.Context, path string, relative string, pr
 	return summary, tx.Commit()
 }
 
-// Resolve walks to the git root so a subdirectory lands on its repo; outside a repo the directory names itself.
+// Resolve walks to the git root, or a linked worktree's main repository, so a subdirectory lands on its repo; outside a
+// repo the directory names itself.
 func (p *Projects) Resolve(directory string) (project string, owner string) {
 	if directory == "" {
 		return "", ""
 	}
 	root, ok := p.roots[directory]
 	if !ok {
-		root = GitRoot(directory)
+		root = repositoryRoot(directory)
 		p.roots[directory] = root
 	}
 	project = filepath.Base(root)
@@ -325,4 +326,32 @@ func GitRoot(directory string) string {
 		}
 		current = parent
 	}
+}
+
+// A linked worktree is its main repository's project; a submodule, with no commondir, and a bare repository keep their own.
+func repositoryRoot(directory string) string {
+	root := GitRoot(directory)
+	pointer, err := os.ReadFile(filepath.Join(root, ".git"))
+	if err != nil {
+		return root
+	}
+	gitDirectory, ok := strings.CutPrefix(strings.TrimSpace(string(pointer)), "gitdir: ")
+	if !ok {
+		return root
+	}
+	if !filepath.IsAbs(gitDirectory) {
+		gitDirectory = filepath.Join(root, gitDirectory)
+	}
+	common, err := os.ReadFile(filepath.Join(gitDirectory, "commondir"))
+	if err != nil {
+		return root
+	}
+	commonDirectory := strings.TrimSpace(string(common))
+	if !filepath.IsAbs(commonDirectory) {
+		commonDirectory = filepath.Join(gitDirectory, commonDirectory)
+	}
+	if filepath.Base(commonDirectory) != ".git" {
+		return root
+	}
+	return filepath.Dir(commonDirectory)
 }

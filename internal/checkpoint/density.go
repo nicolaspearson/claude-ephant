@@ -111,6 +111,10 @@ func addedLines(diff string) (map[string]int, map[string]int) {
 	added, comments := map[string]int{}, map[string]int{}
 	current := ""
 	for _, line := range splitLines(diff, "\n") {
+		// git ends a header with a tab when its path holds a space.
+		if strings.HasPrefix(line, "+++ ") {
+			line = strings.TrimSuffix(line, "\t")
+		}
 		if after, ok := strings.CutPrefix(line, "+++ b/"); ok {
 			current = after
 			continue

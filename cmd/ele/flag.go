@@ -128,7 +128,7 @@ func saveFlag(ctx context.Context, verdict string, args []string, stdout io.Writ
 	return 0
 }
 
-// The moment is an indexed entry's own timestamp, so ele show --at compares it as a string and lands on that entry.
+// The moment is an indexed entry's own timestamp, so ele show --at lands on that entry.
 func indexedMoment(ctx context.Context, prefix string, at string) (session string, moment string, code int, err error) {
 	var wanted time.Time
 	if at != "" {

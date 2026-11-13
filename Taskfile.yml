@@ -37,12 +37,11 @@ tasks:
       - task: tidy-check
       - task: test
   precommit:
-    desc: "Format, then run check."
+    desc: "Rewrite with go fix, format, then run check."
     cmds:
+      - task: fix
       - task: format
       - task: check
-      - task: lint-fix
-      - task: fix
 
   setup:
     desc: "Download modules and install the tooling."
@@ -228,7 +227,7 @@ tasks:
       - sh: '[ "$(rumdl --version | cut -d" " -f2)" = "{{.RUMDL_VERSION}}" ]'
         msg: "rumdl is not {{.RUMDL_VERSION}}, the version CI pins — run: task setup-rumdl"
     cmds:
-      - gofmt -w .
+      - gofmt -s -w .
       - rumdl fmt .
 
   lint:
@@ -252,7 +251,7 @@ tasks:
         msg: "staticcheck was built with a different Go than {{.GO_VERSION}} — run: task setup-tools"
     cmds:
       - |
-        unformatted=$(gofmt -l .)
+        unformatted=$(gofmt -s -l .)
         if [ -n "$unformatted" ]; then
           echo "$unformatted"
           echo "Not gofmt-clean; run: task format"

@@ -33,6 +33,19 @@ func TestDensityCreditsAQuotedPathAndIgnoresTheUsersDiffPrefixes(t *testing.T) {
 	require.Equal(t, densityHeader+expectedRow(`b"q.go`, 2, 2, 100, 17, -1, 0, "  <-- diff denser than its yardstick")+"\n1 file(s) flagged on this diff. In these, treat every added comment as deletable until it survives the sibling, restatement, pointer and audience tests.\n", output)
 }
 
+func TestDensityCreditsAPathHoldingASpace(t *testing.T) {
+	for _, name := range []string{"my file.go", `q" t.go`} {
+		t.Run(name, func(t *testing.T) {
+			root := densityRepository(t, map[string]string{"a.go": sourceLines(10, 0), name: sourceLines(10, 0)})
+			writeFile(t, root, name, sourceLines(10, 0)+"// why\n// because\n")
+
+			output := measureDensity(t, root)
+
+			require.Equal(t, densityHeader+expectedRow(name, 2, 2, 100, 17, -1, 0, "  <-- diff denser than its yardstick")+"\n1 file(s) flagged on this diff. In these, treat every added comment as deletable until it survives the sibling, restatement, pointer and audience tests.\n", output)
+		})
+	}
+}
+
 func TestDensityFlagsADiffDenserThanItsFileWithNoPeers(t *testing.T) {
 	root := densityRepository(t, map[string]string{"main.go": sourceLines(10, 0)})
 	writeFile(t, root, "main.go", sourceLines(10, 0)+"// why\n// because\nx := 1\nx := 2\n")

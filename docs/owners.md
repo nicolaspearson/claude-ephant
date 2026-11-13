@@ -36,8 +36,10 @@ it.
 ## How a session gets its owner
 
 A session's project is the basename of the git root above its working
-directory, or the directory itself outside a repository. Its owner is decided
-in this order:
+directory, or the directory itself outside a repository. In a linked worktree
+it is the main repository's name, so a worktree shares its repository's notes;
+once the worktree is removed, a rebuilt index files its sessions under the
+worktree's folder name again. Its owner is decided in this order:
 
 1. A project entry, set with `ele owner add-project <name> <owner>`, wins
 2. Otherwise the longest path rule containing the working directory decides, so

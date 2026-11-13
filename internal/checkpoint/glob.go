@@ -25,49 +25,29 @@ func MatchGlob(glob string, text string) bool {
 	return match([]rune(glob), []rune(text))
 }
 
+// Only the last `*` is retried: every other token takes one rune, and retrying each star is exponential.
 func match(glob []rune, text []rune) bool {
-	for len(glob) > 0 {
-		switch glob[0] {
-		case '*':
-			for len(glob) > 0 && glob[0] == '*' {
-				glob = glob[1:]
-			}
-			for skip := 0; skip <= len(text); skip++ {
-				if match(glob, text[skip:]) {
-					return true
-				}
-			}
-			return false
-		case '?':
-			if len(text) == 0 {
-				return false
-			}
-			glob, text = glob[1:], text[1:]
-		case '[':
-			if matched, rest, ok := matchClass(glob, text); ok {
-				if !matched {
-					return false
-				}
-				glob, text = rest, text[1:]
+	g, t := 0, 0
+	star, starText := -1, 0
+	for g < len(glob) || t < len(text) {
+		if g < len(glob) && glob[g] == '*' {
+			star, starText = g, t
+			g++
+			continue
+		}
+		if g < len(glob) {
+			if rest, ok := matchOne(glob[g:], text[t:]); ok {
+				g, t = len(glob)-len(rest), t+1
 				continue
 			}
-			if len(text) == 0 || text[0] != '[' {
-				return false
-			}
-			glob, text = glob[1:], text[1:]
-		case '\\':
-			if len(glob) > 1 {
-				glob = glob[1:]
-			}
-			fallthrough
-		default:
-			if len(text) == 0 || text[0] != glob[0] {
-				return false
-			}
-			glob, text = glob[1:], text[1:]
 		}
+		if star < 0 || starText == len(text) {
+			return false
+		}
+		starText++
+		g, t = star+1, starText
 	}
-	return len(text) == 0
+	return true
 }
 
 // matchClass is not ok where the bracket never closes, which bash reads as a literal `[`.
@@ -112,4 +92,23 @@ func matchClass(glob []rune, text []rune) (matched bool, rest []rune, ok bool) {
 		}
 	}
 	return false, nil, false
+}
+
+func matchOne(glob []rune, text []rune) (rest []rune, ok bool) {
+	if len(text) == 0 {
+		return nil, false
+	}
+	switch glob[0] {
+	case '?':
+		return glob[1:], true
+	case '[':
+		if matched, rest, ok := matchClass(glob, text); ok {
+			return rest, matched
+		}
+	case '\\':
+		if len(glob) > 1 {
+			glob = glob[1:]
+		}
+	}
+	return glob[1:], text[0] == glob[0]
 }

@@ -61,9 +61,10 @@ as new as the plugin.
   `task test FORCE=1` and `task check FORCE=1` bypass the test cache
 - `task audit` runs `govulncheck`. It needs the network, so `check` leaves it
   out
-- `task format` formats Go and Markdown; `task precommit` formats, runs
-  `check`, then rewrites with `gofmt -s` and `go fix`
-- `lint` runs `gofmt`, `go vet`, `shadow`, `staticcheck`, `shellcheck` on
+- `task format` formats Go, with `gofmt -s`, and Markdown; `task precommit`
+  rewrites with `go fix`, formats, then runs `check`, so `check` passes the
+  tree left to commit
+- `lint` runs `gofmt -s`, `go vet`, `shadow`, `staticcheck`, `shellcheck` on
   `install.sh`, `actionlint` on the workflows, their `run:` blocks through
   shellcheck, and `rumdl`, which also fails a relative link to a missing file
   or heading. `lint-docs` fails a `.go` or `.html` line-number citation, or a

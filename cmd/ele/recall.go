@@ -47,6 +47,19 @@ type discussionRegion struct {
 	low    int
 }
 
+// A prefix, such as 2026-10-15T10:00, or a stamp that is not RFC 3339, such as a note's date, compares as text.
+func atOrAfter(timestamp string, at string) bool {
+	wanted, err := time.Parse(time.RFC3339Nano, at)
+	if err != nil {
+		return timestamp >= at
+	}
+	stamped, err := time.Parse(time.RFC3339Nano, timestamp)
+	if err != nil {
+		return timestamp >= at
+	}
+	return !stamped.Before(wanted)
+}
+
 func clip(text string, limit int) string {
 	text = strings.Join(strings.Fields(text), " ")
 	if runes := []rune(text); len(runes) > limit {
@@ -466,7 +479,7 @@ func show(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer
 		start, end = max(found-*window, 0), min(found+*window+1, len(entries))
 	}
 	if *at != "" {
-		found := slices.IndexFunc(entries, func(entry index.Result) bool { return entry.Timestamp >= *at })
+		found := slices.IndexFunc(entries, func(entry index.Result) bool { return atOrAfter(entry.Timestamp, *at) })
 		if found < 0 {
 			fmt.Fprintf(stderr, "ele: no entry in session %s is at or after %s\n", entries[0].Session, *at)
 			return 1

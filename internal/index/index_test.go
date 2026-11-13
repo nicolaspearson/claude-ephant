@@ -43,6 +43,50 @@ func TestResolveFallsBackToTheDirectoryOutsideARepository(t *testing.T) {
 	require.Empty(t, owner)
 }
 
+func TestResolveNamesALinkedWorktreeAfterItsMainRepository(t *testing.T) {
+	base := t.TempDir()
+	repository := filepath.Join(base, "claude-ephant")
+	worktreeGit := filepath.Join(repository, ".git", "worktrees", "feature")
+	require.NoError(t, os.MkdirAll(worktreeGit, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(worktreeGit, "commondir"), []byte("../..\n"), 0o600))
+	worktree := filepath.Join(base, "feature-checkout")
+	require.NoError(t, os.MkdirAll(filepath.Join(worktree, "cmd"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(worktree, ".git"), []byte("gitdir: "+worktreeGit+"\n"), 0o600))
+	relativeGit := filepath.Join(repository, ".git", "worktrees", "relative")
+	require.NoError(t, os.MkdirAll(relativeGit, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(relativeGit, "commondir"), []byte(filepath.Join(repository, ".git")), 0o600))
+	relative := filepath.Join(base, "relative-checkout")
+	require.NoError(t, os.MkdirAll(relative, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(relative, ".git"), []byte("gitdir: ../claude-ephant/.git/worktrees/relative\r\n"), 0o600))
+	bareGit := filepath.Join(base, "mirror.git", "worktrees", "bare")
+	require.NoError(t, os.MkdirAll(bareGit, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(bareGit, "commondir"), []byte("../..\n"), 0o600))
+	bare := filepath.Join(base, "bare-checkout")
+	require.NoError(t, os.MkdirAll(bare, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(bare, ".git"), []byte("gitdir: "+bareGit+"\n"), 0o600))
+	submoduleGit := filepath.Join(repository, ".git", "modules", "vendored")
+	require.NoError(t, os.MkdirAll(submoduleGit, 0o700))
+	submodule := filepath.Join(repository, "vendored")
+	require.NoError(t, os.MkdirAll(submodule, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(submodule, ".git"), []byte("gitdir: ../.git/modules/vendored\n"), 0o600))
+	projects := NewProjects(ownermap.OwnerMap{})
+
+	project, _ := projects.Resolve(filepath.Join(worktree, "cmd"))
+	require.Equal(t, "claude-ephant", project)
+
+	project, _ = projects.Resolve(relative)
+	require.Equal(t, "claude-ephant", project)
+
+	project, _ = projects.Resolve(bare)
+	require.Equal(t, "bare-checkout", project)
+
+	project, _ = projects.Resolve(submodule)
+	require.Equal(t, "vendored", project)
+
+	project, _ = projects.Resolve(repository)
+	require.Equal(t, "claude-ephant", project)
+}
+
 func TestUpdateIndexesNewArchiveBytesWithOwners(t *testing.T) {
 	root := t.TempDir()
 	repository := filepath.Join(root, "w", "corp", "gateway")

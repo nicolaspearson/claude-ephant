@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -14,7 +12,6 @@ import (
 	"github.com/nicolaspearson/claude-ephant/internal/notes"
 	"github.com/nicolaspearson/claude-ephant/internal/ownermap"
 	"github.com/nicolaspearson/claude-ephant/internal/profile"
-	"github.com/nicolaspearson/claude-ephant/internal/transcript"
 )
 
 // The live transcript, not the index: a sync can be a session behind.
@@ -47,26 +44,10 @@ func contextSize(stdout io.Writer, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "ele: found %d transcripts for session %s, not one\n", len(paths), session)
 		return 1
 	}
-	file, err := os.Open(paths[0])
+	tokens, err := lastContextTokens(paths[0])
 	if err != nil {
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return 1
-	}
-	defer file.Close()
-	tokens := 0
-	lines := bufio.NewReaderSize(file, 1<<20)
-	for {
-		line, readErr := lines.ReadBytes('\n')
-		if total, ok := transcript.ContextTokens(line); ok {
-			tokens = total
-		}
-		if errors.Is(readErr, io.EOF) {
-			break
-		}
-		if readErr != nil {
-			fmt.Fprintf(stderr, "ele: read %s: %v\n", paths[0], readErr)
-			return 1
-		}
 	}
 	if tokens == 0 {
 		fmt.Fprintf(stderr, "ele: session %s has no response with token usage yet\n", session)

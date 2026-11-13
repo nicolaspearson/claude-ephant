@@ -88,7 +88,11 @@ func TestFingerprintSurvivesStagingAndMovesOnAnEdit(t *testing.T) {
 
 func TestMatchGlobMatchesAsBashDoes(t *testing.T) {
 	for glob, cases := range map[string]map[string]bool{
+		"*":           {"": true, "a/b": true},
+		"**x":         {"x": true, "ax": true, "xa": false},
 		"*.md":        {"a.md": true, "deck/a.md": true, "a.go": false},
+		"*a*b":        {"ab": true, "xaybz": false, "xaybzb": true, "ba": false},
+		"?*?":         {"a": false, "ab": true, "abc": true},
 		"[!]]":        {"]": false, "x": true},
 		"[!q]*":       {"q": false, "x": true},
 		"[]a]":        {"]": true, "a": true, "b": false},
@@ -100,6 +104,17 @@ func TestMatchGlobMatchesAsBashDoes(t *testing.T) {
 		for text, want := range cases {
 			require.Equal(t, want, MatchGlob(glob, text), "%q against %q", glob, text)
 		}
+	}
+}
+
+func TestMatchGlobStaysFastOnManyStars(t *testing.T) {
+	done := make(chan bool, 1)
+	go func() { done <- MatchGlob("*a*a*a*a*a*a*b", strings.Repeat("a", 200)) }()
+	select {
+	case matched := <-done:
+		require.False(t, matched)
+	case <-time.After(time.Second):
+		t.Fatal("MatchGlob took over a second")
 	}
 }
 
