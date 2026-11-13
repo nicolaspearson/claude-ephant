@@ -140,6 +140,10 @@ other item is ticked.
 
 ## Inbox
 
+- 2026-11-13, from the v1-release close checkpoint's re-review: `internal/plan`'s
+  resolve tests inject the lookup, so no test covers the real lookup scoping a
+  same-project `<plan>/<item>` edge, which `foreign-blockers` changes
+
 ## Out of scope
 
 - Detecting cycles that run across repositories: `ele plan check` would load
