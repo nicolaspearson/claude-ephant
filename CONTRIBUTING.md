@@ -88,7 +88,11 @@ and `task eval -- ./plugin` the clone's. Each case is a directory under
 that sets those and the prompt and can name a `scaffold.sh` that prepares the
 sandbox first. `task eval` grants Bash and Write, which a case gets only when
 its own tools list them. Each run is a real session on your account and costs
-model calls, so no gate runs it.
+model calls, so no gate runs it. The `recipe-audit` case needs Go on `PATH`:
+its `reports-stale-flag` grader wants the audit to report `go build`'s missing
+`-fastlink`, found from Go's help, and its `reports-stale-pin` grader wants the
+scaffold's `go1.21.0` reported as older than the installed Go, which must be
+1.22 or newer.
 
 A grader is deterministic wherever the trace or the reply allows: a judge's
 verdict can flip between runs on the same reply, and `task eval`'s default

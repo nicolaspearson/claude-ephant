@@ -2454,7 +2454,16 @@ keep.
     siblings say `directory`; `take.go` and `units.go`'s `Named` read JSON
     Lines with the same loop and key, which `UnitKey` names; `report.go`'s
     `cut` and `digest.go`'s `clip` truncate alike
-- [ ] audit-questions: Answer the audits' open questions
+- [x] audit-questions: Answer the audits' open questions
+  - asserted in the audit-questions commit, after 1319cf3, c0b856e, 25525d6,
+    0fc6bbf and ba18e8b: each question and nit below is moved to
+    audit-fixes, fixed in one of five groups, a checkpoint each, kept,
+    dropped or ruled out of scope on the user's 2026-11-13 rulings, or found
+    resolved by the premise check; headless probes on Claude Code 2.1.311 answered the
+    `stop_hook_active`, resumed-session and SessionEnd questions, needing no
+    change, and the id after an interactive `/clear` is left to the user,
+    unprobed; groups 1 and 2's changed tests each failed against a mutation
+    of the code they cover, and groups 3 to 5 changed no tests
   - done when each question below is answered, then moved to an action or
     dropped, and each nit beside them is fixed or dropped, on the user's ruling
   - 2026-10-30, from audit-cmd: questions on the data commands, each unsettled
@@ -2622,7 +2631,13 @@ keep.
   - 2026-11-13, ruled by the user: handoff's two groups stay, as the
     `handoff-list` eval's scaffold and grader pin them; the audit's handoff
     nit is dropped
-  - next: the last group, a checkpoint: evals and CONTRIBUTING
+  - as of 2026-11-13: group 5 done, in the commit carrying this line:
+    CONTRIBUTING's Evals section states the Go the `recipe-audit` case needs
+  - 2026-11-13, ruled by the user: the eval nits are dropped as deliberate:
+    `reads-adr` and `writes` check the Read and Write tools Claude Code reads
+    and creates files with, `links` the fixture's own `.claude-a`,
+    `flag-saves` a successful save, and the forge comment draws npm's entry
+    file on purpose
 - [ ] audit-fixes: The audits' data and state defects the user ruled to fix
   - done when, each by a test seen red: `ele backup` copies while holding
     the notes and forgotten locks; `ele forget A B` forgets both when A
