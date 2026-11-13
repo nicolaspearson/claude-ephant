@@ -179,6 +179,30 @@ func TestUpdateNamesAToolErrorByItsCall(t *testing.T) {
 	}, events)
 }
 
+func TestDisputingReplyMatchesEachDisputeWording(t *testing.T) {
+	tests := []struct {
+		disputed bool
+		reply    string
+	}{
+		{disputed: false, reply: "All done."},
+		{disputed: false, reply: "Checkpointing now."},
+		{disputed: false, reply: "The checkpoint is recorded."},
+		{disputed: true, reply: "A read-only look."},
+		{disputed: true, reply: "Mid-task, more to come."},
+		{disputed: true, reply: "No file changed."},
+		{disputed: true, reply: "No files changed."},
+		{disputed: true, reply: "That isn't done yet."},
+		{disputed: true, reply: "That was an investigation."},
+		{disputed: true, reply: "This is not a checkpoint."},
+		{disputed: true, reply: "This isn't a checkpoint."},
+		{disputed: true, reply: "Waiting on you."},
+		{disputed: true, reply: "Work is not done."},
+	}
+	for _, test := range tests {
+		require.Equal(t, test.disputed, disputingReply.MatchString(test.reply), test.reply)
+	}
+}
+
 func TestEventsFollowAHookBlockToItsReply(t *testing.T) {
 	root := t.TempDir()
 	projects := filepath.Join(root, "projects")

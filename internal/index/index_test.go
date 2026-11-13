@@ -150,6 +150,27 @@ func TestUpdateIndexesNewArchiveBytesWithOwners(t *testing.T) {
 	require.Len(t, rows(t, index), 4)
 }
 
+func TestUpdateIndexesThroughASymlinkedArchiveDirectory(t *testing.T) {
+	root := t.TempDir()
+	projects := filepath.Join(root, "projects")
+	archiveDirectory := filepath.Join(root, "archive")
+	write(t, filepath.Join(projects, "-a", "s1.jsonl"), line("user", "/a", `"first prompt"`))
+	unlock, err := archive.Lock(archiveDirectory)
+	require.NoError(t, err)
+	_, err = archive.Sync([]archive.Source{{Directory: projects, Profile: "claude"}}, archiveDirectory)
+	unlock()
+	require.NoError(t, err)
+	link := filepath.Join(root, "linked")
+	require.NoError(t, os.Symlink(archiveDirectory, link))
+	index := open(t, filepath.Join(root, "ele.db"))
+
+	summary, err := index.Update(context.Background(), link, NewProjects(ownermap.OwnerMap{}), hookversion.Open(filepath.Join(root, hookversion.Directory)))
+	require.NoError(t, err)
+
+	require.Equal(t, Summary{Entries: 1, Files: 1}, summary)
+	require.Equal(t, []string{"first prompt"}, match(t, index, "first"))
+}
+
 func TestUpdateSkipsAnArchiveFileShorterThanItIndexedAndIndexesTheRest(t *testing.T) {
 	root := t.TempDir()
 	projects := filepath.Join(root, "projects")

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -55,12 +56,35 @@ func TestSearchRanksKindsThenRelevanceWithinFilters(t *testing.T) {
 	require.Len(t, results, 2)
 }
 
+func TestSearchSinceComparesATranscriptEntryByItsInstant(t *testing.T) {
+	root := t.TempDir()
+	projects := filepath.Join(root, "projects")
+	at := func(timestamp string, content string) string {
+		return strings.Replace(line("user", "/a", content), "2026-10-15T10:00:00Z", timestamp, 1)
+	}
+	write(t, filepath.Join(projects, "-a", "s1.jsonl"),
+		at("2026-10-26T19:00:00Z", `"pydantic before local midnight"`)+at("2026-10-26T21:00:00Z", `"pydantic after local midnight"`))
+	index := open(t, filepath.Join(root, "ele.db"))
+	update(t, index, projects, filepath.Join(root, "archive"), ownermap.OwnerMap{})
+
+	results, err := index.Search(context.Background(), Query{Since: time.Date(2026, 10, 27, 0, 0, 0, 0, time.FixedZone("UTC+4", 4*60*60)), Text: "pydantic"})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Equal(t, "«pydantic» after local midnight", results[0].Text)
+}
+
 func TestSearchTreatsQueryPunctuationAsWords(t *testing.T) {
-	index := searchFixture(t)
+	root := t.TempDir()
+	projects := filepath.Join(root, "projects")
+	write(t, filepath.Join(projects, "-a", "s1.jsonl"),
+		line("user", "/a", `"the stop-check hook fired on an unbalanced quote"`)+line("user", "/a", `"check it before you stop, unbalanced or not"`))
+	index := open(t, filepath.Join(root, "ele.db"))
+	update(t, index, projects, filepath.Join(root, "archive"), ownermap.OwnerMap{})
 
 	results, err := index.Search(context.Background(), Query{Text: `stop-check "unbalanced`})
 	require.NoError(t, err)
-	require.Empty(t, results)
+	require.Len(t, results, 1)
+	require.Equal(t, "the «stop-check» hook fired on an «unbalanced» quote", results[0].Text)
 
 	results, err = index.Search(context.Background(), Query{Text: "   "})
 	require.NoError(t, err)

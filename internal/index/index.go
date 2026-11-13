@@ -163,10 +163,14 @@ func (x *Index) ProjectDirectories(ctx context.Context) ([]dto.ProjectDirectory,
 	return directories, rows.Err()
 }
 
-// Update expects the caller to hold the archive lock.
-func (x *Index) Update(ctx context.Context, directory string, projects *Projects, versions *hookversion.Log) (Summary, error) {
+// Update expects the caller to hold the archive lock. WalkDir does not descend a symlinked root, so the root is resolved first.
+func (x *Index) Update(ctx context.Context, archiveDirectory string, projects *Projects, versions *hookversion.Log) (Summary, error) {
 	var summary Summary
-	err := filepath.WalkDir(directory, func(path string, entry fs.DirEntry, err error) error {
+	directory, err := filepath.EvalSymlinks(archiveDirectory)
+	if err != nil {
+		return summary, err
+	}
+	err = filepath.WalkDir(directory, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			if path == directory {
 				return err
