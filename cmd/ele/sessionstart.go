@@ -64,17 +64,6 @@ func handoffSection(dataDirectory string, pending []notes.Note, now time.Time, a
 	return section.String()
 }
 
-func noteSource(note notes.Note) string {
-	written := note.Date
-	if when, err := time.Parse(time.RFC3339, note.Time); err == nil {
-		written = when.UTC().Format("2006-01-02 15:04Z")
-	}
-	if note.Session != "" {
-		written += ", session " + note.Session[:min(len(note.Session), sessionPrefix)]
-	}
-	return "note " + note.ID + " of " + written
-}
-
 func hookSource(input io.Reader) (source string, session string) {
 	var hook struct {
 		SessionID string `json:"session_id"`
@@ -112,6 +101,17 @@ func noteLine(note notes.Note) string {
 		from = " (session " + note.Session[:min(len(note.Session), sessionPrefix)] + ")"
 	}
 	return fmt.Sprintf("- %s %s %s%s: %s\n", note.Date, note.Kind, note.ID, from, redact.Redact(strings.Join(strings.Fields(note.Body), " ")))
+}
+
+func noteSource(note notes.Note) string {
+	written := note.Date
+	if when, err := time.Parse(time.RFC3339, note.Time); err == nil {
+		written = when.UTC().Format("2006-01-02 15:04Z")
+	}
+	if note.Session != "" {
+		written += ", session " + note.Session[:min(len(note.Session), sessionPrefix)]
+	}
+	return "note " + note.ID + " of " + written
 }
 
 func planSection(ctx context.Context, all []notes.Note, project string, noteDirectory string, source string) (section string, instruction string) {

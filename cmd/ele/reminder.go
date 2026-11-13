@@ -156,15 +156,17 @@ func reminderCommand(ctx context.Context, args []string, stdout io.Writer, stder
 				return "; due again " + dueAfter(note.Every, now)
 			},
 			eligible: openReminders,
+			lister:   "ele reminder list",
 			load:     projectOrEverywhereNotes,
-			refusal:  "an open reminder of %s; ele reminder list lists them",
+			wanted:   "an open reminder",
 		},
 		"reopen": {
 			apply:        notes.ClearClosed,
 			confirmation: "Reopened",
 			eligible:     closedReminders,
+			lister:       "ele reminder list --all",
 			load:         projectOrEverywhereNotes,
-			refusal:      "a closed reminder of %s; ele reminder list --all lists them",
+			wanted:       "a closed reminder",
 		},
 	}
 	if len(args) == 0 {
@@ -193,7 +195,7 @@ func remindersHere(all []notes.Note, project string) []notes.Note {
 	return matched
 }
 
-// withNextDue replaces each nudge's Due with its next due date and sorts by it.
+// Sorts by Due in place; a done file moves Due to its interval after the file changed, or today while it is unreadable.
 func withNextDue(reminders []notes.Note, now time.Time) []notes.Note {
 	for at := range reminders {
 		reminders[at].Due = nextDue(reminders[at], now)

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -10,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -98,11 +98,8 @@ func listCounts(counts map[string]int) string {
 	for name := range counts {
 		names = append(names, name)
 	}
-	sort.Slice(names, func(i, j int) bool {
-		if counts[names[i]] != counts[names[j]] {
-			return counts[names[i]] > counts[names[j]]
-		}
-		return names[i] < names[j]
+	slices.SortFunc(names, func(a, b string) int {
+		return cmp.Or(cmp.Compare(counts[b], counts[a]), cmp.Compare(a, b))
 	})
 	parts := make([]string, 0, len(names))
 	for _, name := range names {
@@ -435,7 +432,6 @@ func writeStatus(stdout io.Writer, now time.Time) error {
 		// Whole runs, newest first, so every line shows under its run's header; the newest alone may be cut.
 		var shown []string
 		for _, run := range slices.Backward(runs) {
-
 			if len(shown)+len(run) > syncLogTail {
 				if len(shown) == 0 {
 					shown = append([]string{run[0]}, run[len(run)-syncLogTail+1:]...)

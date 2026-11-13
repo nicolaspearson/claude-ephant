@@ -125,25 +125,6 @@ func advance(state stopState, entries []transcript.Entry, events []dto.Transcrip
 	return state
 }
 
-// An edit stamped before the last proposal was cleared by it. Else, while a checkpoint runs, one stamped after it started
-// is a reviewer's. An unstamped one is work: a doubtful edit costs an ask, not lost work.
-func subagentEdit(state stopState, timestamp string) stopState {
-	stamped := timestamp != ""
-	switch {
-	case stamped && timestamp < state.NotesProposed:
-		state.MidTask = state.MidTask || !state.InCheckpoint
-	case !state.InCheckpoint:
-		state.MidTask, state.Pending = true, true
-	case !stamped || timestamp <= state.CheckpointStarted:
-		state.Pending = true
-	}
-	return state
-}
-
-func subagentWorks(entry transcript.Entry) bool {
-	return entry.Kind == transcript.KindTool && slices.ContainsFunc(subagentWorkTools, func(tool string) bool { return strings.HasPrefix(entry.Text, tool+": ") })
-}
-
 // Only whole lines are consumed: a live transcript's last line can be half written.
 // At least one line whatever the deadline, so each stop advances.
 func consumeLines(file *os.File, offset int64, deadline time.Time, consume func(line []byte)) (int64, bool, error) {
@@ -495,6 +476,25 @@ func stopCheck(ctx context.Context, args []string, stdin io.Reader, stdout io.Wr
 // <session>/subagents, beside the session's transcript.
 func subagentDirectory(transcriptPath string) string {
 	return filepath.Join(strings.TrimSuffix(transcriptPath, filepath.Ext(transcriptPath)), "subagents")
+}
+
+// An edit stamped before the last proposal was cleared by it. Else, while a checkpoint runs, one stamped after it started
+// is a reviewer's. An unstamped one is work: a doubtful edit costs an ask, not lost work.
+func subagentEdit(state stopState, timestamp string) stopState {
+	stamped := timestamp != ""
+	switch {
+	case stamped && timestamp < state.NotesProposed:
+		state.MidTask = state.MidTask || !state.InCheckpoint
+	case !state.InCheckpoint:
+		state.MidTask, state.Pending = true, true
+	case !stamped || timestamp <= state.CheckpointStarted:
+		state.Pending = true
+	}
+	return state
+}
+
+func subagentWorks(entry transcript.Entry) bool {
+	return entry.Kind == transcript.KindTool && slices.ContainsFunc(subagentWorkTools, func(tool string) bool { return strings.HasPrefix(entry.Text, tool+": ") })
 }
 
 func writeStopState(path string, state stopState) error {

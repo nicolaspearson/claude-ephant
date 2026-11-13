@@ -20,18 +20,18 @@ import (
 	"github.com/nicolaspearson/claude-ephant/internal/ownermap"
 )
 
-type ownerChange struct {
-	apply     func(ownerMap *ownermap.OwnerMap, arguments []string) (string, error)
-	arguments int
-	project   bool
-}
-
 type noteMove struct {
 	forgotten bool
 	from      string
 	notes     []notes.Note
 	project   string
 	to        string
+}
+
+type ownerChange struct {
+	apply     func(ownerMap *ownermap.OwnerMap, arguments []string) (string, error)
+	arguments int
+	project   bool
 }
 
 type ownerOptions struct {

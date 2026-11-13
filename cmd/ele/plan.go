@@ -234,7 +234,7 @@ func planDone(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 			toRecord = appendNew(toRecord, unrecorded[at])
 			continue
 		}
-		fmt.Fprintf(stderr, "ele: %s is not an active plan of %s; ele plan list lists them, --project <name> for another project's\n", argument, present(scope.owner, scope.project))
+		fmt.Fprintf(stderr, "ele: %s is not an active plan of %s. ele plan list lists them, and --project <name> looks in another project.\n", argument, present(scope.owner, scope.project))
 		return 1
 	}
 	for _, note := range toRecord {
@@ -266,35 +266,6 @@ func planDone(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 	return 0
 }
 
-// A plan already deleted falls back to its last commit, which may lack ticks made since, so its unticked names are returned for a warning.
-func storePlanItems(ctx context.Context, root string, noteDirectory string, note notes.Note) ([]string, error) {
-	if root == "" {
-		return nil, errors.New("its checkout is not the working directory's")
-	}
-	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(note.Body)))
-	committed := errors.Is(err, fs.ErrNotExist)
-	if committed {
-		content, err = plan.Committed(ctx, root, note.Body)
-	}
-	if err != nil {
-		return nil, err
-	}
-	parsed, err := plan.Parse(content)
-	if err != nil {
-		return nil, err
-	}
-	if err = plan.WriteStored(planStore(noteDirectory), note.ID, note.Body, parsed); err != nil || !committed {
-		return nil, err
-	}
-	var unticked []string
-	for _, action := range parsed.Actions {
-		if action.Name != "" && !action.Done {
-			unticked = append(unticked, action.Name)
-		}
-	}
-	return unticked, nil
-}
-
 func planPath(root string, argument string) (string, error) {
 	absolute, err := filepath.Abs(argument)
 	if err != nil {
@@ -314,8 +285,8 @@ func planPath(root string, argument string) (string, error) {
 		missing = filepath.Join(filepath.Base(absolute), missing)
 		absolute = parent
 	}
-	relative, err := filepath.Rel(root, absolute)
 	// ele prints plan paths from the checkout root.
+	relative, err := filepath.Rel(root, absolute)
 	if _, statErr := os.Stat(absolute); statErr != nil && filepath.IsLocal(argument) {
 		if resolved, rootErr := filepath.EvalSymlinks(filepath.Join(root, argument)); rootErr == nil {
 			relative, err = filepath.Rel(root, resolved)
@@ -325,27 +296,6 @@ func planPath(root string, argument string) (string, error) {
 		return "", fmt.Errorf("%s is outside the project at %s", argument, root)
 	}
 	return filepath.ToSlash(relative), nil
-}
-
-// bodyLimit is in bytes; 0 means no cap.
-func planView(ctx context.Context, root string, relative string, bodyLimit int, plans planSet) (string, error) {
-	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
-	if err != nil {
-		return "", err
-	}
-	parsed, err := plan.Parse(content)
-	if err != nil {
-		return "", fmt.Errorf("%s: %w", relative, err)
-	}
-	// A git failure costs only the Previous line, never the next item.
-	tick, ticked, previousErr := plan.Previous(ctx, root, relative)
-	resolved, warnings := plans.check(ctx, relative, parsed)
-	var view strings.Builder
-	writePlanView(&view, relative, resolved, len(warnings), tick, ticked, previousErr, bodyLimit)
-	for _, clash := range plans.clashes(relative, parsed) {
-		fmt.Fprintf(&view, "Warning: %s; %s.\n", clash, namesUnique)
-	}
-	return redact.Redact(view.String()), nil
 }
 
 func planSummary(ctx context.Context, root string, relative string, plans planSet) string {
@@ -373,6 +323,27 @@ func planSummary(ctx context.Context, root string, relative string, plans planSe
 		summary += fmt.Sprintf(" Warning: %s; %s.", strings.Join(clashes, ", "), namesUnique)
 	}
 	return redact.Redact(summary)
+}
+
+// bodyLimit is in bytes; 0 means no cap.
+func planView(ctx context.Context, root string, relative string, bodyLimit int, plans planSet) (string, error) {
+	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
+	if err != nil {
+		return "", err
+	}
+	parsed, err := plan.Parse(content)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", relative, err)
+	}
+	// A git failure costs only the Previous line, never the next item.
+	tick, ticked, previousErr := plan.Previous(ctx, root, relative)
+	resolved, warnings := plans.check(ctx, relative, parsed)
+	var view strings.Builder
+	writePlanView(&view, relative, resolved, len(warnings), tick, ticked, previousErr, bodyLimit)
+	for _, clash := range plans.clashes(relative, parsed) {
+		fmt.Fprintf(&view, "Warning: %s; %s.\n", clash, namesUnique)
+	}
+	return redact.Redact(view.String()), nil
 }
 
 func pronoun(count int) string {
@@ -485,7 +456,7 @@ func startPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.W
 		return 1
 	}
 	active := activePlans(scope.all, scope.project)
-	if at := slices.IndexFunc(active, func(note notes.Note) bool { return note.Body == relative }); at >= 0 {
+	if slices.ContainsFunc(active, func(note notes.Note) bool { return note.Body == relative }) {
 		fmt.Fprintf(stderr, "ele: %s is already started; ele plan show prints it\n", relative)
 		return 1
 	}
@@ -529,6 +500,35 @@ func startPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.W
 		fmt.Fprintf(stdout, "Not checked for a name clash: %s.\n", strings.Join(unchecked, "; "))
 	}
 	return 0
+}
+
+// A plan already deleted falls back to its last commit, which may lack ticks made since, so its unticked names are returned for a warning.
+func storePlanItems(ctx context.Context, root string, noteDirectory string, note notes.Note) ([]string, error) {
+	if root == "" {
+		return nil, errors.New("its checkout is not the working directory's")
+	}
+	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(note.Body)))
+	committed := errors.Is(err, fs.ErrNotExist)
+	if committed {
+		content, err = plan.Committed(ctx, root, note.Body)
+	}
+	if err != nil {
+		return nil, err
+	}
+	parsed, err := plan.Parse(content)
+	if err != nil {
+		return nil, err
+	}
+	if err = plan.WriteStored(planStore(noteDirectory), note.ID, note.Body, parsed); err != nil || !committed {
+		return nil, err
+	}
+	var unticked []string
+	for _, action := range parsed.Actions {
+		if action.Name != "" && !action.Done {
+			unticked = append(unticked, action.Name)
+		}
+	}
+	return unticked, nil
 }
 
 func writePlanView(out *strings.Builder, relative string, parsed plan.Plan, warnings int, tick plan.Tick, ticked bool, previousErr error, bodyLimit int) {

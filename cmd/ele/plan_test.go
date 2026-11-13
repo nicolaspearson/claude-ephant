@@ -160,7 +160,7 @@ func TestRunPlanShowNamesEachActivePlanOrAMissingFile(t *testing.T) {
 
 	output, code = runCommand(t, "plan", "done", "first.md", "nowhere.md")
 	require.Equal(t, 1, code)
-	require.Equal(t, "ele: nowhere.md is not an active plan of corp · gateway; ele plan list lists them, --project <name> for another project's\n", output)
+	require.Equal(t, "ele: nowhere.md is not an active plan of corp · gateway. ele plan list lists them, and --project <name> looks in another project.\n", output)
 	output, code = runCommand(t, "plan", "list")
 	require.Equal(t, 0, code, output)
 	require.Equal(t, 2, strings.Count(output, "- active"), "a mistyped argument closes nothing")
@@ -402,7 +402,7 @@ func TestRunPlanStartNamesThePlansItCouldNotCheckAndDoneStoresAClosedPlansRecord
 
 	output, code = runCommand(t, "plan", "done", "gone.md")
 	require.Equal(t, 1, code, "a closed plan whose record reads is not an argument")
-	require.Equal(t, "ele: gone.md is not an active plan of corp · gateway; ele plan list lists them, --project <name> for another project's\n", output)
+	require.Equal(t, "ele: gone.md is not an active plan of corp · gateway. ele plan list lists them, and --project <name> looks in another project.\n", output)
 
 	require.NoError(t, os.Remove(filepath.Join(records, ids["gone"]+".json")))
 	writeFile(t, filepath.Join(gateway, "gone.md"), named("restarted"))

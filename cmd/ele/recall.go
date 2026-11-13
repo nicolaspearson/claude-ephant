@@ -83,7 +83,7 @@ func currentOwner(ownerMap ownermap.OwnerMap) (string, error) {
 
 // Note words weigh by rarity among entries up to the note, so a term the whole session repeats counts for little. Up to
 // regionLimit anchors, best first, each more than separation apart. matched is false when no entry shares a word; the
-// anchor is then the last entry at or before the note. None: nothing precedes it.
+// anchor is then the last entry at or before the note, and anchors is nil when there is none.
 func discussionRegions(entries []index.Result, note notes.Note, separation int) (anchors []int, matched bool) {
 	limit, err := time.Parse(time.RFC3339, note.Time)
 	if err != nil {
@@ -122,7 +122,7 @@ func discussionRegions(entries []index.Result, note notes.Note, separation int) 
 	ranked := slices.Clone(candidates)
 	slices.SortStableFunc(ranked, func(a, b int) int { return cmp.Compare(scores[b], scores[a]) })
 	for _, i := range ranked {
-		// As of 2026-10-16 a quarter of the best kept every true part of three real notes' discussions.
+		// An anchor scores at least a quarter of the top score; as of 2026-10-16 that cut kept every true part of three real notes' discussions.
 		if scores[i] <= 0 || scores[i]*4 < scores[ranked[0]] || len(anchors) == regionLimit {
 			break
 		}
@@ -326,11 +326,7 @@ func recall(ctx context.Context, args []string, stdout io.Writer, stderr io.Writ
 	}
 
 	if !*noSync {
-		switch syncErr := syncAll(ctx, io.Discard, false, false); {
-		case errors.Is(syncErr, errSyncBusy):
-		case syncErr != nil:
-			fmt.Fprintf(stderr, "ele: sync failed, searching what is already indexed: %v\n", syncErr)
-		}
+		syncBeforeReading(ctx, stderr)
 	}
 	searchIndex, err := openIndex()
 	if err != nil {
@@ -368,8 +364,8 @@ func recall(ctx context.Context, args []string, stdout io.Writer, stderr io.Writ
 func show(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
 	flags := newFlagSet("show", stderr)
 	all := flags.Bool("all", false, "every entry, from the first or --from, whole and with no output limit")
-	at := flags.String("at", "", "centre on the first entry at or after this time, such as an event's timestamp")
 	around := flags.String("around", "", "centre on the first entry containing this text")
+	at := flags.String("at", "", "centre on the first entry at or after this time, such as an event's timestamp")
 	window := flags.Int("context", 4, "entries either side of --around or --at, or of each part of a note's discussion (1 there unless set); when nothing matches a note, twice this many before it")
 	from := flags.Int("from", 1, "start at this entry, numbered as the heading prints them")
 	noteID := flags.String("note", "", "open the session a note came from, at its discussion")

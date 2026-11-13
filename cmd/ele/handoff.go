@@ -1,19 +1,14 @@
 package main
 
 import (
-	"cmp"
 	"context"
-	"errors"
 	"fmt"
 	"io"
-	"path/filepath"
 	"slices"
 	"strings"
 	"time"
 
-	"github.com/nicolaspearson/claude-ephant/internal/datadir"
 	"github.com/nicolaspearson/claude-ephant/internal/notes"
-	"github.com/nicolaspearson/claude-ephant/internal/ownermap"
 	"github.com/nicolaspearson/claude-ephant/internal/redact"
 )
 
@@ -22,16 +17,9 @@ type noteChange struct {
 	confirmation string
 	detail       func(note notes.Note) string
 	eligible     func(all []notes.Note, project string) []notes.Note
+	lister       string
 	load         func(ctx context.Context, owner string, projectName string) (projectScope, int, error)
-	refusal      string
-}
-
-type projectScope struct {
-	all           []notes.Note
-	dataDirectory string
-	noteDirectory string
-	owner         string
-	project       string
+	wanted       string
 }
 
 func handoffCommand(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
@@ -41,15 +29,17 @@ func handoffCommand(ctx context.Context, args []string, stdout io.Writer, stderr
 			apply:        func(directory string, note notes.Note) error { return notes.MarkShown(directory, note, now) },
 			confirmation: "Closed",
 			eligible:     pendingHandoffs,
+			lister:       "ele context",
 			load:         projectNotes,
-			refusal:      "a pending handoff of %s; ele context lists them",
+			wanted:       "a pending handoff",
 		},
 		"reopen": {
 			apply:        notes.ClearShown,
 			confirmation: "Reopened",
 			eligible:     closedHandoffs,
+			lister:       "ele handoff list --all",
 			load:         projectNotes,
-			refusal:      "a closed handoff of %s; ele handoff list --all lists them",
+			wanted:       "a closed handoff",
 		},
 	}
 	if len(args) == 0 {
@@ -88,7 +78,7 @@ func applyChange(ctx context.Context, group string, args []string, change noteCh
 	// Checked before any is changed, so a mistyped id changes nothing.
 	for _, identifier := range identifiers {
 		if _, ok := candidates[identifier]; !ok {
-			fmt.Fprintf(stderr, "ele: %s is not "+change.refusal+", --project <name> for another project's\n", identifier, present(scope.owner, scope.project))
+			fmt.Fprintf(stderr, "ele: %s is not %s of %s. %s lists them, and --project <name> looks in another project.\n", identifier, change.wanted, present(scope.owner, scope.project), change.lister)
 			return 1
 		}
 	}
@@ -116,46 +106,6 @@ func closedHandoffs(all []notes.Note, project string) []notes.Note {
 	return slices.DeleteFunc(newestOfKind(all, notes.KindHandoff, project), func(note notes.Note) bool {
 		return note.Shown == "" || superseded[note.ID] != ""
 	})
-}
-
-func projectNotes(ctx context.Context, owner string, projectName string) (projectScope, int, error) {
-	dataDirectory, err := datadir.Path()
-	if err != nil {
-		return projectScope{}, 1, err
-	}
-	ownerMap, err := ownermap.Load(filepath.Join(dataDirectory, "owner-map.json"))
-	if err != nil {
-		return projectScope{}, 1, err
-	}
-	project, resolved, code, err := resolveOwner(ctx, dataDirectory, ownerMap, projectName, owner)
-	if err != nil {
-		return projectScope{}, code, err
-	}
-	noteDirectory := filepath.Join(dataDirectory, "notes")
-	all, _, err := notes.ReadFor(noteDirectory, resolved)
-	if err != nil {
-		return projectScope{}, 1, err
-	}
-	return projectScope{all: all, dataDirectory: dataDirectory, noteDirectory: noteDirectory, owner: resolved, project: project}, 0, nil
-}
-
-// A directory no owner covers still shows the everywhere notes, so it may list and change them.
-func projectOrEverywhereNotes(ctx context.Context, owner string, projectName string) (projectScope, int, error) {
-	scope, code, err := projectNotes(ctx, owner, projectName)
-	var unowned unownedError
-	if !errors.As(err, &unowned) {
-		return scope, code, err
-	}
-	dataDirectory, err := datadir.Path()
-	if err != nil {
-		return projectScope{}, 1, err
-	}
-	noteDirectory := filepath.Join(dataDirectory, "notes")
-	all, _, err := notes.ReadFor(noteDirectory, "")
-	if err != nil {
-		return projectScope{}, 1, err
-	}
-	return projectScope{all: all, dataDirectory: dataDirectory, noteDirectory: noteDirectory, project: unowned.project}, 0, nil
 }
 
 func listHandoffs(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
@@ -205,28 +155,4 @@ func pendingHandoffs(all []notes.Note, project string) []notes.Note {
 	return slices.DeleteFunc(newestOfKind(all, notes.KindHandoff, project), func(note notes.Note) bool {
 		return note.Shown != "" || superseded[note.ID] != ""
 	})
-}
-
-// An id's suffix is random, so the time written orders a day's notes.
-func newestOfKind(all []notes.Note, kind string, project string) []notes.Note {
-	var matched []notes.Note
-	for _, note := range all {
-		if note.Kind == kind && note.Project == project {
-			matched = append(matched, note)
-		}
-	}
-	slices.SortFunc(matched, func(a, b notes.Note) int {
-		return cmp.Or(cmp.Compare(b.Time, a.Time), cmp.Compare(b.ID, a.ID))
-	})
-	return matched
-}
-
-func supersededBy(all []notes.Note) map[string]string {
-	superseded := map[string]string{}
-	for _, note := range all {
-		for _, target := range note.Supersedes {
-			superseded[target] = note.ID
-		}
-	}
-	return superseded
 }

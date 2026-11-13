@@ -99,6 +99,10 @@ func mine(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer
 	return 0
 }
 
+func digestName(unit dto.MiningUnit) string {
+	return unit.Session + "-" + strings.NewReplacer(":", "", ".", "").Replace(unit.Timestamp) + ".txt"
+}
+
 func miningUnits(ctx context.Context, searchIndex *index.Index, analysis string) ([]dto.MiningUnit, error) {
 	var invocations []dto.Event
 	for _, kind := range []string{transcript.EventCommand, transcript.EventSkill} {
@@ -190,23 +194,6 @@ func reportJudgments(ctx context.Context, noSync bool, stdout io.Writer, stderr 
 	return 0
 }
 
-func timeJudgedUnits(ctx context.Context, noSync bool, dataDirectory string, judgments map[string][]mining.Judgment, stderr io.Writer) (map[mining.UnitKey]mining.Timing, error) {
-	searchIndex, err := syncedIndex(ctx, noSync, stderr, "these units")
-	if err != nil {
-		return nil, err
-	}
-	defer searchIndex.Close()
-	var timed []mining.TimedUnit
-	for _, analysis := range analyses {
-		units, err := miningUnits(ctx, searchIndex, analysis)
-		if err != nil {
-			return nil, err
-		}
-		timed = append(timed, mining.ToTime(analysis, judgments[analysis], units)...)
-	}
-	return mining.Time(filepath.Join(dataDirectory, "archive", "transcripts"), timed), nil
-}
-
 func takeJudgments(cache string, digests string, analysis string, promptFile string, judgmentsFile string, units []dto.MiningUnit, stdout io.Writer, stderr io.Writer) int {
 	prompt, err := os.ReadFile(promptFile)
 	if err != nil {
@@ -234,6 +221,23 @@ func takeJudgments(cache string, digests string, analysis string, promptFile str
 	return 0
 }
 
+func timeJudgedUnits(ctx context.Context, noSync bool, dataDirectory string, judgments map[string][]mining.Judgment, stderr io.Writer) (map[mining.UnitKey]mining.Timing, error) {
+	searchIndex, err := syncedIndex(ctx, noSync, stderr, "these units")
+	if err != nil {
+		return nil, err
+	}
+	defer searchIndex.Close()
+	var timed []mining.TimedUnit
+	for _, analysis := range analyses {
+		units, err := miningUnits(ctx, searchIndex, analysis)
+		if err != nil {
+			return nil, err
+		}
+		timed = append(timed, mining.ToTime(analysis, judgments[analysis], units)...)
+	}
+	return mining.Time(filepath.Join(dataDirectory, "archive", "transcripts"), timed), nil
+}
+
 // writeDigests names each file for its unit, so a re-run rewrites the same file. A unit it cannot digest stays pending, so it is left out rather than stopping every later listing.
 func writeDigests(archiveDirectory string, directory string, analysis string, units []dto.MiningUnit, stderr io.Writer) ([]dto.MiningUnit, error) {
 	if err := os.MkdirAll(directory, 0o700); err != nil {
@@ -257,8 +261,4 @@ func writeDigests(archiveDirectory string, directory string, analysis string, un
 		digested = append(digested, unit)
 	}
 	return digested, nil
-}
-
-func digestName(unit dto.MiningUnit) string {
-	return unit.Session + "-" + strings.NewReplacer(":", "", ".", "").Replace(unit.Timestamp) + ".txt"
 }

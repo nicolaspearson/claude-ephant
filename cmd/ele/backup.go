@@ -141,6 +141,26 @@ func copyDataDirectory(ctx context.Context, dataDirectory string, target string)
 	return sizes, nil
 }
 
+func copyFile(source string, target string) (int64, error) {
+	reader, err := os.Open(source)
+	if err != nil {
+		return 0, err
+	}
+	defer reader.Close()
+	writer, err := os.OpenFile(target, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		return 0, err
+	}
+	size, err := io.Copy(writer, reader)
+	if err == nil {
+		err = writer.Sync()
+	}
+	if closeErr := writer.Close(); err == nil {
+		err = closeErr
+	}
+	return size, err
+}
+
 // Both trees under both locks: a forget or restore between two separate copies would leave its note in neither.
 // Only for these copies, so a session start marking its handoff shown waits for no more; after the archive lock, the
 // order ele owner nests them in.
@@ -193,26 +213,6 @@ func copyTree(source string, target string) (int64, error) {
 		return err
 	})
 	return total, err
-}
-
-func copyFile(source string, target string) (int64, error) {
-	reader, err := os.Open(source)
-	if err != nil {
-		return 0, err
-	}
-	defer reader.Close()
-	writer, err := os.OpenFile(target, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
-	if err != nil {
-		return 0, err
-	}
-	size, err := io.Copy(writer, reader)
-	if err == nil {
-		err = writer.Sync()
-	}
-	if closeErr := writer.Close(); err == nil {
-		err = closeErr
-	}
-	return size, err
 }
 
 func directoryExists(path string) bool {

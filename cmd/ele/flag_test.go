@@ -92,24 +92,6 @@ func TestRunFlagAtMarksTheIndexedEntryAtOrAfterTheTime(t *testing.T) {
 	require.Equal(t, "ele: --at names a moment of an earlier session; pass --session <id> too\n", output)
 }
 
-func TestRunForgetRestoresAFlagSayingWhatAnotherDoes(t *testing.T) {
-	home := recallFixture(t)
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-	t.Setenv("CLAUDE_CODE_SESSION_ID", "running-1")
-	flagged := func() notes.Note {
-		output, code := runCommand(t, "flag", "bad", "Skipped the gate.")
-		require.Equal(t, 0, code, output)
-		return readFlagged(t, output)
-	}
-	first := flagged()
-	flagged()
-
-	output, code := runCommand(t, "forget", first.ID)
-	require.Equal(t, 0, code, output)
-	output, code = runCommand(t, "forget", "--restore", first.ID)
-	require.Equal(t, 0, code, "each flag marks its own moment, so the same words are no duplicate: %s", output)
-}
-
 func TestRunFlagRefusesBadInput(t *testing.T) {
 	home := recallFixture(t)
 	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))

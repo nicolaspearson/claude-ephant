@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/nicolaspearson/claude-ephant/internal/index"
+	"github.com/nicolaspearson/claude-ephant/internal/notes"
 	"github.com/nicolaspearson/claude-ephant/internal/store"
 )
 
@@ -327,4 +328,35 @@ func TestRunSyncReportsAFailedBackgroundStart(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	require.Equal(t, 1, run(context.Background(), []string{"sync", "--background"}, &stdout, &stderr))
 	require.Contains(t, stderr.String(), "ele: could not start a background sync: ")
+}
+
+func TestRunReindexRebuildsFromTheArchiveAndNotes(t *testing.T) {
+	home := recallFixture(t)
+	noteDirectory := filepath.Join(home, "data", "notes")
+	_, err := notes.Write(noteDirectory, notes.Note{Body: "Pin pydantic below 2.14.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject})
+	require.NoError(t, err)
+	_, err = notes.Write(noteDirectory, notes.Note{Body: "Pin pydantic through the wrapper.", Date: "2026-10-16", ID: "20261016-bbbbbb", Kind: notes.KindDecision, Owner: "corp", Project: "proxy", Scope: notes.ScopeProject, Supersedes: []string{"20261015-aaaaaa"}})
+	require.NoError(t, err)
+	writeFile(t, filepath.Join(noteDirectory, "corp", "20261015-broken.md"), "no front matter\n")
+
+	output, code := runCommand(t, "sync")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "; indexed 2 notes.")
+	require.Contains(t, output, "Skipped a note: invalid note notes/corp/20261015-broken.md: first line is not ---")
+
+	before, code := runCommand(t, "recall", "--no-sync", "--all", "pydantic")
+	require.Equal(t, 0, code, before)
+	require.Contains(t, before, "4 matches")
+	require.Contains(t, before, "\n2026-10-15 · corp · gateway\n  note decision          (superseded by 20261016-bbbbbb) 20261015-aaaaaa Pin «pydantic» below 2.14.\n")
+	require.Contains(t, before, "\n2026-10-16 · corp · proxy\n  note decision          20261016-bbbbbb Pin «pydantic» through the wrapper.\n")
+	require.Contains(t, before, "  prompt                 pin «pydantic» below 2.14\n")
+	require.Contains(t, before, "Expand a session")
+
+	output, code = runCommand(t, "reindex")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "Rebuilt the index from the archive and notes. Archived 0 B from 0 transcripts; indexed 3 entries from 2 files; indexed 2 notes.")
+
+	after, code := runCommand(t, "recall", "--no-sync", "--all", "pydantic")
+	require.Equal(t, 0, code, after)
+	require.Equal(t, before, after)
 }

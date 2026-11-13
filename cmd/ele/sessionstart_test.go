@@ -292,110 +292,6 @@ func TestRunSessionStartShowsActivePlansEveryTime(t *testing.T) {
 	require.NotContains(t, shown, "/ele:plan", "no instruction for a plan that cannot be read")
 }
 
-func TestNewestOfKindSortsByTimeNotTheLocalDate(t *testing.T) {
-	east := notes.Note{Date: "2026-11-02", ID: "20261102-aaaaaa", Kind: notes.KindHandoff, Project: "gateway", Time: "2026-11-01T22:00:00Z"}
-	west := notes.Note{Date: "2026-11-01", ID: "20261101-bbbbbb", Kind: notes.KindHandoff, Project: "gateway", Time: "2026-11-01T23:00:00Z"}
-	require.Equal(t, []notes.Note{west, east}, newestOfKind([]notes.Note{east, west}, notes.KindHandoff, "gateway"))
-}
-
-func TestRunHandoffCloseChecksEveryIdFirst(t *testing.T) {
-	home := recallFixture(t)
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-	output, code := runCommand(t, "remember", "--kind", "handoff", "--session", "", "Next: item 3.")
-	require.Equal(t, 0, code, output)
-	pending := readRemembered(t, output)
-	output, code = runCommand(t, "remember", "--kind", "decision", "--session", "", "Reviews stay in subagents.")
-	require.Equal(t, 0, code, output)
-	decision := readRemembered(t, output)
-
-	for _, identifier := range []string{decision.ID, "20200101-000000"} {
-		output, code = runCommand(t, "handoff", "close", pending.ID, identifier)
-		require.Equal(t, 1, code, output)
-		require.Equal(t, "ele: "+identifier+" is not a pending handoff of corp · gateway; ele context lists them, --project <name> for another project's\n", output)
-	}
-	output, code = runCommand(t, "context")
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "handoff "+pending.ID, "a refused close marks none")
-
-	output, code = runCommand(t, "handoff", "close", pending.ID, pending.ID)
-	require.Equal(t, 0, code, output)
-	require.Equal(t, "Closed handoff "+pending.ID+".\n", output, "a repeated id closes once")
-	output, code = runCommand(t, "handoff", "close", pending.ID)
-	require.Equal(t, 1, code, "a closed handoff is no longer pending: %s", output)
-	output, code = runCommand(t, "handoff", "close")
-	require.Equal(t, 2, code, output)
-}
-
-func TestRunHandoffListShowsEachHandoffsState(t *testing.T) {
-	home := recallFixture(t)
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-	list := func(args ...string) string {
-		output, code := runCommand(t, append([]string{"handoff", "list"}, args...)...)
-		require.Equal(t, 0, code, output)
-		return output
-	}
-	require.Equal(t, "ele has no pending handoffs for corp · gateway; --all adds closed and superseded ones.\n", list())
-	require.Equal(t, "ele has no handoffs for corp · gateway.\n", list("--all"))
-
-	for _, note := range []notes.Note{
-		{Body: "Superseded task.", Date: "2026-10-10", ID: "20261010-dddddd", Kind: notes.KindHandoff, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Shown: "2026-10-10T12:00:00Z"},
-		{Body: "Done another way.", Date: "2026-10-11", ID: "20261011-eeeeee", Kind: notes.KindFact, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Supersedes: []string{"20261010-dddddd"}},
-		{Body: "Closed task.\nSecond line.", Date: "2026-10-12", ID: "20261012-cccccc", Kind: notes.KindHandoff, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Shown: "2026-10-12T11:02:00Z", Time: "2026-10-12T09:00:00Z"},
-		{Body: "Pending task.", Date: "2026-10-14", ID: "20261014-aaaaaa", Kind: notes.KindHandoff, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Session: "0123456789", Time: "2026-10-14T10:00:00Z"},
-		{Body: "Another project's.", Date: "2026-10-14", ID: "20261014-bbbbbb", Kind: notes.KindHandoff, Owner: "corp", Project: "proxy", Scope: notes.ScopeProject},
-		{Body: "Older pending task.", Date: "2026-10-14", ID: "20261014-ffffff", Kind: notes.KindHandoff, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Time: "2026-10-14T08:00:00Z"},
-	} {
-		_, err := notes.Write(filepath.Join(home, "data", "notes"), note)
-		require.NoError(t, err)
-	}
-	footer := "ele handoff close <id>... or ele handoff reopen <id>... to change one.\n"
-	pending := "- pending  note 20261014-aaaaaa of 2026-10-14 10:00Z, session 01234567: Pending task.\n" +
-		"- pending  note 20261014-ffffff of 2026-10-14 08:00Z: Older pending task.\n"
-	require.Equal(t, "Handoffs for corp · gateway, newest first:\n"+pending+footer, list())
-	require.Equal(t, "Handoffs for corp · gateway, newest first:\n"+pending+
-		"- closed 2026-10-12T11:02:00Z  note 20261012-cccccc of 2026-10-12 09:00Z: Closed task. Second line.\n"+
-		"- superseded by 20261011-eeeeee  note 20261010-dddddd of 2026-10-10: Superseded task.\n"+footer, list("--all"))
-	require.Contains(t, list("--owner", "corp", "--project", "proxy"), "note 20261014-bbbbbb")
-
-	output, code := runCommand(t, "handoff", "list", "extra")
-	require.Equal(t, 2, code, output)
-}
-
-func TestRunHandoffReopenChecksEveryIdFirst(t *testing.T) {
-	home := recallFixture(t)
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-	output, code := runCommand(t, "remember", "--kind", "handoff", "--session", "", "Next: item 3.")
-	require.Equal(t, 0, code, output)
-	closed := readRemembered(t, output)
-	output, code = runCommand(t, "remember", "--kind", "handoff", "--session", "", "Next: item 4.")
-	require.Equal(t, 0, code, output)
-	pending := readRemembered(t, output)
-	output, code = runCommand(t, "handoff", "close", closed.ID)
-	require.Equal(t, 0, code, output)
-	_, err := notes.Write(filepath.Join(home, "data", "notes"), notes.Note{Body: "Old next task.", Date: "2026-10-01", ID: "20261001-aaaaaa", Kind: notes.KindHandoff, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Shown: "2026-10-01T10:00:00Z"})
-	require.NoError(t, err)
-	_, err = notes.Write(filepath.Join(home, "data", "notes"), notes.Note{Body: "Done instead.", Date: "2026-10-02", ID: "20261002-bbbbbb", Kind: notes.KindFact, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Supersedes: []string{"20261001-aaaaaa"}})
-	require.NoError(t, err)
-
-	for _, identifier := range []string{pending.ID, "20261001-aaaaaa", "20200101-000000"} {
-		output, code = runCommand(t, "handoff", "reopen", closed.ID, identifier)
-		require.Equal(t, 1, code, output)
-		require.Equal(t, "ele: "+identifier+" is not a closed handoff of corp · gateway; ele handoff list --all lists them, --project <name> for another project's\n", output)
-	}
-	output, code = runCommand(t, "context")
-	require.Equal(t, 0, code, output)
-	require.NotContains(t, output, closed.ID, "a refused reopen opens none")
-
-	output, code = runCommand(t, "handoff", "reopen", closed.ID, closed.ID)
-	require.Equal(t, 0, code, output)
-	require.Equal(t, "Reopened handoff "+closed.ID+".\n", output, "a repeated id reopens once")
-	output, code = runCommand(t, "context")
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "handoff "+closed.ID)
-	output, code = runCommand(t, "handoff", "reopen")
-	require.Equal(t, 2, code, output)
-}
-
 func TestRunSessionStartColoursOnlyTheUsersCopyUnlessColourIsOff(t *testing.T) {
 	home := recallFixture(t)
 	t.Setenv("NO_COLOR", "")
@@ -666,4 +562,140 @@ func TestRotateSyncLogKeepsOneFullLogAside(t *testing.T) {
 	require.Equal(t, full, string(content), "one kept, the older one replaced")
 
 	require.NoError(t, rotateSyncLog(path), "no log is nothing to rotate")
+}
+
+func TestSessionStartNamesOptionsOffTheirDefaults(t *testing.T) {
+	home := recallFixture(t)
+	writeFile(t, filepath.Join(home, "data", "config.json"), `{"checkpoint_gate": false}`)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+
+	output, code := runCommand(t, "session-start", "--no-sync")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "Config from ele, off its defaults: checkpoint_gate false (global).\n")
+
+	writeFile(t, filepath.Join(home, "data", "config.json"), `{"checkpoint_gate": true}`)
+	output, code = runCommand(t, "session-start", "--no-sync")
+	require.Equal(t, 0, code, output)
+	require.NotContains(t, output, "Config from ele")
+}
+
+func TestRunSessionStartShowsAReminderDueAtATimeOnlyFromThatTime(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	dataDirectory := filepath.Join(home, "data")
+	output, code := runCommand(t, "remember", "--kind", "reminder", "--due", "2026-11-01T15:30", "--session", "", "Join the call.")
+	require.Equal(t, 0, code, output)
+	reminder := readRemembered(t, output)
+	require.Equal(t, "2026-11-01T15:30", reminder.Due)
+
+	start := func(now time.Time) string {
+		var output bytes.Buffer
+		_, err := writeSessionStart(context.Background(), &output, dataDirectory, now, "startup")
+		require.NoError(t, err)
+		return output.String()
+	}
+	require.NotContains(t, start(time.Date(2026, 11, 1, 15, 29, 59, 0, time.Local)), reminder.ID, "a second before its time")
+	require.Contains(t, start(time.Date(2026, 11, 1, 15, 30, 0, 0, time.Local)), "- due 2026-11-01T15:30, reminder "+reminder.ID+": Join the call.\n")
+	require.Contains(t, start(time.Date(2026, 11, 2, 8, 0, 0, 0, time.Local)), reminder.ID, "overdue the next day")
+}
+
+func TestRunSessionStartShowsANudgeItsIntervalAfterItsDoneFileChanged(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	noteDirectory := filepath.Join(home, "data", "notes")
+	now := time.Now()
+	nudge := func(id string, due time.Time, doneFile string, body string) notes.Note {
+		note := notes.Note{Body: body, Date: "2026-10-22", DoneFile: doneFile, Due: due.Format(time.DateOnly), Every: 7 * 24 * time.Hour, ID: id, Kind: notes.KindReminder, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Time: "2026-10-22T09:00:00Z"}
+		_, err := notes.Write(noteDirectory, note)
+		require.NoError(t, err)
+		return note
+	}
+	marked := func(name string, when time.Time) string {
+		path := filepath.Join(home, name)
+		writeFile(t, path, "")
+		require.NoError(t, os.Chtimes(path, when, when))
+		return path
+	}
+	fresh := nudge("20261022-aaaaaa", now.AddDate(0, 0, -30), marked("fresh", now.AddDate(0, 0, -6)), "Done six days ago.")
+	stale := nudge("20261022-bbbbbb", now.AddDate(0, 0, -30), marked("stale", now.AddDate(0, 0, -8)), "Done eight days ago.")
+	missing := nudge("20261022-cccccc", now.AddDate(0, 0, 30), filepath.Join(home, "never-written"), "Never done.")
+	closedRecently := nudge("20261022-dddddd", now.AddDate(0, 0, 3), marked("rearmed", now.AddDate(0, 0, -30)), "Closed four days ago.")
+	plain := nudge("20261022-eeeeee", now, "", "Due today.")
+	overdue := nudge("20261022-ffffff", now.AddDate(0, 0, -20), "", "Due twenty days ago.")
+	start := func() string {
+		var output bytes.Buffer
+		code := sessionStart(context.Background(), []string{"--no-sync"}, strings.NewReader(`{"session_id":"s","source":"startup"}`), &output, &output)
+		require.Equal(t, 0, code, output.String())
+		shown, _ := hookOutput(t, output.String())
+		return shown
+	}
+
+	shown := start()
+	require.Contains(t, shown, "Reminders from ele, due:\n"+
+		"- ↻ due "+overdue.Due+", reminder "+overdue.ID+", every 7 days: Due twenty days ago.\n"+
+		"- ↻ due "+now.AddDate(0, 0, -1).Format(time.DateOnly)+", reminder "+stale.ID+", every 7 days: Done eight days ago.\n"+
+		"- ↻ due "+now.Format(time.DateOnly)+", reminder "+plain.ID+", every 7 days: Due today.\n"+
+		"- ↻ due "+now.Format(time.DateOnly)+", reminder "+missing.ID+", every 7 days: Never done.\n"+
+		"Tell the user each is due. Once the user says one is done or dropped, run ele reminder close <id>...; until then it shows at every startup, /clear and compaction.\n"+
+		"Closing one shown with an interval re-arms it for that interval; ele forget <id> drops it for good.\n\n")
+	require.NotContains(t, shown, fresh.ID, "done six days ago, it waits a seventh")
+	require.NotContains(t, shown, closedRecently.ID, "closed, it waits for its due date though its done file is older")
+
+	marked("stale", now)
+	require.NotContains(t, start(), stale.ID, "a change to the done file marks the nudge done")
+
+	writeFile(t, filepath.Join(home, "data", "config.json"), `{"owners": {"corp": {"reminders": false}}}`)
+	require.NotContains(t, start(), "Reminders from ele")
+}
+
+func TestRunSessionStartShowsRemindersFromTheirDueDateUntilClosed(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	noteDirectory := filepath.Join(home, "data", "notes")
+	now := time.Now()
+	reminder := func(id string, due time.Time, scope string, project string, body string) notes.Note {
+		note := notes.Note{Body: body, Date: "2026-10-22", Due: due.Format(time.DateOnly), ID: id, Kind: notes.KindReminder, Owner: "corp", Project: project, Scope: scope, Time: "2026-10-22T09:00:00Z"}
+		_, err := notes.Write(noteDirectory, note)
+		require.NoError(t, err)
+		return note
+	}
+	tomorrow := reminder("20261022-aaaaaa", now.AddDate(0, 0, 1), notes.ScopeProject, "gateway", "Not yet.")
+	dueToday := reminder("20261022-bbbbbb", now, notes.ScopeProject, "gateway", "Due today.")
+	overdue := reminder("20261022-cccccc", now.AddDate(0, 0, -3), notes.ScopeGlobal, "", "Overdue, every project.")
+	closed := reminder("20261022-dddddd", now.AddDate(0, 0, -1), notes.ScopeProject, "gateway", "Already done.")
+	require.NoError(t, notes.MarkClosed(noteDirectory, closed, now))
+	elsewhere := reminder("20261022-eeeeee", now, notes.ScopeProject, "billing", "Another project's.")
+	replaced := reminder("20261022-ffffff", now, notes.ScopeProject, "gateway", "Reworded below.")
+	_, err := notes.Write(noteDirectory, notes.Note{Body: "Reworded.", Date: "2026-10-22", Due: now.AddDate(0, 0, 7).Format(time.DateOnly), ID: "20261022-ababab", Kind: notes.KindReminder, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Supersedes: []string{replaced.ID}})
+	require.NoError(t, err)
+	// Fills the notes budget, which reminders sit outside.
+	for index := range 80 {
+		_, err := notes.Write(noteDirectory, notes.Note{Body: strings.Repeat("filler ", 12), Date: "2026-10-01", ID: "20261001-" + strings.Repeat("0", 4) + string(rune('a'+index/26)) + string(rune('a'+index%26)), Kind: notes.KindFact, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject})
+		require.NoError(t, err)
+	}
+	start := func(source string) (string, string) {
+		var output bytes.Buffer
+		code := sessionStart(context.Background(), []string{"--no-sync"}, strings.NewReader(`{"session_id":"s","source":"`+source+`"}`), &output, &output)
+		require.Equal(t, 0, code, output.String())
+		return hookOutput(t, output.String())
+	}
+	section := "Reminders from ele, due:\n" +
+		"- due " + overdue.Due + ", reminder " + overdue.ID + ": Overdue, every project.\n" +
+		"- due " + dueToday.Due + ", reminder " + dueToday.ID + ": Due today.\n"
+
+	for _, source := range []string{"clear", "compact", "startup"} {
+		shown, message := start(source)
+		require.Contains(t, shown, section+"Tell the user each is due. Once the user says one is done or dropped, run ele reminder close <id>...; until then it shows at every startup, /clear and compaction.\n\nNotes from ele", source)
+		require.Contains(t, message, strings.TrimSuffix(section, "\n"), "the user sees the reminders the session loaded")
+		require.Contains(t, shown, "older notes not shown", "the notes budget is spent")
+		for _, hidden := range []notes.Note{tomorrow, closed, elsewhere, replaced} {
+			require.NotContains(t, shown, hidden.ID, hidden.Body)
+		}
+	}
+
+	writeFile(t, filepath.Join(home, "data", "config.json"), `{"owners": {"corp": {"reminders": false}}}`)
+	shown, message := start("startup")
+	require.NotContains(t, shown, "Reminders from ele")
+	require.NotContains(t, message, "Reminders from ele")
+	require.Contains(t, shown, "Config from ele, off its defaults: reminders false")
 }

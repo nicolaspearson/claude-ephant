@@ -128,7 +128,7 @@ func remember(ctx context.Context, args []string, stdout io.Writer, stderr io.Wr
 		return 2
 	case everyGiven:
 		if every, err = notes.ParseEvery(*everyValue); err != nil {
-			fmt.Fprintf(stderr, "ele: --%v\n", err)
+			fmt.Fprintf(stderr, "ele: --every %q is not minutes, hours or days above 0, such as 5m, 2h or 7d\n", *everyValue)
 			return 2
 		}
 	}
@@ -283,15 +283,6 @@ func resolveOwner(ctx context.Context, dataDirectory string, ownerMap ownermap.O
 		return "", "", 1, unownedError{directory: directory, project: project}
 	}
 	return project, resolved, 0, nil
-}
-
-type unownedError struct {
-	directory string
-	project   string
-}
-
-func (e unownedError) Error() string {
-	return fmt.Sprintf("no owner in owner-map.json covers %s (project %s); add a path rule or project entry, or pass --owner <name>", e.directory, e.project)
 }
 
 func sayingTheSame(existing []notes.Note, candidate notes.Note) string {

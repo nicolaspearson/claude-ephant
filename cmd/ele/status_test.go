@@ -278,3 +278,27 @@ func TestWriteStatusFindsNothingNewInACutTailOfOldRuns(t *testing.T) {
 	require.Contains(t, output.String(), "\nsync.log holds nothing since the last successful sync.\n")
 	require.NotContains(t, output.String(), "an old failure")
 }
+
+func TestStatusConfigRowNamesOptionsOffTheirDefaults(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	path := filepath.Join(home, "data", "config.json")
+
+	tests := []struct {
+		content string
+		name    string
+		row     string
+	}{
+		{content: `{"checkpoint_gate": fals`, name: "broken", row: `(?m)^Config +parse .*config\.json: .*; every option reads as its default$`},
+		{content: `{}`, name: "defaults", row: `(?m)^Config +defaults$`},
+		{content: `{"owners": {"corp": {"checkpoint_gate": false}}}`, name: "owner override", row: `(?m)^Config +checkpoint_gate false \(owner corp; default true\)$`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			writeFile(t, path, test.content)
+			output, code := runCommand(t, "status")
+			require.Equal(t, 0, code, output)
+			require.Regexp(t, test.row, output)
+		})
+	}
+}

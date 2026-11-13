@@ -168,6 +168,10 @@ func heredocEnd(runes []rune, start int) (int, bool) {
 	return delimiterLine(runes, index+newline+1, string(delimiter), strip)
 }
 
+func logsCheckpoint(command string) bool {
+	return transcript.StartsCommand(command, "ele checkpoint log ")
+}
+
 // The body of the $( or backtick substitution at start, and the index of its closing character.
 func nestedBody(runes []rune, start int) (string, int, bool) {
 	if runes[start] == '`' {
@@ -548,6 +552,10 @@ func simpleCommandIsWork(words []string) bool {
 	return !slices.Contains(plainReads, words[0])
 }
 
+func writesNote(command string) bool {
+	return transcript.StartsCommand(command, "ele remember ") && !transcript.StartsCommand(command, "ele remember --help")
+}
+
 // A target naming a variable this command assigned reads as its value; any other variable stays unexpanded.
 func (scan shellScan) expand(target string) string {
 	match := variable.FindStringSubmatch(target)
@@ -559,12 +567,4 @@ func (scan shellScan) expand(target string) string {
 		return target
 	}
 	return value + target[len(match[0]):]
-}
-
-func logsCheckpoint(command string) bool {
-	return transcript.StartsCommand(command, "ele checkpoint log ")
-}
-
-func writesNote(command string) bool {
-	return transcript.StartsCommand(command, "ele remember ") && !transcript.StartsCommand(command, "ele remember --help")
 }

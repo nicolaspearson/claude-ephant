@@ -5,7 +5,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -103,26 +102,6 @@ func TestRunReminderCloseReArmsASubDayNudgeToTheMinute(t *testing.T) {
 	}
 	require.NotContains(t, start(closing.Add(4*time.Minute+59*time.Second)), nudge.ID, "within five minutes of its close")
 	require.Contains(t, start(due), "- ↻ due "+rearmed.Due+", reminder "+nudge.ID+", every 5 minutes: Check the nudge.\n")
-}
-
-func TestRunSessionStartShowsAReminderDueAtATimeOnlyFromThatTime(t *testing.T) {
-	home := recallFixture(t)
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-	dataDirectory := filepath.Join(home, "data")
-	output, code := runCommand(t, "remember", "--kind", "reminder", "--due", "2026-11-01T15:30", "--session", "", "Join the call.")
-	require.Equal(t, 0, code, output)
-	reminder := readRemembered(t, output)
-	require.Equal(t, "2026-11-01T15:30", reminder.Due)
-
-	start := func(now time.Time) string {
-		var output bytes.Buffer
-		_, err := writeSessionStart(context.Background(), &output, dataDirectory, now, "startup")
-		require.NoError(t, err)
-		return output.String()
-	}
-	require.NotContains(t, start(time.Date(2026, 11, 1, 15, 29, 59, 0, time.Local)), reminder.ID, "a second before its time")
-	require.Contains(t, start(time.Date(2026, 11, 1, 15, 30, 0, 0, time.Local)), "- due 2026-11-01T15:30, reminder "+reminder.ID+": Join the call.\n")
-	require.Contains(t, start(time.Date(2026, 11, 2, 8, 0, 0, 0, time.Local)), reminder.ID, "overdue the next day")
 }
 
 func TestIntervalNamesItsLargestWholeUnit(t *testing.T) {
@@ -248,10 +227,10 @@ func TestRunReminderListsClosesAndReopens(t *testing.T) {
 
 	output, code = runCommand(t, "reminder", "reopen", now.ID)
 	require.Equal(t, 1, code, output)
-	require.Contains(t, output, now.ID+" is not a closed reminder of corp · gateway")
+	require.Equal(t, "ele: "+now.ID+" is not a closed reminder of corp · gateway. ele reminder list --all lists them, and --project <name> looks in another project.\n", output)
 	output, code = runCommand(t, "reminder", "close", now.ID, "20990101-bogus0")
 	require.Equal(t, 1, code, output)
-	require.Contains(t, output, "20990101-bogus0 is not an open reminder of corp · gateway")
+	require.Equal(t, "ele: 20990101-bogus0 is not an open reminder of corp · gateway. ele reminder list lists them, and --project <name> looks in another project.\n", output)
 	output, code = runCommand(t, "reminder", "list")
 	require.Equal(t, 0, code, output)
 	require.Contains(t, output, now.ID, "a mistyped id closes nothing")
@@ -279,135 +258,4 @@ func TestRunReminderListsClosesAndReopens(t *testing.T) {
 	output, code = runCommand(t, "reminder", "list")
 	require.Equal(t, 0, code, output)
 	require.Contains(t, output, "- due  due "+today+", reminder "+now.ID)
-}
-
-func TestRunRememberRefusesAReminderWithoutADate(t *testing.T) {
-	home := recallFixture(t)
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-	tests := []struct {
-		args    []string
-		message string
-		name    string
-	}{
-		{args: []string{"--kind", "reminder", "--done-file", "/tmp/marker", "x"}, message: "ele: --done-file needs --every <interval>, how long the nudge stays hidden after the file changes\n", name: "done file without every"},
-		{args: []string{"--kind", "decision", "--due", "2026-11-01", "x"}, message: "ele: only a reminder takes --done-file, --due or --every; use --kind reminder\n", name: "due on a decision"},
-		{args: []string{"--kind", "reminder", "--due", "2026-11-01 09:00", "x"}, message: "ele: --due \"2026-11-01 09:00\" is not YYYY-MM-DD or YYYY-MM-DDTHH:MM\n", name: "due time without T"},
-		{args: []string{"--kind", "reminder", "--due", "2026-11-01T25:00", "x"}, message: "ele: --due \"2026-11-01T25:00\" is not YYYY-MM-DD or YYYY-MM-DDTHH:MM\n", name: "due hour out of range"},
-		{args: []string{"--kind", "reminder", "--due", "2026-11-01T9:30", "x"}, message: "ele: --due \"2026-11-01T9:30\" is not YYYY-MM-DD or YYYY-MM-DDTHH:MM\n", name: "due hour not zero-padded"},
-		{args: []string{"--kind", "reminder", "--due", "next week", "x"}, message: "ele: --due \"next week\" is not YYYY-MM-DD or YYYY-MM-DDTHH:MM\n", name: "due not a date"},
-		{args: []string{"--kind", "reminder", "--every", "0", "--due", "2026-11-01", "x"}, message: "ele: --every \"0\" is not minutes, hours or days above 0, such as 5m, 2h or 7d\n", name: "every 0"},
-		{args: []string{"--kind", "reminder", "--every", "-1", "x"}, message: "ele: --every \"-1\" is not minutes, hours or days above 0, such as 5m, 2h or 7d\n", name: "every below 1"},
-		{args: []string{"--kind", "reminder", "--every", "30s", "x"}, message: "ele: --every \"30s\" is not minutes, hours or days above 0, such as 5m, 2h or 7d\n", name: "every in seconds"},
-		{args: []string{"--kind", "reminder", "--every", "1h30m", "x"}, message: "ele: --every \"1h30m\" is not minutes, hours or days above 0, such as 5m, 2h or 7d\n", name: "every of two units"},
-		{args: []string{"--kind", "fact", "--every", "0", "x"}, message: "ele: only a reminder takes --done-file, --due or --every; use --kind reminder\n", name: "every on a fact"},
-		{args: []string{"--kind", "reminder", "x"}, message: "ele: a reminder needs --due YYYY-MM-DD or YYYY-MM-DDTHH:MM, when it first shows\n", name: "reminder without due"},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			output, code := runCommand(t, append([]string{"remember"}, test.args...)...)
-			require.Equal(t, 2, code, output)
-			require.Equal(t, test.message, output)
-		})
-	}
-}
-
-func TestRunSessionStartShowsANudgeItsIntervalAfterItsDoneFileChanged(t *testing.T) {
-	home := recallFixture(t)
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-	noteDirectory := filepath.Join(home, "data", "notes")
-	now := time.Now()
-	nudge := func(id string, due time.Time, doneFile string, body string) notes.Note {
-		note := notes.Note{Body: body, Date: "2026-10-22", DoneFile: doneFile, Due: due.Format(time.DateOnly), Every: 7 * 24 * time.Hour, ID: id, Kind: notes.KindReminder, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Time: "2026-10-22T09:00:00Z"}
-		_, err := notes.Write(noteDirectory, note)
-		require.NoError(t, err)
-		return note
-	}
-	marked := func(name string, when time.Time) string {
-		path := filepath.Join(home, name)
-		writeFile(t, path, "")
-		require.NoError(t, os.Chtimes(path, when, when))
-		return path
-	}
-	fresh := nudge("20261022-aaaaaa", now.AddDate(0, 0, -30), marked("fresh", now.AddDate(0, 0, -6)), "Done six days ago.")
-	stale := nudge("20261022-bbbbbb", now.AddDate(0, 0, -30), marked("stale", now.AddDate(0, 0, -8)), "Done eight days ago.")
-	missing := nudge("20261022-cccccc", now.AddDate(0, 0, 30), filepath.Join(home, "never-written"), "Never done.")
-	closedRecently := nudge("20261022-dddddd", now.AddDate(0, 0, 3), marked("rearmed", now.AddDate(0, 0, -30)), "Closed four days ago.")
-	plain := nudge("20261022-eeeeee", now, "", "Due today.")
-	overdue := nudge("20261022-ffffff", now.AddDate(0, 0, -20), "", "Due twenty days ago.")
-	start := func() string {
-		var output bytes.Buffer
-		code := sessionStart(context.Background(), []string{"--no-sync"}, strings.NewReader(`{"session_id":"s","source":"startup"}`), &output, &output)
-		require.Equal(t, 0, code, output.String())
-		shown, _ := hookOutput(t, output.String())
-		return shown
-	}
-
-	shown := start()
-	require.Contains(t, shown, "Reminders from ele, due:\n"+
-		"- ↻ due "+overdue.Due+", reminder "+overdue.ID+", every 7 days: Due twenty days ago.\n"+
-		"- ↻ due "+now.AddDate(0, 0, -1).Format(time.DateOnly)+", reminder "+stale.ID+", every 7 days: Done eight days ago.\n"+
-		"- ↻ due "+now.Format(time.DateOnly)+", reminder "+plain.ID+", every 7 days: Due today.\n"+
-		"- ↻ due "+now.Format(time.DateOnly)+", reminder "+missing.ID+", every 7 days: Never done.\n"+
-		"Tell the user each is due. Once the user says one is done or dropped, run ele reminder close <id>...; until then it shows at every startup, /clear and compaction.\n"+
-		"Closing one shown with an interval re-arms it for that interval; ele forget <id> drops it for good.\n\n")
-	require.NotContains(t, shown, fresh.ID, "done six days ago, it waits a seventh")
-	require.NotContains(t, shown, closedRecently.ID, "closed, it waits for its due date though its done file is older")
-
-	marked("stale", now)
-	require.NotContains(t, start(), stale.ID, "a change to the done file marks the nudge done")
-
-	writeFile(t, filepath.Join(home, "data", "config.json"), `{"owners": {"corp": {"reminders": false}}}`)
-	require.NotContains(t, start(), "Reminders from ele")
-}
-
-func TestRunSessionStartShowsRemindersFromTheirDueDateUntilClosed(t *testing.T) {
-	home := recallFixture(t)
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-	noteDirectory := filepath.Join(home, "data", "notes")
-	now := time.Now()
-	reminder := func(id string, due time.Time, scope string, project string, body string) notes.Note {
-		note := notes.Note{Body: body, Date: "2026-10-22", Due: due.Format(time.DateOnly), ID: id, Kind: notes.KindReminder, Owner: "corp", Project: project, Scope: scope, Time: "2026-10-22T09:00:00Z"}
-		_, err := notes.Write(noteDirectory, note)
-		require.NoError(t, err)
-		return note
-	}
-	tomorrow := reminder("20261022-aaaaaa", now.AddDate(0, 0, 1), notes.ScopeProject, "gateway", "Not yet.")
-	dueToday := reminder("20261022-bbbbbb", now, notes.ScopeProject, "gateway", "Due today.")
-	overdue := reminder("20261022-cccccc", now.AddDate(0, 0, -3), notes.ScopeGlobal, "", "Overdue, every project.")
-	closed := reminder("20261022-dddddd", now.AddDate(0, 0, -1), notes.ScopeProject, "gateway", "Already done.")
-	require.NoError(t, notes.MarkClosed(noteDirectory, closed, now))
-	elsewhere := reminder("20261022-eeeeee", now, notes.ScopeProject, "billing", "Another project's.")
-	replaced := reminder("20261022-ffffff", now, notes.ScopeProject, "gateway", "Reworded below.")
-	_, err := notes.Write(noteDirectory, notes.Note{Body: "Reworded.", Date: "2026-10-22", Due: now.AddDate(0, 0, 7).Format(time.DateOnly), ID: "20261022-ababab", Kind: notes.KindReminder, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Supersedes: []string{replaced.ID}})
-	require.NoError(t, err)
-	// Fills the notes budget, which reminders sit outside.
-	for index := range 80 {
-		_, err := notes.Write(noteDirectory, notes.Note{Body: strings.Repeat("filler ", 12), Date: "2026-10-01", ID: "20261001-" + strings.Repeat("0", 4) + string(rune('a'+index/26)) + string(rune('a'+index%26)), Kind: notes.KindFact, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject})
-		require.NoError(t, err)
-	}
-	start := func(source string) (string, string) {
-		var output bytes.Buffer
-		code := sessionStart(context.Background(), []string{"--no-sync"}, strings.NewReader(`{"session_id":"s","source":"`+source+`"}`), &output, &output)
-		require.Equal(t, 0, code, output.String())
-		return hookOutput(t, output.String())
-	}
-	section := "Reminders from ele, due:\n" +
-		"- due " + overdue.Due + ", reminder " + overdue.ID + ": Overdue, every project.\n" +
-		"- due " + dueToday.Due + ", reminder " + dueToday.ID + ": Due today.\n"
-
-	for _, source := range []string{"clear", "compact", "startup"} {
-		shown, message := start(source)
-		require.Contains(t, shown, section+"Tell the user each is due. Once the user says one is done or dropped, run ele reminder close <id>...; until then it shows at every startup, /clear and compaction.\n\nNotes from ele", source)
-		require.Contains(t, message, strings.TrimSuffix(section, "\n"), "the user sees the reminders the session loaded")
-		require.Contains(t, shown, "older notes not shown", "the notes budget is spent")
-		for _, hidden := range []notes.Note{tomorrow, closed, elsewhere, replaced} {
-			require.NotContains(t, shown, hidden.ID, hidden.Body)
-		}
-	}
-
-	writeFile(t, filepath.Join(home, "data", "config.json"), `{"owners": {"corp": {"reminders": false}}}`)
-	shown, message := start("startup")
-	require.NotContains(t, shown, "Reminders from ele")
-	require.NotContains(t, message, "Reminders from ele")
-	require.Contains(t, shown, "Config from ele, off its defaults: reminders false")
 }

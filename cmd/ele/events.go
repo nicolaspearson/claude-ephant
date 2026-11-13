@@ -82,13 +82,17 @@ func events(ctx context.Context, args []string, stdout io.Writer, stderr io.Writ
 	return 0
 }
 
+func syncBeforeReading(ctx context.Context, stderr io.Writer) {
+	switch err := syncAll(ctx, io.Discard, false, false); {
+	case errors.Is(err, errSyncBusy):
+	case err != nil:
+		fmt.Fprintf(stderr, "ele: sync failed, reading what is already indexed: %v\n", err)
+	}
+}
+
 func syncedIndex(ctx context.Context, noSync bool, stderr io.Writer, what string) (*index.Index, error) {
 	if !noSync {
-		switch syncErr := syncAll(ctx, io.Discard, false, false); {
-		case errors.Is(syncErr, errSyncBusy):
-		case syncErr != nil:
-			fmt.Fprintf(stderr, "ele: sync failed, reading what is already indexed: %v\n", syncErr)
-		}
+		syncBeforeReading(ctx, stderr)
 	}
 	searchIndex, err := openIndex()
 	if err != nil {
