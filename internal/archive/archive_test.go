@@ -2,9 +2,12 @@ package archive
 
 import (
 	"compress/gzip"
+	"crypto/sha256"
+	"encoding/hex"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -119,6 +122,38 @@ func TestSyncSkipsWhatItCannotReadAndArchivesTheRest(t *testing.T) {
 	require.Contains(t, manifest, "claude/-good/session.jsonl", "the manifest is saved past a skipped file")
 }
 
+func TestSyncSourceHashesTheBytesItArchived(t *testing.T) {
+	directory := t.TempDir()
+	archived := "{\"a\":1}\n{\"b\":2}\n"
+	// The source rewritten in place, same size, after the first read.
+	source := &rewrittenMidSync{after: []byte("{\"x\":9}\n{\"y\":8}\n"), before: []byte(archived), readsBefore: 1}
+
+	state, copied, err := syncSource(directory, "claude/-p/session.jsonl", source, int64(len(archived)), FileState{})
+
+	require.NoError(t, err)
+	require.Equal(t, int64(len(archived)), copied)
+	require.Equal(t, archived, read(t, Path(directory, "claude/-p/session.jsonl", 1)))
+	sum := sha256.Sum256([]byte(archived))
+	require.Equal(t, hex.EncodeToString(sum[:]), state.TailHash, "the hash is of the bytes archived, not of the rewrite")
+}
+
+func TestSyncSourceHashesTheWindowReachingBackPastTheChunk(t *testing.T) {
+	directory := t.TempDir()
+	earlier := strings.Repeat("{\"line\":\"earlier\"}\n", 300)
+	state, _, err := syncSource(directory, "claude/-p/session.jsonl", strings.NewReader(earlier), int64(len(earlier)), FileState{})
+	require.NoError(t, err)
+	whole := earlier + "{\"line\":\"appended\"}\n"
+	// Verified and read before the rewrite, the two reads a sync of an appended source makes.
+	source := &rewrittenMidSync{after: []byte(strings.Repeat("x", len(whole))), before: []byte(whole), readsBefore: 2}
+
+	state, _, err = syncSource(directory, "claude/-p/session.jsonl", source, int64(len(whole)), state)
+
+	require.NoError(t, err)
+	require.Equal(t, int64(len(whole)), state.Offset)
+	sum := sha256.Sum256([]byte(whole[len(whole)-tailWindow:]))
+	require.Equal(t, hex.EncodeToString(sum[:]), state.TailHash, "the window runs back past the appended chunk into bytes archived earlier")
+}
+
 func TestTryLockReportsAHeldLock(t *testing.T) {
 	directory := t.TempDir()
 	unlock, err := Lock(directory)
@@ -152,6 +187,26 @@ func read(t *testing.T, path string) string {
 	content, err := io.ReadAll(reader)
 	require.NoError(t, err)
 	return string(content)
+}
+
+type rewrittenMidSync struct {
+	after       []byte
+	before      []byte
+	reads       int
+	readsBefore int
+}
+
+func (r *rewrittenMidSync) ReadAt(buffer []byte, offset int64) (int, error) {
+	content := r.after
+	if r.reads < r.readsBefore {
+		content = r.before
+	}
+	r.reads++
+	copied := copy(buffer, content[offset:])
+	if copied < len(buffer) {
+		return copied, io.EOF
+	}
+	return copied, nil
 }
 
 func setup(t *testing.T) (string, string) {

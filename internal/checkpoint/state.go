@@ -420,8 +420,11 @@ func StateFile(session string, root string) (string, error) {
 	if session == "" || root == "" {
 		return "", errors.New("a state file needs a session and a root")
 	}
-	directory := filepath.Join(os.TempDir(), "claude-checkpoint")
-	if err := os.MkdirAll(directory, 0o700); err != nil {
+	directory, err := stateDirectory()
+	if err != nil {
+		return "", err
+	}
+	if err = os.MkdirAll(directory, 0o700); err != nil {
 		return "", err
 	}
 	return filepath.Join(directory, sha1Hex(session+"\n"+root)), nil
@@ -663,6 +666,15 @@ func sha1Hex(text string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+// Under the data directory, not a shared temp one another local user could create first.
+func stateDirectory() (string, error) {
+	directory, err := datadir.Path()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(directory, "checkpoint-state"), nil
+}
+
 func sweep(directory string, cutoff time.Time, stale func(name string) bool) {
 	entries, _ := os.ReadDir(directory)
 	for _, entry := range entries {
@@ -682,7 +694,9 @@ func sweepStale(ctx context.Context, root string) {
 	sweep(filepath.Dir(file), cutoff, func(name string) bool {
 		return elesName.MatchString(name) && (slices.Contains([]string{".frozen", ".open", ".started", ".state"}, filepath.Ext(name)) || strings.Contains(name, ".tmp"))
 	})
-	sweep(filepath.Join(os.TempDir(), "claude-checkpoint"), cutoff, func(string) bool { return true })
+	if directory, err := stateDirectory(); err == nil {
+		sweep(directory, cutoff, func(string) bool { return true })
+	}
 }
 
 func writeTemp(directory string, pattern string, content []byte) (string, error) {

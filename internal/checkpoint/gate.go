@@ -27,13 +27,13 @@ var (
 	// Only a turn claiming done is a checkpoint, and only its last text block counts: a done claim followed by more work is not one. As of 2026-10-07, over 7 days: 21 of 384 disputed blocks would still block, and 495 of the other 701.
 	doneClaim   = regexp.MustCompile(`(?i)git commit|ready (to|for) (commit|merge|review|ship)|(all|work is|that.s|now) done|is complete`)
 	laterCommit = regexp.MustCompile(`(?i)\b(once|after|when)\b[^.!?]*\byou can (then )?commit\b`)
-	nothingLeft = regexp.MustCompile(`(?i)\b(nothing|none|no|zero|0)\b[^.;,]*\b(left|remain|to go)\b`)
+	nothingLeft = regexp.MustCompile(`(?i)\b(nothing|none|no|zero|0)\b[^.;,]*\b(left|remains?|to go)\b`)
 	// A pass label, not a fixed sentence: demanding the literal "quality review" and "prose audit" blocked turns that had just run the checkpoint.
 	prosePass    = regexp.MustCompile(`(?i)(prose|comments?)[[:space:]]*(audit|pass|review|sweep|—|-|:)`)
 	qualityPass  = regexp.MustCompile(`(?i)quality[[:space:]]*(review|pass|—|-|:)|bugs[[:space:]]+review`)
 	skillInvoked = regexp.MustCompile(`(?i)\x1eTOOL Skill (ele:)?checkpoint|command-name>/?(ele:)?checkpoint|^\x1eTURN */(ele:)?checkpoint`)
 	// A count of what is left, "now done; two are left", reports a step; a bare "left" does not, as in "changes left in the working tree".
-	stillLeft = regexp.MustCompile(`(?i)\b(are|is) (still )?left\b|\bleft to (do|go)\b|\b(one|two|three|four|five|[0-9]+) (more )?(remain|to go)\b|\bstill to (do|go|come)\b`)
+	stillLeft = regexp.MustCompile(`(?i)\b(are|is) (still )?left\b|\bleft to (do|go)\b|\b(one|two|three|four|five|[0-9]+) (more )?(remains?|to go)\b|\bstill to (do|go|come)\b`)
 )
 
 type GateInput struct {
@@ -200,8 +200,7 @@ func lastTurn(path string) string {
 		}
 		switch entry.Type {
 		case "user":
-			var prompt string
-			if !entry.IsMeta && json.Unmarshal(entry.Message.Content, &prompt) == nil {
+			if prompt, typed := promptText(entry.Message.Content); typed && !entry.IsMeta {
 				rendered = append(rendered, "\x1eTURN "+prompt)
 			}
 		case "assistant":
@@ -261,6 +260,40 @@ func turnEdits(turn string, root string, isWork func(string) bool) (map[string]b
 		}
 	}
 	return edited, bashWork
+}
+
+// A typed prompt's content is a string, or, with an image pasted, an array of text and image parts; a tool result's
+// is an array of tool_result parts, and Claude Code's interrupt marker a lone text part, neither of which starts a turn.
+func promptText(content json.RawMessage) (string, bool) {
+	var prompt string
+	if json.Unmarshal(content, &prompt) == nil {
+		return prompt, true
+	}
+	var parts []struct {
+		Text string `json:"text"`
+		Type string `json:"type"`
+	}
+	if json.Unmarshal(content, &parts) != nil {
+		return "", false
+	}
+	var texts []string
+	typed := false
+	for _, part := range parts {
+		switch part.Type {
+		case "tool_result":
+			// An answer with an image attached carries one beside its tool result: still the turn's own reply.
+			return "", false
+		case "image":
+			typed = true
+		case "text":
+			if strings.HasPrefix(part.Text, "[Request interrupted by user") {
+				continue
+			}
+			typed = true
+			texts = append(texts, part.Text)
+		}
+	}
+	return strings.Join(texts, "\n"), typed
 }
 
 func renderAssistant(content json.RawMessage) string {

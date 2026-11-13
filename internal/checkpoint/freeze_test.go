@@ -447,7 +447,8 @@ func TestFreezeRefusesPathsItCannotDiff(t *testing.T) {
 func TestFreezeSweepsFilesUntouchedForAWeek(t *testing.T) {
 	root := project(t)
 	reviewed := filepath.Dir(reviewedFile(t, root))
-	scratch := filepath.Join(os.TempDir(), "claude-checkpoint")
+	scratch, err := stateDirectory()
+	require.NoError(t, err)
 	old := time.Now().Add(-8 * 24 * time.Hour)
 	record, fresh := filepath.Join(reviewed, strings.Repeat("a", 40)), filepath.Join(reviewed, strings.Repeat("f", 40))
 	stale := []string{record + ".def.started", record + ".def.open", record + ".def.frozen", record + ".def.state", record + ".tmp-1", filepath.Join(scratch, "abc.optout"), filepath.Join(scratch, "abc")}

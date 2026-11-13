@@ -40,6 +40,7 @@ func TestGatePatternsMatchTheirWordings(t *testing.T) {
 		{matches: false, pattern: laterCommit, text: "You can commit now."},
 		{matches: true, pattern: nothingLeft, text: "0 remain."},
 		{matches: false, pattern: nothingLeft, text: "Left the change in the tree."},
+		{matches: true, pattern: nothingLeft, text: "No one remains."},
 		{matches: true, pattern: nothingLeft, text: "No steps remain."},
 		{matches: true, pattern: nothingLeft, text: "None to go."},
 		{matches: true, pattern: nothingLeft, text: "Nothing is left."},
@@ -66,6 +67,7 @@ func TestGatePatternsMatchTheirWordings(t *testing.T) {
 		{matches: true, pattern: skillInvoked, text: "\x1eTURN /ele:checkpoint"},
 		{matches: true, pattern: skillInvoked, text: "<command-name>/ele:checkpoint</command-name>"},
 		{matches: false, pattern: stillLeft, text: "Changes left in the working tree."},
+		{matches: true, pattern: stillLeft, text: "Done; one remains."},
 		{matches: true, pattern: stillLeft, text: "One step is still left."},
 		{matches: true, pattern: stillLeft, text: "Still to come: group 4."},
 		{matches: true, pattern: stillLeft, text: "Still to do: group 4."},
@@ -92,6 +94,22 @@ func TestLastTurnStartsAtTheLastPrompt(t *testing.T) {
 	require.Equal(t, "\x1eTURN two\n\x1eTEXT\nsecond", lastTurn(path))
 	require.Empty(t, lastTurn(""))
 	require.Empty(t, lastTurn(filepath.Join(t.TempDir(), "missing.jsonl")))
+}
+
+func TestLastTurnStartsAtAPromptWithAnImage(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "s1.jsonl")
+	require.NoError(t, os.WriteFile(path, []byte(`{"type":"user","message":{"content":"one"}}
+{"type":"assistant","message":{"content":[{"type":"text","text":"first"}]}}
+{"type":"user","message":{"content":[{"type":"text","text":"look"},{"type":"image","source":{"type":"base64","data":""}}]}}
+{"type":"assistant","message":{"content":[{"type":"text","text":"second"}]}}
+{"type":"user","message":{"content":[{"type":"tool_result","content":"ok"}]}}
+{"type":"user","message":{"content":[{"type":"tool_result","content":"answered"},{"type":"image","source":{"type":"base64","data":""}}]}}
+{"type":"assistant","message":{"content":[{"type":"text","text":"third"}]}}
+{"type":"user","message":{"content":[{"type":"text","text":"[Request interrupted by user for tool use]"}]}}
+{"type":"assistant","message":{"content":[{"type":"text","text":"fourth"}]}}
+`), 0o600))
+
+	require.Equal(t, "\x1eTURN look\n\x1eTEXT\nsecond\n\x1eTEXT\nthird\n\x1eTEXT\nfourth", lastTurn(path), "neither a tool result nor an interrupt starts a turn")
 }
 
 func TestLastTurnWithItsPromptPastTheTailStartsWithoutOne(t *testing.T) {

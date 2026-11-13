@@ -267,10 +267,12 @@ func syncFile(directory string, key string, sourcePath string, state FileState) 
 	if err != nil {
 		return state, 0, err
 	}
+	return syncSource(directory, key, source, info.Size(), state)
+}
 
+func syncSource(directory string, key string, source io.ReaderAt, size int64, state FileState) (FileState, int64, error) {
 	if state.Offset > 0 {
-		var hash string
-		hash, err = tailHash(source, state.Offset)
+		hash, err := tailHash(source, state.Offset)
 		if err != nil {
 			return state, 0, err
 		}
@@ -281,40 +283,45 @@ func syncFile(directory string, key string, sourcePath string, state FileState) 
 	if state.Generation == 0 {
 		state.Generation = 1
 	}
-	if info.Size() <= state.Offset {
+	if size <= state.Offset {
 		return state, 0, nil
 	}
 
-	chunk := make([]byte, info.Size()-state.Offset)
-	if _, err = source.ReadAt(chunk, state.Offset); err != nil && !errors.Is(err, io.EOF) {
+	// One read covers the hash window and the chunk, so the hash recorded is of the bytes archived, even if the source
+	// is rewritten mid-sync.
+	start := max(state.Offset-tailWindow, 0)
+	read := make([]byte, size-start)
+	if _, err := source.ReadAt(read, start); err != nil && !errors.Is(err, io.EOF) {
 		return state, 0, err
 	}
-	end := bytes.LastIndexByte(chunk, '\n')
+	end := bytes.LastIndexByte(read[state.Offset-start:], '\n')
 	if end < 0 {
 		return state, 0, nil
 	}
-	chunk = chunk[:end+1]
+	through := state.Offset - start + int64(end) + 1
+	chunk := read[state.Offset-start : through]
 
-	size, err := appendMember(Path(directory, key, state.Generation), chunk, state.Offset == 0)
+	archived, err := appendMember(Path(directory, key, state.Generation), chunk, state.Offset == 0)
 	if err != nil {
 		return state, 0, err
 	}
 	state.Offset += int64(len(chunk))
-	state.ArchiveSize = size
-	state.TailHash, err = tailHash(source, state.Offset)
-	if err != nil {
-		return state, 0, err
-	}
+	state.ArchiveSize = archived
+	state.TailHash = windowHash(read[:through])
 	return state, int64(len(chunk)), nil
 }
 
 // tailHash fingerprints the bytes just before offset; a mismatch means the source was rewritten, not appended to.
-func tailHash(source *os.File, offset int64) (string, error) {
+func tailHash(source io.ReaderAt, offset int64) (string, error) {
 	start := max(offset-tailWindow, 0)
 	window := make([]byte, offset-start)
 	if _, err := source.ReadAt(window, start); err != nil && !errors.Is(err, io.EOF) {
 		return "", err
 	}
-	sum := sha256.Sum256(window)
-	return hex.EncodeToString(sum[:]), nil
+	return windowHash(window), nil
+}
+
+func windowHash(content []byte) string {
+	sum := sha256.Sum256(content[max(len(content)-tailWindow, 0):])
+	return hex.EncodeToString(sum[:])
 }

@@ -79,6 +79,11 @@ how many:
 - `--move-to <owner>` refiles them under a listed owner you name, for a project
   no single owner covers after the change
 
+A move that fails before any note has moved writes nothing. One that fails
+after some have moved still writes the map, so the moved notes belong to their
+new owner, and names each note left behind: move its file to the new owner's
+folder, set its `owner:` line to match, and run `ele sync`.
+
 After writing the map, the command starts a background sync, which rebuilds the
 index so every session is filed under its new owner. `--no-sync` skips it; the
 next sync rebuilds instead.

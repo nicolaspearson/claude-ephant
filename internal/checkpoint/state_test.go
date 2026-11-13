@@ -314,6 +314,19 @@ func TestRunsOfTwoSessionsOnOneRepositoryKeepTheirOwnStateAndClock(t *testing.T)
 	require.True(t, Open(context.Background(), root, session), "another session's record leaves this run open")
 }
 
+func TestStateFileLivesUnderTheDataDirectory(t *testing.T) {
+	data := t.TempDir()
+	t.Setenv("ELE_HOME", data)
+
+	path, err := StateFile(session, t.TempDir())
+
+	require.NoError(t, err)
+	require.Equal(t, filepath.Join(data, "checkpoint-state"), filepath.Dir(path), "not a shared temp directory another user could create first")
+	info, err := os.Stat(filepath.Dir(path))
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0o700), info.Mode().Perm())
+}
+
 func TestStatePastThePathCapCoversNothing(t *testing.T) {
 	root := project(t)
 	for index := range pathCap {

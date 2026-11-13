@@ -46,6 +46,7 @@ type ownerWrite struct {
 	described   string // empty when the map already said what was asked
 	directories []dto.ProjectDirectory
 	moves       []noteMove
+	unmoved     error // a move that failed after others landed, naming the notes it left
 }
 
 // add re-owns too: listing an owner turns on any rule or entry already naming it.
@@ -147,12 +148,14 @@ func changeOwners(ctx context.Context, change ownerChange, arguments []string, o
 	}
 	if options.noSync {
 		fmt.Fprintln(stdout, "The next sync rebuilds the index under the new map.")
-		return 0, nil
+	} else if err = startSync(dataDirectory); err != nil {
+		return 1, errors.Join(written.unmoved, fmt.Errorf("start background sync: %w; run ele sync to rebuild the index under the new map", err))
+	} else {
+		fmt.Fprintln(stdout, "Started a background sync, which rebuilds the index under the new map; ele status shows it.")
 	}
-	if err = startSync(dataDirectory); err != nil {
-		return 1, fmt.Errorf("start background sync: %w; run ele sync to rebuild the index under the new map", err)
+	if written.unmoved != nil {
+		return 1, written.unmoved
 	}
-	fmt.Fprintln(stdout, "Started a background sync, which rebuilds the index under the new map; ele status shows it.")
 	return 0, nil
 }
 
@@ -192,11 +195,48 @@ func listedOwner(ownerMap ownermap.OwnerMap, owner string) error {
 	return fmt.Errorf("unknown owner %q; owner-map.json lists %s, and ele owner add %s adds it", owner, listed, owner)
 }
 
+// moveNotes returns the moves that landed, each holding only its moved notes; after one has landed, a failure names
+// every note left under its old owner, and before, it is the move's error alone, as nothing was written.
+func moveNotes(dataDirectory string, moves []noteMove) ([]noteMove, error) {
+	var moved []noteMove
+	for movePosition, planned := range moves {
+		landed := planned
+		landed.notes = nil
+		for notePosition, note := range planned.notes {
+			if err := notes.Move(noteTree(dataDirectory, planned.forgotten), note, planned.to); err != nil {
+				if len(landed.notes) > 0 {
+					moved = append(moved, landed)
+				}
+				if len(moved) == 0 {
+					return nil, err
+				}
+				left := noteFiles(dataDirectory, planned, planned.notes[notePosition:])
+				for _, later := range moves[movePosition+1:] {
+					left = append(left, noteFiles(dataDirectory, later, later.notes)...)
+				}
+				return moved, fmt.Errorf("%w; still to move, each file to its new owner's folder with its owner: line set to match, then ele sync: %s", err, strings.Join(left, ", "))
+			}
+			landed.notes = append(landed.notes, note)
+		}
+		moved = append(moved, landed)
+	}
+	return moved, nil
+}
+
 func noteCount(planned noteMove) string {
 	if planned.forgotten {
 		return plural(len(planned.notes), "forgotten note", "forgotten notes")
 	}
 	return plural(len(planned.notes), "note", "notes")
+}
+
+func noteFiles(dataDirectory string, planned noteMove, left []notes.Note) []string {
+	tree := filepath.Base(noteTree(dataDirectory, planned.forgotten))
+	var files []string
+	for _, note := range left {
+		files = append(files, fmt.Sprintf("%s/%s/%s.md to %s/%s/", tree, planned.from, note.ID, tree, planned.to))
+	}
+	return files
 }
 
 func noteTree(dataDirectory string, forgotten bool) string {
@@ -362,17 +402,16 @@ func writeOwnerChange(ctx context.Context, dataDirectory string, change ownerCha
 			}
 		}
 	}
-	for _, planned := range moves {
-		for _, note := range planned.notes {
-			if err = notes.Move(noteTree(dataDirectory, planned.forgotten), note, planned.to); err != nil {
-				return ownerWrite{}, err
-			}
-		}
+	moved, unmoved := moveNotes(dataDirectory, moves)
+	if unmoved != nil && len(moved) == 0 {
+		return ownerWrite{}, unmoved
 	}
+	// Once one note has moved, the map saves too: the moved ones belong to the new owner, and a rerun of the same
+	// command finds the map already saying it.
 	if err = ownermap.Save(mapPath, after); err != nil {
 		return ownerWrite{}, err
 	}
-	return ownerWrite{after: after, before: before, described: described, directories: directories, moves: moves}, nil
+	return ownerWrite{after: after, before: before, described: described, directories: directories, moves: moved, unmoved: unmoved}, nil
 }
 
 func was(previous string) string {

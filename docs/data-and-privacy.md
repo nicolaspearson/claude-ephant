@@ -35,6 +35,7 @@ directory, unused.
 ```text
 claude-ephant/
   archive/         transcripts, copied verbatim and compressed
+  checkpoint-state/ each session's checkpoint baseline and opt-outs, swept after 7 days
   config.json      options
   config.json.lock held while ele config sets or unsets an option
   ele.db           the search index
@@ -80,8 +81,7 @@ size hint still shows.
 
 Outside the data directory, and outside `ele backup`: the hook log,
 `~/.claude/logs/hooks-<month>.log`, shared with your own hooks, and the copies
-of reviewed files in `~/.claude/cache/checkpoint-reviewed/`. A checkpoint run's
-state lives in `claude-checkpoint/` under the system temporary directory.
+of reviewed files in `~/.claude/cache/checkpoint-reviewed/`.
 
 ### The archive
 

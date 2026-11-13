@@ -2641,7 +2641,17 @@ keep.
     and creates files with, `links` the fixture's own `.claude-a`,
     `flag-saves` a successful save, and the forge comment draws npm's entry
     file on purpose
-- [ ] audit-fixes: The audits' data and state defects the user ruled to fix
+- [x] audit-fixes: The audits' data and state defects the user ruled to fix
+  - asserted in the audit-fixes commit, after a2ba510: under `go test`,
+    backup copies both note trees under their locks; `forget A B` forgets a
+    correction with what it corrects; a partial owner move saves the map and
+    names the notes left, and one with none moved writes nothing; `config
+    set` and `unset` wait on `config.json.lock` and save atomically; the
+    archive records the hash of the bytes it read; the gate starts a turn at
+    a prompt with an image, not at a tool result or an interrupt;
+    `StateFile` is under the data dir; `stillLeft` counts "one remains".
+    Each test failed against a mutation of the code it covers; the partial
+    owner move's started sync is untested
   - done when, each by a test seen red: `ele backup` copies while holding
     the notes and forgotten locks; `ele forget A B` forgets both when A
     supersedes B; an `ele owner` move failing partway saves the owner map
@@ -2683,8 +2693,14 @@ keep.
     supersedes; `ele config set` and `unset` hold `config.json.lock` and
     save through `atomicfile.Write`; each by a test that failed against a
     mutation
-  - next: group B, the partial owner move and `syncFile`'s hash, then group
-    C, the gate's `lastTurn` and `stillLeft` and `StateFile`
+  - as of 2026-11-13: group B done, in the commit carrying this line: an
+    `ele owner` move failing after a note has moved saves the map, starts the
+    sync and exits 1 naming each note left and how to move it by hand, and
+    one failing before any moved writes nothing; `archive`'s sync takes the
+    tail hash from the same read as the bytes it archives, its window
+    reaching back past the chunk; each by a test that failed against a
+    mutation, but for the started sync, untested as every owner test passes
+    `--no-sync`
 - [x] atomic-helpers: One internal package holds the atomic write and the file
   lock, and the notes temp sweep covers `forgotten/`
   - asserted in the atomic-helpers commit: `internal/atomicfile` holds the one

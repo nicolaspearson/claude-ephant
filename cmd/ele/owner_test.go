@@ -268,3 +268,49 @@ func TestOwnerRefusesWithoutWriting(t *testing.T) {
 		})
 	}
 }
+
+func TestOwnerSavesTheMapForTheNotesMovedWhenAMoveFails(t *testing.T) {
+	for _, test := range []struct {
+		blocked string
+		name    string
+		saved   bool
+	}{
+		{blocked: "notes", name: "before any moved"},
+		{blocked: "forgotten", name: "partway", saved: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			home := recallFixture(t)
+			t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+			output, code := runCommand(t, "remember", "--kind", "decision", "--session", "", "pin pydantic below 2.14")
+			require.Equal(t, 0, code, output)
+			live := readRemembered(t, output)
+			output, code = runCommand(t, "remember", "--kind", "decision", "--session", "", "pin httpx below 0.28")
+			require.Equal(t, 0, code, output)
+			forgotten := readRemembered(t, output)
+			output, code = runCommand(t, "forget", forgotten.ID)
+			require.Equal(t, 0, code, output)
+			// The live note moves before the forgotten one, so a blocked notes tree fails the first move, forgotten the second.
+			blocked := filepath.Join(home, "data", test.blocked, "personal")
+			require.NoError(t, os.MkdirAll(blocked, 0o500))
+			t.Cleanup(func() { _ = os.Chmod(blocked, 0o700) })
+
+			output, code = runCommand(t, "owner", "add-project", "gateway", "personal", "--move", "--no-sync")
+
+			require.Equal(t, 1, code, output)
+			after, err := ownermap.Load(filepath.Join(home, "data", "owner-map.json"))
+			require.NoError(t, err)
+			if !test.saved {
+				require.NotContains(t, output, "Moved 1")
+				require.NotContains(t, output, "still to move", "nothing written, so nothing to finish by hand")
+				require.Empty(t, after.Projects["gateway"], "nothing moved, so nothing is written")
+				require.FileExists(t, filepath.Join(home, "data", "notes", "corp", live.ID+".md"))
+				return
+			}
+			require.Equal(t, "personal", after.Projects["gateway"], "the moved note belongs to the new owner")
+			require.Contains(t, output, "Moved 1 note of gateway from corp to personal.\n")
+			require.Contains(t, output, "forgotten/corp/"+forgotten.ID+".md to forgotten/personal/")
+			require.FileExists(t, filepath.Join(home, "data", "notes", "personal", live.ID+".md"))
+			require.FileExists(t, filepath.Join(home, "data", "forgotten", "corp", forgotten.ID+".md"))
+		})
+	}
+}
