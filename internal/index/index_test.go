@@ -171,56 +171,6 @@ func TestUpdateIndexesThroughASymlinkedArchiveDirectory(t *testing.T) {
 	require.Equal(t, []string{"first prompt"}, match(t, index, "first"))
 }
 
-func TestUpdateSkipsAnArchiveFileShorterThanItIndexedAndIndexesTheRest(t *testing.T) {
-	root := t.TempDir()
-	projects := filepath.Join(root, "projects")
-	archiveDirectory := filepath.Join(root, "archive")
-	write(t, filepath.Join(projects, "-a", "s1.jsonl"), line("user", "/a", `"first prompt"`)+line("user", "/a", `"second prompt"`))
-	index := open(t, filepath.Join(root, "ele.db"))
-	update(t, index, projects, archiveDirectory, ownermap.OwnerMap{})
-	// As restored from an older backup: shorter than what the index has read.
-	short := archive.Path(archiveDirectory, "claude/-a/s1.jsonl", 1)
-	file, err := os.Create(short)
-	require.NoError(t, err)
-	compressed := gzip.NewWriter(file)
-	_, err = compressed.Write([]byte("x\n"))
-	require.NoError(t, err)
-	require.NoError(t, compressed.Close())
-	require.NoError(t, file.Close())
-	write(t, filepath.Join(projects, "-b", "s2.jsonl"), line("user", "/b", `"other prompt"`))
-	write(t, filepath.Join(archiveDirectory, "claude", "-c", "s3.jsonl.gz"), "not gzip")
-
-	summary := update(t, index, projects, archiveDirectory, ownermap.OwnerMap{})
-
-	require.Equal(t, 1, summary.Files)
-	require.Len(t, summary.Skipped, 2)
-	require.Contains(t, summary.Skipped[0], "claude/-a/s1.jsonl")
-	require.Contains(t, summary.Skipped[0], "ele reindex rebuilds from the archive")
-	require.Contains(t, summary.Skipped[1], "claude/-c/s3.jsonl.gz", "a corrupt archive file")
-	require.Equal(t, []string{"other prompt"}, match(t, index, "other"))
-}
-
-func TestUpdateStopsOnACancelledContextRatherThanSkippingTheRest(t *testing.T) {
-	root := t.TempDir()
-	projects := filepath.Join(root, "projects")
-	archiveDirectory := filepath.Join(root, "archive")
-	write(t, filepath.Join(projects, "-a", "s1.jsonl"), line("user", "/a", `"first"`))
-	write(t, filepath.Join(projects, "-b", "s2.jsonl"), line("user", "/b", `"second"`))
-	unlock, err := archive.Lock(archiveDirectory)
-	require.NoError(t, err)
-	_, err = archive.Sync([]archive.Source{{Directory: projects, Profile: "claude"}}, archiveDirectory)
-	unlock()
-	require.NoError(t, err)
-	index := open(t, filepath.Join(root, "ele.db"))
-	cancelled, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	summary, err := index.Update(cancelled, archiveDirectory, NewProjects(ownermap.OwnerMap{}), hookversion.Open(t.TempDir()))
-
-	require.ErrorIs(t, err, context.Canceled)
-	require.Empty(t, summary.Skipped)
-}
-
 func TestUpdateKeepsNoFragmentOfASecretTheCutSplits(t *testing.T) {
 	const secret = "ghp_abcdefghijklmnopqrstuvwxyz0123456789"
 	// The secret starts before the 300-rune cut and ends after it.
@@ -295,6 +245,56 @@ func TestUpdateKeysEntriesByLineAndPlace(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, "p1", results[0].Session, "the parent's copy, indexed first")
+}
+
+func TestUpdateSkipsAnArchiveFileShorterThanItIndexedAndIndexesTheRest(t *testing.T) {
+	root := t.TempDir()
+	projects := filepath.Join(root, "projects")
+	archiveDirectory := filepath.Join(root, "archive")
+	write(t, filepath.Join(projects, "-a", "s1.jsonl"), line("user", "/a", `"first prompt"`)+line("user", "/a", `"second prompt"`))
+	index := open(t, filepath.Join(root, "ele.db"))
+	update(t, index, projects, archiveDirectory, ownermap.OwnerMap{})
+	// As restored from an older backup: shorter than what the index has read.
+	short := archive.Path(archiveDirectory, "claude/-a/s1.jsonl", 1)
+	file, err := os.Create(short)
+	require.NoError(t, err)
+	compressed := gzip.NewWriter(file)
+	_, err = compressed.Write([]byte("x\n"))
+	require.NoError(t, err)
+	require.NoError(t, compressed.Close())
+	require.NoError(t, file.Close())
+	write(t, filepath.Join(projects, "-b", "s2.jsonl"), line("user", "/b", `"other prompt"`))
+	write(t, filepath.Join(archiveDirectory, "claude", "-c", "s3.jsonl.gz"), "not gzip")
+
+	summary := update(t, index, projects, archiveDirectory, ownermap.OwnerMap{})
+
+	require.Equal(t, 1, summary.Files)
+	require.Len(t, summary.Skipped, 2)
+	require.Contains(t, summary.Skipped[0], "claude/-a/s1.jsonl")
+	require.Contains(t, summary.Skipped[0], "ele reindex rebuilds from the archive")
+	require.Contains(t, summary.Skipped[1], "claude/-c/s3.jsonl.gz", "a corrupt archive file")
+	require.Equal(t, []string{"other prompt"}, match(t, index, "other"))
+}
+
+func TestUpdateStopsOnACancelledContextRatherThanSkippingTheRest(t *testing.T) {
+	root := t.TempDir()
+	projects := filepath.Join(root, "projects")
+	archiveDirectory := filepath.Join(root, "archive")
+	write(t, filepath.Join(projects, "-a", "s1.jsonl"), line("user", "/a", `"first"`))
+	write(t, filepath.Join(projects, "-b", "s2.jsonl"), line("user", "/b", `"second"`))
+	unlock, err := archive.Lock(archiveDirectory)
+	require.NoError(t, err)
+	_, err = archive.Sync([]archive.Source{{Directory: projects, Profile: "claude"}}, archiveDirectory)
+	unlock()
+	require.NoError(t, err)
+	index := open(t, filepath.Join(root, "ele.db"))
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	summary, err := index.Update(cancelled, archiveDirectory, NewProjects(ownermap.OwnerMap{}), hookversion.Open(t.TempDir()))
+
+	require.ErrorIs(t, err, context.Canceled)
+	require.Empty(t, summary.Skipped)
 }
 
 func appendTo(t *testing.T, path string, content string) {

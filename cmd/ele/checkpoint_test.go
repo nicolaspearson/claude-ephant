@@ -26,6 +26,18 @@ const (
 	logRecord   = `{"change":{"files":1,"lines":2},"findings":[],"mode":"small","mutations":{"failed":0,"inconclusive":0,"run":0},"notes":{"approved":0,"proposed":0},"rereview":"skipped","scope":"uncommitted"}`
 )
 
+func TestCheckpointHooksRecordTheRunningVersion(t *testing.T) {
+	data := t.TempDir()
+	t.Setenv("ELE_HOME", data)
+	t.Chdir(t.TempDir())
+
+	snapshotHook(t)
+
+	recorded, err := os.ReadFile(filepath.Join(data, "hook-versions", hookSession))
+	require.NoError(t, err)
+	require.Regexp(t, `^\S+\tdevel\n$`, string(recorded))
+}
+
 func TestRunCheckpointCheckNamesThePathCap(t *testing.T) {
 	root := hookRepository(t)
 	for index := range 201 {
@@ -353,6 +365,37 @@ func TestRunCheckpointGateWeighsOnlyWhatThisTurnWrote(t *testing.T) {
 	})
 }
 
+func TestRunCheckpointHooksRefuseATerminalAndPassBadInput(t *testing.T) {
+	root := hookRepository(t)
+	for command, reason := range map[string]string{
+		"gate":     "ele: checkpoint gate reads a Stop hook's JSON on stdin\n",
+		"snapshot": "ele: checkpoint snapshot reads a UserPromptSubmit hook's JSON on stdin\n",
+	} {
+		device, err := os.Open(os.DevNull)
+		require.NoError(t, err)
+		var stdout, stderr bytes.Buffer
+		code := checkpointCommand(context.Background(), []string{command}, device, &stdout, &stderr)
+		require.NoError(t, device.Close())
+		require.Equal(t, 1, code, command)
+		require.Equal(t, reason, stderr.String(), command)
+
+		stdout.Reset()
+		stderr.Reset()
+		code = checkpointCommand(context.Background(), []string{command}, strings.NewReader("not json"), &stdout, &stderr)
+		require.Equal(t, 0, code, command)
+		require.Empty(t, stdout.String()+stderr.String(), command)
+	}
+
+	stateFile, err := checkpoint.StateFile(hookSession, root)
+	require.NoError(t, err)
+	oversized := `{"session_id":"` + hookSession + `","prompt":"` + strings.Repeat("x", hookInputLimit) + `"}`
+	var stdout, stderr bytes.Buffer
+	code := checkpointCommand(context.Background(), []string{"snapshot"}, strings.NewReader(oversized), &stdout, &stderr)
+	require.Equal(t, 0, code)
+	require.Empty(t, stdout.String()+stderr.String())
+	require.NoFileExists(t, stateFile, "a payload past the limit takes no baseline")
+}
+
 func TestRunCheckpointLogAppendsFromASubdirectory(t *testing.T) {
 	root, logPath := checkpointRepository(t)
 
@@ -428,37 +471,6 @@ func TestRunCheckpointRecordSubcommandsRefuseBadCalls(t *testing.T) {
 	require.Equal(t, "not covered: "+root+" has changed since the last checkpoint, or none ran\n", output)
 }
 
-func TestRunCheckpointHooksRefuseATerminalAndPassBadInput(t *testing.T) {
-	root := hookRepository(t)
-	for command, reason := range map[string]string{
-		"gate":     "ele: checkpoint gate reads a Stop hook's JSON on stdin\n",
-		"snapshot": "ele: checkpoint snapshot reads a UserPromptSubmit hook's JSON on stdin\n",
-	} {
-		device, err := os.Open(os.DevNull)
-		require.NoError(t, err)
-		var stdout, stderr bytes.Buffer
-		code := checkpointCommand(context.Background(), []string{command}, device, &stdout, &stderr)
-		require.NoError(t, device.Close())
-		require.Equal(t, 1, code, command)
-		require.Equal(t, reason, stderr.String(), command)
-
-		stdout.Reset()
-		stderr.Reset()
-		code = checkpointCommand(context.Background(), []string{command}, strings.NewReader("not json"), &stdout, &stderr)
-		require.Equal(t, 0, code, command)
-		require.Empty(t, stdout.String()+stderr.String(), command)
-	}
-
-	stateFile, err := checkpoint.StateFile(hookSession, root)
-	require.NoError(t, err)
-	oversized := `{"session_id":"` + hookSession + `","prompt":"` + strings.Repeat("x", hookInputLimit) + `"}`
-	var stdout, stderr bytes.Buffer
-	code := checkpointCommand(context.Background(), []string{"snapshot"}, strings.NewReader(oversized), &stdout, &stderr)
-	require.Equal(t, 0, code)
-	require.Empty(t, stdout.String()+stderr.String())
-	require.NoFileExists(t, stateFile, "a payload past the limit takes no baseline")
-}
-
 func TestRunCheckpointSnapshotKeepsTheBaselineOfATurnStillRunning(t *testing.T) {
 	root := hookRepository(t)
 	snapshotHook(t)
@@ -484,21 +496,6 @@ func TestRunCheckpointStatsRefusesBadArguments(t *testing.T) {
 	output, code = runCheckpointStats(t, "--baseline")
 	require.Equal(t, 2, code, "the mined baseline moved to ele mine --report")
 	require.Contains(t, output, "flag provided but not defined: -baseline")
-}
-
-func TestRunCheckpointStatsWindowsBySince(t *testing.T) {
-	t.Setenv("CHECKPOINT_LOG", filepath.Join(t.TempDir(), "checkpoints.jsonl"))
-	today := time.Now()
-
-	output, code := runCheckpointStats(t, "--since", "7d")
-	require.Equal(t, 0, code, output)
-	require.True(t, strings.HasPrefix(output, "Since "+today.AddDate(0, 0, -7).Format(time.DateOnly)+":"), output)
-	output, code = runCheckpointStats(t, "--since", "2026-01-02")
-	require.Equal(t, 0, code, output)
-	require.True(t, strings.HasPrefix(output, "Since 2026-01-02:"), output)
-	output, code = runCheckpointStats(t)
-	require.Equal(t, 0, code, output)
-	require.True(t, strings.HasPrefix(output, "Since "+today.AddDate(0, 0, -30).Format(time.DateOnly)+":"), output)
 }
 
 func checkpointRepository(t *testing.T) (string, string) {
@@ -577,16 +574,19 @@ func runCheckpointStats(t *testing.T, args ...string) (string, int) {
 	return output.String(), code
 }
 
-func TestCheckpointHooksRecordTheRunningVersion(t *testing.T) {
-	data := t.TempDir()
-	t.Setenv("ELE_HOME", data)
-	t.Chdir(t.TempDir())
+func TestRunCheckpointStatsWindowsBySince(t *testing.T) {
+	t.Setenv("CHECKPOINT_LOG", filepath.Join(t.TempDir(), "checkpoints.jsonl"))
+	today := time.Now()
 
-	snapshotHook(t)
-
-	recorded, err := os.ReadFile(filepath.Join(data, "hook-versions", hookSession))
-	require.NoError(t, err)
-	require.Regexp(t, `^\S+\tdevel\n$`, string(recorded))
+	output, code := runCheckpointStats(t, "--since", "7d")
+	require.Equal(t, 0, code, output)
+	require.True(t, strings.HasPrefix(output, "Since "+today.AddDate(0, 0, -7).Format(time.DateOnly)+":"), output)
+	output, code = runCheckpointStats(t, "--since", "2026-01-02")
+	require.Equal(t, 0, code, output)
+	require.True(t, strings.HasPrefix(output, "Since 2026-01-02:"), output)
+	output, code = runCheckpointStats(t)
+	require.Equal(t, 0, code, output)
+	require.True(t, strings.HasPrefix(output, "Since "+today.AddDate(0, 0, -30).Format(time.DateOnly)+":"), output)
 }
 
 func runGit(t *testing.T, root string, args ...string) {

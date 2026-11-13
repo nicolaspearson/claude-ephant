@@ -127,6 +127,8 @@ var commands = map[string]func(ctx context.Context, args []string, stdout io.Wri
 
 var errSyncBusy = errors.New("another sync holds the archive lock")
 
+type repeatedFlag []string
+
 func main() {
 	os.Exit(run(context.Background(), os.Args[1:], os.Stdout, os.Stderr))
 }
@@ -348,4 +350,13 @@ func syncCommand(ctx context.Context, args []string, stdout io.Writer, stderr io
 		return 1
 	}
 	return 0
+}
+
+func (values *repeatedFlag) Set(value string) error {
+	*values = append(*values, value)
+	return nil
+}
+
+func (values *repeatedFlag) String() string {
+	return strings.Join(*values, ",")
 }

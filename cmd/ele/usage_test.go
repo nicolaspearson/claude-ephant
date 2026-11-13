@@ -8,6 +8,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestRunUsageRefusesBadInput(t *testing.T) {
+	recallFixture(t)
+	for _, test := range []struct {
+		args    []string
+		message string
+	}{
+		{args: []string{"usage", "--owner", "nobody"}, message: `ele: unknown owner "nobody"; owner-map.json lists corp, personal`},
+		{args: []string{"usage", "--since", "soon"}, message: "ele: "},
+		{args: []string{"usage", "extra"}, message: "ele usage [--owner"},
+	} {
+		output, code := runCommand(t, test.args...)
+		require.Equal(t, 2, code, test.args)
+		require.Contains(t, output, test.message, test.args)
+	}
+}
+
 func TestRunUsageReportsPerOwner(t *testing.T) {
 	home := recallFixture(t)
 	gateway := filepath.Join(home, "w", "corp", "gateway")
@@ -46,20 +62,4 @@ func TestRunUsageReportsPerOwner(t *testing.T) {
 	output, code = runCommand(t, "usage", "--project", "gateway", "--since", "2026-10-16", "--no-sync")
 	require.Equal(t, 0, code, output)
 	require.Equal(t, "0 sessions, 0 prompts in gateway since 2026-10-16.\n", output)
-}
-
-func TestRunUsageRefusesBadInput(t *testing.T) {
-	recallFixture(t)
-	for _, test := range []struct {
-		args    []string
-		message string
-	}{
-		{args: []string{"usage", "--owner", "nobody"}, message: `ele: unknown owner "nobody"; owner-map.json lists corp, personal`},
-		{args: []string{"usage", "--since", "soon"}, message: "ele: "},
-		{args: []string{"usage", "extra"}, message: "ele usage [--owner"},
-	} {
-		output, code := runCommand(t, test.args...)
-		require.Equal(t, 2, code, test.args)
-		require.Contains(t, output, test.message, test.args)
-	}
 }

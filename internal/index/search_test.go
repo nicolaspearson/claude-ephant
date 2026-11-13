@@ -27,6 +27,17 @@ func TestProjectOwnersListsEachOwnerOnce(t *testing.T) {
 	require.Empty(t, owners)
 }
 
+func TestResetLeavesNoFTSRows(t *testing.T) {
+	index := searchFixture(t)
+
+	require.NoError(t, index.Reset(context.Background()))
+	_, err := index.db.Exec(`INSERT INTO entries_fts (entries_fts, rank) VALUES ('integrity-check', 1)`)
+	require.NoError(t, err, "Reset left FTS rows behind")
+	results, err := index.Search(context.Background(), Query{Text: "pydantic"})
+	require.NoError(t, err)
+	require.Empty(t, results)
+}
+
 func TestSearchRanksKindsThenRelevanceWithinFilters(t *testing.T) {
 	index := searchFixture(t)
 
@@ -139,17 +150,6 @@ func TestSessionsFindsAPrefixThroughTheSessionIndex(t *testing.T) {
 	var detail string
 	require.NoError(t, index.db.QueryRow(`EXPLAIN QUERY PLAN `+query, arguments...).Scan(&id, &parent, &unused, &detail))
 	require.Contains(t, detail, "USING COVERING INDEX entries_session_kind (session>? AND session<?)", "a LIKE prefix scans every entry")
-}
-
-func TestResetLeavesNoFTSRows(t *testing.T) {
-	index := searchFixture(t)
-
-	require.NoError(t, index.Reset(context.Background()))
-	_, err := index.db.Exec(`INSERT INTO entries_fts (entries_fts, rank) VALUES ('integrity-check', 1)`)
-	require.NoError(t, err, "Reset left FTS rows behind")
-	results, err := index.Search(context.Background(), Query{Text: "pydantic"})
-	require.NoError(t, err)
-	require.Empty(t, results)
 }
 
 func kinds(results []Result) []string {

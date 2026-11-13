@@ -8,14 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestOpenFindsASourcesEntriesThroughAnIndex(t *testing.T) {
-	index := open(t, filepath.Join(t.TempDir(), "ele.db"))
-	var id, parent, unused int
-	var detail string
-	require.NoError(t, index.db.QueryRow(`EXPLAIN QUERY PLAN SELECT id, text FROM entries WHERE source = ?`, "notes/x.md").Scan(&id, &parent, &unused, &detail))
-	require.Contains(t, detail, "USING INDEX entries_source", "a rebuild deletes and rereads each note's entries by source")
-}
-
 func TestOpenFindsASessionsEventsAndEntriesOfAKindThroughAnIndex(t *testing.T) {
 	index := open(t, filepath.Join(t.TempDir(), "ele.db"))
 	for table, want := range map[string]string{"entries": "entries_session_kind", "events": "events_session_kind"} {
@@ -24,6 +16,14 @@ func TestOpenFindsASessionsEventsAndEntriesOfAKindThroughAnIndex(t *testing.T) {
 		require.NoError(t, index.db.QueryRow(`EXPLAIN QUERY PLAN SELECT 1 FROM `+table+` WHERE session = ? AND kind = ? AND timestamp > ?`, "s1", "skill", "2026").Scan(&id, &parent, &unused, &detail))
 		require.Contains(t, detail, "USING COVERING INDEX "+want+" (session=? AND kind=? AND timestamp>?)", "events --during looks up a session's run boundaries per event")
 	}
+}
+
+func TestOpenFindsASourcesEntriesThroughAnIndex(t *testing.T) {
+	index := open(t, filepath.Join(t.TempDir(), "ele.db"))
+	var id, parent, unused int
+	var detail string
+	require.NoError(t, index.db.QueryRow(`EXPLAIN QUERY PLAN SELECT id, text FROM entries WHERE source = ?`, "notes/x.md").Scan(&id, &parent, &unused, &detail))
+	require.Contains(t, detail, "USING INDEX entries_source", "a rebuild deletes and rereads each note's entries by source")
 }
 
 func TestOpenNamesWhatDiffersAndResetRepairsIt(t *testing.T) {

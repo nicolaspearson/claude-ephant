@@ -120,6 +120,26 @@ func TestPlural(t *testing.T) {
 	require.Equal(t, "0 matches", plural(0, "match", "matches"))
 }
 
+func TestRunRecallFindsASentHeadsUpByItsKind(t *testing.T) {
+	home := recallFixture(t)
+	notesRepository := filepath.Join(home, "w", "personal", "notes")
+	writeFile(t, filepath.Join(home, ".claude", "projects", "-notes", "ghi3.jsonl"),
+		`{"type":"user","origin":{"kind":"human"},"promptSource":"typed","cwd":"`+notesRepository+`","sessionId":"ghi3","timestamp":"2026-10-16T09:00:00Z","uuid":"h1","message":{"content":"✦ Heads up · The retry loop never backs off"}}`+"\n")
+
+	output, code := runCommand(t, "recall", "--all", "--kind", "heads-up", "retry")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "1 match")
+	require.Contains(t, output, "heads-up")
+
+	output, code = runCommand(t, "recall", "--no-sync", "--all", "--kind", "prompt", "retry")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "No matches")
+
+	output, code = runCommand(t, "usage", "--owner", "personal")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "2 sessions, 2 prompts for personal.\n", "a sent heads-up starts a turn")
+}
+
 func TestRunRecallFollowsAnOwnerMapEdit(t *testing.T) {
 	home := recallFixture(t)
 	writeFile(t, filepath.Join(home, "data", "owner-map.json"),
@@ -163,26 +183,6 @@ func TestRunRecallRefusesBadScopeAndKinds(t *testing.T) {
 	output, code := runCommand(t, "recall", "--no-sync", "--all", "--kind", "prompt, conversation", "pydantic")
 	require.Equal(t, 0, code, output)
 	require.Contains(t, output, "2 matches")
-}
-
-func TestRunRecallFindsASentHeadsUpByItsKind(t *testing.T) {
-	home := recallFixture(t)
-	notesRepository := filepath.Join(home, "w", "personal", "notes")
-	writeFile(t, filepath.Join(home, ".claude", "projects", "-notes", "ghi3.jsonl"),
-		`{"type":"user","origin":{"kind":"human"},"promptSource":"typed","cwd":"`+notesRepository+`","sessionId":"ghi3","timestamp":"2026-10-16T09:00:00Z","uuid":"h1","message":{"content":"✦ Heads up · The retry loop never backs off"}}`+"\n")
-
-	output, code := runCommand(t, "recall", "--all", "--kind", "heads-up", "retry")
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "1 match")
-	require.Contains(t, output, "heads-up")
-
-	output, code = runCommand(t, "recall", "--no-sync", "--all", "--kind", "prompt", "retry")
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "No matches")
-
-	output, code = runCommand(t, "usage", "--owner", "personal")
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "2 sessions, 2 prompts for personal.\n", "a sent heads-up starts a turn")
 }
 
 func TestRunRecallScopesToTheWorkingDirectorysOwner(t *testing.T) {
@@ -319,6 +319,174 @@ func TestRunShowCentresOnAMatch(t *testing.T) {
 	require.Contains(t, output, "--context must be 0 or more")
 }
 
+func TestRunShowCentresOnTheDiscussionNotItsNote(t *testing.T) {
+	home := recallFixture(t)
+	noteDirectory := filepath.Join(home, "data", "notes")
+	// Dated on the fixture's day, so the note sorts before the discussion it shares a word with.
+	for _, note := range []notes.Note{
+		{Body: "Keep the wrapper pin.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Session: "abc1"},
+		{Body: "Only a note here.", Date: "2026-10-15", ID: "20261015-bbbbbb", Kind: notes.KindDecision, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Session: "lonely1"},
+	} {
+		_, err := notes.Write(noteDirectory, note)
+		require.NoError(t, err)
+	}
+	output, code := runCommand(t, "sync")
+	require.Equal(t, 0, code, output)
+
+	output, code = runCommand(t, "show", "abc1", "--around", "wrapper", "--context", "0")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "conversation Pinned it in the wrapper")
+	require.NotContains(t, output, "Keep the wrapper pin.")
+
+	output, code = runCommand(t, "show", "lonely", "--around", "only", "--context", "0")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "note         Only a note here.")
+}
+
+func TestRunShowNoteKeepsPartsApartAndWithinBudget(t *testing.T) {
+	home := recallFixture(t)
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	wide := strings.Repeat("├── ", 600)
+	texts := []string{"Filler one.", "Should resume skip? " + wide, "Filler two.", "Resume skip, again. " + wide, "Filler three.", "Filler four.", "Filler five.", "Resume skip, a third time. " + wide, "Filler six."}
+	var transcript strings.Builder
+	for minute, text := range texts {
+		fmt.Fprintf(&transcript, `{"type":"user","cwd":%q,"sessionId":"apart1","timestamp":"2026-10-15T11:%02d:00Z","uuid":"a%02d","message":{"content":%q}}`+"\n", gateway, minute, minute, text)
+	}
+	writeFile(t, filepath.Join(home, ".claude", "projects", "-gateway", "apart1.jsonl"), transcript.String())
+	_, err := notes.Write(filepath.Join(home, "data", "notes"), notes.Note{Body: "Resume skips.", Date: "2026-10-15", ID: "20261015-bbbbbb", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal, Session: "apart1", Time: "2026-10-15T12:00:00Z"})
+	require.NoError(t, err)
+	output, code := runCommand(t, "sync")
+	require.Equal(t, 0, code, output)
+
+	output, code = runCommand(t, "show", "--note", "20261015-bbbbbb", "--context", "1")
+	require.Equal(t, 0, code, output)
+	require.LessOrEqual(t, len(output), outputBudget, "wide characters stay within the byte budget")
+	require.Equal(t, 2, strings.Count(output, "— entries "), "the strong entry two after the first gets no part of its own")
+	require.NotContains(t, output, "Resume skip, again.")
+	require.Contains(t, output, "Resume skip, a third time.")
+}
+
+func TestRunShowNoteKeepsTheEntryBeforeItWhenTheWindowOverflows(t *testing.T) {
+	home := recallFixture(t)
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	var transcript strings.Builder
+	for minute := range 20 {
+		text := fmt.Sprintf("entry %02d %s", minute, strings.Repeat("long ", 150))
+		if minute == 19 {
+			text = "the last word before the note"
+		}
+		fmt.Fprintf(&transcript, `{"type":"user","cwd":%q,"sessionId":"long1","timestamp":"2026-10-15T11:%02d:00Z","uuid":"u%02d","message":{"content":%q}}`+"\n", gateway, minute, minute, text)
+	}
+	writeFile(t, filepath.Join(home, ".claude", "projects", "-gateway", "long1.jsonl"), transcript.String())
+	_, err := notes.Write(filepath.Join(home, "data", "notes"), notes.Note{Body: "Decided.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal, Session: "long1", Time: "2026-10-15T12:00:00Z"})
+	require.NoError(t, err)
+	output, code := runCommand(t, "sync")
+	require.Equal(t, 0, code, output)
+
+	output, code = runCommand(t, "show", "--note", "20261015-aaaaaa", "--context", "10")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "prompt       the last word before the note\n… ")
+	require.Regexp(t, `^Session long1 · corp · 21 entries · note 20261015-aaaaaa's discussion\n— entries (\d+)–21\n`, output)
+	require.Contains(t, output, "entry 18 long")
+	require.Regexp(t, `\n… \d+ more entries not shown \(output limit\); ele show long1 --around <text> reaches them\n$`, output)
+	require.LessOrEqual(t, len(output), outputBudget)
+}
+
+func TestRunShowNoteShowsEachPartOfItsDiscussion(t *testing.T) {
+	home := recallFixture(t)
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	texts := []string{
+		"Run the checkpoint.", "The checkpoint passed.", "Another checkpoint.",
+		"Should resume skip the start block? " + strings.Repeat("reasoning ", 140) + "END-OF-ANSWER",
+		"Checkpoint again.", "More checkpoint work.", "Checkpoint log.", "Checkpoint stats.", "Checkpoint review.",
+		"Proposed: resume skips the start block.", "Checkpoint done.",
+	}
+	var transcript strings.Builder
+	for minute, text := range texts {
+		fmt.Fprintf(&transcript, `{"type":"user","cwd":%q,"sessionId":"parts1","timestamp":"2026-10-15T11:%02d:00Z","uuid":"p%02d","message":{"content":%q}}`+"\n", gateway, minute, minute, text)
+	}
+	writeFile(t, filepath.Join(home, ".claude", "projects", "-gateway", "parts1.jsonl"), transcript.String())
+	_, err := notes.Write(filepath.Join(home, "data", "notes"), notes.Note{Body: "Resume skips the start block.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal, Session: "parts1", Time: "2026-10-15T12:00:00Z"})
+	require.NoError(t, err)
+	output, code := runCommand(t, "sync")
+	require.Equal(t, 0, code, output)
+
+	output, code = runCommand(t, "show", "--note", "20261015-aaaaaa")
+	require.Equal(t, 0, code, output)
+	require.True(t, strings.HasPrefix(output, "Session parts1 · corp · 12 entries · note 20261015-aaaaaa's discussion\n— entries 4–6\n"), output)
+	require.Contains(t, output, "END-OF-ANSWER", "an anchor is shown past textLimit")
+	require.Contains(t, output, "\n— entries 10–12\n")
+	require.Less(t, strings.Index(output, "— entries 4–6"), strings.Index(output, "— entries 10–12"), "parts in session order")
+	require.Contains(t, output, "Another checkpoint.", "one neighbour before")
+	require.NotContains(t, output, "The checkpoint passed.", "not two")
+	require.LessOrEqual(t, len(output), outputBudget)
+
+	output, code = runCommand(t, "show", "--note", "20261015-aaaaaa", "--context", "0")
+	require.Equal(t, 0, code, output)
+	require.NotContains(t, output, "Another checkpoint.", "--context 0 shows no neighbour")
+	require.Contains(t, output, "END-OF-ANSWER", "but still the part itself")
+	output, code = runCommand(t, "show", "--note", "20261015-aaaaaa", "--context", "2")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "The checkpoint passed.", "--context 2 shows two")
+}
+
+func TestRunShowOpensANotesDiscussion(t *testing.T) {
+	local := time.Local
+	t.Cleanup(func() { time.Local = local })
+	time.Local = time.UTC
+	home := recallFixture(t)
+	noteDirectory := filepath.Join(home, "data", "notes")
+	for _, note := range []notes.Note{
+		{Body: "After the prompt.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal, Session: "abc1", Time: "2026-10-15T10:00:30Z"},
+		{Body: "After the reply.", Date: "2026-10-15", ID: "20261015-bbbbbb", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal, Session: "abc1", Time: "2026-10-15T10:05:00Z"},
+		{Body: "Untimed.", Date: "2026-10-15", ID: "20261015-cccccc", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal, Session: "abc1"},
+		{Body: "No session.", Date: "2026-10-15", ID: "20261015-dddddd", Kind: notes.KindDecision, Owner: "personal", Scope: notes.ScopeGlobal},
+		{Body: "Before anything.", Date: "2026-10-15", ID: "20261015-eeeeee", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal, Session: "abc1", Time: "2026-10-15T09:00:00Z"},
+		{Body: "Prefix only.", Date: "2026-10-15", ID: "20261015-ffffff", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal, Session: "abc", Time: "2026-10-15T10:05:00Z"},
+		{Body: "Pydantic stays below the release that broke it.", Date: "2026-10-15", ID: "20261015-gggggg", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal, Session: "abc1", Time: "2026-10-15T10:05:00Z"},
+	} {
+		_, err := notes.Write(noteDirectory, note)
+		require.NoError(t, err)
+	}
+	output, code := runCommand(t, "sync")
+	require.Equal(t, 0, code, output)
+
+	tests := []struct {
+		args []string
+		code int
+		name string
+		want string
+	}{
+		{args: []string{"--note", "20261015-dddddd"}, code: 1, name: "no session", want: "note 20261015-dddddd records no session"},
+		{args: []string{"--note", "../x"}, code: 1, name: "not an id", want: `"../x" is not a note id`},
+		{args: []string{"--note", "20261015-aaaaaa", "--around", "pin"}, code: 2, name: "note and around together", want: "ele show --note <id>"},
+		{args: []string{"--note", "20261015-aaaaaa", "abc1"}, code: 2, name: "note and session together", want: "ele show --note <id>"},
+		{args: []string{"--note", "20261015-eeeeee"}, code: 1, name: "nothing precedes the note", want: "no entry in session abc1 precedes note 20261015-eeeeee"},
+		{args: []string{"--note", "20261015-ffffff"}, code: 1, name: "session matched only as a prefix", want: "no entry in session abc precedes note 20261015-ffffff"},
+		{args: []string{"--note", "20261015-zzzzzz"}, code: 1, name: "unknown note", want: "no note 20261015-zzzzzz in"},
+		{args: []string{"--note", "20261015-cccccc"}, code: 0, name: "untimed falls back to the end of its date", want: "conversation Pinned it in the wrapper.\n"},
+		{args: []string{"--note", "20261015-aaaaaa"}, code: 0, name: "written after the prompt", want: "prompt       pin pydantic below 2.14\n"},
+		{args: []string{"--note", "20261015-bbbbbb"}, code: 0, name: "written after the reply", want: "conversation Pinned it in the wrapper.\n"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			shown, exit := runCommand(t, append(append([]string{"show"}, test.args...), "--context", "0")...)
+			require.Equal(t, test.code, exit, shown)
+			require.Contains(t, shown, test.want)
+		})
+	}
+
+	output, code = runCommand(t, "show", "--note", "20261015-aaaaaa", "--context", "1")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "prompt       pin pydantic below 2.14\n")
+	require.NotContains(t, output, "Pinned it in the wrapper")
+
+	output, code = runCommand(t, "show", "--note", "20261015-gggggg", "--context", "1")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "prompt       pin pydantic below 2.14\n")
+	require.Contains(t, output, "conversation Pinned it in the wrapper.\n")
+}
+
 func TestRunShowPagesFromAnEntryOrPrintsThemAll(t *testing.T) {
 	home := recallFixture(t)
 	gateway := filepath.Join(home, "w", "corp", "gateway")
@@ -390,174 +558,6 @@ func TestRunShowPagesFromAnEntryOrPrintsThemAll(t *testing.T) {
 		output, code = runCommand(t, call...)
 		require.Equal(t, 2, code, "%v: %s", call, output)
 	}
-}
-
-func TestRunShowCentresOnTheDiscussionNotItsNote(t *testing.T) {
-	home := recallFixture(t)
-	noteDirectory := filepath.Join(home, "data", "notes")
-	// Dated on the fixture's day, so the note sorts before the discussion it shares a word with.
-	for _, note := range []notes.Note{
-		{Body: "Keep the wrapper pin.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Session: "abc1"},
-		{Body: "Only a note here.", Date: "2026-10-15", ID: "20261015-bbbbbb", Kind: notes.KindDecision, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Session: "lonely1"},
-	} {
-		_, err := notes.Write(noteDirectory, note)
-		require.NoError(t, err)
-	}
-	output, code := runCommand(t, "sync")
-	require.Equal(t, 0, code, output)
-
-	output, code = runCommand(t, "show", "abc1", "--around", "wrapper", "--context", "0")
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "conversation Pinned it in the wrapper")
-	require.NotContains(t, output, "Keep the wrapper pin.")
-
-	output, code = runCommand(t, "show", "lonely", "--around", "only", "--context", "0")
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "note         Only a note here.")
-}
-
-func TestRunShowNoteKeepsTheEntryBeforeItWhenTheWindowOverflows(t *testing.T) {
-	home := recallFixture(t)
-	gateway := filepath.Join(home, "w", "corp", "gateway")
-	var transcript strings.Builder
-	for minute := range 20 {
-		text := fmt.Sprintf("entry %02d %s", minute, strings.Repeat("long ", 150))
-		if minute == 19 {
-			text = "the last word before the note"
-		}
-		fmt.Fprintf(&transcript, `{"type":"user","cwd":%q,"sessionId":"long1","timestamp":"2026-10-15T11:%02d:00Z","uuid":"u%02d","message":{"content":%q}}`+"\n", gateway, minute, minute, text)
-	}
-	writeFile(t, filepath.Join(home, ".claude", "projects", "-gateway", "long1.jsonl"), transcript.String())
-	_, err := notes.Write(filepath.Join(home, "data", "notes"), notes.Note{Body: "Decided.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal, Session: "long1", Time: "2026-10-15T12:00:00Z"})
-	require.NoError(t, err)
-	output, code := runCommand(t, "sync")
-	require.Equal(t, 0, code, output)
-
-	output, code = runCommand(t, "show", "--note", "20261015-aaaaaa", "--context", "10")
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "prompt       the last word before the note\n… ")
-	require.Regexp(t, `^Session long1 · corp · 21 entries · note 20261015-aaaaaa's discussion\n— entries (\d+)–21\n`, output)
-	require.Contains(t, output, "entry 18 long")
-	require.Regexp(t, `\n… \d+ more entries not shown \(output limit\); ele show long1 --around <text> reaches them\n$`, output)
-	require.LessOrEqual(t, len(output), outputBudget)
-}
-
-func TestRunShowNoteShowsEachPartOfItsDiscussion(t *testing.T) {
-	home := recallFixture(t)
-	gateway := filepath.Join(home, "w", "corp", "gateway")
-	texts := []string{
-		"Run the checkpoint.", "The checkpoint passed.", "Another checkpoint.",
-		"Should resume skip the start block? " + strings.Repeat("reasoning ", 140) + "END-OF-ANSWER",
-		"Checkpoint again.", "More checkpoint work.", "Checkpoint log.", "Checkpoint stats.", "Checkpoint review.",
-		"Proposed: resume skips the start block.", "Checkpoint done.",
-	}
-	var transcript strings.Builder
-	for minute, text := range texts {
-		fmt.Fprintf(&transcript, `{"type":"user","cwd":%q,"sessionId":"parts1","timestamp":"2026-10-15T11:%02d:00Z","uuid":"p%02d","message":{"content":%q}}`+"\n", gateway, minute, minute, text)
-	}
-	writeFile(t, filepath.Join(home, ".claude", "projects", "-gateway", "parts1.jsonl"), transcript.String())
-	_, err := notes.Write(filepath.Join(home, "data", "notes"), notes.Note{Body: "Resume skips the start block.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal, Session: "parts1", Time: "2026-10-15T12:00:00Z"})
-	require.NoError(t, err)
-	output, code := runCommand(t, "sync")
-	require.Equal(t, 0, code, output)
-
-	output, code = runCommand(t, "show", "--note", "20261015-aaaaaa")
-	require.Equal(t, 0, code, output)
-	require.True(t, strings.HasPrefix(output, "Session parts1 · corp · 12 entries · note 20261015-aaaaaa's discussion\n— entries 4–6\n"), output)
-	require.Contains(t, output, "END-OF-ANSWER", "an anchor is shown past textLimit")
-	require.Contains(t, output, "\n— entries 10–12\n")
-	require.Less(t, strings.Index(output, "— entries 4–6"), strings.Index(output, "— entries 10–12"), "parts in session order")
-	require.Contains(t, output, "Another checkpoint.", "one neighbour before")
-	require.NotContains(t, output, "The checkpoint passed.", "not two")
-	require.LessOrEqual(t, len(output), outputBudget)
-
-	output, code = runCommand(t, "show", "--note", "20261015-aaaaaa", "--context", "0")
-	require.Equal(t, 0, code, output)
-	require.NotContains(t, output, "Another checkpoint.", "--context 0 shows no neighbour")
-	require.Contains(t, output, "END-OF-ANSWER", "but still the part itself")
-	output, code = runCommand(t, "show", "--note", "20261015-aaaaaa", "--context", "2")
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "The checkpoint passed.", "--context 2 shows two")
-}
-
-func TestRunShowNoteKeepsPartsApartAndWithinBudget(t *testing.T) {
-	home := recallFixture(t)
-	gateway := filepath.Join(home, "w", "corp", "gateway")
-	wide := strings.Repeat("├── ", 600)
-	texts := []string{"Filler one.", "Should resume skip? " + wide, "Filler two.", "Resume skip, again. " + wide, "Filler three.", "Filler four.", "Filler five.", "Resume skip, a third time. " + wide, "Filler six."}
-	var transcript strings.Builder
-	for minute, text := range texts {
-		fmt.Fprintf(&transcript, `{"type":"user","cwd":%q,"sessionId":"apart1","timestamp":"2026-10-15T11:%02d:00Z","uuid":"a%02d","message":{"content":%q}}`+"\n", gateway, minute, minute, text)
-	}
-	writeFile(t, filepath.Join(home, ".claude", "projects", "-gateway", "apart1.jsonl"), transcript.String())
-	_, err := notes.Write(filepath.Join(home, "data", "notes"), notes.Note{Body: "Resume skips.", Date: "2026-10-15", ID: "20261015-bbbbbb", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal, Session: "apart1", Time: "2026-10-15T12:00:00Z"})
-	require.NoError(t, err)
-	output, code := runCommand(t, "sync")
-	require.Equal(t, 0, code, output)
-
-	output, code = runCommand(t, "show", "--note", "20261015-bbbbbb", "--context", "1")
-	require.Equal(t, 0, code, output)
-	require.LessOrEqual(t, len(output), outputBudget, "wide characters stay within the byte budget")
-	require.Equal(t, 2, strings.Count(output, "— entries "), "the strong entry two after the first gets no part of its own")
-	require.NotContains(t, output, "Resume skip, again.")
-	require.Contains(t, output, "Resume skip, a third time.")
-}
-
-func TestRunShowOpensANotesDiscussion(t *testing.T) {
-	local := time.Local
-	t.Cleanup(func() { time.Local = local })
-	time.Local = time.UTC
-	home := recallFixture(t)
-	noteDirectory := filepath.Join(home, "data", "notes")
-	for _, note := range []notes.Note{
-		{Body: "After the prompt.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal, Session: "abc1", Time: "2026-10-15T10:00:30Z"},
-		{Body: "After the reply.", Date: "2026-10-15", ID: "20261015-bbbbbb", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal, Session: "abc1", Time: "2026-10-15T10:05:00Z"},
-		{Body: "Untimed.", Date: "2026-10-15", ID: "20261015-cccccc", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal, Session: "abc1"},
-		{Body: "No session.", Date: "2026-10-15", ID: "20261015-dddddd", Kind: notes.KindDecision, Owner: "personal", Scope: notes.ScopeGlobal},
-		{Body: "Before anything.", Date: "2026-10-15", ID: "20261015-eeeeee", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal, Session: "abc1", Time: "2026-10-15T09:00:00Z"},
-		{Body: "Prefix only.", Date: "2026-10-15", ID: "20261015-ffffff", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal, Session: "abc", Time: "2026-10-15T10:05:00Z"},
-		{Body: "Pydantic stays below the release that broke it.", Date: "2026-10-15", ID: "20261015-gggggg", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal, Session: "abc1", Time: "2026-10-15T10:05:00Z"},
-	} {
-		_, err := notes.Write(noteDirectory, note)
-		require.NoError(t, err)
-	}
-	output, code := runCommand(t, "sync")
-	require.Equal(t, 0, code, output)
-
-	tests := []struct {
-		args []string
-		code int
-		name string
-		want string
-	}{
-		{args: []string{"--note", "20261015-dddddd"}, code: 1, name: "no session", want: "note 20261015-dddddd records no session"},
-		{args: []string{"--note", "../x"}, code: 1, name: "not an id", want: `"../x" is not a note id`},
-		{args: []string{"--note", "20261015-aaaaaa", "--around", "pin"}, code: 2, name: "note and around together", want: "ele show --note <id>"},
-		{args: []string{"--note", "20261015-aaaaaa", "abc1"}, code: 2, name: "note and session together", want: "ele show --note <id>"},
-		{args: []string{"--note", "20261015-eeeeee"}, code: 1, name: "nothing precedes the note", want: "no entry in session abc1 precedes note 20261015-eeeeee"},
-		{args: []string{"--note", "20261015-ffffff"}, code: 1, name: "session matched only as a prefix", want: "no entry in session abc precedes note 20261015-ffffff"},
-		{args: []string{"--note", "20261015-zzzzzz"}, code: 1, name: "unknown note", want: "no note 20261015-zzzzzz in"},
-		{args: []string{"--note", "20261015-cccccc"}, code: 0, name: "untimed falls back to the end of its date", want: "conversation Pinned it in the wrapper.\n"},
-		{args: []string{"--note", "20261015-aaaaaa"}, code: 0, name: "written after the prompt", want: "prompt       pin pydantic below 2.14\n"},
-		{args: []string{"--note", "20261015-bbbbbb"}, code: 0, name: "written after the reply", want: "conversation Pinned it in the wrapper.\n"},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			shown, exit := runCommand(t, append(append([]string{"show"}, test.args...), "--context", "0")...)
-			require.Equal(t, test.code, exit, shown)
-			require.Contains(t, shown, test.want)
-		})
-	}
-
-	output, code = runCommand(t, "show", "--note", "20261015-aaaaaa", "--context", "1")
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "prompt       pin pydantic below 2.14\n")
-	require.NotContains(t, output, "Pinned it in the wrapper")
-
-	output, code = runCommand(t, "show", "--note", "20261015-gggggg", "--context", "1")
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "prompt       pin pydantic below 2.14\n")
-	require.Contains(t, output, "conversation Pinned it in the wrapper.\n")
 }
 
 func TestWriteResultsOffersShowOnlyForSessions(t *testing.T) {

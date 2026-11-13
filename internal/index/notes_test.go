@@ -53,6 +53,29 @@ func TestSearchSinceComparesANoteByItsLocalDate(t *testing.T) {
 	}
 }
 
+func TestUpdateNotesDropsTheIndexedCopyOfANoteItNowSkips(t *testing.T) {
+	index := open(t, filepath.Join(t.TempDir(), "ele.db"))
+	directory := filepath.Join(t.TempDir(), "notes")
+	note := notes.Note{Body: "Pin pydantic below 2.14.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal}
+	_, err := notes.Write(directory, note)
+	require.NoError(t, err)
+	_, err = index.UpdateNotes(context.Background(), directory)
+	require.NoError(t, err)
+	path := filepath.Join(directory, "corp", "20261015-aaaaaa.md")
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, append(content, "edited\n"...), 0o600))
+	require.NoError(t, os.Chmod(path, 0o000))
+
+	summary, err := index.UpdateNotes(context.Background(), directory)
+
+	require.NoError(t, err)
+	require.Len(t, summary.Skipped, 1)
+	results, err := index.Search(context.Background(), Query{Owner: "corp", Text: "pydantic"})
+	require.NoError(t, err)
+	require.Empty(t, results, "the copy from before the file broke is not searchable")
+}
+
 func TestUpdateNotesFollowsAMoveBetweenFolders(t *testing.T) {
 	index := open(t, filepath.Join(t.TempDir(), "ele.db"))
 	directory := filepath.Join(t.TempDir(), "notes")
@@ -199,6 +222,27 @@ func TestUpdateNotesReadsASupersedesListAnOlderEleIndexed(t *testing.T) {
 	}
 }
 
+func TestUpdateNotesSkipsAFolderItCannotList(t *testing.T) {
+	index := open(t, filepath.Join(t.TempDir(), "ele.db"))
+	directory := filepath.Join(t.TempDir(), "notes")
+	note := notes.Note{Body: "Pin pydantic below 2.14.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal}
+	_, err := notes.Write(directory, note)
+	require.NoError(t, err)
+	note.Owner = "closed"
+	_, err = notes.Write(directory, note)
+	require.NoError(t, err)
+	closed := filepath.Join(directory, "closed")
+	require.NoError(t, os.Chmod(closed, 0o000))
+	t.Cleanup(func() { _ = os.Chmod(closed, 0o700) })
+
+	summary, err := index.UpdateNotes(context.Background(), directory)
+
+	require.NoError(t, err)
+	require.Equal(t, 1, summary.Entries)
+	require.Len(t, summary.Skipped, 1)
+	require.Contains(t, summary.Skipped[0], "closed")
+}
+
 func TestUpdateNotesSkipsANoteItCannotReadAndIndexesTheRest(t *testing.T) {
 	index := open(t, filepath.Join(t.TempDir(), "ele.db"))
 	directory := filepath.Join(t.TempDir(), "notes")
@@ -219,50 +263,6 @@ func TestUpdateNotesSkipsANoteItCannotReadAndIndexesTheRest(t *testing.T) {
 	require.Equal(t, 2, summary.Entries, "a line past bufio's default 64 KiB is indexed")
 	require.Len(t, summary.Skipped, 1)
 	require.Contains(t, summary.Skipped[0], "20261015-bbbbbb")
-}
-
-func TestUpdateNotesDropsTheIndexedCopyOfANoteItNowSkips(t *testing.T) {
-	index := open(t, filepath.Join(t.TempDir(), "ele.db"))
-	directory := filepath.Join(t.TempDir(), "notes")
-	note := notes.Note{Body: "Pin pydantic below 2.14.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal}
-	_, err := notes.Write(directory, note)
-	require.NoError(t, err)
-	_, err = index.UpdateNotes(context.Background(), directory)
-	require.NoError(t, err)
-	path := filepath.Join(directory, "corp", "20261015-aaaaaa.md")
-	content, err := os.ReadFile(path)
-	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(path, append(content, "edited\n"...), 0o600))
-	require.NoError(t, os.Chmod(path, 0o000))
-
-	summary, err := index.UpdateNotes(context.Background(), directory)
-
-	require.NoError(t, err)
-	require.Len(t, summary.Skipped, 1)
-	results, err := index.Search(context.Background(), Query{Owner: "corp", Text: "pydantic"})
-	require.NoError(t, err)
-	require.Empty(t, results, "the copy from before the file broke is not searchable")
-}
-
-func TestUpdateNotesSkipsAFolderItCannotList(t *testing.T) {
-	index := open(t, filepath.Join(t.TempDir(), "ele.db"))
-	directory := filepath.Join(t.TempDir(), "notes")
-	note := notes.Note{Body: "Pin pydantic below 2.14.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal}
-	_, err := notes.Write(directory, note)
-	require.NoError(t, err)
-	note.Owner = "closed"
-	_, err = notes.Write(directory, note)
-	require.NoError(t, err)
-	closed := filepath.Join(directory, "closed")
-	require.NoError(t, os.Chmod(closed, 0o000))
-	t.Cleanup(func() { _ = os.Chmod(closed, 0o700) })
-
-	summary, err := index.UpdateNotes(context.Background(), directory)
-
-	require.NoError(t, err)
-	require.Equal(t, 1, summary.Entries)
-	require.Len(t, summary.Skipped, 1)
-	require.Contains(t, summary.Skipped[0], "closed")
 }
 
 func TestUpdateNotesSkipsSymlinkedNoteFiles(t *testing.T) {

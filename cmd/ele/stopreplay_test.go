@@ -62,6 +62,49 @@ func replayed(t *testing.T, lines *replayLines, edits ...string) []replayStop {
 	return stops
 }
 
+func TestReadArchivedReadsAGzippedTranscript(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.jsonl.gz")
+	file, err := os.Create(path)
+	require.NoError(t, err)
+	writer := gzip.NewWriter(file)
+	_, err = writer.Write([]byte("{}\n"))
+	require.NoError(t, err)
+	require.NoError(t, writer.Close())
+	require.NoError(t, file.Close())
+	content, err := readArchived(path)
+	require.NoError(t, err)
+	require.Equal(t, "{}\n", string(content))
+}
+
+func TestReplayTimeReadsADateAsLocalMidnightAndATimeAsWritten(t *testing.T) {
+	zone := time.FixedZone("UTC+4", 4*60*60)
+	at, err := replayTime("2026-10-20", time.Time{}, zone)
+	require.NoError(t, err)
+	require.True(t, time.Date(2026, 10, 19, 20, 0, 0, 0, time.UTC).Equal(at), at)
+	at, err = replayTime("2026-10-20T04:42:00Z", time.Time{}, zone)
+	require.NoError(t, err)
+	require.True(t, time.Date(2026, 10, 20, 4, 42, 0, 0, time.UTC).Equal(at), at)
+}
+
+func TestReplayTranscriptAppliesSubagentEditsAtTheFirstStopAfterThem(t *testing.T) {
+	lines := &replayLines{}
+	lines.prompt().tool("Agent", `{"description":"build"}`).stop()
+	first := lines.stamp()
+	lines.prompt().tool("Agent", `{"description":"build more"}`).stop()
+	second := lines.stamp()
+	lines.prompt().tool("Bash", `{"command":"git status"}`).stop()
+	stops := replayed(t, lines, "", first, second)
+	require.Equal(t, "nothing-pending", stops[0].WhyNot, "at its first stop the hook has no state and reads no subagent file, unstamped edits included")
+	require.Equal(t, []string{"subagent-edit"}, stops[1].Trigger, "an edit at a later stop's stamp counts there")
+	require.True(t, stops[1].Asks)
+	require.Equal(t, "nothing-pending", stops[2].WhyNot, "each edit counts once")
+
+	lines = &replayLines{}
+	lines.prompt().stop()
+	lines.prompt().tool("Agent", `{"description":"build"}`).tool("Bash", `{"command":"ele remember --kind fact x"}`).stop()
+	require.Equal(t, "proposal", replayed(t, lines, "2026-10-20T10:00:03.500Z")[1].WhyNot, "an edit stamped before a proposal is cleared by it, though read after")
+}
+
 func TestReplayTranscriptJudgesEachRecordedStop(t *testing.T) {
 	const ask = "Follow /ele:remember's Propose section now"
 	lines := &replayLines{}
@@ -119,23 +162,28 @@ func TestReplayTranscriptJudgesEachRecordedStop(t *testing.T) {
 	require.Equal(t, "review", replayed(t, lines)[0].WhyNot)
 }
 
-func TestReplayTranscriptAppliesSubagentEditsAtTheFirstStopAfterThem(t *testing.T) {
+func TestReplayTranscriptJudgesNoPlacedStopItHasSeen(t *testing.T) {
+	const ask = "Follow /ele:remember's Propose section now"
 	lines := &replayLines{}
-	lines.prompt().tool("Agent", `{"description":"build"}`).stop()
-	first := lines.stamp()
-	lines.prompt().tool("Agent", `{"description":"build more"}`).stop()
-	second := lines.stamp()
-	lines.prompt().tool("Bash", `{"command":"git status"}`).stop()
-	stops := replayed(t, lines, "", first, second)
-	require.Equal(t, "nothing-pending", stops[0].WhyNot, "at its first stop the hook has no state and reads no subagent file, unstamped edits included")
-	require.Equal(t, []string{"subagent-edit"}, stops[1].Trigger, "an edit at a later stop's stamp counts there")
-	require.True(t, stops[1].Asks)
-	require.Equal(t, "nothing-pending", stops[2].WhyNot, "each edit counts once")
+	lines.prompt().tool("Edit", `{"file_path":"a.go"}`).block(ask)
+	lines.block("ele checkpoint gate failed").add(`"type":"assistant","message":{"id":"r","content":[{"type":"text","text":"Done."}]}`).prompt()
+	own := lines.stamp()
+	stops := replayTranscript(lines.content(), nil, map[string]bool{"u3": true})
+	require.Equal(t, []replayStop{{Stop: stopPlaced, Timestamp: own, WhyNot: "hook-active", key: "u6"}}, stops, "a copied block group is skipped whole, its later blocks included")
+}
 
-	lines = &replayLines{}
-	lines.prompt().stop()
-	lines.prompt().tool("Agent", `{"description":"build"}`).tool("Bash", `{"command":"ele remember --kind fact x"}`).stop()
-	require.Equal(t, "proposal", replayed(t, lines, "2026-10-20T10:00:03.500Z")[1].WhyNot, "an edit stamped before a proposal is cleared by it, though read after")
+func TestReplayTranscriptPlacesAStopBeforeASentHeadsUp(t *testing.T) {
+	lines := &replayLines{}
+	lines.prompt().tool("Edit", `{"file_path":"a.go"}`).add(`"type":"user","message":{"content":"✦ Heads up · The retry loop never backs off"}`)
+	headsUp := lines.stamp()
+	lines.tool("Edit", `{"file_path":"b.go"}`)
+	last := lines.stamp()
+
+	var timestamps []string
+	for _, stop := range replayed(t, lines) {
+		timestamps = append(timestamps, stop.Timestamp)
+	}
+	require.Equal(t, []string{headsUp, last}, timestamps, "a sent heads-up after output ends the turn as a prompt does")
 }
 
 func TestReplayTranscriptPlacesStopsWhereNoneIsRecorded(t *testing.T) {
@@ -155,28 +203,14 @@ func TestReplayTranscriptPlacesStopsWhereNoneIsRecorded(t *testing.T) {
 	}, replayed(t, lines), "blocks within 2 s are one stop; a prompt after output, and the last line, are stops")
 }
 
-func TestReplayTranscriptPlacesAStopBeforeASentHeadsUp(t *testing.T) {
-	lines := &replayLines{}
-	lines.prompt().tool("Edit", `{"file_path":"a.go"}`).add(`"type":"user","message":{"content":"✦ Heads up · The retry loop never backs off"}`)
-	headsUp := lines.stamp()
-	lines.tool("Edit", `{"file_path":"b.go"}`)
-	last := lines.stamp()
-
-	var timestamps []string
-	for _, stop := range replayed(t, lines) {
-		timestamps = append(timestamps, stop.Timestamp)
+func TestStopCheckRejectsAReplayWindowItCannotRead(t *testing.T) {
+	for _, args := range [][]string{{"--replay"}, {"--replay", "--since", "2026-10-20", "x"}, {"--since", "2026-10-20"}, {"--until", "2026-10-21"}} {
+		_, code := runCommand(t, append([]string{"stop-check"}, args...)...)
+		require.Equal(t, 2, code, args)
 	}
-	require.Equal(t, []string{headsUp, last}, timestamps, "a sent heads-up after output ends the turn as a prompt does")
-}
-
-func TestReplayTranscriptJudgesNoPlacedStopItHasSeen(t *testing.T) {
-	const ask = "Follow /ele:remember's Propose section now"
-	lines := &replayLines{}
-	lines.prompt().tool("Edit", `{"file_path":"a.go"}`).block(ask)
-	lines.block("ele checkpoint gate failed").add(`"type":"assistant","message":{"id":"r","content":[{"type":"text","text":"Done."}]}`).prompt()
-	own := lines.stamp()
-	stops := replayTranscript(lines.content(), nil, map[string]bool{"u3": true})
-	require.Equal(t, []replayStop{{Stop: stopPlaced, Timestamp: own, WhyNot: "hook-active", key: "u6"}}, stops, "a copied block group is skipped whole, its later blocks included")
+	output, code := runCommand(t, "stop-check", "--replay", "--since", "last week")
+	require.Equal(t, 2, code)
+	require.Contains(t, output, `--since: takes YYYY-MM-DD or an RFC 3339 time like 2026-10-20T04:42:00Z, not "last week"`)
 }
 
 func TestStopCheckReplaysTheArchiveOnceAStopInTheWindow(t *testing.T) {
@@ -208,38 +242,4 @@ func TestStopCheckReplaysTheArchiveOnceAStopInTheWindow(t *testing.T) {
 		{Asks: true, Owner: "corp", Project: "gateway", Session: "orig", Stop: stopRecorded, Timestamp: "2026-10-20T10:00:03.000Z", Trigger: []string{"edit"}},
 		{Asks: true, Owner: "corp", Project: "gateway", Session: "res2", Stop: stopRecorded, Timestamp: "2026-10-20T10:00:33.000Z", Trigger: []string{"edit"}},
 	}, stops, "a stop copied into a resumed transcript is the original's, and the hook ran nothing there; a stop at --until is left out")
-}
-
-func TestStopCheckRejectsAReplayWindowItCannotRead(t *testing.T) {
-	for _, args := range [][]string{{"--replay"}, {"--replay", "--since", "2026-10-20", "x"}, {"--since", "2026-10-20"}, {"--until", "2026-10-21"}} {
-		_, code := runCommand(t, append([]string{"stop-check"}, args...)...)
-		require.Equal(t, 2, code, args)
-	}
-	output, code := runCommand(t, "stop-check", "--replay", "--since", "last week")
-	require.Equal(t, 2, code)
-	require.Contains(t, output, `--since: takes YYYY-MM-DD or an RFC 3339 time like 2026-10-20T04:42:00Z, not "last week"`)
-}
-
-func TestReplayTimeReadsADateAsLocalMidnightAndATimeAsWritten(t *testing.T) {
-	zone := time.FixedZone("UTC+4", 4*60*60)
-	at, err := replayTime("2026-10-20", time.Time{}, zone)
-	require.NoError(t, err)
-	require.True(t, time.Date(2026, 10, 19, 20, 0, 0, 0, time.UTC).Equal(at), at)
-	at, err = replayTime("2026-10-20T04:42:00Z", time.Time{}, zone)
-	require.NoError(t, err)
-	require.True(t, time.Date(2026, 10, 20, 4, 42, 0, 0, time.UTC).Equal(at), at)
-}
-
-func TestReadArchivedReadsAGzippedTranscript(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "a.jsonl.gz")
-	file, err := os.Create(path)
-	require.NoError(t, err)
-	writer := gzip.NewWriter(file)
-	_, err = writer.Write([]byte("{}\n"))
-	require.NoError(t, err)
-	require.NoError(t, writer.Close())
-	require.NoError(t, file.Close())
-	content, err := readArchived(path)
-	require.NoError(t, err)
-	require.Equal(t, "{}\n", string(content))
 }

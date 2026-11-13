@@ -44,129 +44,30 @@ func writeArchived(t *testing.T, path string, lines ...string) {
 	require.NoError(t, file.Close())
 }
 
-func TestDigestOfACheckpointRunLinksItsSubagentsAndStopsAtItsReport(t *testing.T) {
+func TestDigestAndTimeWaitForTheArchiveLock(t *testing.T) {
 	archiveDirectory := t.TempDir()
-	report := "Ready to commit.\n\n**Bugs reviewer:** no findings.\n**Prose reviewer:** one comment cut."
-	writeArchived(t, filepath.Join(archiveDirectory, "claude", "-gateway", "t1.jsonl.gz"),
-		transcriptLine(t, "09:00:00", "user", "add retries to the client"),
-		transcriptLine(t, "09:59:00", "user", "Stop hook feedback:\nno checkpoint was reported"),
-		`{"type":"user","timestamp":"2026-10-16T09:59:30Z","message":`+"\n",
-		transcriptLine(t, "10:00:00", "assistant", toolUse("tu0", "Skill", map[string]any{"skill": "checkpoint"})),
-		transcriptLine(t, "10:01:00", "assistant", toolUse("tu1", "Agent", map[string]any{"description": "Checkpoint bugs review", "prompt": strings.Repeat("x", 1490) + " " + secret})),
-		strings.TrimSuffix(transcriptLine(t, "10:01:01", "user", toolResult("tu1", "No findings, though the report quotes agentId: zz", false)), "}\n")+`,"toolUseResult":{"agentId":"a1"}}`+"\n",
-		transcriptLine(t, "10:01:02", "assistant", toolUse("tu2", "Agent", map[string]any{"description": "Checkpoint prose review " + secret, "subagent_type": "checkpoint-reviewer"})),
-		transcriptLine(t, "10:01:03", "user", toolResult("tu2", "Agent type 'checkpoint-reviewer' not found", true)),
-		transcriptLine(t, "10:01:30", "assistant", toolUse("tu5", "Edit", map[string]any{"file_path": "/tmp/" + secret})),
-		transcriptLine(t, "10:01:40", "assistant", toolUse("tu6", "WebFetch", map[string]any{"prompt": `API_KEY="quotedvalue123" and TOKEN=plain&tailvalue`})),
-		transcriptLine(t, "10:02:00", "assistant", toolUse("tu3", "Bash", map[string]any{"command": "go test ./..."})),
-		transcriptLine(t, "10:05:00", "user", toolResult("tu3", "ok\ncovered: retries", false)),
-		transcriptLine(t, "10:06:00", "assistant", []map[string]any{{"text": report, "type": "text"}}),
-		transcriptLine(t, "10:07:00", "user", "looks good, thanks"),
-		transcriptLine(t, "10:08:00", "assistant", []map[string]any{{"text": "after the report", "type": "text"}}),
-		transcriptLine(t, "15:00:00", "user", "<command-name>/checkpoint</command-name>"))
-	writeArchived(t, filepath.Join(archiveDirectory, "claude", "-gateway", "t1", "subagents", "agent-a1.jsonl.gz"),
-		transcriptLine(t, "10:01:05", "user", "Read reviewers/bugs.md"),
-		transcriptLine(t, "10:01:10", "assistant", toolUse("st1", "Read", map[string]any{"file_path": "client.go"})),
-		transcriptLine(t, "10:03:05", "assistant", []map[string]any{{"text": "No findings.", "type": "text"}}))
-
-	digest, err := Digest(archiveDirectory, "checkpoint-runs", dto.MiningUnit{Owner: "corp", Project: "gateway", Session: "s1", Source: "claude/-gateway/t1.jsonl.gz", Timestamp: "2026-10-16T10:00:00Z"})
+	writeArchived(t, filepath.Join(archiveDirectory, "t1.jsonl.gz"), transcriptLine(t, "10:00:00", "user", "hello"))
+	unit := dto.MiningUnit{Session: "s1", Source: "t1.jsonl.gz", Timestamp: "2026-10-16T10:00:00Z"}
+	unlock, err := archive.Lock(archiveDirectory)
 	require.NoError(t, err)
 
-	encoded, _, _ := strings.Cut(digest, "\n")
-	var header map[string]any
-	require.NoError(t, json.Unmarshal([]byte(encoded), &header))
-	require.Equal(t, map[string]any{
-		"agentDescriptions": []any{"Checkpoint bugs review", "Checkpoint prose review [redacted:gitlab]"},
-		"agentSeconds":      []any{120.0, nil},
-		"agents":            2.0,
-		"bashCommands":      1.0,
-		"covered":           true,
-		"durationSeconds":   360.0,
-		"edits":             1.0,
-		"end":               "2026-10-16T10:06:00Z",
-		"era":               "subagent",
-		"gateCommands":      1.0,
-		"hookBlocks":        0.0,
-		"nextHuman":         "2026-10-16T10:07:00Z",
-		"owner":             "corp",
-		"project":           "gateway",
-		"session":           "s1",
-		"timestamp":         "2026-10-16T10:00:00Z",
-		"triggeredByHook":   true,
-	}, header)
-	require.Contains(t, digest, "=== PRIOR USER ASK 2026-10-16T09:00:00Z\nadd retries to the client\n")
-	require.Contains(t, digest, "--- subagent duration 120s, tools:\n  Read client.go\n--- final\nNo findings.\n")
-	require.Contains(t, digest, "--- launch failed\nAgent type 'checkpoint-reviewer' not found\n")
-	require.Contains(t, digest, "=== NEXT HUMAN 2026-10-16T10:07:00Z\nlooks good, thanks\n")
-	require.NotContains(t, digest, "after the report", "the window ends at the report")
-	require.NotContains(t, digest, "glpat-", "a secret is redacted before its text is cut, and in descriptions and paths")
-	require.Contains(t, digest, "WebFetch", "another tool's input is in the digest")
-	for _, value := range []string{"quotedvalue123", "tailvalue"} {
-		require.NotContains(t, digest, value, "json.Marshal escapes the quotes and the & of another tool's input")
+	done := make(chan struct{}, 2)
+	go func() {
+		_, _ = Digest(archiveDirectory, "review-cycles", unit)
+		done <- struct{}{}
+	}()
+	go func() {
+		Time(archiveDirectory, []TimedUnit{{Analysis: "review-cycles", Unit: unit}})
+		done <- struct{}{}
+	}()
+	select {
+	case <-done:
+		t.Fatal("read the archive while sync held its lock")
+	case <-time.After(200 * time.Millisecond):
 	}
-}
-
-func TestDigestOfACheckpointRunReadsAStopHooksAdditionalContextAsItsBlock(t *testing.T) {
-	archiveDirectory := t.TempDir()
-	stopContext := func(clock string) string {
-		return `{"type":"attachment","sessionId":"s1","timestamp":"2026-10-16T` + clock + `Z","attachment":{"type":"hook_additional_context","hookEvent":"Stop","hookName":"Stop","content":["Files changed this turn, the reply says the work is done, and no checkpoint was reported."]}}` + "\n"
-	}
-	writeArchived(t, filepath.Join(archiveDirectory, "claude", "-gateway", "t1.jsonl.gz"),
-		transcriptLine(t, "09:00:00", "user", "add retries to the client"),
-		stopContext("09:59:00"),
-		transcriptLine(t, "10:00:00", "assistant", toolUse("tu0", "Skill", map[string]any{"skill": "checkpoint"})),
-		stopContext("10:02:00"),
-		transcriptLine(t, "10:06:00", "assistant", []map[string]any{{"text": "Ready to commit.\n\n**Bugs reviewer:** no findings.\n**Prose reviewer:** none.", "type": "text"}}))
-
-	digest, err := Digest(archiveDirectory, "checkpoint-runs", dto.MiningUnit{Owner: "corp", Project: "gateway", Session: "s1", Source: "claude/-gateway/t1.jsonl.gz", Timestamp: "2026-10-16T10:00:00Z"})
-	require.NoError(t, err)
-
-	encoded, _, _ := strings.Cut(digest, "\n")
-	var header map[string]any
-	require.NoError(t, json.Unmarshal([]byte(encoded), &header))
-	require.Equal(t, 1.0, header["hookBlocks"], "a block inside the run")
-	require.Equal(t, true, header["triggeredByHook"], "a block just before the run")
-}
-
-func TestDigestOfAReviewCycleCutsAtAReportOnlyOnceEveryReviewerHasHandedBack(t *testing.T) {
-	archiveDirectory := t.TempDir()
-	progress := "**Bugs reviewer:** no findings. The prose reviewer is still out."
-	report := "The checkpoint is recorded and logged.\n\n**Bugs reviewer:** no findings."
-	launched := func(clock string, id string, agent string) string {
-		line := transcriptLine(t, clock, "user", toolResult(id, "Async agent launched successfully.\nagentId: "+agent, false))
-		return strings.TrimSuffix(line, "}\n") + `,"toolUseResult":{"agentId":"` + agent + `","status":"async_launched"}}` + "\n"
-	}
-	lines := []string{
-		transcriptLine(t, "11:19:00", "user", "review it"),
-		transcriptLine(t, "11:20:00", "assistant", toolUse("tu1", "Agent", map[string]any{"description": "Bugs review", "prompt": "Read reviewers/bugs.md"})),
-		launched("11:20:01", "tu1", "a1"),
-		transcriptLine(t, "11:20:02", "assistant", toolUse("tu2", "Agent", map[string]any{"description": "Prose review", "prompt": "Read reviewers/prose.md"})),
-		launched("11:20:03", "tu2", "a2"),
-		transcriptLine(t, "11:20:04", "assistant", toolUse("tu4", "Agent", map[string]any{"description": "Conventions review", "prompt": "Read reviewers/conventions.md"})),
-		launched("11:20:05", "tu4", "a3"),
-		transcriptLine(t, "11:30:00", "user", "Another Claude session sent a message:\n<agent-message from=\"a1\">\nNo findings."),
-		`{"type":"queue-operation","operation":"enqueue","timestamp":"2026-10-16T11:31:00Z","content":"<task-notification>\n<task-id>a2</task-id>\n<status>completed</status>"}` + "\n",
-		transcriptLine(t, "11:31:20", "assistant", []map[string]any{{"text": "Waiting on <task-id>a3</task-id>.", "type": "text"}}),
-		transcriptLine(t, "11:31:30", "assistant", []map[string]any{{"text": progress, "type": "text"}}),
-		`{"type":"attachment","timestamp":"2026-10-16T11:32:00Z","attachment":{"type":"queued_command","prompt":"<task-notification>\n<task-id>a3</task-id>\n<status>completed</status>"}}` + "\n",
-	}
-	after := []string{
-		transcriptLine(t, "11:55:00", "user", "commit it"),
-		transcriptLine(t, "11:56:00", "assistant", toolUse("tu3", "Agent", map[string]any{"description": "Explore the next slice", "prompt": "Find the handlers"})),
-		transcriptLine(t, "11:57:00", "assistant", []map[string]any{{"text": "after the report", "type": "text"}}),
-	}
-	unit := dto.MiningUnit{Reviewers: 3, Session: "s1", Source: "claude/-gateway/t1.jsonl.gz", Timestamp: "2026-10-16T11:20:00Z"}
-
-	writeArchived(t, filepath.Join(archiveDirectory, "claude", "-gateway", "t1.jsonl.gz"), append(lines, after...)...)
-	digest, err := Digest(archiveDirectory, "review-cycles", unit)
-	require.NoError(t, err)
-	require.Contains(t, digest, "TEXT after the report", "a message written while reviewers still run is not the report")
-
-	writeArchived(t, filepath.Join(archiveDirectory, "claude", "-gateway", "t1.jsonl.gz"), append(append(lines, transcriptLine(t, "11:50:00", "assistant", []map[string]any{{"text": report, "type": "text"}})), after...)...)
-	digest, err = Digest(archiveDirectory, "review-cycles", unit)
-	require.NoError(t, err)
-	require.Contains(t, digest, "=== NEXT HUMAN 2026-10-16T11:55:00Z\ncommit it\n")
-	require.NotContains(t, digest, "after the report", "a launch naming no reviewer file does not reopen the window")
+	unlock()
+	<-done
+	<-done
 }
 
 func TestDigestOfACheckpointRunClosesAtTheNextCycle(t *testing.T) {
@@ -238,6 +139,68 @@ func TestDigestOfACheckpointRunEndsTheTurnItRecordsIn(t *testing.T) {
 	}
 }
 
+func TestDigestOfACheckpointRunLinksItsSubagentsAndStopsAtItsReport(t *testing.T) {
+	archiveDirectory := t.TempDir()
+	report := "Ready to commit.\n\n**Bugs reviewer:** no findings.\n**Prose reviewer:** one comment cut."
+	writeArchived(t, filepath.Join(archiveDirectory, "claude", "-gateway", "t1.jsonl.gz"),
+		transcriptLine(t, "09:00:00", "user", "add retries to the client"),
+		transcriptLine(t, "09:59:00", "user", "Stop hook feedback:\nno checkpoint was reported"),
+		`{"type":"user","timestamp":"2026-10-16T09:59:30Z","message":`+"\n",
+		transcriptLine(t, "10:00:00", "assistant", toolUse("tu0", "Skill", map[string]any{"skill": "checkpoint"})),
+		transcriptLine(t, "10:01:00", "assistant", toolUse("tu1", "Agent", map[string]any{"description": "Checkpoint bugs review", "prompt": strings.Repeat("x", 1490) + " " + secret})),
+		strings.TrimSuffix(transcriptLine(t, "10:01:01", "user", toolResult("tu1", "No findings, though the report quotes agentId: zz", false)), "}\n")+`,"toolUseResult":{"agentId":"a1"}}`+"\n",
+		transcriptLine(t, "10:01:02", "assistant", toolUse("tu2", "Agent", map[string]any{"description": "Checkpoint prose review " + secret, "subagent_type": "checkpoint-reviewer"})),
+		transcriptLine(t, "10:01:03", "user", toolResult("tu2", "Agent type 'checkpoint-reviewer' not found", true)),
+		transcriptLine(t, "10:01:30", "assistant", toolUse("tu5", "Edit", map[string]any{"file_path": "/tmp/" + secret})),
+		transcriptLine(t, "10:01:40", "assistant", toolUse("tu6", "WebFetch", map[string]any{"prompt": `API_KEY="quotedvalue123" and TOKEN=plain&tailvalue`})),
+		transcriptLine(t, "10:02:00", "assistant", toolUse("tu3", "Bash", map[string]any{"command": "go test ./..."})),
+		transcriptLine(t, "10:05:00", "user", toolResult("tu3", "ok\ncovered: retries", false)),
+		transcriptLine(t, "10:06:00", "assistant", []map[string]any{{"text": report, "type": "text"}}),
+		transcriptLine(t, "10:07:00", "user", "looks good, thanks"),
+		transcriptLine(t, "10:08:00", "assistant", []map[string]any{{"text": "after the report", "type": "text"}}),
+		transcriptLine(t, "15:00:00", "user", "<command-name>/checkpoint</command-name>"))
+	writeArchived(t, filepath.Join(archiveDirectory, "claude", "-gateway", "t1", "subagents", "agent-a1.jsonl.gz"),
+		transcriptLine(t, "10:01:05", "user", "Read reviewers/bugs.md"),
+		transcriptLine(t, "10:01:10", "assistant", toolUse("st1", "Read", map[string]any{"file_path": "client.go"})),
+		transcriptLine(t, "10:03:05", "assistant", []map[string]any{{"text": "No findings.", "type": "text"}}))
+
+	digest, err := Digest(archiveDirectory, "checkpoint-runs", dto.MiningUnit{Owner: "corp", Project: "gateway", Session: "s1", Source: "claude/-gateway/t1.jsonl.gz", Timestamp: "2026-10-16T10:00:00Z"})
+	require.NoError(t, err)
+
+	encoded, _, _ := strings.Cut(digest, "\n")
+	var header map[string]any
+	require.NoError(t, json.Unmarshal([]byte(encoded), &header))
+	require.Equal(t, map[string]any{
+		"agentDescriptions": []any{"Checkpoint bugs review", "Checkpoint prose review [redacted:gitlab]"},
+		"agentSeconds":      []any{120.0, nil},
+		"agents":            2.0,
+		"bashCommands":      1.0,
+		"covered":           true,
+		"durationSeconds":   360.0,
+		"edits":             1.0,
+		"end":               "2026-10-16T10:06:00Z",
+		"era":               "subagent",
+		"gateCommands":      1.0,
+		"hookBlocks":        0.0,
+		"nextHuman":         "2026-10-16T10:07:00Z",
+		"owner":             "corp",
+		"project":           "gateway",
+		"session":           "s1",
+		"timestamp":         "2026-10-16T10:00:00Z",
+		"triggeredByHook":   true,
+	}, header)
+	require.Contains(t, digest, "=== PRIOR USER ASK 2026-10-16T09:00:00Z\nadd retries to the client\n")
+	require.Contains(t, digest, "--- subagent duration 120s, tools:\n  Read client.go\n--- final\nNo findings.\n")
+	require.Contains(t, digest, "--- launch failed\nAgent type 'checkpoint-reviewer' not found\n")
+	require.Contains(t, digest, "=== NEXT HUMAN 2026-10-16T10:07:00Z\nlooks good, thanks\n")
+	require.NotContains(t, digest, "after the report", "the window ends at the report")
+	require.NotContains(t, digest, "glpat-", "a secret is redacted before its text is cut, and in descriptions and paths")
+	require.Contains(t, digest, "WebFetch", "another tool's input is in the digest")
+	for _, value := range []string{"quotedvalue123", "tailvalue"} {
+		require.NotContains(t, digest, value, "json.Marshal escapes the quotes and the & of another tool's input")
+	}
+}
+
 func TestDigestOfACheckpointRunOpensAtItsCallNotALineSharingItsTime(t *testing.T) {
 	archiveDirectory := t.TempDir()
 	writeArchived(t, filepath.Join(archiveDirectory, "claude", "-gateway", "t1.jsonl.gz"),
@@ -272,6 +235,28 @@ func TestDigestOfACheckpointRunReadsACompactionAsNoPrompt(t *testing.T) {
 	require.Contains(t, digest, `"end":"2026-10-16T10:04:00Z"`, "a compaction between the record and the report is not the user speaking")
 }
 
+func TestDigestOfACheckpointRunReadsAStopHooksAdditionalContextAsItsBlock(t *testing.T) {
+	archiveDirectory := t.TempDir()
+	stopContext := func(clock string) string {
+		return `{"type":"attachment","sessionId":"s1","timestamp":"2026-10-16T` + clock + `Z","attachment":{"type":"hook_additional_context","hookEvent":"Stop","hookName":"Stop","content":["Files changed this turn, the reply says the work is done, and no checkpoint was reported."]}}` + "\n"
+	}
+	writeArchived(t, filepath.Join(archiveDirectory, "claude", "-gateway", "t1.jsonl.gz"),
+		transcriptLine(t, "09:00:00", "user", "add retries to the client"),
+		stopContext("09:59:00"),
+		transcriptLine(t, "10:00:00", "assistant", toolUse("tu0", "Skill", map[string]any{"skill": "checkpoint"})),
+		stopContext("10:02:00"),
+		transcriptLine(t, "10:06:00", "assistant", []map[string]any{{"text": "Ready to commit.\n\n**Bugs reviewer:** no findings.\n**Prose reviewer:** none.", "type": "text"}}))
+
+	digest, err := Digest(archiveDirectory, "checkpoint-runs", dto.MiningUnit{Owner: "corp", Project: "gateway", Session: "s1", Source: "claude/-gateway/t1.jsonl.gz", Timestamp: "2026-10-16T10:00:00Z"})
+	require.NoError(t, err)
+
+	encoded, _, _ := strings.Cut(digest, "\n")
+	var header map[string]any
+	require.NoError(t, json.Unmarshal([]byte(encoded), &header))
+	require.Equal(t, 1.0, header["hookBlocks"], "a block inside the run")
+	require.Equal(t, true, header["triggeredByHook"], "a block just before the run")
+}
+
 func TestDigestOfACheckpointRunTakesNoReportWhileAReviewerIsOut(t *testing.T) {
 	archiveDirectory := t.TempDir()
 	launched := strings.TrimSuffix(transcriptLine(t, "10:01:01", "user", toolResult("tu1", "Async agent launched successfully.\nagentId: a1", false)), "}\n") + `,"toolUseResult":{"agentId":"a1","status":"async_launched"}}` + "\n"
@@ -286,6 +271,47 @@ func TestDigestOfACheckpointRunTakesNoReportWhileAReviewerIsOut(t *testing.T) {
 	digest, err := Digest(archiveDirectory, "checkpoint-runs", dto.MiningUnit{Session: "s1", Source: "claude/-gateway/t1.jsonl.gz", Timestamp: "2026-10-16T10:00:00Z"})
 	require.NoError(t, err)
 	require.Contains(t, digest, "fixing what it found", "a labelled text written while a reviewer is out is progress, so with no report the window runs on")
+}
+
+func TestDigestOfAReviewCycleCutsAtAReportOnlyOnceEveryReviewerHasHandedBack(t *testing.T) {
+	archiveDirectory := t.TempDir()
+	progress := "**Bugs reviewer:** no findings. The prose reviewer is still out."
+	report := "The checkpoint is recorded and logged.\n\n**Bugs reviewer:** no findings."
+	launched := func(clock string, id string, agent string) string {
+		line := transcriptLine(t, clock, "user", toolResult(id, "Async agent launched successfully.\nagentId: "+agent, false))
+		return strings.TrimSuffix(line, "}\n") + `,"toolUseResult":{"agentId":"` + agent + `","status":"async_launched"}}` + "\n"
+	}
+	lines := []string{
+		transcriptLine(t, "11:19:00", "user", "review it"),
+		transcriptLine(t, "11:20:00", "assistant", toolUse("tu1", "Agent", map[string]any{"description": "Bugs review", "prompt": "Read reviewers/bugs.md"})),
+		launched("11:20:01", "tu1", "a1"),
+		transcriptLine(t, "11:20:02", "assistant", toolUse("tu2", "Agent", map[string]any{"description": "Prose review", "prompt": "Read reviewers/prose.md"})),
+		launched("11:20:03", "tu2", "a2"),
+		transcriptLine(t, "11:20:04", "assistant", toolUse("tu4", "Agent", map[string]any{"description": "Conventions review", "prompt": "Read reviewers/conventions.md"})),
+		launched("11:20:05", "tu4", "a3"),
+		transcriptLine(t, "11:30:00", "user", "Another Claude session sent a message:\n<agent-message from=\"a1\">\nNo findings."),
+		`{"type":"queue-operation","operation":"enqueue","timestamp":"2026-10-16T11:31:00Z","content":"<task-notification>\n<task-id>a2</task-id>\n<status>completed</status>"}` + "\n",
+		transcriptLine(t, "11:31:20", "assistant", []map[string]any{{"text": "Waiting on <task-id>a3</task-id>.", "type": "text"}}),
+		transcriptLine(t, "11:31:30", "assistant", []map[string]any{{"text": progress, "type": "text"}}),
+		`{"type":"attachment","timestamp":"2026-10-16T11:32:00Z","attachment":{"type":"queued_command","prompt":"<task-notification>\n<task-id>a3</task-id>\n<status>completed</status>"}}` + "\n",
+	}
+	after := []string{
+		transcriptLine(t, "11:55:00", "user", "commit it"),
+		transcriptLine(t, "11:56:00", "assistant", toolUse("tu3", "Agent", map[string]any{"description": "Explore the next slice", "prompt": "Find the handlers"})),
+		transcriptLine(t, "11:57:00", "assistant", []map[string]any{{"text": "after the report", "type": "text"}}),
+	}
+	unit := dto.MiningUnit{Reviewers: 3, Session: "s1", Source: "claude/-gateway/t1.jsonl.gz", Timestamp: "2026-10-16T11:20:00Z"}
+
+	writeArchived(t, filepath.Join(archiveDirectory, "claude", "-gateway", "t1.jsonl.gz"), append(lines, after...)...)
+	digest, err := Digest(archiveDirectory, "review-cycles", unit)
+	require.NoError(t, err)
+	require.Contains(t, digest, "TEXT after the report", "a message written while reviewers still run is not the report")
+
+	writeArchived(t, filepath.Join(archiveDirectory, "claude", "-gateway", "t1.jsonl.gz"), append(append(lines, transcriptLine(t, "11:50:00", "assistant", []map[string]any{{"text": report, "type": "text"}})), after...)...)
+	digest, err = Digest(archiveDirectory, "review-cycles", unit)
+	require.NoError(t, err)
+	require.Contains(t, digest, "=== NEXT HUMAN 2026-10-16T11:55:00Z\ncommit it\n")
+	require.NotContains(t, digest, "after the report", "a launch naming no reviewer file does not reopen the window")
 }
 
 func TestDigestOfAReviewCycleOpensFifteenMinutesBackAndClosesAtTheNextCycle(t *testing.T) {
@@ -355,30 +381,4 @@ func TestReadTranscriptFollowsNoAgentIDThatIsNotAName(t *testing.T) {
 	file, err := readTranscript(path)
 	require.NoError(t, err)
 	require.Equal(t, map[string]string{"tu2": "a2"}, file.agents)
-}
-
-func TestDigestAndTimeWaitForTheArchiveLock(t *testing.T) {
-	archiveDirectory := t.TempDir()
-	writeArchived(t, filepath.Join(archiveDirectory, "t1.jsonl.gz"), transcriptLine(t, "10:00:00", "user", "hello"))
-	unit := dto.MiningUnit{Session: "s1", Source: "t1.jsonl.gz", Timestamp: "2026-10-16T10:00:00Z"}
-	unlock, err := archive.Lock(archiveDirectory)
-	require.NoError(t, err)
-
-	done := make(chan struct{}, 2)
-	go func() {
-		_, _ = Digest(archiveDirectory, "review-cycles", unit)
-		done <- struct{}{}
-	}()
-	go func() {
-		Time(archiveDirectory, []TimedUnit{{Analysis: "review-cycles", Unit: unit}})
-		done <- struct{}{}
-	}()
-	select {
-	case <-done:
-		t.Fatal("read the archive while sync held its lock")
-	case <-time.After(200 * time.Millisecond):
-	}
-	unlock()
-	<-done
-	<-done
 }

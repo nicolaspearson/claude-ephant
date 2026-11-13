@@ -30,6 +30,18 @@ func TestSyncAppendsCompleteLinesAcrossRuns(t *testing.T) {
 	require.Equal(t, Summary{}, sync(t, projects, directory))
 }
 
+func TestSyncArchivesASymlinkedProjectsDirectory(t *testing.T) {
+	projects, directory := setup(t)
+	real := filepath.Join(t.TempDir(), "real-projects")
+	write(t, filepath.Join(real, "-repo", "session.jsonl"), "a\n")
+	require.NoError(t, os.Symlink(real, projects))
+
+	summary := sync(t, projects, directory)
+
+	require.Equal(t, Summary{Bytes: 2, Files: 1}, summary)
+	require.Equal(t, "a\n", read(t, Path(directory, "claude/-repo/session.jsonl", 1)))
+}
+
 func TestSyncArchivesSubagentTranscriptsAtTheirPath(t *testing.T) {
 	projects, directory := setup(t)
 	write(t, filepath.Join(projects, "-repo", "session", "subagents", "agent-1.jsonl"), "x\n")
@@ -60,43 +72,6 @@ func TestSyncRollsBackAppendsTheManifestNeverRecorded(t *testing.T) {
 	appendTo(t, source, "b\n")
 	sync(t, projects, directory)
 	require.Equal(t, "a\nb\n", read(t, archived))
-}
-
-func TestSyncStartsNewGenerationWhenSourceIsRewritten(t *testing.T) {
-	projects, directory := setup(t)
-	source := filepath.Join(projects, "-repo", "session.jsonl")
-	write(t, source, "a\nb\n")
-	sync(t, projects, directory)
-
-	write(t, source, "x\ny\nz\n")
-	summary := sync(t, projects, directory)
-	require.Equal(t, Summary{Bytes: 6, Files: 1, Generations: 1}, summary)
-	require.Equal(t, "a\nb\n", read(t, Path(directory, "claude/-repo/session.jsonl", 1)))
-	require.Equal(t, "x\ny\nz\n", read(t, Path(directory, "claude/-repo/session.jsonl", 2)))
-	require.Equal(t, filepath.Join(directory, "claude", "-repo", "session.g2.jsonl.gz"), Path(directory, "claude/-repo/session.jsonl", 2))
-}
-
-func TestSyncStartsNewGenerationWhenSourceShrinks(t *testing.T) {
-	projects, directory := setup(t)
-	source := filepath.Join(projects, "-repo", "session.jsonl")
-	write(t, source, "a\nb\n")
-	sync(t, projects, directory)
-
-	write(t, source, "c\n")
-	require.Equal(t, Summary{Bytes: 2, Files: 1, Generations: 1}, sync(t, projects, directory))
-	require.Equal(t, "c\n", read(t, Path(directory, "claude/-repo/session.jsonl", 2)))
-}
-
-func TestSyncArchivesASymlinkedProjectsDirectory(t *testing.T) {
-	projects, directory := setup(t)
-	real := filepath.Join(t.TempDir(), "real-projects")
-	write(t, filepath.Join(real, "-repo", "session.jsonl"), "a\n")
-	require.NoError(t, os.Symlink(real, projects))
-
-	summary := sync(t, projects, directory)
-
-	require.Equal(t, Summary{Bytes: 2, Files: 1}, summary)
-	require.Equal(t, "a\n", read(t, Path(directory, "claude/-repo/session.jsonl", 1)))
 }
 
 func TestSyncSkipsWhatItCannotReadAndArchivesTheRest(t *testing.T) {
@@ -152,6 +127,31 @@ func TestSyncSourceHashesTheWindowReachingBackPastTheChunk(t *testing.T) {
 	require.Equal(t, int64(len(whole)), state.Offset)
 	sum := sha256.Sum256([]byte(whole[len(whole)-tailWindow:]))
 	require.Equal(t, hex.EncodeToString(sum[:]), state.TailHash, "the window runs back past the appended chunk into bytes archived earlier")
+}
+
+func TestSyncStartsNewGenerationWhenSourceIsRewritten(t *testing.T) {
+	projects, directory := setup(t)
+	source := filepath.Join(projects, "-repo", "session.jsonl")
+	write(t, source, "a\nb\n")
+	sync(t, projects, directory)
+
+	write(t, source, "x\ny\nz\n")
+	summary := sync(t, projects, directory)
+	require.Equal(t, Summary{Bytes: 6, Files: 1, Generations: 1}, summary)
+	require.Equal(t, "a\nb\n", read(t, Path(directory, "claude/-repo/session.jsonl", 1)))
+	require.Equal(t, "x\ny\nz\n", read(t, Path(directory, "claude/-repo/session.jsonl", 2)))
+	require.Equal(t, filepath.Join(directory, "claude", "-repo", "session.g2.jsonl.gz"), Path(directory, "claude/-repo/session.jsonl", 2))
+}
+
+func TestSyncStartsNewGenerationWhenSourceShrinks(t *testing.T) {
+	projects, directory := setup(t)
+	source := filepath.Join(projects, "-repo", "session.jsonl")
+	write(t, source, "a\nb\n")
+	sync(t, projects, directory)
+
+	write(t, source, "c\n")
+	require.Equal(t, Summary{Bytes: 2, Files: 1, Generations: 1}, sync(t, projects, directory))
+	require.Equal(t, "c\n", read(t, Path(directory, "claude/-repo/session.jsonl", 2)))
 }
 
 func TestTryLockReportsAHeldLock(t *testing.T) {

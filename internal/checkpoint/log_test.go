@@ -76,6 +76,26 @@ func TestAppendKeysTheLineSortedAndCompact(t *testing.T) {
 	require.Regexp(t, `^\{"a":\{"b":1e2,"y":"<&>"\},"date":"2026-10-20T00:00:00Z","head":"[0-9a-f]{40}","repository":"[^"]+","z":1.0\}\n$`, string(written))
 }
 
+func TestAppendLeavesAnOpenRunsClockWhenLoggingAReview(t *testing.T) {
+	root, logPath := repository(t)
+	t.Setenv(sessionVariable, "this-session")
+	run, err := RunFile(context.Background(), root, "this-session")
+	require.NoError(t, err)
+	now := time.Now()
+	started := strconv.FormatInt(now.Unix()-90, 10) + "\n"
+	require.NoError(t, os.WriteFile(run+".started", []byte(started), 0o600))
+	record, problems, err := Problems(strings.NewReader(validReview))
+	require.NoError(t, err)
+	require.Empty(t, problems)
+
+	require.NoError(t, Append(context.Background(), root, record, logPath, now))
+
+	require.NotContains(t, logLines(t, logPath)[0], "duration")
+	content, err := os.ReadFile(run + ".started")
+	require.NoError(t, err)
+	require.Equal(t, started, string(content))
+}
+
 func TestAppendLeavesHeadEmptyBeforeTheFirstCommit(t *testing.T) {
 	root := t.TempDir()
 	runGit(t, root, "init", "-q")
@@ -112,26 +132,6 @@ func TestAppendTimesTheRunFromTheFirstFreezeAndEndsIt(t *testing.T) {
 	require.Equal(t, json.Number("90"), lines[3]["duration"], "another session's run on the same repository keeps its own clock")
 	require.NoFileExists(t, run+".started", "freeze time removed once logged")
 	require.FileExists(t, other+".started")
-}
-
-func TestAppendLeavesAnOpenRunsClockWhenLoggingAReview(t *testing.T) {
-	root, logPath := repository(t)
-	t.Setenv(sessionVariable, "this-session")
-	run, err := RunFile(context.Background(), root, "this-session")
-	require.NoError(t, err)
-	now := time.Now()
-	started := strconv.FormatInt(now.Unix()-90, 10) + "\n"
-	require.NoError(t, os.WriteFile(run+".started", []byte(started), 0o600))
-	record, problems, err := Problems(strings.NewReader(validReview))
-	require.NoError(t, err)
-	require.Empty(t, problems)
-
-	require.NoError(t, Append(context.Background(), root, record, logPath, now))
-
-	require.NotContains(t, logLines(t, logPath)[0], "duration")
-	content, err := os.ReadFile(run + ".started")
-	require.NoError(t, err)
-	require.Equal(t, started, string(content))
 }
 
 func TestLogPathDefaultsToTheDataDirectory(t *testing.T) {

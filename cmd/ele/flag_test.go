@@ -14,6 +14,85 @@ import (
 
 var flaggedLine = regexp.MustCompile(`^Flagged session \S+ (?:bad|good), note (\d{8}-[0-9a-f]{6}): (.+)\n$`)
 
+func TestRunFlagAtMarksTheIndexedEntryAtOrAfterTheTime(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "running-1")
+	flagAt := func(at string) (string, int) {
+		return runCommand(t, "flag", "bad", "--session", "abc1", "--at", at, "Pinned without asking.")
+	}
+
+	for at, want := range map[string]string{
+		"2026-10-15T10:00:00Z":      "2026-10-15T10:00:00Z",
+		"2026-10-15T10:00:30Z":      "2026-10-15T10:01:00Z",
+		"2026-10-15T14:00:00+04:00": "2026-10-15T10:00:00Z",
+	} {
+		output, code := flagAt(at)
+		require.Equal(t, 0, code, output)
+		require.Equal(t, want, readFlagged(t, output).Time, "--at %s", at)
+	}
+	for _, at := range []string{"2026-10-15T09:59:59Z", "2026-10-15T10:01:01Z"} {
+		output, code := flagAt(at)
+		require.Equal(t, 1, code, output)
+		require.Equal(t, "ele: --at "+at+" is outside session abc1, which runs from 2026-10-15T10:00:00Z to 2026-10-15T10:01:00Z\n", output)
+	}
+	output, code := flagAt("yesterday")
+	require.Equal(t, 2, code, output)
+	require.Equal(t, `ele: --at "yesterday" is not an RFC 3339 time, such as 2026-10-29T03:11:39Z`+"\n", output)
+	output, code = runCommand(t, "flag", "bad", "--at", "2026-10-15T10:00:00Z", "No session named.")
+	require.Equal(t, 2, code, output)
+	require.Equal(t, "ele: --at names a moment of an earlier session; pass --session <id> too\n", output)
+}
+
+func TestRunFlagRefusesASharedSessionPrefix(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	writeFile(t, filepath.Join(home, ".claude", "projects", "-gateway", "abc2.jsonl"),
+		`{"type":"user","cwd":"`+filepath.Join(home, "w", "corp", "gateway")+`","sessionId":"abc2","timestamp":"2026-10-15T11:00:00Z","uuid":"u-abc2","message":{"content":"second"}}`+"\n")
+	output, code := runCommand(t, "sync")
+	require.Equal(t, 0, code, output)
+
+	output, code = runCommand(t, "flag", "bad", "--session", "abc", "Which one?")
+	require.Equal(t, 1, code, output)
+	require.Equal(t, `ele: more than one indexed session starts with "abc"; give more of its id`+"\n", output)
+}
+
+func TestRunFlagRefusesBadInput(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "")
+	writeFile(t, filepath.Join(home, ".claude", "projects", "-gateway", "nostamp.jsonl"),
+		`{"type":"user","cwd":"`+filepath.Join(home, "w", "corp", "gateway")+`","sessionId":"nostamp","uuid":"u-nostamp","message":{"content":"no time"}}`+"\n")
+	output, code := runCommand(t, "sync")
+	require.Equal(t, 0, code, output)
+
+	tests := []struct {
+		args    []string
+		code    int
+		message string
+		name    string
+	}{
+		{args: []string{"remember", "--kind", "flag", "Sneaked in."}, code: 2, message: `ele: a flag note is written by ele flag good|bad "<why>", not ele remember` + "\n", name: "flag through remember"},
+		{args: []string{"flag", "bad", "Outside a session."}, code: 2, message: "ele: no running session to flag; pass --session <id>\n", name: "no session"},
+		{args: []string{"flag", "bad", "--session", "nostamp", "No time."}, code: 1, message: "ele: session nostamp has no timestamped entry to flag\n", name: "no timestamped entry"},
+		{args: []string{"flag", "good", "--session", "abc1"}, code: 2, message: "ele flag good ", name: "no why"},
+		{args: []string{"flag", "good", "--session", "abc1", "one\ntwo\nthree\nfour"}, code: 2, message: "ele: a flag is at most 3 lines, not 4", name: "too long"},
+		{args: []string{"flag", "bad", "--session", "zzz", "Typo."}, code: 1, message: `ele: no indexed session starts with "zzz"; ele sync indexes a recent one` + "\n", name: "unknown session"},
+		{args: []string{"flag", "meh", "Unsure."}, code: 2, message: `ele: unknown flag subcommand "meh"`, name: "unknown verdict"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			output, code := runCommand(t, test.args...)
+			require.Equal(t, test.code, code, output)
+			require.Contains(t, output, test.message)
+		})
+	}
+	entries, err := os.ReadDir(filepath.Join(home, "data", "notes", "corp"))
+	if err == nil {
+		require.Empty(t, entries, "a refused flag writes nothing")
+	}
+}
+
 func TestRunFlagSavesAFlagNoteListedAndKeptOutOfTheStartBlock(t *testing.T) {
 	home := recallFixture(t)
 	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
@@ -60,85 +139,6 @@ func TestRunFlagSavesAFlagNoteListedAndKeptOutOfTheStartBlock(t *testing.T) {
 	require.Equal(t, 0, code, output)
 	require.NotContains(t, output, good.ID, "a superseded flag leaves the list")
 	require.Contains(t, output, bad.ID)
-}
-
-func TestRunFlagAtMarksTheIndexedEntryAtOrAfterTheTime(t *testing.T) {
-	home := recallFixture(t)
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-	t.Setenv("CLAUDE_CODE_SESSION_ID", "running-1")
-	flagAt := func(at string) (string, int) {
-		return runCommand(t, "flag", "bad", "--session", "abc1", "--at", at, "Pinned without asking.")
-	}
-
-	for at, want := range map[string]string{
-		"2026-10-15T10:00:00Z":      "2026-10-15T10:00:00Z",
-		"2026-10-15T10:00:30Z":      "2026-10-15T10:01:00Z",
-		"2026-10-15T14:00:00+04:00": "2026-10-15T10:00:00Z",
-	} {
-		output, code := flagAt(at)
-		require.Equal(t, 0, code, output)
-		require.Equal(t, want, readFlagged(t, output).Time, "--at %s", at)
-	}
-	for _, at := range []string{"2026-10-15T09:59:59Z", "2026-10-15T10:01:01Z"} {
-		output, code := flagAt(at)
-		require.Equal(t, 1, code, output)
-		require.Equal(t, "ele: --at "+at+" is outside session abc1, which runs from 2026-10-15T10:00:00Z to 2026-10-15T10:01:00Z\n", output)
-	}
-	output, code := flagAt("yesterday")
-	require.Equal(t, 2, code, output)
-	require.Equal(t, `ele: --at "yesterday" is not an RFC 3339 time, such as 2026-10-29T03:11:39Z`+"\n", output)
-	output, code = runCommand(t, "flag", "bad", "--at", "2026-10-15T10:00:00Z", "No session named.")
-	require.Equal(t, 2, code, output)
-	require.Equal(t, "ele: --at names a moment of an earlier session; pass --session <id> too\n", output)
-}
-
-func TestRunFlagRefusesBadInput(t *testing.T) {
-	home := recallFixture(t)
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-	t.Setenv("CLAUDE_CODE_SESSION_ID", "")
-	writeFile(t, filepath.Join(home, ".claude", "projects", "-gateway", "nostamp.jsonl"),
-		`{"type":"user","cwd":"`+filepath.Join(home, "w", "corp", "gateway")+`","sessionId":"nostamp","uuid":"u-nostamp","message":{"content":"no time"}}`+"\n")
-	output, code := runCommand(t, "sync")
-	require.Equal(t, 0, code, output)
-
-	tests := []struct {
-		args    []string
-		code    int
-		message string
-		name    string
-	}{
-		{args: []string{"remember", "--kind", "flag", "Sneaked in."}, code: 2, message: `ele: a flag note is written by ele flag good|bad "<why>", not ele remember` + "\n", name: "flag through remember"},
-		{args: []string{"flag", "bad", "Outside a session."}, code: 2, message: "ele: no running session to flag; pass --session <id>\n", name: "no session"},
-		{args: []string{"flag", "bad", "--session", "nostamp", "No time."}, code: 1, message: "ele: session nostamp has no timestamped entry to flag\n", name: "no timestamped entry"},
-		{args: []string{"flag", "good", "--session", "abc1"}, code: 2, message: "ele flag good ", name: "no why"},
-		{args: []string{"flag", "good", "--session", "abc1", "one\ntwo\nthree\nfour"}, code: 2, message: "ele: a flag is at most 3 lines, not 4", name: "too long"},
-		{args: []string{"flag", "bad", "--session", "zzz", "Typo."}, code: 1, message: `ele: no indexed session starts with "zzz"; ele sync indexes a recent one` + "\n", name: "unknown session"},
-		{args: []string{"flag", "meh", "Unsure."}, code: 2, message: `ele: unknown flag subcommand "meh"`, name: "unknown verdict"},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			output, code := runCommand(t, test.args...)
-			require.Equal(t, test.code, code, output)
-			require.Contains(t, output, test.message)
-		})
-	}
-	entries, err := os.ReadDir(filepath.Join(home, "data", "notes", "corp"))
-	if err == nil {
-		require.Empty(t, entries, "a refused flag writes nothing")
-	}
-}
-
-func TestRunFlagRefusesASharedSessionPrefix(t *testing.T) {
-	home := recallFixture(t)
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-	writeFile(t, filepath.Join(home, ".claude", "projects", "-gateway", "abc2.jsonl"),
-		`{"type":"user","cwd":"`+filepath.Join(home, "w", "corp", "gateway")+`","sessionId":"abc2","timestamp":"2026-10-15T11:00:00Z","uuid":"u-abc2","message":{"content":"second"}}`+"\n")
-	output, code := runCommand(t, "sync")
-	require.Equal(t, 0, code, output)
-
-	output, code = runCommand(t, "flag", "bad", "--session", "abc", "Which one?")
-	require.Equal(t, 1, code, output)
-	require.Equal(t, `ele: more than one indexed session starts with "abc"; give more of its id`+"\n", output)
 }
 
 func readFlagged(t *testing.T, output string) notes.Note {

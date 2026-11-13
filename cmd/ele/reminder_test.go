@@ -13,6 +13,68 @@ import (
 	"github.com/nicolaspearson/claude-ephant/internal/notes"
 )
 
+func TestIntervalNamesItsLargestWholeUnit(t *testing.T) {
+	tests := []struct {
+		every    time.Duration
+		interval string
+	}{
+		{every: 0, interval: ""},
+		{every: time.Minute, interval: ", every 1 minute"},
+		{every: time.Hour, interval: ", every 1 hour"},
+		{every: 2 * time.Hour, interval: ", every 2 hours"},
+		{every: 90 * time.Minute, interval: ", every 90 minutes"},
+		{every: notes.Day, interval: ", every 1 day"},
+		{every: 7 * notes.Day, interval: ", every 7 days"},
+	}
+	for _, test := range tests {
+		require.Equal(t, test.interval, interval(notes.Note{Every: test.every}), test.every)
+	}
+}
+
+func TestRunReminderAndForgetReachAnEverywhereNoteFromEachOwner(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	today := time.Now().Format(time.DateOnly)
+	output, code := runCommand(t, "remember", "--kind", "reminder", "--everywhere", "--due", today, "--session", "", "Run /hook-stats.")
+	require.Equal(t, 0, code, output)
+	nudge := readRemembered(t, output)
+	output, code = runCommand(t, "remember", "--kind", "reminder", "--everywhere", "--due", today, "Run /hook-stats.")
+	require.Equal(t, 1, code, "an everywhere note already says it: %s", output)
+
+	t.Chdir(filepath.Join(home, "w", "personal", "notes"))
+	output, code = runCommand(t, "reminder", "list")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "- due  due "+today+", reminder "+nudge.ID+" (everywhere): Run /hook-stats.\n")
+	output, code = runCommand(t, "reminder", "close", nudge.ID)
+	require.Equal(t, 0, code, output)
+
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	output, code = runCommand(t, "reminder", "list")
+	require.Equal(t, 0, code, output)
+	require.NotContains(t, output, nudge.ID, "closed under one owner, closed under every owner")
+	output, code = runCommand(t, "forget", nudge.ID)
+	require.Equal(t, 0, code, output)
+	require.FileExists(t, filepath.Join(home, "data", "forgotten", notes.OwnerEverywhere, nudge.ID+".md"))
+	output, code = runCommand(t, "forget", "--restore", nudge.ID)
+	require.Equal(t, 0, code, output)
+	require.FileExists(t, filepath.Join(home, "data", "notes", notes.OwnerEverywhere, nudge.ID+".md"))
+
+	elsewhere := filepath.Join(home, "elsewhere")
+	require.NoError(t, os.MkdirAll(elsewhere, 0o700))
+	t.Chdir(elsewhere)
+	output, code = runCommand(t, "reminder", "reopen", nudge.ID)
+	require.Equal(t, 0, code, "a session no owner covers manages the everywhere notes it shows: %s", output)
+	output, code = runCommand(t, "reminder", "list")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "Reminders for elsewhere, soonest due first:\n- due  due "+today+", reminder "+nudge.ID+" (everywhere): Run /hook-stats.\n")
+	output, code = runCommand(t, "reminder", "close", nudge.ID)
+	require.Equal(t, 0, code, output)
+	output, code = runCommand(t, "forget", nudge.ID)
+	require.Equal(t, 0, code, output)
+	output, code = runCommand(t, "handoff", "list")
+	require.Equal(t, 1, code, "a handoff still needs an owner: %s", output)
+}
+
 func TestRunReminderCloseReArmsANudge(t *testing.T) {
 	home := recallFixture(t)
 	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
@@ -104,24 +166,6 @@ func TestRunReminderCloseReArmsASubDayNudgeToTheMinute(t *testing.T) {
 	require.Contains(t, start(due), "- ↻ due "+rearmed.Due+", reminder "+nudge.ID+", every 5 minutes: Check the nudge.\n")
 }
 
-func TestIntervalNamesItsLargestWholeUnit(t *testing.T) {
-	tests := []struct {
-		every    time.Duration
-		interval string
-	}{
-		{every: 0, interval: ""},
-		{every: time.Minute, interval: ", every 1 minute"},
-		{every: time.Hour, interval: ", every 1 hour"},
-		{every: 2 * time.Hour, interval: ", every 2 hours"},
-		{every: 90 * time.Minute, interval: ", every 90 minutes"},
-		{every: notes.Day, interval: ", every 1 day"},
-		{every: 7 * notes.Day, interval: ", every 7 days"},
-	}
-	for _, test := range tests {
-		require.Equal(t, test.interval, interval(notes.Note{Every: test.every}), test.every)
-	}
-}
-
 func TestRunReminderListColoursOnlyWithColour(t *testing.T) {
 	home := recallFixture(t)
 	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
@@ -160,50 +204,6 @@ func TestRunReminderListDropsControlCharacters(t *testing.T) {
 	output, code := runCommand(t, "reminder", "list")
 	require.Equal(t, 0, code, output)
 	require.Contains(t, output, "reminder 20261022-aaaaaa (project): Renew [31mthe certificate.\n")
-}
-
-func TestRunReminderAndForgetReachAnEverywhereNoteFromEachOwner(t *testing.T) {
-	home := recallFixture(t)
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-	today := time.Now().Format(time.DateOnly)
-	output, code := runCommand(t, "remember", "--kind", "reminder", "--everywhere", "--due", today, "--session", "", "Run /hook-stats.")
-	require.Equal(t, 0, code, output)
-	nudge := readRemembered(t, output)
-	output, code = runCommand(t, "remember", "--kind", "reminder", "--everywhere", "--due", today, "Run /hook-stats.")
-	require.Equal(t, 1, code, "an everywhere note already says it: %s", output)
-
-	t.Chdir(filepath.Join(home, "w", "personal", "notes"))
-	output, code = runCommand(t, "reminder", "list")
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "- due  due "+today+", reminder "+nudge.ID+" (everywhere): Run /hook-stats.\n")
-	output, code = runCommand(t, "reminder", "close", nudge.ID)
-	require.Equal(t, 0, code, output)
-
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-	output, code = runCommand(t, "reminder", "list")
-	require.Equal(t, 0, code, output)
-	require.NotContains(t, output, nudge.ID, "closed under one owner, closed under every owner")
-	output, code = runCommand(t, "forget", nudge.ID)
-	require.Equal(t, 0, code, output)
-	require.FileExists(t, filepath.Join(home, "data", "forgotten", notes.OwnerEverywhere, nudge.ID+".md"))
-	output, code = runCommand(t, "forget", "--restore", nudge.ID)
-	require.Equal(t, 0, code, output)
-	require.FileExists(t, filepath.Join(home, "data", "notes", notes.OwnerEverywhere, nudge.ID+".md"))
-
-	elsewhere := filepath.Join(home, "elsewhere")
-	require.NoError(t, os.MkdirAll(elsewhere, 0o700))
-	t.Chdir(elsewhere)
-	output, code = runCommand(t, "reminder", "reopen", nudge.ID)
-	require.Equal(t, 0, code, "a session no owner covers manages the everywhere notes it shows: %s", output)
-	output, code = runCommand(t, "reminder", "list")
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "Reminders for elsewhere, soonest due first:\n- due  due "+today+", reminder "+nudge.ID+" (everywhere): Run /hook-stats.\n")
-	output, code = runCommand(t, "reminder", "close", nudge.ID)
-	require.Equal(t, 0, code, output)
-	output, code = runCommand(t, "forget", nudge.ID)
-	require.Equal(t, 0, code, output)
-	output, code = runCommand(t, "handoff", "list")
-	require.Equal(t, 1, code, "a handoff still needs an owner: %s", output)
 }
 
 func TestRunReminderListsClosesAndReopens(t *testing.T) {

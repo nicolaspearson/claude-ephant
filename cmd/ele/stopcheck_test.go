@@ -210,17 +210,6 @@ func TestRemoveStaleStopStateKeepsAWeek(t *testing.T) {
 	require.NoError(t, removeStaleStopState(t.TempDir(), now), "no state directory yet")
 }
 
-func TestRunStopCheckRecordsTheRunningVersion(t *testing.T) {
-	run := newStopCheckRun(t)
-	run.prompt()
-
-	run.stop(run.gateway, false)
-
-	recorded, err := os.ReadFile(filepath.Join(run.home, "data", "hook-versions", run.session))
-	require.NoError(t, err)
-	require.Regexp(t, `^\S+\tdevel\n$`, string(recorded))
-}
-
 func TestRunStopCheckAsksForNotesOncePerStretch(t *testing.T) {
 	run := newStopCheckRun(t)
 	block := stopOutput{HookSpecificOutput: continueWith(rememberReason)}
@@ -273,35 +262,6 @@ func TestRunStopCheckAsksForNotesOncePerStretch(t *testing.T) {
 	require.Equal(t, block, output, "past a half-written last line")
 }
 
-func TestRunStopCheckReasonFollowsAutoNoteWrites(t *testing.T) {
-	tests := []struct {
-		config string
-		name   string
-		want   string
-	}{
-		{config: `{"auto_note_writes": tru`, name: "broken file reads as off", want: rememberReason},
-		{name: "default off", want: rememberReason},
-		{config: `{"auto_note_writes": true, "owners": {"corp": {"auto_note_writes": false}}}`, name: "off for this owner", want: rememberReason},
-		{config: `{"auto_note_writes": true}`, name: "on", want: rememberWriteReason},
-		{config: `{"owners": {"personal": {"auto_note_writes": true}}}`, name: "on for another owner", want: rememberReason},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			run := newStopCheckRun(t)
-			if test.config != "" {
-				writeFile(t, filepath.Join(run.home, "data", "config.json"), test.config)
-			}
-			run.respond(1000, stopCheckEdit)
-			var stdout, stderr bytes.Buffer
-			input := fmt.Sprintf(`{"cwd":%q,"session_id":%q,"transcript_path":%q}`, run.gateway, run.session, run.transcriptPath)
-			require.Equal(t, 0, stopCheck(context.Background(), nil, strings.NewReader(input), &stdout, &stderr), stderr.String())
-			var output stopOutput
-			require.NoError(t, json.Unmarshal(stdout.Bytes(), &output), stdout.String())
-			require.Equal(t, stopOutput{HookSpecificOutput: continueWith(test.want)}, output)
-		})
-	}
-}
-
 func TestRunStopCheckAsksForNotesOnlyWithNotesAsk(t *testing.T) {
 	block := stopOutput{HookSpecificOutput: continueWith(rememberReason)}
 	tests := []struct {
@@ -332,83 +292,6 @@ func TestRunStopCheckAsksForNotesOnlyWithNotesAsk(t *testing.T) {
 			require.Equal(t, test.want, output)
 		})
 	}
-}
-
-func TestRunStopCheckForgetsWorkDoneWhileNotesAskIsOff(t *testing.T) {
-	run := newStopCheckRun(t)
-	configPath := filepath.Join(run.home, "data", "config.json")
-	writeFile(t, configPath, `{"notes_ask": false}`)
-	run.respond(1000, stopCheckEdit)
-	raw, _ := run.stop(run.gateway, false)
-	require.Empty(t, raw, "off")
-
-	writeFile(t, configPath, `{}`)
-	run.prompt()
-	run.respond(1000, stopCheckText)
-	raw, _ = run.stop(run.gateway, false)
-	require.Empty(t, raw, "the edit made while off is not asked about")
-
-	run.prompt()
-	run.respond(1000, stopCheckEdit)
-	_, output := run.stop(run.gateway, false)
-	require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason)}, output, "an edit made once on is")
-}
-
-func TestRunStopCheckHintsFromCompactHintAt(t *testing.T) {
-	tests := []struct {
-		config string
-		name   string
-		tokens int
-		want   string
-	}{
-		{config: `{"compact_hint_at": 0}`, name: "0 turns it off", tokens: 900000},
-		{config: `{"compact_hint_at": 1`, name: "broken file reads as the default", tokens: 150000, want: "Context 150k. Write a handoff (/ele:handoff), then /clear"},
-		{name: "default, at", tokens: 150000, want: "Context 150k. Write a handoff (/ele:handoff), then /clear"},
-		{name: "default, below", tokens: 149999},
-		{config: `{"owners": {"personal": {"compact_hint_at": 400000}}}`, name: "raised for another owner", tokens: 150000, want: "Context 150k. Write a handoff (/ele:handoff), then /clear"},
-		{config: `{"owners": {"corp": {"compact_hint_at": 400000}}}`, name: "raised for this owner", tokens: 150000},
-		{config: `{"compact_hint_at": 400000}`, name: "raised, at", tokens: 400000, want: "Context 400k. Write a handoff (/ele:handoff), then /clear"},
-		{config: `{"compact_hint_at": 400000}`, name: "raised, below", tokens: 399999},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			run := newStopCheckRun(t)
-			t.Setenv("NO_COLOR", "1")
-			if test.config != "" {
-				writeFile(t, filepath.Join(run.home, "data", "config.json"), test.config)
-			}
-			run.respond(test.tokens, stopCheckText)
-			var stdout, stderr bytes.Buffer
-			input := fmt.Sprintf(`{"cwd":%q,"session_id":%q,"transcript_path":%q}`, run.gateway, run.session, run.transcriptPath)
-			require.Equal(t, 0, stopCheck(context.Background(), nil, strings.NewReader(input), &stdout, &stderr), stderr.String())
-			var output stopOutput
-			if stdout.Len() > 0 {
-				require.NoError(t, json.Unmarshal(stdout.Bytes(), &output), stdout.String())
-			}
-			require.Equal(t, test.want, output.SystemMessage)
-		})
-	}
-}
-
-func TestRunStopCheckHintsAgainAfterCompactHintAtWasOff(t *testing.T) {
-	run := newStopCheckRun(t)
-	t.Setenv("NO_COLOR", "1")
-	configPath := filepath.Join(run.home, "data", "config.json")
-	run.respond(260000, stopCheckText)
-	_, output := run.stop(run.gateway, false)
-	require.Equal(t, "Context 260k. Write a handoff (/ele:handoff), then /clear", output.SystemMessage, "band 1 hinted")
-
-	writeFile(t, configPath, `{"compact_hint_at": 0}`)
-	run.prompt()
-	run.respond(40000, stopCheckText)
-	raw, _ := run.stop(run.gateway, false)
-	require.Empty(t, raw, "off, compacted")
-
-	writeFile(t, configPath, `{}`)
-	run.prompt()
-	run.respond(160000, stopCheckText)
-	_, output = run.stop(run.gateway, false)
-	require.Equal(t, "Context 160k. Write a handoff (/ele:handoff), then /clear", output.SystemMessage, "band 0 hinted again once on")
 }
 
 func TestRunStopCheckColoursTheHint(t *testing.T) {
@@ -492,66 +375,6 @@ func TestRunStopCheckCountsASubagentsEdits(t *testing.T) {
 	writeFile(t, subagent, line(stopCheckGate)+line(stopCheckEdit))
 	_, output := run.stop(run.gateway, false)
 	require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason)}, output, "an edit by a subagent first seen after the first stop is work")
-}
-
-func TestRunStopCheckKeepsASubagentsEditBeforeACheckpoint(t *testing.T) {
-	run := newStopCheckRun(t)
-	run.respond(1000, stopCheckText)
-	raw, _ := run.stop(run.gateway, false)
-	require.Empty(t, raw, "no subagents yet")
-
-	run.prompt()
-	run.respond(1000, `{"type":"tool_use","name":"Agent","input":{"description":"build it"}}`)
-	writeFile(t, filepath.Join(subagentDirectory(run.transcriptPath), "agent-a1.jsonl"), `{"type":"assistant","isSidechain":true,"timestamp":"2026-10-20T10:00:00.000Z","message":{"id":"s","content":[`+stopCheckEdit+`]}}`+"\n")
-	run.write(`{"type":"assistant","sessionId":"` + stopCheckSession + `","timestamp":"2026-10-20T10:00:05.000Z","message":{"id":"c1","content":[{"type":"tool_use","name":"Skill","input":{"skill":"ele:checkpoint"}}]}}`)
-	raw, _ = run.stop(run.gateway, false)
-	require.Empty(t, raw, "not while the checkpoint runs")
-
-	run.prompt()
-	run.respond(1000, stopCheckText)
-	_, output := run.stop(run.gateway, false)
-	require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason)}, output, "a delegated edit made before the checkpoint, read only once it began, is kept")
-}
-
-func TestRunStopCheckLetsAProposalClearASubagentsEarlierEdit(t *testing.T) {
-	stamped := func(id string, timestamp string, content string) string {
-		return `{"type":"assistant","sessionId":"` + stopCheckSession + `","timestamp":"` + timestamp + `","message":{"id":"` + id + `","content":[` + content + `]}}`
-	}
-	note := `{"type":"tool_use","name":"Bash","input":{"command":"ele remember --kind fact \"Kept\""}}`
-	for _, test := range []struct {
-		checkpoint bool
-		name       string
-	}{
-		{checkpoint: true, name: "with a checkpoint between"},
-		{name: "without a checkpoint"},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			run := newStopCheckRun(t)
-			subagent := filepath.Join(subagentDirectory(run.transcriptPath), "agent-a1.jsonl")
-			run.respond(1000, stopCheckText)
-			raw, _ := run.stop(run.gateway, false)
-			require.Empty(t, raw, "no subagents yet")
-
-			run.prompt()
-			run.respond(1000, `{"type":"tool_use","name":"Agent","input":{"description":"build it"}}`)
-			writeFile(t, subagent, `{"type":"assistant","isSidechain":true,"timestamp":"2026-10-20T10:00:00.000Z","message":{"id":"s1","content":[`+stopCheckEdit+`]}}`+"\n")
-			if test.checkpoint {
-				run.write(stamped("c1", "2026-10-20T10:00:05.000Z", `{"type":"tool_use","name":"Skill","input":{"skill":"ele:checkpoint"}}`))
-			}
-			run.write(stamped("n1", "2026-10-20T10:00:10.000Z", note))
-			raw, _ = run.stop(run.gateway, false)
-			require.Empty(t, raw, "the proposal clears the subagent's earlier edit")
-
-			run.prompt()
-			run.respond(1000, stopCheckText)
-			raw, _ = run.stop(run.gateway, false)
-			require.Empty(t, raw, "no ask without new work")
-
-			writeFile(t, subagent, `{"type":"assistant","isSidechain":true,"timestamp":"2026-10-20T10:00:00.000Z","message":{"id":"s1","content":[`+stopCheckEdit+`]}}`+"\n"+`{"type":"assistant","isSidechain":true,"timestamp":"2026-10-20T10:01:00.000Z","message":{"id":"s2","content":[`+stopCheckEdit+`]}}`+"\n")
-			_, output := run.stop(run.gateway, false)
-			require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason)}, output, "a subagent edit after the proposal is work")
-		})
-	}
 }
 
 func TestRunStopCheckDecidesEveryCombination(t *testing.T) {
@@ -654,6 +477,83 @@ func TestRunStopCheckDecidesEveryCombination(t *testing.T) {
 	require.Equal(t, 3*4*2*2*3*2*2*2-(1*1*1*2*3*2*2*2)-(3*3*1*1*3*2*2*2), cases, "every combination but pending between tasks with no checkpoint, and mid-task with nothing pending and nothing proposed")
 }
 
+func TestRunStopCheckForgetsWorkDoneWhileNotesAskIsOff(t *testing.T) {
+	run := newStopCheckRun(t)
+	configPath := filepath.Join(run.home, "data", "config.json")
+	writeFile(t, configPath, `{"notes_ask": false}`)
+	run.respond(1000, stopCheckEdit)
+	raw, _ := run.stop(run.gateway, false)
+	require.Empty(t, raw, "off")
+
+	writeFile(t, configPath, `{}`)
+	run.prompt()
+	run.respond(1000, stopCheckText)
+	raw, _ = run.stop(run.gateway, false)
+	require.Empty(t, raw, "the edit made while off is not asked about")
+
+	run.prompt()
+	run.respond(1000, stopCheckEdit)
+	_, output := run.stop(run.gateway, false)
+	require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason)}, output, "an edit made once on is")
+}
+
+func TestRunStopCheckHintsAgainAfterCompactHintAtWasOff(t *testing.T) {
+	run := newStopCheckRun(t)
+	t.Setenv("NO_COLOR", "1")
+	configPath := filepath.Join(run.home, "data", "config.json")
+	run.respond(260000, stopCheckText)
+	_, output := run.stop(run.gateway, false)
+	require.Equal(t, "Context 260k. Write a handoff (/ele:handoff), then /clear", output.SystemMessage, "band 1 hinted")
+
+	writeFile(t, configPath, `{"compact_hint_at": 0}`)
+	run.prompt()
+	run.respond(40000, stopCheckText)
+	raw, _ := run.stop(run.gateway, false)
+	require.Empty(t, raw, "off, compacted")
+
+	writeFile(t, configPath, `{}`)
+	run.prompt()
+	run.respond(160000, stopCheckText)
+	_, output = run.stop(run.gateway, false)
+	require.Equal(t, "Context 160k. Write a handoff (/ele:handoff), then /clear", output.SystemMessage, "band 0 hinted again once on")
+}
+
+func TestRunStopCheckHintsFromCompactHintAt(t *testing.T) {
+	tests := []struct {
+		config string
+		name   string
+		tokens int
+		want   string
+	}{
+		{config: `{"compact_hint_at": 0}`, name: "0 turns it off", tokens: 900000},
+		{config: `{"compact_hint_at": 1`, name: "broken file reads as the default", tokens: 150000, want: "Context 150k. Write a handoff (/ele:handoff), then /clear"},
+		{name: "default, at", tokens: 150000, want: "Context 150k. Write a handoff (/ele:handoff), then /clear"},
+		{name: "default, below", tokens: 149999},
+		{config: `{"owners": {"personal": {"compact_hint_at": 400000}}}`, name: "raised for another owner", tokens: 150000, want: "Context 150k. Write a handoff (/ele:handoff), then /clear"},
+		{config: `{"owners": {"corp": {"compact_hint_at": 400000}}}`, name: "raised for this owner", tokens: 150000},
+		{config: `{"compact_hint_at": 400000}`, name: "raised, at", tokens: 400000, want: "Context 400k. Write a handoff (/ele:handoff), then /clear"},
+		{config: `{"compact_hint_at": 400000}`, name: "raised, below", tokens: 399999},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			run := newStopCheckRun(t)
+			t.Setenv("NO_COLOR", "1")
+			if test.config != "" {
+				writeFile(t, filepath.Join(run.home, "data", "config.json"), test.config)
+			}
+			run.respond(test.tokens, stopCheckText)
+			var stdout, stderr bytes.Buffer
+			input := fmt.Sprintf(`{"cwd":%q,"session_id":%q,"transcript_path":%q}`, run.gateway, run.session, run.transcriptPath)
+			require.Equal(t, 0, stopCheck(context.Background(), nil, strings.NewReader(input), &stdout, &stderr), stderr.String())
+			var output stopOutput
+			if stdout.Len() > 0 {
+				require.NoError(t, json.Unmarshal(stdout.Bytes(), &output), stdout.String())
+			}
+			require.Equal(t, test.want, output.SystemMessage)
+		})
+	}
+}
+
 func TestRunStopCheckHintsOncePerBandAndNamesTheLonePlan(t *testing.T) {
 	run := newStopCheckRun(t)
 	stop := func() (string, stopOutput) {
@@ -724,6 +624,66 @@ func TestRunStopCheckHintsOncePerBandAndNamesTheLonePlan(t *testing.T) {
 	require.Empty(t, raw, "no owner covers the directory")
 }
 
+func TestRunStopCheckKeepsASubagentsEditBeforeACheckpoint(t *testing.T) {
+	run := newStopCheckRun(t)
+	run.respond(1000, stopCheckText)
+	raw, _ := run.stop(run.gateway, false)
+	require.Empty(t, raw, "no subagents yet")
+
+	run.prompt()
+	run.respond(1000, `{"type":"tool_use","name":"Agent","input":{"description":"build it"}}`)
+	writeFile(t, filepath.Join(subagentDirectory(run.transcriptPath), "agent-a1.jsonl"), `{"type":"assistant","isSidechain":true,"timestamp":"2026-10-20T10:00:00.000Z","message":{"id":"s","content":[`+stopCheckEdit+`]}}`+"\n")
+	run.write(`{"type":"assistant","sessionId":"` + stopCheckSession + `","timestamp":"2026-10-20T10:00:05.000Z","message":{"id":"c1","content":[{"type":"tool_use","name":"Skill","input":{"skill":"ele:checkpoint"}}]}}`)
+	raw, _ = run.stop(run.gateway, false)
+	require.Empty(t, raw, "not while the checkpoint runs")
+
+	run.prompt()
+	run.respond(1000, stopCheckText)
+	_, output := run.stop(run.gateway, false)
+	require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason)}, output, "a delegated edit made before the checkpoint, read only once it began, is kept")
+}
+
+func TestRunStopCheckLetsAProposalClearASubagentsEarlierEdit(t *testing.T) {
+	stamped := func(id string, timestamp string, content string) string {
+		return `{"type":"assistant","sessionId":"` + stopCheckSession + `","timestamp":"` + timestamp + `","message":{"id":"` + id + `","content":[` + content + `]}}`
+	}
+	note := `{"type":"tool_use","name":"Bash","input":{"command":"ele remember --kind fact \"Kept\""}}`
+	for _, test := range []struct {
+		checkpoint bool
+		name       string
+	}{
+		{checkpoint: true, name: "with a checkpoint between"},
+		{name: "without a checkpoint"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			run := newStopCheckRun(t)
+			subagent := filepath.Join(subagentDirectory(run.transcriptPath), "agent-a1.jsonl")
+			run.respond(1000, stopCheckText)
+			raw, _ := run.stop(run.gateway, false)
+			require.Empty(t, raw, "no subagents yet")
+
+			run.prompt()
+			run.respond(1000, `{"type":"tool_use","name":"Agent","input":{"description":"build it"}}`)
+			writeFile(t, subagent, `{"type":"assistant","isSidechain":true,"timestamp":"2026-10-20T10:00:00.000Z","message":{"id":"s1","content":[`+stopCheckEdit+`]}}`+"\n")
+			if test.checkpoint {
+				run.write(stamped("c1", "2026-10-20T10:00:05.000Z", `{"type":"tool_use","name":"Skill","input":{"skill":"ele:checkpoint"}}`))
+			}
+			run.write(stamped("n1", "2026-10-20T10:00:10.000Z", note))
+			raw, _ = run.stop(run.gateway, false)
+			require.Empty(t, raw, "the proposal clears the subagent's earlier edit")
+
+			run.prompt()
+			run.respond(1000, stopCheckText)
+			raw, _ = run.stop(run.gateway, false)
+			require.Empty(t, raw, "no ask without new work")
+
+			writeFile(t, subagent, `{"type":"assistant","isSidechain":true,"timestamp":"2026-10-20T10:00:00.000Z","message":{"id":"s1","content":[`+stopCheckEdit+`]}}`+"\n"+`{"type":"assistant","isSidechain":true,"timestamp":"2026-10-20T10:01:00.000Z","message":{"id":"s2","content":[`+stopCheckEdit+`]}}`+"\n")
+			_, output := run.stop(run.gateway, false)
+			require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason)}, output, "a subagent edit after the proposal is work")
+		})
+	}
+}
+
 func TestRunStopCheckOnARecordedTranscript(t *testing.T) {
 	home := recallFixture(t)
 	writeFile(t, filepath.Join(home, "data", "config.json"), `{"compact_hint_at": 60000}`)
@@ -752,6 +712,46 @@ func TestRunStopCheckOnARecordedTranscript(t *testing.T) {
 	require.Empty(t, stop(len(lines), true), "the stop the block continued, in the same band")
 }
 
+func TestRunStopCheckReasonFollowsAutoNoteWrites(t *testing.T) {
+	tests := []struct {
+		config string
+		name   string
+		want   string
+	}{
+		{config: `{"auto_note_writes": tru`, name: "broken file reads as off", want: rememberReason},
+		{name: "default off", want: rememberReason},
+		{config: `{"auto_note_writes": true, "owners": {"corp": {"auto_note_writes": false}}}`, name: "off for this owner", want: rememberReason},
+		{config: `{"auto_note_writes": true}`, name: "on", want: rememberWriteReason},
+		{config: `{"owners": {"personal": {"auto_note_writes": true}}}`, name: "on for another owner", want: rememberReason},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			run := newStopCheckRun(t)
+			if test.config != "" {
+				writeFile(t, filepath.Join(run.home, "data", "config.json"), test.config)
+			}
+			run.respond(1000, stopCheckEdit)
+			var stdout, stderr bytes.Buffer
+			input := fmt.Sprintf(`{"cwd":%q,"session_id":%q,"transcript_path":%q}`, run.gateway, run.session, run.transcriptPath)
+			require.Equal(t, 0, stopCheck(context.Background(), nil, strings.NewReader(input), &stdout, &stderr), stderr.String())
+			var output stopOutput
+			require.NoError(t, json.Unmarshal(stdout.Bytes(), &output), stdout.String())
+			require.Equal(t, stopOutput{HookSpecificOutput: continueWith(test.want)}, output)
+		})
+	}
+}
+
+func TestRunStopCheckRecordsTheRunningVersion(t *testing.T) {
+	run := newStopCheckRun(t)
+	run.prompt()
+
+	run.stop(run.gateway, false)
+
+	recorded, err := os.ReadFile(filepath.Join(run.home, "data", "hook-versions", run.session))
+	require.NoError(t, err)
+	require.Regexp(t, `^\S+\tdevel\n$`, string(recorded))
+}
+
 func TestRunStopCheckRefusesBadInput(t *testing.T) {
 	recallFixture(t)
 	for _, input := range []string{"", "not json", `{"cwd":"/w","session_id":"../escape","transcript_path":"/t.jsonl"}`, `{"cwd":"/w","session_id":"","transcript_path":"/t.jsonl"}`, `{"cwd":"/w","session_id":"0123456789abcdef"}`} {
@@ -761,6 +761,38 @@ func TestRunStopCheckRefusesBadInput(t *testing.T) {
 		require.Empty(t, stdout.String())
 		require.Equal(t, "ele: stop-check reads a Stop hook's JSON on stdin, with session_id, transcript_path and cwd\n", stderr.String())
 	}
+}
+
+func TestRunStopCheckResumesAScanCutByItsBudget(t *testing.T) {
+	run := newStopCheckRun(t)
+	budget := scanBudget
+	scanBudget = 0
+	t.Cleanup(func() { scanBudget = budget })
+	subagent := `{"type":"assistant","message":{"content":[` + stopCheckEdit + `]}}` + "\n"
+	writeFile(t, filepath.Join(subagentDirectory(run.transcriptPath), "agent-a1.jsonl"), subagent)
+	dataDirectory, err := datadir.Path()
+	require.NoError(t, err)
+	statePath := filepath.Join(dataDirectory, "stop-check", run.session+".json")
+
+	run.respond(1000, stopCheckText)
+	first := len(run.lines.String())
+	run.respond(1000, stopCheckText)
+	second := len(run.lines.String())
+	run.respond(1000, stopCheckText)
+
+	for _, offset := range []int{first, second} {
+		raw, _ := run.stop(run.gateway, false)
+		require.Empty(t, raw, "no notes ask while the scan is behind")
+		state, readErr := readStopState(statePath)
+		require.NoError(t, readErr)
+		require.Equal(t, int64(offset), state.Offset, "one line a stop at a zero budget")
+		require.Equal(t, map[string]int64{}, state.Subagents, "subagent files wait for the scan to catch up")
+	}
+	_, output := run.stop(run.gateway, false)
+	require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason)}, output, "caught up, the subagent's edit is asked about")
+	state, err := readStopState(statePath)
+	require.NoError(t, err)
+	require.Equal(t, map[string]int64{"agent-a1.jsonl": int64(len(subagent))}, state.Subagents)
 }
 
 func TestRunSyncReportsStopCheckStateItCannotRemove(t *testing.T) {
@@ -855,38 +887,6 @@ func TestScanSubagentsCountsFileChangesOnly(t *testing.T) {
 	state, err = scanSubagents(directory, stopState{Subagents: map[string]int64{"agent-a1.jsonl": 5000}})
 	require.NoError(t, err)
 	require.Equal(t, stopState{MidTask: true, Pending: true, Subagents: map[string]int64{"agent-a1.jsonl": int64(len(edit))}}, state, "a shorter file is read again from the start")
-}
-
-func TestRunStopCheckResumesAScanCutByItsBudget(t *testing.T) {
-	run := newStopCheckRun(t)
-	budget := scanBudget
-	scanBudget = 0
-	t.Cleanup(func() { scanBudget = budget })
-	subagent := `{"type":"assistant","message":{"content":[` + stopCheckEdit + `]}}` + "\n"
-	writeFile(t, filepath.Join(subagentDirectory(run.transcriptPath), "agent-a1.jsonl"), subagent)
-	dataDirectory, err := datadir.Path()
-	require.NoError(t, err)
-	statePath := filepath.Join(dataDirectory, "stop-check", run.session+".json")
-
-	run.respond(1000, stopCheckText)
-	first := len(run.lines.String())
-	run.respond(1000, stopCheckText)
-	second := len(run.lines.String())
-	run.respond(1000, stopCheckText)
-
-	for _, offset := range []int{first, second} {
-		raw, _ := run.stop(run.gateway, false)
-		require.Empty(t, raw, "no notes ask while the scan is behind")
-		state, readErr := readStopState(statePath)
-		require.NoError(t, readErr)
-		require.Equal(t, int64(offset), state.Offset, "one line a stop at a zero budget")
-		require.Equal(t, map[string]int64{}, state.Subagents, "subagent files wait for the scan to catch up")
-	}
-	_, output := run.stop(run.gateway, false)
-	require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason)}, output, "caught up, the subagent's edit is asked about")
-	state, err := readStopState(statePath)
-	require.NoError(t, err)
-	require.Equal(t, map[string]int64{"agent-a1.jsonl": int64(len(subagent))}, state.Subagents)
 }
 
 func TestScanTranscriptConsumesWholeLinesOnly(t *testing.T) {

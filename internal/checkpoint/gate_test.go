@@ -81,21 +81,6 @@ func TestGatePatternsMatchTheirWordings(t *testing.T) {
 	}
 }
 
-func TestLastTurnStartsAtTheLastPrompt(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "s1.jsonl")
-	require.NoError(t, os.WriteFile(path, []byte(`{"type":"user","message":{"content":"one"}}
-{"type":"assistant","message":{"content":[{"type":"text","text":"first"}]}}
-{"type":"user","message":{"content":"two"}}
-{"type":"user","isMeta":true,"message":{"content":"Stop hook feedback"}}
-{"type":"user","isMeta":"yes","message":{"content":"half decoded"}}
-{"type":"assistant","message":{"content":[{"type":"text","text":"second"}]}}
-`), 0o600))
-
-	require.Equal(t, "\x1eTURN two\n\x1eTEXT\nsecond", lastTurn(path))
-	require.Empty(t, lastTurn(""))
-	require.Empty(t, lastTurn(filepath.Join(t.TempDir(), "missing.jsonl")))
-}
-
 func TestLastTurnStartsAtAPromptWithAnImage(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "s1.jsonl")
 	require.NoError(t, os.WriteFile(path, []byte(`{"type":"user","message":{"content":"one"}}
@@ -110,6 +95,21 @@ func TestLastTurnStartsAtAPromptWithAnImage(t *testing.T) {
 `), 0o600))
 
 	require.Equal(t, "\x1eTURN look\n\x1eTEXT\nsecond\n\x1eTEXT\nthird\n\x1eTEXT\nfourth", lastTurn(path), "neither a tool result nor an interrupt starts a turn")
+}
+
+func TestLastTurnStartsAtTheLastPrompt(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "s1.jsonl")
+	require.NoError(t, os.WriteFile(path, []byte(`{"type":"user","message":{"content":"one"}}
+{"type":"assistant","message":{"content":[{"type":"text","text":"first"}]}}
+{"type":"user","message":{"content":"two"}}
+{"type":"user","isMeta":true,"message":{"content":"Stop hook feedback"}}
+{"type":"user","isMeta":"yes","message":{"content":"half decoded"}}
+{"type":"assistant","message":{"content":[{"type":"text","text":"second"}]}}
+`), 0o600))
+
+	require.Equal(t, "\x1eTURN two\n\x1eTEXT\nsecond", lastTurn(path))
+	require.Empty(t, lastTurn(""))
+	require.Empty(t, lastTurn(filepath.Join(t.TempDir(), "missing.jsonl")))
 }
 
 func TestLastTurnWithItsPromptPastTheTailStartsWithoutOne(t *testing.T) {

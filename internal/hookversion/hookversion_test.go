@@ -9,27 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRecordAppendsOnlyWhenTheVersionChanges(t *testing.T) {
-	directory := filepath.Join(t.TempDir(), Directory)
-	start := time.Date(2026, 11, 12, 10, 0, 0, 0, time.UTC)
-
-	require.NoError(t, Record(directory, "s1", "v1.0.0", start))
-	require.NoError(t, Record(directory, "s1", "v1.0.0", start.Add(time.Minute)))
-	require.NoError(t, Record(directory, "s1", "devel", start.Add(2*time.Minute)))
-
-	recorded, err := os.ReadFile(filepath.Join(directory, "s1"))
-	require.NoError(t, err)
-	require.Equal(t, "2026-11-12T10:00:00Z\tv1.0.0\n2026-11-12T10:02:00Z\tdevel\n", string(recorded))
-}
-
-func TestRecordRefusesAPathForASession(t *testing.T) {
-	directory := filepath.Join(t.TempDir(), Directory)
-	for _, session := range []string{"", "../s1", "a/b"} {
-		require.Error(t, Record(directory, session, "v1.0.0", time.Now()), session)
-	}
-	require.NoDirExists(t, directory)
-}
-
 func TestAtGivesTheVersionRecordedLastBeforeTheTime(t *testing.T) {
 	directory := filepath.Join(t.TempDir(), Directory)
 	start := time.Date(2026, 11, 12, 10, 0, 0, 0, time.UTC)
@@ -62,4 +41,25 @@ func TestAtSkipsALineItCannotRead(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(directory, "s1"), []byte("half a line\n2026-11-12T10:00:00Z\tv1.0.0\n"), 0o600))
 
 	require.Equal(t, "v1.0.0", Open(directory).At("s1", "2026-11-12T10:30:00Z"))
+}
+
+func TestRecordAppendsOnlyWhenTheVersionChanges(t *testing.T) {
+	directory := filepath.Join(t.TempDir(), Directory)
+	start := time.Date(2026, 11, 12, 10, 0, 0, 0, time.UTC)
+
+	require.NoError(t, Record(directory, "s1", "v1.0.0", start))
+	require.NoError(t, Record(directory, "s1", "v1.0.0", start.Add(time.Minute)))
+	require.NoError(t, Record(directory, "s1", "devel", start.Add(2*time.Minute)))
+
+	recorded, err := os.ReadFile(filepath.Join(directory, "s1"))
+	require.NoError(t, err)
+	require.Equal(t, "2026-11-12T10:00:00Z\tv1.0.0\n2026-11-12T10:02:00Z\tdevel\n", string(recorded))
+}
+
+func TestRecordRefusesAPathForASession(t *testing.T) {
+	directory := filepath.Join(t.TempDir(), Directory)
+	for _, session := range []string{"", "../s1", "a/b"} {
+		require.Error(t, Record(directory, session, "v1.0.0", time.Now()), session)
+	}
+	require.NoDirExists(t, directory)
 }

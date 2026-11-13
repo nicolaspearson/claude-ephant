@@ -101,6 +101,41 @@ func TestRunContextRefusesAsRememberDoes(t *testing.T) {
 	require.Contains(t, output, `project "shared" has entries under owners corp, personal; pass --owner <name>`)
 }
 
+func TestRunContextSizeReadsTheNewestMainThreadResponse(t *testing.T) {
+	home := recallFixture(t)
+	assistant := func(sidechain string, input int, cacheWrite int, cacheRead int, output int) string {
+		return fmt.Sprintf(`{"type":"assistant","isSidechain":%s,"message":{"id":"m","usage":{"input_tokens":%d,"cache_creation_input_tokens":%d,"cache_read_input_tokens":%d,"output_tokens":%d},"content":[]}}`+"\n", sidechain, input, cacheWrite, cacheRead, output)
+	}
+	writeFile(t, filepath.Join(home, ".claude", "projects", "-gateway", "sz1.jsonl"),
+		assistant("false", 1, 9, 80, 10)+
+			assistant("false", 1, 99, 150, 50)+
+			assistant("true", 1, 9000, 999, 9)+
+			assistant("false", 0, 0, 0, 0)+
+			`{"type":"user","message":{"content":"next"}}`)
+	writeFile(t, filepath.Join(home, ".claude", "projects", "-gateway", "sz2.jsonl"), `{"type":"user","message":{"content":"hello"}}`+"\n")
+
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "sz1")
+	output, code := runCommand(t, "context", "--size")
+	require.Equal(t, 0, code, output)
+	require.Equal(t, "300\n", output, "input, cache write, cache read and output of the last main-thread response with usage")
+
+	output, code = runCommand(t, "context", "--size", "--project", "gateway")
+	require.Equal(t, 2, code)
+	require.Contains(t, output, "ele context --size\n")
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "sz2")
+	output, code = runCommand(t, "context", "--size")
+	require.Equal(t, 1, code)
+	require.Equal(t, "ele: session sz2 has no response with token usage yet\n", output)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "nowhere")
+	output, code = runCommand(t, "context", "--size")
+	require.Equal(t, 1, code)
+	require.Equal(t, "ele: found 0 transcripts for session nowhere, not one\n", output)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "")
+	output, code = runCommand(t, "context", "--size")
+	require.Equal(t, 1, code)
+	require.Equal(t, "ele: --size needs CLAUDE_CODE_SESSION_ID to name the running session; it is \"\"\n", output)
+}
+
 func TestRunProjectTakesTheWorkingDirectorysOwnerWhereItHoldsTheProject(t *testing.T) {
 	home := recallFixture(t)
 	for _, owner := range []string{"corp", "personal"} {
@@ -160,39 +195,4 @@ func TestRunProjectTakesTheWorkingDirectorysOwnerWhereItHoldsTheProject(t *testi
 	require.Equal(t, 0, code, output)
 	require.Contains(t, output, "s-corp", output)
 	require.NotContains(t, output, "s-personal", output)
-}
-
-func TestRunContextSizeReadsTheNewestMainThreadResponse(t *testing.T) {
-	home := recallFixture(t)
-	assistant := func(sidechain string, input int, cacheWrite int, cacheRead int, output int) string {
-		return fmt.Sprintf(`{"type":"assistant","isSidechain":%s,"message":{"id":"m","usage":{"input_tokens":%d,"cache_creation_input_tokens":%d,"cache_read_input_tokens":%d,"output_tokens":%d},"content":[]}}`+"\n", sidechain, input, cacheWrite, cacheRead, output)
-	}
-	writeFile(t, filepath.Join(home, ".claude", "projects", "-gateway", "sz1.jsonl"),
-		assistant("false", 1, 9, 80, 10)+
-			assistant("false", 1, 99, 150, 50)+
-			assistant("true", 1, 9000, 999, 9)+
-			assistant("false", 0, 0, 0, 0)+
-			`{"type":"user","message":{"content":"next"}}`)
-	writeFile(t, filepath.Join(home, ".claude", "projects", "-gateway", "sz2.jsonl"), `{"type":"user","message":{"content":"hello"}}`+"\n")
-
-	t.Setenv("CLAUDE_CODE_SESSION_ID", "sz1")
-	output, code := runCommand(t, "context", "--size")
-	require.Equal(t, 0, code, output)
-	require.Equal(t, "300\n", output, "input, cache write, cache read and output of the last main-thread response with usage")
-
-	output, code = runCommand(t, "context", "--size", "--project", "gateway")
-	require.Equal(t, 2, code)
-	require.Contains(t, output, "ele context --size\n")
-	t.Setenv("CLAUDE_CODE_SESSION_ID", "sz2")
-	output, code = runCommand(t, "context", "--size")
-	require.Equal(t, 1, code)
-	require.Equal(t, "ele: session sz2 has no response with token usage yet\n", output)
-	t.Setenv("CLAUDE_CODE_SESSION_ID", "nowhere")
-	output, code = runCommand(t, "context", "--size")
-	require.Equal(t, 1, code)
-	require.Equal(t, "ele: found 0 transcripts for session nowhere, not one\n", output)
-	t.Setenv("CLAUDE_CODE_SESSION_ID", "")
-	output, code = runCommand(t, "context", "--size")
-	require.Equal(t, 1, code)
-	require.Equal(t, "ele: --size needs CLAUDE_CODE_SESSION_ID to name the running session; it is \"\"\n", output)
 }

@@ -22,6 +22,15 @@ func TestLoadRejectsAPathAsAnalysis(t *testing.T) {
 	require.ErrorContains(t, err, "not lowercase words")
 }
 
+func TestLoadSkipsABlankLine(t *testing.T) {
+	directory := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(directory, "checkpoint-runs.jsonl"), []byte("{\"classifier\":\"a\"}\n\n{\"classifier\":\"b\"}\n"), 0o600))
+
+	held, err := Load(directory, "checkpoint-runs")
+	require.NoError(t, err)
+	require.Equal(t, []Judgment{{Classifier: "a"}, {Classifier: "b"}}, held)
+}
+
 func TestSavePromptKeepsThePromptUnderItsHash(t *testing.T) {
 	directory := t.TempDir()
 
@@ -31,6 +40,19 @@ func TestSavePromptKeepsThePromptUnderItsHash(t *testing.T) {
 	content, err := os.ReadFile(filepath.Join(directory, "classifiers", classifier+".md"))
 	require.NoError(t, err)
 	require.Equal(t, "Classify the run.\n", string(content))
+}
+
+func TestStoreKeepsAHeldLineAsWritten(t *testing.T) {
+	directory := t.TempDir()
+	held := `{"classifier":"v1","result":{"mode":"full"},"reviewed":true,"session":"s1","timestamp":"2026-10-07T11:15:42Z"}`
+	require.NoError(t, os.WriteFile(filepath.Join(directory, "checkpoint-runs.jsonl"), []byte(held+"\n"), 0o600))
+
+	added, err := Store(directory, "checkpoint-runs", []Judgment{{Classifier: "v1", Result: json.RawMessage(`{}`), Session: "s2", Timestamp: "2026-10-08T11:15:42Z"}})
+	require.NoError(t, err)
+	require.Equal(t, 1, added)
+	content, err := os.ReadFile(filepath.Join(directory, "checkpoint-runs.jsonl"))
+	require.NoError(t, err)
+	require.Equal(t, held+"\n"+`{"classifier":"v1","result":{},"session":"s2","timestamp":"2026-10-08T11:15:42Z"}`+"\n", string(content), "a key this build does not declare survives")
 }
 
 func TestStoreKeepsOneJudgmentPerUnitClassifierAndDigest(t *testing.T) {
@@ -56,26 +78,4 @@ func TestStoreKeepsOneJudgmentPerUnitClassifierAndDigest(t *testing.T) {
 func TestStoreRejectsAJudgmentWithoutItsUnit(t *testing.T) {
 	_, err := Store(t.TempDir(), "checkpoint-runs", []Judgment{{Classifier: "v1", Result: json.RawMessage(`{}`), Session: "s1"}})
 	require.ErrorContains(t, err, "needs a classifier, a session and a timestamp")
-}
-
-func TestLoadSkipsABlankLine(t *testing.T) {
-	directory := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(directory, "checkpoint-runs.jsonl"), []byte("{\"classifier\":\"a\"}\n\n{\"classifier\":\"b\"}\n"), 0o600))
-
-	held, err := Load(directory, "checkpoint-runs")
-	require.NoError(t, err)
-	require.Equal(t, []Judgment{{Classifier: "a"}, {Classifier: "b"}}, held)
-}
-
-func TestStoreKeepsAHeldLineAsWritten(t *testing.T) {
-	directory := t.TempDir()
-	held := `{"classifier":"v1","result":{"mode":"full"},"reviewed":true,"session":"s1","timestamp":"2026-10-07T11:15:42Z"}`
-	require.NoError(t, os.WriteFile(filepath.Join(directory, "checkpoint-runs.jsonl"), []byte(held+"\n"), 0o600))
-
-	added, err := Store(directory, "checkpoint-runs", []Judgment{{Classifier: "v1", Result: json.RawMessage(`{}`), Session: "s2", Timestamp: "2026-10-08T11:15:42Z"}})
-	require.NoError(t, err)
-	require.Equal(t, 1, added)
-	content, err := os.ReadFile(filepath.Join(directory, "checkpoint-runs.jsonl"))
-	require.NoError(t, err)
-	require.Equal(t, held+"\n"+`{"classifier":"v1","result":{},"session":"s2","timestamp":"2026-10-08T11:15:42Z"}`+"\n", string(content), "a key this build does not declare survives")
 }

@@ -60,23 +60,6 @@ func TestRunForgetMovesANoteOutOfContextUntilRestored(t *testing.T) {
 	require.Contains(t, output, "Pin pydantic below 2.14.")
 }
 
-func TestRunForgetMovesNothingWhenAnIDIsUnknown(t *testing.T) {
-	home := recallFixture(t)
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-	output, code := runCommand(t, "remember", "--kind", "decision", "--session", "", "Pin pydantic below 2.14.")
-	require.Equal(t, 0, code, output)
-	note := readRemembered(t, output)
-
-	output, code = runCommand(t, "forget", note.ID, "20261017-ffffff")
-	require.Equal(t, 1, code, output)
-	require.Equal(t, "ele: corp has no live note 20261017-ffffff; --owner <name> for another owner's\n", output)
-	require.FileExists(t, filepath.Join(home, "data", "notes", "corp", note.ID+".md"))
-
-	output, code = runCommand(t, "forget", "--restore", note.ID)
-	require.Equal(t, 1, code, output)
-	require.Contains(t, output, "corp has no forgotten note "+note.ID)
-}
-
 func TestRunForgetMovesNothingWhenANoteIsInBothFolders(t *testing.T) {
 	home := recallFixture(t)
 	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
@@ -102,6 +85,23 @@ func TestRunForgetMovesNothingWhenANoteIsInBothFolders(t *testing.T) {
 	output, code = runCommand(t, "forget", everywhere)
 	require.Equal(t, 1, code, output)
 	require.Contains(t, output, "note "+everywhere+" is in both", "checked in the note's own folder, not the owner's")
+}
+
+func TestRunForgetMovesNothingWhenAnIDIsUnknown(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	output, code := runCommand(t, "remember", "--kind", "decision", "--session", "", "Pin pydantic below 2.14.")
+	require.Equal(t, 0, code, output)
+	note := readRemembered(t, output)
+
+	output, code = runCommand(t, "forget", note.ID, "20261017-ffffff")
+	require.Equal(t, 1, code, output)
+	require.Equal(t, "ele: corp has no live note 20261017-ffffff; --owner <name> for another owner's\n", output)
+	require.FileExists(t, filepath.Join(home, "data", "notes", "corp", note.ID+".md"))
+
+	output, code = runCommand(t, "forget", "--restore", note.ID)
+	require.Equal(t, 1, code, output)
+	require.Contains(t, output, "corp has no forgotten note "+note.ID)
 }
 
 func TestRunForgetOfACorrectionRevivesWhatItSuperseded(t *testing.T) {
@@ -173,6 +173,24 @@ func TestRunForgetRestoresAClosedHandoffBesideAPendingOne(t *testing.T) {
 	require.FileExists(t, filepath.Join(home, "data", "notes", "corp", closed.ID+".md"))
 }
 
+func TestRunForgetRestoresAFlagSayingWhatAnotherDoes(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "running-1")
+	flagged := func() notes.Note {
+		output, code := runCommand(t, "flag", "bad", "Skipped the gate.")
+		require.Equal(t, 0, code, output)
+		return readFlagged(t, output)
+	}
+	first := flagged()
+	flagged()
+
+	output, code := runCommand(t, "forget", first.ID)
+	require.Equal(t, 0, code, output)
+	output, code = runCommand(t, "forget", "--restore", first.ID)
+	require.Equal(t, 0, code, "each flag marks its own moment, so the same words are no duplicate: %s", output)
+}
+
 func TestRunForgetRestoresASupersededNoteBesideOneSayingTheSame(t *testing.T) {
 	home := recallFixture(t)
 	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
@@ -222,22 +240,4 @@ func TestRunForgetSaysLiveAgainOnlyOnceNothingElseSupersedes(t *testing.T) {
 	output, code = runCommand(t, "forget", "--restore", corrections[1])
 	require.Equal(t, 0, code, output)
 	require.Equal(t, "Restored note "+corrections[1]+".\n", output, "the original was superseded already")
-}
-
-func TestRunForgetRestoresAFlagSayingWhatAnotherDoes(t *testing.T) {
-	home := recallFixture(t)
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-	t.Setenv("CLAUDE_CODE_SESSION_ID", "running-1")
-	flagged := func() notes.Note {
-		output, code := runCommand(t, "flag", "bad", "Skipped the gate.")
-		require.Equal(t, 0, code, output)
-		return readFlagged(t, output)
-	}
-	first := flagged()
-	flagged()
-
-	output, code := runCommand(t, "forget", first.ID)
-	require.Equal(t, 0, code, output)
-	output, code = runCommand(t, "forget", "--restore", first.ID)
-	require.Equal(t, 0, code, "each flag marks its own moment, so the same words are no duplicate: %s", output)
 }

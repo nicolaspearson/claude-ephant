@@ -211,6 +211,36 @@ func TestRunRememberRefusesALiveNoteSayingTheSame(t *testing.T) {
 	require.Equal(t, 0, code, "a superseded note is not live: %s", output)
 }
 
+func TestRunRememberRefusesAReminderWithoutADate(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	tests := []struct {
+		args    []string
+		message string
+		name    string
+	}{
+		{args: []string{"--kind", "reminder", "--done-file", "/tmp/marker", "x"}, message: "ele: --done-file needs --every <interval>, how long the nudge stays hidden after the file changes\n", name: "done file without every"},
+		{args: []string{"--kind", "decision", "--due", "2026-11-01", "x"}, message: "ele: only a reminder takes --done-file, --due or --every; use --kind reminder\n", name: "due on a decision"},
+		{args: []string{"--kind", "reminder", "--due", "2026-11-01 09:00", "x"}, message: "ele: --due \"2026-11-01 09:00\" is not YYYY-MM-DD or YYYY-MM-DDTHH:MM\n", name: "due time without T"},
+		{args: []string{"--kind", "reminder", "--due", "2026-11-01T25:00", "x"}, message: "ele: --due \"2026-11-01T25:00\" is not YYYY-MM-DD or YYYY-MM-DDTHH:MM\n", name: "due hour out of range"},
+		{args: []string{"--kind", "reminder", "--due", "2026-11-01T9:30", "x"}, message: "ele: --due \"2026-11-01T9:30\" is not YYYY-MM-DD or YYYY-MM-DDTHH:MM\n", name: "due hour not zero-padded"},
+		{args: []string{"--kind", "reminder", "--due", "next week", "x"}, message: "ele: --due \"next week\" is not YYYY-MM-DD or YYYY-MM-DDTHH:MM\n", name: "due not a date"},
+		{args: []string{"--kind", "reminder", "--every", "0", "--due", "2026-11-01", "x"}, message: "ele: --every \"0\" is not minutes, hours or days above 0, such as 5m, 2h or 7d\n", name: "every 0"},
+		{args: []string{"--kind", "reminder", "--every", "-1", "x"}, message: "ele: --every \"-1\" is not minutes, hours or days above 0, such as 5m, 2h or 7d\n", name: "every below 1"},
+		{args: []string{"--kind", "reminder", "--every", "30s", "x"}, message: "ele: --every \"30s\" is not minutes, hours or days above 0, such as 5m, 2h or 7d\n", name: "every in seconds"},
+		{args: []string{"--kind", "reminder", "--every", "1h30m", "x"}, message: "ele: --every \"1h30m\" is not minutes, hours or days above 0, such as 5m, 2h or 7d\n", name: "every of two units"},
+		{args: []string{"--kind", "fact", "--every", "0", "x"}, message: "ele: only a reminder takes --done-file, --due or --every; use --kind reminder\n", name: "every on a fact"},
+		{args: []string{"--kind", "reminder", "x"}, message: "ele: a reminder needs --due YYYY-MM-DD or YYYY-MM-DDTHH:MM, when it first shows\n", name: "reminder without due"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			output, code := runCommand(t, append([]string{"remember"}, test.args...)...)
+			require.Equal(t, 2, code, output)
+			require.Equal(t, test.message, output)
+		})
+	}
+}
+
 func TestRunRememberRefusesBadInput(t *testing.T) {
 	home := recallFixture(t)
 	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
@@ -247,17 +277,6 @@ func TestRunRememberRefusesBadInput(t *testing.T) {
 	require.Empty(t, entries)
 }
 
-func TestRunRememberWithoutAnIndexCreatesNone(t *testing.T) {
-	dataDirectory := filepath.Join(t.TempDir(), "data")
-	t.Setenv("ELE_HOME", dataDirectory)
-	writeFile(t, filepath.Join(dataDirectory, "owner-map.json"), `{"owners": ["corp"]}`)
-
-	output, code := runCommand(t, "remember", "--kind", "fact", "--project", "gateway", "No index yet.")
-	require.Equal(t, 1, code)
-	require.Contains(t, output, `project "gateway" has no listed owner in owner-map.json or the index; pass --owner <name>`)
-	require.NoFileExists(t, filepath.Join(dataDirectory, "ele.db"))
-}
-
 func readRemembered(t *testing.T, output string) notes.Note {
 	t.Helper()
 	match := remembered.FindStringSubmatch(output)
@@ -271,32 +290,13 @@ func readRemembered(t *testing.T, output string) notes.Note {
 	return note
 }
 
-func TestRunRememberRefusesAReminderWithoutADate(t *testing.T) {
-	home := recallFixture(t)
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-	tests := []struct {
-		args    []string
-		message string
-		name    string
-	}{
-		{args: []string{"--kind", "reminder", "--done-file", "/tmp/marker", "x"}, message: "ele: --done-file needs --every <interval>, how long the nudge stays hidden after the file changes\n", name: "done file without every"},
-		{args: []string{"--kind", "decision", "--due", "2026-11-01", "x"}, message: "ele: only a reminder takes --done-file, --due or --every; use --kind reminder\n", name: "due on a decision"},
-		{args: []string{"--kind", "reminder", "--due", "2026-11-01 09:00", "x"}, message: "ele: --due \"2026-11-01 09:00\" is not YYYY-MM-DD or YYYY-MM-DDTHH:MM\n", name: "due time without T"},
-		{args: []string{"--kind", "reminder", "--due", "2026-11-01T25:00", "x"}, message: "ele: --due \"2026-11-01T25:00\" is not YYYY-MM-DD or YYYY-MM-DDTHH:MM\n", name: "due hour out of range"},
-		{args: []string{"--kind", "reminder", "--due", "2026-11-01T9:30", "x"}, message: "ele: --due \"2026-11-01T9:30\" is not YYYY-MM-DD or YYYY-MM-DDTHH:MM\n", name: "due hour not zero-padded"},
-		{args: []string{"--kind", "reminder", "--due", "next week", "x"}, message: "ele: --due \"next week\" is not YYYY-MM-DD or YYYY-MM-DDTHH:MM\n", name: "due not a date"},
-		{args: []string{"--kind", "reminder", "--every", "0", "--due", "2026-11-01", "x"}, message: "ele: --every \"0\" is not minutes, hours or days above 0, such as 5m, 2h or 7d\n", name: "every 0"},
-		{args: []string{"--kind", "reminder", "--every", "-1", "x"}, message: "ele: --every \"-1\" is not minutes, hours or days above 0, such as 5m, 2h or 7d\n", name: "every below 1"},
-		{args: []string{"--kind", "reminder", "--every", "30s", "x"}, message: "ele: --every \"30s\" is not minutes, hours or days above 0, such as 5m, 2h or 7d\n", name: "every in seconds"},
-		{args: []string{"--kind", "reminder", "--every", "1h30m", "x"}, message: "ele: --every \"1h30m\" is not minutes, hours or days above 0, such as 5m, 2h or 7d\n", name: "every of two units"},
-		{args: []string{"--kind", "fact", "--every", "0", "x"}, message: "ele: only a reminder takes --done-file, --due or --every; use --kind reminder\n", name: "every on a fact"},
-		{args: []string{"--kind", "reminder", "x"}, message: "ele: a reminder needs --due YYYY-MM-DD or YYYY-MM-DDTHH:MM, when it first shows\n", name: "reminder without due"},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			output, code := runCommand(t, append([]string{"remember"}, test.args...)...)
-			require.Equal(t, 2, code, output)
-			require.Equal(t, test.message, output)
-		})
-	}
+func TestRunRememberWithoutAnIndexCreatesNone(t *testing.T) {
+	dataDirectory := filepath.Join(t.TempDir(), "data")
+	t.Setenv("ELE_HOME", dataDirectory)
+	writeFile(t, filepath.Join(dataDirectory, "owner-map.json"), `{"owners": ["corp"]}`)
+
+	output, code := runCommand(t, "remember", "--kind", "fact", "--project", "gateway", "No index yet.")
+	require.Equal(t, 1, code)
+	require.Contains(t, output, `project "gateway" has no listed owner in owner-map.json or the index; pass --owner <name>`)
+	require.NoFileExists(t, filepath.Join(dataDirectory, "ele.db"))
 }

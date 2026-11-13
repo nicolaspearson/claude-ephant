@@ -2372,8 +2372,44 @@ keep.
     and only `changed` redaction's was mutated in it; the rest dropped on the
     user's rulings; `plan_test.go`'s
     and `corpus_test.go`'s test funcs in byte order, a move-only change
-- [ ] audit-tidy: Order, comments and shape the audits found
+- [x] audit-tidy: Order, comments and shape the audits found
+  - asserted in the audit-tidy commit, after 81a8865 and 06623a4: each nit
+    is fixed or dropped as the rulings line says. Under `go test`, the
+    behaviour changes each failed against a mutation of the code they cover
+    (`plan.Resolve`'s nil lookup, the claims count, the plan corpus strings,
+    highlight's bidi controls and separators, config `Set` and `Load`,
+    `SystemCommands`' exit reason, the refusal sentences, remember's
+    `--every`); the 43 test files' Test funcs are in byte order, proved a
+    pure move by name and line multisets against HEAD, with a shuffled run
+    of every package passing. Batch 3 was reviewed by its author alone, as
+    subagent launches failed with a 403
   - done when each nit below is fixed or dropped on the user's ruling
+  - as of 2026-11-13, premise check at cc8289d, the nits split into 98: 83
+    still true; gone: remember's test funcs and plan's test table already
+    sorted, `ValidateOptout`'s "nearly every one" and `Freeze`'s "inside an
+    open run" reworded, the moved-paths test and both `log_test.go` tables
+    sorted; changed: the Redact collapse is at six sites with Redact and four
+    without, `appendGit`'s comments now match its code, and `report.go`'s
+    `cut` appends "…" where `digest.go`'s `clip` does not; `datadir`'s
+    `Flock` is no defect while no Windows build ships. Fixes that change
+    output or a test's expected value: recall's sync warning, handoff's
+    refusal, `WriteClaims`' count, the three plan-corpus strings,
+    `highlight.Message`, `Reset`'s drop and blank front-matter lines.
+    `store.OpenReadOnly` has a caller in `cmd/ele`'s backup test and
+    `config.Options` readers in `cmd/ele`'s config. Beyond the item: 40 test
+    files hold Test funcs out of byte order, and `sessionstart_test.go`
+    holds handoff tests
+  - 2026-11-13, the user's rulings: fix every still-true order, comment,
+    rename, unexport, helper-to-its-own-file and test-to-its-command's-file
+    nit, the handoff tests in `sessionstart_test.go` included; sort the Test
+    funcs of all 40 files; fix the output changes but two, the two panics,
+    `Load`'s order and `WriteClaims` through `Commands`. Dropped: the gone
+    nits; `appendGit`'s comment, now true; `Flock`, with no Windows build;
+    `Reset`'s drop, harmless; blank front-matter lines, a format change; and
+    as churn before v1, every dedupe (the Redact collapse, the six filters,
+    `expandHome`, the plan-set load, `finalText` and `spokenText`,
+    `appendDiff`, `wellFormed`, the JSON Lines reader, `cut` and `clip`),
+    `remember`'s split and a `config.Options` accessor
   - 2026-11-13, from audit-tests' sort checkpoint, triaged in:
     `internal/ticket`'s `claims_test.go` and `ledger_test.go` hold test
     funcs out of byte order, which the audits did not list
@@ -2789,18 +2825,17 @@ keep.
 ## Inbox
 
 - 2026-11-13, from a writing-for-agents audit of `plugin/` (skills,
-  references, agents, commands); nothing fixed yet:
-  - Wrong now, each re-checked 2026-11-13: plan-audit's Which plans list of
-    `ele plan check` warnings misses a blocker cycle, an unreadable
-    `blocked:` list, a ticked item with an open blocker and an unreadable
-    checkbox or inbox line, and names an "inbox holds items" warning the help
-    lacks; `blocker` is defined twice, differently, in checkpoint's LOG.md
-    and review's Filter step, both written to `ele checkpoint log`'s one
-    `severity` field; remember's
-    Write lists flags but not `--done-file` or `--session`;
-    `commands/checkpoint-stats.md` Duration has a garbled sentence ("coming
-    two hours after the freeze before it sets it") and restates the stats
-    computation
+  references, agents, commands); the wrong-now group worked, the rest open:
+  - Wrong-now findings, worked 2026-11-13: plan-audit's Which plans now
+    points at `ele plan check --help` in place of its own partial list, and
+    the help names every warning `internal/plan` gives, five it lacked;
+    remember's Write names `--done-file`, `--session` left to its "recorded
+    automatically" line; `commands/checkpoint-stats.md` Duration's garbled
+    clock sentence rewritten. Refuted: the two `blocker` definitions in
+    checkpoint's LOG.md and review's Filter step are on purpose,
+    as `.documentation/specs/review.md` says, and stats report review runs
+    apart. Still open: Duration and Reviews restate how `ele checkpoint
+    stats` computes its numbers
   - Move to a reference loaded only on the branch that needs it:
     plan-practices.md down to Severity and ADRs files,
     the ledger to `.documentation/specs/`; plan's Asking in rounds,

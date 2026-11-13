@@ -33,6 +33,74 @@ func TestReportListsTheFifteenCommonestLateCategoriesTiesInFirstSeenOrder(t *tes
 	require.Equal(t, fmt.Sprintf("  %-9s %-32s 1", "gate", "c13"), lines[14])
 }
 
+func TestWriteStatsCountsAReplacedReviewOnceAtItsLatestOutcomes(t *testing.T) {
+	const moved = "1123456789abcdef0123456789abcdef01234567"
+	review := func(source string, repository string, target string, reviewed string, outcome string, replaces bool) string {
+		line := statsReview("mr", `{"excluded":0,"minor":0,"raised":0}`, "["+statsReviewFinding(source, "confirmed", outcome)+"]")
+		line = strings.Replace(line, `"target":"!1"`, `"target":"`+target+`"`, 1)
+		line = strings.Replace(line, `"reviewed":"0123456789abcdef0123456789abcdef01234567"`, `"reviewed":"`+reviewed+`"`, 1)
+		fields := `"repository":"` + repository + `",`
+		if replaces {
+			fields += `"replaces":true,`
+		}
+		return strings.Replace(line, `"reviewed"`, fields+`"reviewed"`, 1)
+	}
+	head := "0123456789abcdef0123456789abcdef01234567"
+	logPath := writeStatsLog(t,
+		review("replaced", "/a", "!1", head, "raw", false),
+		review("other-head", "/a", "!1", moved, "raw", false),
+		review("other-target", "/a", "!2", head, "raw", false),
+		review("other-repository", "/b", "!1", head, "raw", false),
+		review("replacement", "/a", "!1", head, "skipped", true),
+	)
+
+	output := writeStats(t, logPath, 30)
+
+	require.Contains(t, output, "Since 2026-09-20: 0 checkpoints and 4 reviews logged.", output)
+	lines := strings.Split(output, "\n")
+	row := func(source string, raw int, skipped int, rate string) string {
+		return fmt.Sprintf("%-14s %9d %5d %8d %9d %4d %9d %7d %10d %9s", source, 1, 0, 0, 0, raw, 0, skipped, 0, rate)
+	}
+	for _, source := range []string{"other-head", "other-target", "other-repository"} {
+		require.Contains(t, lines, row(source, 1, 0, "0%"), "another head, target or repository stays\n"+output)
+	}
+	require.Contains(t, lines, row("replacement", 0, 1, "100%"), output)
+	require.NotContains(t, output, "replaced ", "only the line of the same repository, target and head drops")
+}
+
+func TestWriteStatsCountsReviewAnchorsByForgeKindAndAnswer(t *testing.T) {
+	anchored := func(outcome string, anchor string) string {
+		return strings.Replace(statsReviewFinding("bugs", "confirmed", outcome), `{`, `{"anchor":`+anchor+`,`, 1)
+	}
+	gitlab := []string{
+		anchored("published", `{"answer":"kept","kind":"range"}`),
+		anchored("published", `{"answer":"moved","kind":"range"}`),
+		anchored("discarded", `{"answer":"refused","kind":"range"}`),
+		anchored("published", `{"kind":"none"}`),
+		statsReviewFinding("bugs", "confirmed", "raw"),
+	}
+	github := []string{anchored("published", `{"answer":"kept","kind":"line"}`)}
+	forge := func(name string, findings []string) string {
+		return strings.Replace(statsReview("mr", `{"excluded":0,"minor":0,"raised":0}`, "["+strings.Join(findings, ",")+"]"), `"mode"`, `"forge":"`+name+`","mode"`, 1)
+	}
+	logPath := writeStatsLog(t, forge("gitlab", gitlab), forge("github", github), statsReview("mr", `{"excluded":0,"minor":0,"raised":0}`, "["+statsReviewFinding("bugs", "confirmed", "published")+"]"))
+
+	output := writeStats(t, logPath, 30)
+
+	row := func(cells ...any) string { return fmt.Sprintf("%-8s %-6s %5d %5d %6d %8d", cells...) }
+	for _, line := range []string{
+		"Anchors sent, by forge and kind, with the forge's answer",
+		fmt.Sprintf("%-8s %-6s %5s %5s %6s %8s", "forge", "kind", "sent", "kept", "moved", "refused"),
+		row("github", "line", 1, 1, 0, 0),
+		row("gitlab", "none", 1, 0, 0, 0),
+		row("gitlab", "range", 3, 1, 1, 1),
+	} {
+		require.Contains(t, strings.Split(output, "\n"), line, output)
+	}
+	_, anchors, _ := strings.Cut(output, "Anchors sent")
+	require.Equal(t, 5, strings.Count(anchors, "\n"), "the title, a header and three rows: unsent findings and lines logged before anchors stay out\n"+output)
+}
+
 func TestWriteStatsCountsVerdictsRereviewsOlderFindingsAndMutations(t *testing.T) {
 	findings := []string{
 		statsFinding(``, "bugs", ``, "refuted"),
@@ -76,6 +144,31 @@ func TestWriteStatsCreditsSeverityAndSharedFindingsAndTimesRuns(t *testing.T) {
 	} {
 		require.Contains(t, strings.Split(output, "\n"), line, output)
 	}
+}
+
+func TestWriteStatsLeavesOutRunsOverATemporaryRepository(t *testing.T) {
+	temporary := t.TempDir()
+	resolved, err := filepath.EvalSymlinks(temporary)
+	require.NoError(t, err)
+	linked := filepath.Join(t.TempDir(), "linked")
+	require.NoError(t, os.Symlink(resolved, linked))
+	t.Setenv("TMPDIR", linked)
+	inRepository := func(repository string) string {
+		return statsRecord(`"repository":"`+repository+`",`, "[]", "full")
+	}
+	old := strings.Replace(inRepository("/tmp/fixture"), statsNow.Format(time.RFC3339), "2026-09-01T00:00:00Z", 1)
+	logPath := writeStatsLog(t,
+		old,
+		inRepository("/private/tmp/claude-501/project/session/scratchpad/fixture"),
+		inRepository("/tmp/fixture"),
+		inRepository(filepath.Join(resolved, "fixture")),
+		inRepository("/tmpfixture"),
+		inRepository("/Users/someone/repository"),
+	)
+
+	output := writeStats(t, logPath, 30)
+
+	require.True(t, strings.HasPrefix(output, "Since 2026-09-20: 2 checkpoints logged. The log starts 2026-09-01.\n\n3 runs over a repository under a temp directory left out.\n\nMode: full 2, small 0."), output)
 }
 
 func TestWriteStatsLeavesTheMedianOutWhenNoDurationIsAboveZero(t *testing.T) {
@@ -139,103 +232,10 @@ func TestWriteStatsReportsReviewsApartWithTheSkipRateAndDroppedCounts(t *testing
 	require.NotContains(t, checkpoints, "spec", "review findings stay out of the checkpoint tables")
 }
 
-func TestWriteStatsCountsReviewAnchorsByForgeKindAndAnswer(t *testing.T) {
-	anchored := func(outcome string, anchor string) string {
-		return strings.Replace(statsReviewFinding("bugs", "confirmed", outcome), `{`, `{"anchor":`+anchor+`,`, 1)
-	}
-	gitlab := []string{
-		anchored("published", `{"answer":"kept","kind":"range"}`),
-		anchored("published", `{"answer":"moved","kind":"range"}`),
-		anchored("discarded", `{"answer":"refused","kind":"range"}`),
-		anchored("published", `{"kind":"none"}`),
-		statsReviewFinding("bugs", "confirmed", "raw"),
-	}
-	github := []string{anchored("published", `{"answer":"kept","kind":"line"}`)}
-	forge := func(name string, findings []string) string {
-		return strings.Replace(statsReview("mr", `{"excluded":0,"minor":0,"raised":0}`, "["+strings.Join(findings, ",")+"]"), `"mode"`, `"forge":"`+name+`","mode"`, 1)
-	}
-	logPath := writeStatsLog(t, forge("gitlab", gitlab), forge("github", github), statsReview("mr", `{"excluded":0,"minor":0,"raised":0}`, "["+statsReviewFinding("bugs", "confirmed", "published")+"]"))
-
-	output := writeStats(t, logPath, 30)
-
-	row := func(cells ...any) string { return fmt.Sprintf("%-8s %-6s %5d %5d %6d %8d", cells...) }
-	for _, line := range []string{
-		"Anchors sent, by forge and kind, with the forge's answer",
-		fmt.Sprintf("%-8s %-6s %5s %5s %6s %8s", "forge", "kind", "sent", "kept", "moved", "refused"),
-		row("github", "line", 1, 1, 0, 0),
-		row("gitlab", "none", 1, 0, 0, 0),
-		row("gitlab", "range", 3, 1, 1, 1),
-	} {
-		require.Contains(t, strings.Split(output, "\n"), line, output)
-	}
-	_, anchors, _ := strings.Cut(output, "Anchors sent")
-	require.Equal(t, 5, strings.Count(anchors, "\n"), "the title, a header and three rows: unsent findings and lines logged before anchors stay out\n"+output)
-}
-
-func TestWriteStatsCountsAReplacedReviewOnceAtItsLatestOutcomes(t *testing.T) {
-	const moved = "1123456789abcdef0123456789abcdef01234567"
-	review := func(source string, repository string, target string, reviewed string, outcome string, replaces bool) string {
-		line := statsReview("mr", `{"excluded":0,"minor":0,"raised":0}`, "["+statsReviewFinding(source, "confirmed", outcome)+"]")
-		line = strings.Replace(line, `"target":"!1"`, `"target":"`+target+`"`, 1)
-		line = strings.Replace(line, `"reviewed":"0123456789abcdef0123456789abcdef01234567"`, `"reviewed":"`+reviewed+`"`, 1)
-		fields := `"repository":"` + repository + `",`
-		if replaces {
-			fields += `"replaces":true,`
-		}
-		return strings.Replace(line, `"reviewed"`, fields+`"reviewed"`, 1)
-	}
-	head := "0123456789abcdef0123456789abcdef01234567"
-	logPath := writeStatsLog(t,
-		review("replaced", "/a", "!1", head, "raw", false),
-		review("other-head", "/a", "!1", moved, "raw", false),
-		review("other-target", "/a", "!2", head, "raw", false),
-		review("other-repository", "/b", "!1", head, "raw", false),
-		review("replacement", "/a", "!1", head, "skipped", true),
-	)
-
-	output := writeStats(t, logPath, 30)
-
-	require.Contains(t, output, "Since 2026-09-20: 0 checkpoints and 4 reviews logged.", output)
-	lines := strings.Split(output, "\n")
-	row := func(source string, raw int, skipped int, rate string) string {
-		return fmt.Sprintf("%-14s %9d %5d %8d %9d %4d %9d %7d %10d %9s", source, 1, 0, 0, 0, raw, 0, skipped, 0, rate)
-	}
-	for _, source := range []string{"other-head", "other-target", "other-repository"} {
-		require.Contains(t, lines, row(source, 1, 0, "0%"), "another head, target or repository stays\n"+output)
-	}
-	require.Contains(t, lines, row("replacement", 0, 1, "100%"), output)
-	require.NotContains(t, output, "replaced ", "only the line of the same repository, target and head drops")
-}
-
 func TestWriteStatsSaysWhenNoRunIsTimed(t *testing.T) {
 	output := writeStats(t, writeStatsLog(t, statsRecord(``, "[]", "full")), 30)
 
 	require.Contains(t, output, "\nDuration: no checkpoint carries one\n")
-}
-
-func TestWriteStatsLeavesOutRunsOverATemporaryRepository(t *testing.T) {
-	temporary := t.TempDir()
-	resolved, err := filepath.EvalSymlinks(temporary)
-	require.NoError(t, err)
-	linked := filepath.Join(t.TempDir(), "linked")
-	require.NoError(t, os.Symlink(resolved, linked))
-	t.Setenv("TMPDIR", linked)
-	inRepository := func(repository string) string {
-		return statsRecord(`"repository":"`+repository+`",`, "[]", "full")
-	}
-	old := strings.Replace(inRepository("/tmp/fixture"), statsNow.Format(time.RFC3339), "2026-09-01T00:00:00Z", 1)
-	logPath := writeStatsLog(t,
-		old,
-		inRepository("/private/tmp/claude-501/project/session/scratchpad/fixture"),
-		inRepository("/tmp/fixture"),
-		inRepository(filepath.Join(resolved, "fixture")),
-		inRepository("/tmpfixture"),
-		inRepository("/Users/someone/repository"),
-	)
-
-	output := writeStats(t, logPath, 30)
-
-	require.True(t, strings.HasPrefix(output, "Since 2026-09-20: 2 checkpoints logged. The log starts 2026-09-01.\n\n3 runs over a repository under a temp directory left out.\n\nMode: full 2, small 0."), output)
 }
 
 func TestWriteStatsSkipsUnreadableLinesAndRunsBeforeTheWindow(t *testing.T) {

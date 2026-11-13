@@ -58,28 +58,6 @@ func TestProjectOwnerIgnoresAnUnlistedOwner(t *testing.T) {
 	require.Empty(t, ownerMap.ProjectOwner("absent"))
 }
 
-func TestSaveSortsOwnersAndReadFingerprintsTheBytesItParsed(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "owner-map.json")
-	require.NoError(t, Save(path, OwnerMap{Owners: []string{"personal", "corp"}, Paths: map[string]string{}, Projects: map[string]string{}}))
-
-	loaded, fingerprinted, err := Read(path)
-	require.NoError(t, err)
-	require.Equal(t, []string{"corp", "personal"}, loaded.Owners)
-	current, err := Fingerprint(path)
-	require.NoError(t, err)
-	require.Equal(t, current, fingerprinted)
-}
-
-func TestSaveThenLoadRoundTrips(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "owner-map.json")
-	saved := OwnerMap{Owners: []string{"corp"}, Paths: map[string]string{"/w/corp/": "corp"}, Projects: map[string]string{"a": "corp"}}
-
-	require.NoError(t, Save(path, saved))
-	loaded, err := Load(path)
-	require.NoError(t, err)
-	require.Equal(t, OwnerMap{Owners: []string{"corp"}, Paths: map[string]string{"/w/corp": "corp"}, Projects: map[string]string{"a": "corp"}}, loaded)
-}
-
 func TestReadExpandsAPathRuleUnderHome(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
@@ -112,6 +90,28 @@ func TestReadRefusesWhatOwnerCommandsRefuse(t *testing.T) {
 			require.EqualError(t, err, "parse "+path+": "+test.message)
 		})
 	}
+}
+
+func TestSaveSortsOwnersAndReadFingerprintsTheBytesItParsed(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "owner-map.json")
+	require.NoError(t, Save(path, OwnerMap{Owners: []string{"personal", "corp"}, Paths: map[string]string{}, Projects: map[string]string{}}))
+
+	loaded, fingerprinted, err := Read(path)
+	require.NoError(t, err)
+	require.Equal(t, []string{"corp", "personal"}, loaded.Owners)
+	current, err := Fingerprint(path)
+	require.NoError(t, err)
+	require.Equal(t, current, fingerprinted)
+}
+
+func TestSaveThenLoadRoundTrips(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "owner-map.json")
+	saved := OwnerMap{Owners: []string{"corp"}, Paths: map[string]string{"/w/corp/": "corp"}, Projects: map[string]string{"a": "corp"}}
+
+	require.NoError(t, Save(path, saved))
+	loaded, err := Load(path)
+	require.NoError(t, err)
+	require.Equal(t, OwnerMap{Owners: []string{"corp"}, Paths: map[string]string{"/w/corp": "corp"}, Projects: map[string]string{"a": "corp"}}, loaded)
 }
 
 func TestSaveWritesEmptyListsAndLeavesNoTemporaryFile(t *testing.T) {

@@ -18,6 +18,84 @@ import (
 	"github.com/nicolaspearson/claude-ephant/internal/notes"
 )
 
+func TestRotateSyncLogKeepsOneFullLogAside(t *testing.T) {
+	dataDirectory := t.TempDir()
+	path := filepath.Join(dataDirectory, "sync.log")
+	writeFile(t, path, "short\n")
+
+	require.NoError(t, rotateSyncLog(path))
+	require.FileExists(t, path, "a log under the cap stays")
+	require.NoFileExists(t, path+".1")
+
+	full := strings.Repeat("x", syncLogCap-1) + "\n"
+	writeFile(t, path, full)
+	writeFile(t, path+".1", "older\n")
+	require.NoError(t, rotateSyncLog(path))
+	require.NoFileExists(t, path)
+	content, err := os.ReadFile(path + ".1")
+	require.NoError(t, err)
+	require.Equal(t, full, string(content), "one kept, the older one replaced")
+
+	require.NoError(t, rotateSyncLog(path), "no log is nothing to rotate")
+}
+
+func TestRunSessionStartColoursOnlyTheUsersCopyUnlessColourIsOff(t *testing.T) {
+	home := recallFixture(t)
+	t.Setenv("NO_COLOR", "")
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	t.Chdir(gateway)
+	writeFile(t, filepath.Join(gateway, "build.md"), "---\nkind: plan\n---\n\n## Actions\n\n- [x] Parser\n- [ ] Start \033[31mblock\n\n## Inbox\n")
+	output, code := runCommand(t, "plan", "start", "build.md")
+	require.Equal(t, 0, code, output)
+
+	var raw bytes.Buffer
+	require.Equal(t, 0, sessionStart(context.Background(), []string{"--no-sync"}, strings.NewReader(`{"session_id":"s","source":"startup"}`), &raw, &raw), raw.String())
+	shown, message := hookOutput(t, raw.String())
+	require.Equal(t, "\033[1mActive plan from ele:\033[22m\n\033[1mPlan\033[22m build.md: \033[33m1 open\033[39m, \033[2m0 blocked\033[22m, \033[32m1 done\033[39m, \033[2m0 in the inbox\033[22m.\n\033[33m1 warning\033[39m; \033[36mele plan check build.md\033[39m lists it.\n\033[1mNext, line 8:\033[22m\n- [ ] Start [31mblock", message, "a plan cannot send its own escape sequences")
+	require.Contains(t, shown, "Plan build.md: 1 open, 0 blocked, 1 done, 0 in the inbox.\n1 warning; ele plan check build.md lists it.\nNext, line 8:\n- [ ] Start \033[31mblock\n", "the session's copy is plain")
+
+	plain := "Active plan from ele:\nPlan build.md: 1 open, 0 blocked, 1 done, 0 in the inbox.\n1 warning; ele plan check build.md lists it.\nNext, line 8:\n- [ ] Start [31mblock"
+	writeFile(t, filepath.Join(home, "data", "config.json"), `{"owners": {"corp": {"colour": false}}}`)
+	raw.Reset()
+	require.Equal(t, 0, sessionStart(context.Background(), []string{"--no-sync"}, strings.NewReader(`{"session_id":"s","source":"startup"}`), &raw, &raw), raw.String())
+	_, message = hookOutput(t, raw.String())
+	require.Equal(t, plain, message, "colour off for this owner")
+
+	require.NoError(t, os.Remove(filepath.Join(home, "data", "config.json")))
+	t.Setenv("NO_COLOR", "1")
+	raw.Reset()
+	require.Equal(t, 0, sessionStart(context.Background(), []string{"--no-sync"}, strings.NewReader(`{"session_id":"s","source":"startup"}`), &raw, &raw), raw.String())
+	_, message = hookOutput(t, raw.String())
+	require.Equal(t, plain, message, "NO_COLOR with colour on")
+}
+
+func TestRunSessionStartKeepsALoneHandoffPendingWithTheOption(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	start := func() string {
+		var output bytes.Buffer
+		code := sessionStart(context.Background(), []string{"--no-sync"}, strings.NewReader(`{"session_id":"s","source":"clear"}`), &output, &output)
+		require.Equal(t, 0, code, output.String())
+		return output.String()
+	}
+	_, err := notes.Write(filepath.Join(home, "data", "notes"), notes.Note{Body: "Next: the start block.", Date: "2026-10-17", ID: "20261017-aaaaaa", Kind: notes.KindHandoff, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Time: "2026-10-17T09:00:00Z"})
+	require.NoError(t, err)
+	writeFile(t, filepath.Join(home, "data", "config.json"), `{"lone_handoff_pending": true}`)
+
+	section := "1 handoff from ele, pending until picked or dropped:\n- note 20261017-aaaaaa of 2026-10-17 09:00Z:\n  Next: the start block."
+	for range 2 {
+		shown, message := hookOutput(t, start())
+		require.Equal(t, section, message)
+		require.Contains(t, shown, section+"\nAsk the user which handoff to pick up and whether to drop any. Run ele handoff close <id>... for each picked or dropped; the rest return at the next startup or /clear.\n\n")
+	}
+
+	writeFile(t, filepath.Join(home, "data", "config.json"), `{"lone_handoff_pending": false}`)
+	_, message := hookOutput(t, start())
+	require.Equal(t, "Handoff from ele, note 20261017-aaaaaa of 2026-10-17 09:00Z, shown once:\nNext: the start block.", message)
+	shown, _ := hookOutput(t, start())
+	require.NotContains(t, shown, "20261017-aaaaaa", "off, a lone handoff is marked shown")
+}
+
 func TestRunSessionStartOutsideAnyOwner(t *testing.T) {
 	home := recallFixture(t)
 	elsewhere := filepath.Join(home, "elsewhere")
@@ -40,55 +118,6 @@ func TestRunSessionStartRecordsTheRunningVersion(t *testing.T) {
 	recorded, err := os.ReadFile(filepath.Join(home, "data", "hook-versions", "s1"))
 	require.NoError(t, err)
 	require.Regexp(t, `^\S+\tdevel\n$`, string(recorded))
-}
-
-func TestRunSessionStartShowsAnEverywhereNoteInEverySession(t *testing.T) {
-	home := recallFixture(t)
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-	t.Setenv("CLAUDE_CODE_SESSION_ID", "")
-	output, code := runCommand(t, "remember", "--kind", "reminder", "--everywhere", "--due", "2026-10-01", "--every", "7", "Ask the user to run /hook-stats.")
-	require.Equal(t, 0, code, output)
-	nudge := readRemembered(t, output)
-	require.Equal(t, notes.OwnerEverywhere, nudge.Owner)
-	require.Equal(t, notes.ScopeEverywhere, nudge.Scope)
-	output, code = runCommand(t, "remember", "--kind", "fact", "--everywhere", "The machine runs macOS.")
-	require.Equal(t, 0, code, output)
-	fact := readRemembered(t, output)
-
-	team := filepath.Join(home, "w", "team", "api")
-	elsewhere := filepath.Join(home, "elsewhere")
-	for _, directory := range []string{team, elsewhere} {
-		require.NoError(t, os.MkdirAll(directory, 0o700))
-	}
-	output, code = runCommand(t, "owner", "add", "team", "--no-sync")
-	require.Equal(t, 0, code, output)
-	output, code = runCommand(t, "owner", "add-path", filepath.Join(home, "w", "team"), "team", "--no-sync")
-	require.Equal(t, 0, code, output)
-
-	for _, directory := range []string{filepath.Join(home, "w", "corp", "gateway"), filepath.Join(home, "w", "personal", "notes"), team, elsewhere} {
-		t.Run(filepath.Base(directory), func(t *testing.T) {
-			t.Chdir(directory)
-			startOutput, startCode := runCommand(t, "session-start", "--no-sync")
-			require.Equal(t, 0, startCode, startOutput)
-			shown, _ := hookOutput(t, startOutput)
-			require.Contains(t, shown, "Reminders from ele, due:\n- ↻ due 2026-10-01, reminder "+nudge.ID+", every 7 days: Ask the user to run /hook-stats.\n")
-			require.Contains(t, shown, " fact "+fact.ID+": The machine runs macOS.\n")
-			require.Equal(t, directory == elsewhere, strings.Contains(shown, "ele shows only everywhere notes here: no owner in owner-map.json covers "+elsewhere+". /ele:setup maps it; /ele:recall needs --owner <name> or --all.\n"), shown)
-		})
-	}
-
-	t.Chdir(filepath.Join(home, "w", "personal", "notes"))
-	output, code = runCommand(t, "context")
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, " fact "+fact.ID+": The machine runs macOS.\n")
-	output, code = runCommand(t, "recall", "macOS")
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, fact.ID)
-	output, code = runCommand(t, "remember", "--kind", "fact", "--everywhere", "--supersedes", fact.ID, "The machine runs macOS 26.")
-	require.Equal(t, 0, code, output)
-	output, code = runCommand(t, "remember", "--kind", "decision", "--supersedes", fact.ID, "Owner notes never supersede everywhere ones.")
-	require.Equal(t, 2, code, output)
-	require.Equal(t, "ele: personal has no note "+fact.ID+" to supersede\n", output)
 }
 
 func TestRunSessionStartSaysWhenTheSessionCompacted(t *testing.T) {
@@ -116,25 +145,6 @@ func TestRunSessionStartSaysWhenTheSessionCompacted(t *testing.T) {
 			require.Contains(t, output.String(), "ele has no notes for corp · gateway.\n")
 		})
 	}
-}
-
-func TestRunSessionStartShowsAMoveNoticeOnce(t *testing.T) {
-	home := recallFixture(t)
-	elsewhere := filepath.Join(home, "elsewhere")
-	require.NoError(t, os.MkdirAll(elsewhere, 0o700))
-	t.Chdir(elsewhere)
-	notice := "ele moved its data directory from /old to /new."
-	writeFile(t, filepath.Join(home, "data", "move-notice"), "ele moved its data directory from /old\x1b to /new.\n")
-
-	output, code := runCommand(t, "session-start", "--no-sync")
-	require.Equal(t, 0, code, output)
-	additional, shown := hookOutput(t, output)
-	require.True(t, strings.HasPrefix(additional, "ele moved its data directory from /old\x1b to /new.\n"), additional)
-	require.Equal(t, notice, shown)
-
-	output, code = runCommand(t, "session-start", "--no-sync")
-	require.Equal(t, 0, code, output)
-	require.NotContains(t, output, notice)
 }
 
 func TestRunSessionStartShowsAHandoffOnce(t *testing.T) {
@@ -204,31 +214,112 @@ func TestRunSessionStartShowsAHandoffOnce(t *testing.T) {
 	require.NotContains(t, shown, "20261017-ffffff")
 }
 
-func TestRunSessionStartKeepsALoneHandoffPendingWithTheOption(t *testing.T) {
+func TestRunSessionStartShowsAMoveNoticeOnce(t *testing.T) {
+	home := recallFixture(t)
+	elsewhere := filepath.Join(home, "elsewhere")
+	require.NoError(t, os.MkdirAll(elsewhere, 0o700))
+	t.Chdir(elsewhere)
+	notice := "ele moved its data directory from /old to /new."
+	writeFile(t, filepath.Join(home, "data", "move-notice"), "ele moved its data directory from /old\x1b to /new.\n")
+
+	output, code := runCommand(t, "session-start", "--no-sync")
+	require.Equal(t, 0, code, output)
+	additional, shown := hookOutput(t, output)
+	require.True(t, strings.HasPrefix(additional, "ele moved its data directory from /old\x1b to /new.\n"), additional)
+	require.Equal(t, notice, shown)
+
+	output, code = runCommand(t, "session-start", "--no-sync")
+	require.Equal(t, 0, code, output)
+	require.NotContains(t, output, notice)
+}
+
+func TestRunSessionStartShowsANudgeItsIntervalAfterItsDoneFileChanged(t *testing.T) {
 	home := recallFixture(t)
 	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	noteDirectory := filepath.Join(home, "data", "notes")
+	now := time.Now()
+	nudge := func(id string, due time.Time, doneFile string, body string) notes.Note {
+		note := notes.Note{Body: body, Date: "2026-10-22", DoneFile: doneFile, Due: due.Format(time.DateOnly), Every: 7 * 24 * time.Hour, ID: id, Kind: notes.KindReminder, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Time: "2026-10-22T09:00:00Z"}
+		_, err := notes.Write(noteDirectory, note)
+		require.NoError(t, err)
+		return note
+	}
+	marked := func(name string, when time.Time) string {
+		path := filepath.Join(home, name)
+		writeFile(t, path, "")
+		require.NoError(t, os.Chtimes(path, when, when))
+		return path
+	}
+	fresh := nudge("20261022-aaaaaa", now.AddDate(0, 0, -30), marked("fresh", now.AddDate(0, 0, -6)), "Done six days ago.")
+	stale := nudge("20261022-bbbbbb", now.AddDate(0, 0, -30), marked("stale", now.AddDate(0, 0, -8)), "Done eight days ago.")
+	missing := nudge("20261022-cccccc", now.AddDate(0, 0, 30), filepath.Join(home, "never-written"), "Never done.")
+	closedRecently := nudge("20261022-dddddd", now.AddDate(0, 0, 3), marked("rearmed", now.AddDate(0, 0, -30)), "Closed four days ago.")
+	plain := nudge("20261022-eeeeee", now, "", "Due today.")
+	overdue := nudge("20261022-ffffff", now.AddDate(0, 0, -20), "", "Due twenty days ago.")
 	start := func() string {
 		var output bytes.Buffer
-		code := sessionStart(context.Background(), []string{"--no-sync"}, strings.NewReader(`{"session_id":"s","source":"clear"}`), &output, &output)
+		code := sessionStart(context.Background(), []string{"--no-sync"}, strings.NewReader(`{"session_id":"s","source":"startup"}`), &output, &output)
 		require.Equal(t, 0, code, output.String())
+		shown, _ := hookOutput(t, output.String())
+		return shown
+	}
+
+	shown := start()
+	require.Contains(t, shown, "Reminders from ele, due:\n"+
+		"- ↻ due "+overdue.Due+", reminder "+overdue.ID+", every 7 days: Due twenty days ago.\n"+
+		"- ↻ due "+now.AddDate(0, 0, -1).Format(time.DateOnly)+", reminder "+stale.ID+", every 7 days: Done eight days ago.\n"+
+		"- ↻ due "+now.Format(time.DateOnly)+", reminder "+plain.ID+", every 7 days: Due today.\n"+
+		"- ↻ due "+now.Format(time.DateOnly)+", reminder "+missing.ID+", every 7 days: Never done.\n"+
+		"Tell the user each is due. Once the user says one is done or dropped, run ele reminder close <id>...; until then it shows at every startup, /clear and compaction.\n"+
+		"Closing one shown with an interval re-arms it for that interval; ele forget <id> drops it for good.\n\n")
+	require.NotContains(t, shown, fresh.ID, "done six days ago, it waits a seventh")
+	require.NotContains(t, shown, closedRecently.ID, "closed, it waits for its due date though its done file is older")
+
+	marked("stale", now)
+	require.NotContains(t, start(), stale.ID, "a change to the done file marks the nudge done")
+
+	writeFile(t, filepath.Join(home, "data", "config.json"), `{"owners": {"corp": {"reminders": false}}}`)
+	require.NotContains(t, start(), "Reminders from ele")
+}
+
+func hookOutput(t *testing.T, raw string) (additionalContext string, systemMessage string) {
+	t.Helper()
+	if !strings.HasPrefix(raw, "{") {
+		return raw, ""
+	}
+	var output struct {
+		HookSpecificOutput struct {
+			AdditionalContext string `json:"additionalContext"`
+			HookEventName     string `json:"hookEventName"`
+		} `json:"hookSpecificOutput"`
+		SystemMessage string `json:"systemMessage"`
+	}
+	decoder := json.NewDecoder(strings.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	require.NoError(t, decoder.Decode(&output), raw)
+	require.False(t, decoder.More(), "one JSON object and nothing after it: %s", raw)
+	require.Equal(t, "SessionStart", output.HookSpecificOutput.HookEventName)
+	return output.HookSpecificOutput.AdditionalContext, output.SystemMessage
+}
+
+func TestRunSessionStartShowsAReminderDueAtATimeOnlyFromThatTime(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	dataDirectory := filepath.Join(home, "data")
+	output, code := runCommand(t, "remember", "--kind", "reminder", "--due", "2026-11-01T15:30", "--session", "", "Join the call.")
+	require.Equal(t, 0, code, output)
+	reminder := readRemembered(t, output)
+	require.Equal(t, "2026-11-01T15:30", reminder.Due)
+
+	start := func(now time.Time) string {
+		var output bytes.Buffer
+		_, err := writeSessionStart(context.Background(), &output, dataDirectory, now, "startup")
+		require.NoError(t, err)
 		return output.String()
 	}
-	_, err := notes.Write(filepath.Join(home, "data", "notes"), notes.Note{Body: "Next: the start block.", Date: "2026-10-17", ID: "20261017-aaaaaa", Kind: notes.KindHandoff, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Time: "2026-10-17T09:00:00Z"})
-	require.NoError(t, err)
-	writeFile(t, filepath.Join(home, "data", "config.json"), `{"lone_handoff_pending": true}`)
-
-	section := "1 handoff from ele, pending until picked or dropped:\n- note 20261017-aaaaaa of 2026-10-17 09:00Z:\n  Next: the start block."
-	for range 2 {
-		shown, message := hookOutput(t, start())
-		require.Equal(t, section, message)
-		require.Contains(t, shown, section+"\nAsk the user which handoff to pick up and whether to drop any. Run ele handoff close <id>... for each picked or dropped; the rest return at the next startup or /clear.\n\n")
-	}
-
-	writeFile(t, filepath.Join(home, "data", "config.json"), `{"lone_handoff_pending": false}`)
-	_, message := hookOutput(t, start())
-	require.Equal(t, "Handoff from ele, note 20261017-aaaaaa of 2026-10-17 09:00Z, shown once:\nNext: the start block.", message)
-	shown, _ := hookOutput(t, start())
-	require.NotContains(t, shown, "20261017-aaaaaa", "off, a lone handoff is marked shown")
+	require.NotContains(t, start(time.Date(2026, 11, 1, 15, 29, 59, 0, time.Local)), reminder.ID, "a second before its time")
+	require.Contains(t, start(time.Date(2026, 11, 1, 15, 30, 0, 0, time.Local)), "- due 2026-11-01T15:30, reminder "+reminder.ID+": Join the call.\n")
+	require.Contains(t, start(time.Date(2026, 11, 2, 8, 0, 0, 0, time.Local)), reminder.ID, "overdue the next day")
 }
 
 func TestRunSessionStartShowsActivePlansEveryTime(t *testing.T) {
@@ -292,54 +383,53 @@ func TestRunSessionStartShowsActivePlansEveryTime(t *testing.T) {
 	require.NotContains(t, shown, "/ele:plan", "no instruction for a plan that cannot be read")
 }
 
-func TestRunSessionStartColoursOnlyTheUsersCopyUnlessColourIsOff(t *testing.T) {
+func TestRunSessionStartShowsAnEverywhereNoteInEverySession(t *testing.T) {
 	home := recallFixture(t)
-	t.Setenv("NO_COLOR", "")
-	gateway := filepath.Join(home, "w", "corp", "gateway")
-	t.Chdir(gateway)
-	writeFile(t, filepath.Join(gateway, "build.md"), "---\nkind: plan\n---\n\n## Actions\n\n- [x] Parser\n- [ ] Start \033[31mblock\n\n## Inbox\n")
-	output, code := runCommand(t, "plan", "start", "build.md")
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "")
+	output, code := runCommand(t, "remember", "--kind", "reminder", "--everywhere", "--due", "2026-10-01", "--every", "7", "Ask the user to run /hook-stats.")
+	require.Equal(t, 0, code, output)
+	nudge := readRemembered(t, output)
+	require.Equal(t, notes.OwnerEverywhere, nudge.Owner)
+	require.Equal(t, notes.ScopeEverywhere, nudge.Scope)
+	output, code = runCommand(t, "remember", "--kind", "fact", "--everywhere", "The machine runs macOS.")
+	require.Equal(t, 0, code, output)
+	fact := readRemembered(t, output)
+
+	team := filepath.Join(home, "w", "team", "api")
+	elsewhere := filepath.Join(home, "elsewhere")
+	for _, directory := range []string{team, elsewhere} {
+		require.NoError(t, os.MkdirAll(directory, 0o700))
+	}
+	output, code = runCommand(t, "owner", "add", "team", "--no-sync")
+	require.Equal(t, 0, code, output)
+	output, code = runCommand(t, "owner", "add-path", filepath.Join(home, "w", "team"), "team", "--no-sync")
 	require.Equal(t, 0, code, output)
 
-	var raw bytes.Buffer
-	require.Equal(t, 0, sessionStart(context.Background(), []string{"--no-sync"}, strings.NewReader(`{"session_id":"s","source":"startup"}`), &raw, &raw), raw.String())
-	shown, message := hookOutput(t, raw.String())
-	require.Equal(t, "\033[1mActive plan from ele:\033[22m\n\033[1mPlan\033[22m build.md: \033[33m1 open\033[39m, \033[2m0 blocked\033[22m, \033[32m1 done\033[39m, \033[2m0 in the inbox\033[22m.\n\033[33m1 warning\033[39m; \033[36mele plan check build.md\033[39m lists it.\n\033[1mNext, line 8:\033[22m\n- [ ] Start [31mblock", message, "a plan cannot send its own escape sequences")
-	require.Contains(t, shown, "Plan build.md: 1 open, 0 blocked, 1 done, 0 in the inbox.\n1 warning; ele plan check build.md lists it.\nNext, line 8:\n- [ ] Start \033[31mblock\n", "the session's copy is plain")
-
-	plain := "Active plan from ele:\nPlan build.md: 1 open, 0 blocked, 1 done, 0 in the inbox.\n1 warning; ele plan check build.md lists it.\nNext, line 8:\n- [ ] Start [31mblock"
-	writeFile(t, filepath.Join(home, "data", "config.json"), `{"owners": {"corp": {"colour": false}}}`)
-	raw.Reset()
-	require.Equal(t, 0, sessionStart(context.Background(), []string{"--no-sync"}, strings.NewReader(`{"session_id":"s","source":"startup"}`), &raw, &raw), raw.String())
-	_, message = hookOutput(t, raw.String())
-	require.Equal(t, plain, message, "colour off for this owner")
-
-	require.NoError(t, os.Remove(filepath.Join(home, "data", "config.json")))
-	t.Setenv("NO_COLOR", "1")
-	raw.Reset()
-	require.Equal(t, 0, sessionStart(context.Background(), []string{"--no-sync"}, strings.NewReader(`{"session_id":"s","source":"startup"}`), &raw, &raw), raw.String())
-	_, message = hookOutput(t, raw.String())
-	require.Equal(t, plain, message, "NO_COLOR with colour on")
-}
-
-func hookOutput(t *testing.T, raw string) (additionalContext string, systemMessage string) {
-	t.Helper()
-	if !strings.HasPrefix(raw, "{") {
-		return raw, ""
+	for _, directory := range []string{filepath.Join(home, "w", "corp", "gateway"), filepath.Join(home, "w", "personal", "notes"), team, elsewhere} {
+		t.Run(filepath.Base(directory), func(t *testing.T) {
+			t.Chdir(directory)
+			startOutput, startCode := runCommand(t, "session-start", "--no-sync")
+			require.Equal(t, 0, startCode, startOutput)
+			shown, _ := hookOutput(t, startOutput)
+			require.Contains(t, shown, "Reminders from ele, due:\n- ↻ due 2026-10-01, reminder "+nudge.ID+", every 7 days: Ask the user to run /hook-stats.\n")
+			require.Contains(t, shown, " fact "+fact.ID+": The machine runs macOS.\n")
+			require.Equal(t, directory == elsewhere, strings.Contains(shown, "ele shows only everywhere notes here: no owner in owner-map.json covers "+elsewhere+". /ele:setup maps it; /ele:recall needs --owner <name> or --all.\n"), shown)
+		})
 	}
-	var output struct {
-		HookSpecificOutput struct {
-			AdditionalContext string `json:"additionalContext"`
-			HookEventName     string `json:"hookEventName"`
-		} `json:"hookSpecificOutput"`
-		SystemMessage string `json:"systemMessage"`
-	}
-	decoder := json.NewDecoder(strings.NewReader(raw))
-	decoder.DisallowUnknownFields()
-	require.NoError(t, decoder.Decode(&output), raw)
-	require.False(t, decoder.More(), "one JSON object and nothing after it: %s", raw)
-	require.Equal(t, "SessionStart", output.HookSpecificOutput.HookEventName)
-	return output.HookSpecificOutput.AdditionalContext, output.SystemMessage
+
+	t.Chdir(filepath.Join(home, "w", "personal", "notes"))
+	output, code = runCommand(t, "context")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, " fact "+fact.ID+": The machine runs macOS.\n")
+	output, code = runCommand(t, "recall", "macOS")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, fact.ID)
+	output, code = runCommand(t, "remember", "--kind", "fact", "--everywhere", "--supersedes", fact.ID, "The machine runs macOS 26.")
+	require.Equal(t, 0, code, output)
+	output, code = runCommand(t, "remember", "--kind", "decision", "--supersedes", fact.ID, "Owner notes never supersede everywhere ones.")
+	require.Equal(t, 2, code, output)
+	require.Equal(t, "ele: personal has no note "+fact.ID+" to supersede\n", output)
 }
 
 func TestRunSessionStartShowsOpenQuestionsThenNewestNotes(t *testing.T) {
@@ -368,284 +458,6 @@ func TestRunSessionStartShowsOpenQuestionsThenNewestNotes(t *testing.T) {
 		"- 2026-10-13 fact 20261013-eeeeee: Corp deploys on Tuesdays.\n"+
 		"- 2026-10-12 decision 20261012-cccccc: Decided: no.\n"+
 		"1 invalid note skipped; ele sync names each; 1 past session indexed for gateway; search with /ele:recall.\n", output)
-}
-
-func TestWriteNotesHintsOnlyForShownSessions(t *testing.T) {
-	question := notes.Note{Body: "Open?", Date: "2026-10-15", ID: "20261015-qqqqqq", Kind: notes.KindQuestion, Scope: notes.ScopeGlobal, Session: "abc1"}
-	var output bytes.Buffer
-	writeNotes(&output, "corp", "gateway", []notes.Note{question}, 0, 0, blockBudget)
-	require.Contains(t, output.String(), "(session abc1)")
-	require.True(t, strings.HasSuffix(output.String(), sessionHint), output.String())
-
-	var all []notes.Note
-	for i := range 40 {
-		all = append(all, notes.Note{Body: strings.Repeat("word ", 30), Date: "2026-10-15", ID: fmt.Sprintf("n%02d", i), Kind: notes.KindFact, Scope: notes.ScopeGlobal})
-	}
-	output.Reset()
-	writeNotes(&output, "corp", "gateway", all, 0, 0, blockBudget)
-	shown := strings.Count(output.String(), " fact n")
-	require.Less(t, shown, len(all))
-	// Newest first by id, so the first note the budget cuts is the one at index len-1-shown.
-	all[len(all)-1-shown].Session = "abc1"
-	output.Reset()
-	writeNotes(&output, "corp", "gateway", all, 0, 0, blockBudget)
-	require.NotContains(t, output.String(), sessionHint)
-
-	var crowded []notes.Note
-	for i := range 200 {
-		crowded = append(crowded, notes.Note{Body: "x", Date: "2026-10-15", ID: fmt.Sprintf("n%03d", i), Kind: notes.KindFact, Scope: notes.ScopeGlobal, Session: "abc1"})
-	}
-	output.Reset()
-	writeNotes(&output, "corp", strings.Repeat("long-project-name-", 3), crowded, 3, 12, blockBudget)
-	require.True(t, strings.HasSuffix(output.String(), sessionHint), output.String())
-	require.LessOrEqual(t, output.Len(), contextBudget)
-}
-
-func TestWriteNotesNamesEachNotesSession(t *testing.T) {
-	var output bytes.Buffer
-	writeNotes(&output, "corp", "gateway", []notes.Note{
-		{Body: "With a session.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Scope: notes.ScopeGlobal, Session: "010a2385-feef-4623-a164-763f5a52ec9b"},
-		{Body: "Without.", Date: "2026-10-14", ID: "20261014-bbbbbb", Kind: notes.KindFact, Scope: notes.ScopeGlobal},
-	}, 0, 0, blockBudget)
-	require.Equal(t, "Notes from ele for corp · gateway:\n"+
-		"- 2026-10-15 decision 20261015-aaaaaa (session 010a2385): With a session.\n"+
-		"- 2026-10-14 fact 20261014-bbbbbb: Without.\n"+
-		"search with /ele:recall.\n"+
-		"A note's discussion: ele show --note <id>.\n", output.String())
-}
-
-func TestWriteNotesCutsOldestQuestionsPastTheRoomLeft(t *testing.T) {
-	var all []notes.Note
-	for i := range 40 {
-		all = append(all, notes.Note{Body: strings.Repeat("😀 open ", 40), Date: fmt.Sprintf("2026-09-%02d", i%28+1), ID: fmt.Sprintf("q%02d", i), Kind: notes.KindQuestion, Scope: notes.ScopeGlobal})
-	}
-	all = append(all, notes.Note{Body: "Decided.", Date: "2026-10-15", ID: "d00", Kind: notes.KindDecision, Scope: notes.ScopeGlobal})
-	var output bytes.Buffer
-	writeNotes(&output, "corp", "gateway", all, 0, 12, 5000)
-
-	text := output.String()
-	require.LessOrEqual(t, len(utf16.Encode([]rune(text))), 5000)
-	shown := len(regexp.MustCompile(`(?m)^- \S+ question q\d+:`).FindAllString(text, -1))
-	require.Positive(t, shown)
-	require.Less(t, shown, 40)
-	require.Contains(t, text, "question q27:", "the newest question is kept")
-	require.NotContains(t, text, "decision d00:")
-	require.True(t, strings.HasSuffix(text, fmt.Sprintf("1 older note not shown; %d older questions not shown, ele context lists them; 12 past sessions indexed for gateway; search with /ele:recall.\n", 40-shown)), text)
-}
-
-func TestWriteNotesFitsTheLongestClosingLine(t *testing.T) {
-	var all []notes.Note
-	for i := range 200 {
-		all = append(all, notes.Note{Body: "Open?", Date: "2026-10-15", ID: fmt.Sprintf("q%03d", i), Kind: notes.KindQuestion, Scope: notes.ScopeGlobal, Session: "abc1"})
-	}
-	all = append(all, notes.Note{Body: "Decided.", Date: "2026-10-15", ID: "d00", Kind: notes.KindDecision, Scope: notes.ScopeGlobal})
-	var output bytes.Buffer
-	writeNotes(&output, "corp", strings.Repeat("long-project-name-", 6), all, 3, 140, 3000)
-	require.Contains(t, output.String(), "older questions not shown, ele context lists them; 3 invalid notes skipped")
-	require.True(t, strings.HasSuffix(output.String(), sessionHint))
-	require.LessOrEqual(t, len(utf16.Encode([]rune(output.String()))), 3000)
-}
-
-func TestWriteSessionStartFitsHookOutputCap(t *testing.T) {
-	home := recallFixture(t)
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-	dataDirectory := filepath.Join(home, "data")
-	noteDirectory := filepath.Join(dataDirectory, "notes")
-	_, err := notes.Write(noteDirectory, notes.Note{Body: "Run the measurement.", Date: "2026-10-01", Due: "2026-10-01", ID: "20261001-rrrrrr", Kind: notes.KindReminder, Owner: "corp", Scope: notes.ScopeGlobal})
-	require.NoError(t, err)
-	for i := range 60 {
-		_, err = notes.Write(noteDirectory, notes.Note{Body: strings.Repeat("Should ele index tool output? ", 10), Date: "2026-10-10", ID: fmt.Sprintf("20261010-q%05d", i), Kind: notes.KindQuestion, Owner: "corp", Scope: notes.ScopeGlobal})
-		require.NoError(t, err)
-	}
-
-	var output bytes.Buffer
-	_, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "startup")
-	require.NoError(t, err)
-	require.LessOrEqual(t, len(utf16.Encode([]rune(output.String()))), blockBudget)
-	require.Regexp(t, `\d+ older questions not shown, ele context lists them`, output.String())
-}
-
-func TestWriteNotesCutsDecisionsBeforeQuestions(t *testing.T) {
-	var all []notes.Note
-	for i := range 40 {
-		all = append(all, notes.Note{Body: strings.Repeat("decision ", 20), Date: fmt.Sprintf("2026-09-%02d", i%28+1), ID: fmt.Sprintf("d%02d", i), Kind: notes.KindDecision, Scope: notes.ScopeGlobal})
-	}
-	for i := range 10 {
-		all = append(all, notes.Note{Body: strings.Repeat("question ", 20), Date: "2026-01-01", ID: fmt.Sprintf("q%02d", i), Kind: notes.KindQuestion, Scope: notes.ScopeGlobal})
-	}
-	var output bytes.Buffer
-	writeNotes(&output, "corp", "gateway", all, 0, 0, blockBudget)
-
-	text := output.String()
-	require.Len(t, regexp.MustCompile(`(?m)^- \S+ question q\d+:`).FindAllString(text, -1), 10)
-	shown := len(regexp.MustCompile(`(?m)^- \S+ decision d\d+:`).FindAllString(text, -1))
-	require.Positive(t, shown)
-	require.Less(t, shown, 40)
-	require.Contains(t, text, fmt.Sprintf("%d older notes not shown", 40-shown))
-	require.Contains(t, text, "decision d27:", "the newest decision is kept")
-}
-
-func TestWriteNotesStaysWithinTheBudget(t *testing.T) {
-	var all []notes.Note
-	for i := range 200 {
-		all = append(all, notes.Note{Body: strings.Repeat("word ", 30), Date: "2026-10-15", ID: fmt.Sprintf("n%03d", i), Kind: notes.KindFact, Scope: notes.ScopeGlobal})
-	}
-	var output bytes.Buffer
-	writeNotes(&output, "corp", "gateway", all, 0, 12, blockBudget)
-	require.LessOrEqual(t, output.Len(), contextBudget)
-	require.True(t, strings.HasSuffix(output.String(), "older notes not shown; 12 past sessions indexed for gateway; search with /ele:recall.\n"))
-}
-
-func TestWriteSessionStartKeepsNotesWhenTheIndexFails(t *testing.T) {
-	home := recallFixture(t)
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-	dataDirectory := filepath.Join(home, "data")
-	_, err := notes.Write(filepath.Join(dataDirectory, "notes"), notes.Note{Body: "Pin pydantic.", Date: "2026-10-14", ID: "20261014-dddddd", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal})
-	require.NoError(t, err)
-	database := filepath.Join(dataDirectory, "ele.db")
-	require.NoError(t, os.Remove(database))
-	require.NoError(t, os.Mkdir(database, 0o700))
-
-	var output bytes.Buffer
-	_, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "startup")
-	require.NoError(t, err)
-	require.True(t, strings.HasPrefix(output.String(), "ele could not count past sessions: "), output.String())
-	require.True(t, strings.HasSuffix(output.String(), "\n- 2026-10-14 decision 20261014-dddddd: Pin pydantic.\nsearch with /ele:recall.\n"), output.String())
-}
-
-func TestWriteSessionStartWarnsWhenSyncIsStale(t *testing.T) {
-	home := recallFixture(t)
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-	dataDirectory := filepath.Join(home, "data")
-	stamp := filepath.Join(dataDirectory, "last-sync")
-	tail := "; " + filepath.Join(dataDirectory, "sync.log") + " holds the background syncs' output, newest last.\n"
-
-	var output bytes.Buffer
-	_, err := writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "startup")
-	require.NoError(t, err)
-	require.NotContains(t, output.String(), "sync")
-
-	output.Reset()
-	_, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now().Add(25*time.Hour), "startup")
-	require.NoError(t, err)
-	require.Regexp(t, `^ele last synced \d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ`+regexp.QuoteMeta(tail), output.String())
-
-	writeFile(t, stamp, "garbage\n")
-	output.Reset()
-	_, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "startup")
-	require.NoError(t, err)
-	require.True(t, strings.HasPrefix(output.String(), "ele's sync stamp is malformed"+tail), output.String())
-
-	require.NoError(t, os.Remove(stamp))
-	output.Reset()
-	_, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "startup")
-	require.NoError(t, err)
-	require.True(t, strings.HasPrefix(output.String(), "ele has no record of a successful sync"+tail), output.String())
-}
-
-func TestRotateSyncLogKeepsOneFullLogAside(t *testing.T) {
-	dataDirectory := t.TempDir()
-	path := filepath.Join(dataDirectory, "sync.log")
-	writeFile(t, path, "short\n")
-
-	require.NoError(t, rotateSyncLog(path))
-	require.FileExists(t, path, "a log under the cap stays")
-	require.NoFileExists(t, path+".1")
-
-	full := strings.Repeat("x", syncLogCap-1) + "\n"
-	writeFile(t, path, full)
-	writeFile(t, path+".1", "older\n")
-	require.NoError(t, rotateSyncLog(path))
-	require.NoFileExists(t, path)
-	content, err := os.ReadFile(path + ".1")
-	require.NoError(t, err)
-	require.Equal(t, full, string(content), "one kept, the older one replaced")
-
-	require.NoError(t, rotateSyncLog(path), "no log is nothing to rotate")
-}
-
-func TestSessionStartNamesOptionsOffTheirDefaults(t *testing.T) {
-	home := recallFixture(t)
-	writeFile(t, filepath.Join(home, "data", "config.json"), `{"checkpoint_gate": false}`)
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-
-	output, code := runCommand(t, "session-start", "--no-sync")
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "Config from ele, off its defaults: checkpoint_gate false (global).\n")
-
-	writeFile(t, filepath.Join(home, "data", "config.json"), `{"checkpoint_gate": true}`)
-	output, code = runCommand(t, "session-start", "--no-sync")
-	require.Equal(t, 0, code, output)
-	require.NotContains(t, output, "Config from ele")
-}
-
-func TestRunSessionStartShowsAReminderDueAtATimeOnlyFromThatTime(t *testing.T) {
-	home := recallFixture(t)
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-	dataDirectory := filepath.Join(home, "data")
-	output, code := runCommand(t, "remember", "--kind", "reminder", "--due", "2026-11-01T15:30", "--session", "", "Join the call.")
-	require.Equal(t, 0, code, output)
-	reminder := readRemembered(t, output)
-	require.Equal(t, "2026-11-01T15:30", reminder.Due)
-
-	start := func(now time.Time) string {
-		var output bytes.Buffer
-		_, err := writeSessionStart(context.Background(), &output, dataDirectory, now, "startup")
-		require.NoError(t, err)
-		return output.String()
-	}
-	require.NotContains(t, start(time.Date(2026, 11, 1, 15, 29, 59, 0, time.Local)), reminder.ID, "a second before its time")
-	require.Contains(t, start(time.Date(2026, 11, 1, 15, 30, 0, 0, time.Local)), "- due 2026-11-01T15:30, reminder "+reminder.ID+": Join the call.\n")
-	require.Contains(t, start(time.Date(2026, 11, 2, 8, 0, 0, 0, time.Local)), reminder.ID, "overdue the next day")
-}
-
-func TestRunSessionStartShowsANudgeItsIntervalAfterItsDoneFileChanged(t *testing.T) {
-	home := recallFixture(t)
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-	noteDirectory := filepath.Join(home, "data", "notes")
-	now := time.Now()
-	nudge := func(id string, due time.Time, doneFile string, body string) notes.Note {
-		note := notes.Note{Body: body, Date: "2026-10-22", DoneFile: doneFile, Due: due.Format(time.DateOnly), Every: 7 * 24 * time.Hour, ID: id, Kind: notes.KindReminder, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject, Time: "2026-10-22T09:00:00Z"}
-		_, err := notes.Write(noteDirectory, note)
-		require.NoError(t, err)
-		return note
-	}
-	marked := func(name string, when time.Time) string {
-		path := filepath.Join(home, name)
-		writeFile(t, path, "")
-		require.NoError(t, os.Chtimes(path, when, when))
-		return path
-	}
-	fresh := nudge("20261022-aaaaaa", now.AddDate(0, 0, -30), marked("fresh", now.AddDate(0, 0, -6)), "Done six days ago.")
-	stale := nudge("20261022-bbbbbb", now.AddDate(0, 0, -30), marked("stale", now.AddDate(0, 0, -8)), "Done eight days ago.")
-	missing := nudge("20261022-cccccc", now.AddDate(0, 0, 30), filepath.Join(home, "never-written"), "Never done.")
-	closedRecently := nudge("20261022-dddddd", now.AddDate(0, 0, 3), marked("rearmed", now.AddDate(0, 0, -30)), "Closed four days ago.")
-	plain := nudge("20261022-eeeeee", now, "", "Due today.")
-	overdue := nudge("20261022-ffffff", now.AddDate(0, 0, -20), "", "Due twenty days ago.")
-	start := func() string {
-		var output bytes.Buffer
-		code := sessionStart(context.Background(), []string{"--no-sync"}, strings.NewReader(`{"session_id":"s","source":"startup"}`), &output, &output)
-		require.Equal(t, 0, code, output.String())
-		shown, _ := hookOutput(t, output.String())
-		return shown
-	}
-
-	shown := start()
-	require.Contains(t, shown, "Reminders from ele, due:\n"+
-		"- ↻ due "+overdue.Due+", reminder "+overdue.ID+", every 7 days: Due twenty days ago.\n"+
-		"- ↻ due "+now.AddDate(0, 0, -1).Format(time.DateOnly)+", reminder "+stale.ID+", every 7 days: Done eight days ago.\n"+
-		"- ↻ due "+now.Format(time.DateOnly)+", reminder "+plain.ID+", every 7 days: Due today.\n"+
-		"- ↻ due "+now.Format(time.DateOnly)+", reminder "+missing.ID+", every 7 days: Never done.\n"+
-		"Tell the user each is due. Once the user says one is done or dropped, run ele reminder close <id>...; until then it shows at every startup, /clear and compaction.\n"+
-		"Closing one shown with an interval re-arms it for that interval; ele forget <id> drops it for good.\n\n")
-	require.NotContains(t, shown, fresh.ID, "done six days ago, it waits a seventh")
-	require.NotContains(t, shown, closedRecently.ID, "closed, it waits for its due date though its done file is older")
-
-	marked("stale", now)
-	require.NotContains(t, start(), stale.ID, "a change to the done file marks the nudge done")
-
-	writeFile(t, filepath.Join(home, "data", "config.json"), `{"owners": {"corp": {"reminders": false}}}`)
-	require.NotContains(t, start(), "Reminders from ele")
 }
 
 func TestRunSessionStartShowsRemindersFromTheirDueDateUntilClosed(t *testing.T) {
@@ -698,4 +510,192 @@ func TestRunSessionStartShowsRemindersFromTheirDueDateUntilClosed(t *testing.T) 
 	require.NotContains(t, shown, "Reminders from ele")
 	require.NotContains(t, message, "Reminders from ele")
 	require.Contains(t, shown, "Config from ele, off its defaults: reminders false")
+}
+
+func TestSessionStartNamesOptionsOffTheirDefaults(t *testing.T) {
+	home := recallFixture(t)
+	writeFile(t, filepath.Join(home, "data", "config.json"), `{"checkpoint_gate": false}`)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+
+	output, code := runCommand(t, "session-start", "--no-sync")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "Config from ele, off its defaults: checkpoint_gate false (global).\n")
+
+	writeFile(t, filepath.Join(home, "data", "config.json"), `{"checkpoint_gate": true}`)
+	output, code = runCommand(t, "session-start", "--no-sync")
+	require.Equal(t, 0, code, output)
+	require.NotContains(t, output, "Config from ele")
+}
+
+func TestWriteNotesCutsDecisionsBeforeQuestions(t *testing.T) {
+	var all []notes.Note
+	for i := range 40 {
+		all = append(all, notes.Note{Body: strings.Repeat("decision ", 20), Date: fmt.Sprintf("2026-09-%02d", i%28+1), ID: fmt.Sprintf("d%02d", i), Kind: notes.KindDecision, Scope: notes.ScopeGlobal})
+	}
+	for i := range 10 {
+		all = append(all, notes.Note{Body: strings.Repeat("question ", 20), Date: "2026-01-01", ID: fmt.Sprintf("q%02d", i), Kind: notes.KindQuestion, Scope: notes.ScopeGlobal})
+	}
+	var output bytes.Buffer
+	writeNotes(&output, "corp", "gateway", all, 0, 0, blockBudget)
+
+	text := output.String()
+	require.Len(t, regexp.MustCompile(`(?m)^- \S+ question q\d+:`).FindAllString(text, -1), 10)
+	shown := len(regexp.MustCompile(`(?m)^- \S+ decision d\d+:`).FindAllString(text, -1))
+	require.Positive(t, shown)
+	require.Less(t, shown, 40)
+	require.Contains(t, text, fmt.Sprintf("%d older notes not shown", 40-shown))
+	require.Contains(t, text, "decision d27:", "the newest decision is kept")
+}
+
+func TestWriteNotesCutsOldestQuestionsPastTheRoomLeft(t *testing.T) {
+	var all []notes.Note
+	for i := range 40 {
+		all = append(all, notes.Note{Body: strings.Repeat("😀 open ", 40), Date: fmt.Sprintf("2026-09-%02d", i%28+1), ID: fmt.Sprintf("q%02d", i), Kind: notes.KindQuestion, Scope: notes.ScopeGlobal})
+	}
+	all = append(all, notes.Note{Body: "Decided.", Date: "2026-10-15", ID: "d00", Kind: notes.KindDecision, Scope: notes.ScopeGlobal})
+	var output bytes.Buffer
+	writeNotes(&output, "corp", "gateway", all, 0, 12, 5000)
+
+	text := output.String()
+	require.LessOrEqual(t, len(utf16.Encode([]rune(text))), 5000)
+	shown := len(regexp.MustCompile(`(?m)^- \S+ question q\d+:`).FindAllString(text, -1))
+	require.Positive(t, shown)
+	require.Less(t, shown, 40)
+	require.Contains(t, text, "question q27:", "the newest question is kept")
+	require.NotContains(t, text, "decision d00:")
+	require.True(t, strings.HasSuffix(text, fmt.Sprintf("1 older note not shown; %d older questions not shown, ele context lists them; 12 past sessions indexed for gateway; search with /ele:recall.\n", 40-shown)), text)
+}
+
+func TestWriteNotesFitsTheLongestClosingLine(t *testing.T) {
+	var all []notes.Note
+	for i := range 200 {
+		all = append(all, notes.Note{Body: "Open?", Date: "2026-10-15", ID: fmt.Sprintf("q%03d", i), Kind: notes.KindQuestion, Scope: notes.ScopeGlobal, Session: "abc1"})
+	}
+	all = append(all, notes.Note{Body: "Decided.", Date: "2026-10-15", ID: "d00", Kind: notes.KindDecision, Scope: notes.ScopeGlobal})
+	var output bytes.Buffer
+	writeNotes(&output, "corp", strings.Repeat("long-project-name-", 6), all, 3, 140, 3000)
+	require.Contains(t, output.String(), "older questions not shown, ele context lists them; 3 invalid notes skipped")
+	require.True(t, strings.HasSuffix(output.String(), sessionHint))
+	require.LessOrEqual(t, len(utf16.Encode([]rune(output.String()))), 3000)
+}
+
+func TestWriteNotesHintsOnlyForShownSessions(t *testing.T) {
+	question := notes.Note{Body: "Open?", Date: "2026-10-15", ID: "20261015-qqqqqq", Kind: notes.KindQuestion, Scope: notes.ScopeGlobal, Session: "abc1"}
+	var output bytes.Buffer
+	writeNotes(&output, "corp", "gateway", []notes.Note{question}, 0, 0, blockBudget)
+	require.Contains(t, output.String(), "(session abc1)")
+	require.True(t, strings.HasSuffix(output.String(), sessionHint), output.String())
+
+	var all []notes.Note
+	for i := range 40 {
+		all = append(all, notes.Note{Body: strings.Repeat("word ", 30), Date: "2026-10-15", ID: fmt.Sprintf("n%02d", i), Kind: notes.KindFact, Scope: notes.ScopeGlobal})
+	}
+	output.Reset()
+	writeNotes(&output, "corp", "gateway", all, 0, 0, blockBudget)
+	shown := strings.Count(output.String(), " fact n")
+	require.Less(t, shown, len(all))
+	// Newest first by id, so the first note the budget cuts is the one at index len-1-shown.
+	all[len(all)-1-shown].Session = "abc1"
+	output.Reset()
+	writeNotes(&output, "corp", "gateway", all, 0, 0, blockBudget)
+	require.NotContains(t, output.String(), sessionHint)
+
+	var crowded []notes.Note
+	for i := range 200 {
+		crowded = append(crowded, notes.Note{Body: "x", Date: "2026-10-15", ID: fmt.Sprintf("n%03d", i), Kind: notes.KindFact, Scope: notes.ScopeGlobal, Session: "abc1"})
+	}
+	output.Reset()
+	writeNotes(&output, "corp", strings.Repeat("long-project-name-", 3), crowded, 3, 12, blockBudget)
+	require.True(t, strings.HasSuffix(output.String(), sessionHint), output.String())
+	require.LessOrEqual(t, output.Len(), contextBudget)
+}
+
+func TestWriteNotesNamesEachNotesSession(t *testing.T) {
+	var output bytes.Buffer
+	writeNotes(&output, "corp", "gateway", []notes.Note{
+		{Body: "With a session.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Scope: notes.ScopeGlobal, Session: "010a2385-feef-4623-a164-763f5a52ec9b"},
+		{Body: "Without.", Date: "2026-10-14", ID: "20261014-bbbbbb", Kind: notes.KindFact, Scope: notes.ScopeGlobal},
+	}, 0, 0, blockBudget)
+	require.Equal(t, "Notes from ele for corp · gateway:\n"+
+		"- 2026-10-15 decision 20261015-aaaaaa (session 010a2385): With a session.\n"+
+		"- 2026-10-14 fact 20261014-bbbbbb: Without.\n"+
+		"search with /ele:recall.\n"+
+		"A note's discussion: ele show --note <id>.\n", output.String())
+}
+
+func TestWriteNotesStaysWithinTheBudget(t *testing.T) {
+	var all []notes.Note
+	for i := range 200 {
+		all = append(all, notes.Note{Body: strings.Repeat("word ", 30), Date: "2026-10-15", ID: fmt.Sprintf("n%03d", i), Kind: notes.KindFact, Scope: notes.ScopeGlobal})
+	}
+	var output bytes.Buffer
+	writeNotes(&output, "corp", "gateway", all, 0, 12, blockBudget)
+	require.LessOrEqual(t, output.Len(), contextBudget)
+	require.True(t, strings.HasSuffix(output.String(), "older notes not shown; 12 past sessions indexed for gateway; search with /ele:recall.\n"))
+}
+
+func TestWriteSessionStartFitsHookOutputCap(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	dataDirectory := filepath.Join(home, "data")
+	noteDirectory := filepath.Join(dataDirectory, "notes")
+	_, err := notes.Write(noteDirectory, notes.Note{Body: "Run the measurement.", Date: "2026-10-01", Due: "2026-10-01", ID: "20261001-rrrrrr", Kind: notes.KindReminder, Owner: "corp", Scope: notes.ScopeGlobal})
+	require.NoError(t, err)
+	for i := range 60 {
+		_, err = notes.Write(noteDirectory, notes.Note{Body: strings.Repeat("Should ele index tool output? ", 10), Date: "2026-10-10", ID: fmt.Sprintf("20261010-q%05d", i), Kind: notes.KindQuestion, Owner: "corp", Scope: notes.ScopeGlobal})
+		require.NoError(t, err)
+	}
+
+	var output bytes.Buffer
+	_, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "startup")
+	require.NoError(t, err)
+	require.LessOrEqual(t, len(utf16.Encode([]rune(output.String()))), blockBudget)
+	require.Regexp(t, `\d+ older questions not shown, ele context lists them`, output.String())
+}
+
+func TestWriteSessionStartKeepsNotesWhenTheIndexFails(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	dataDirectory := filepath.Join(home, "data")
+	_, err := notes.Write(filepath.Join(dataDirectory, "notes"), notes.Note{Body: "Pin pydantic.", Date: "2026-10-14", ID: "20261014-dddddd", Kind: notes.KindDecision, Owner: "corp", Scope: notes.ScopeGlobal})
+	require.NoError(t, err)
+	database := filepath.Join(dataDirectory, "ele.db")
+	require.NoError(t, os.Remove(database))
+	require.NoError(t, os.Mkdir(database, 0o700))
+
+	var output bytes.Buffer
+	_, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "startup")
+	require.NoError(t, err)
+	require.True(t, strings.HasPrefix(output.String(), "ele could not count past sessions: "), output.String())
+	require.True(t, strings.HasSuffix(output.String(), "\n- 2026-10-14 decision 20261014-dddddd: Pin pydantic.\nsearch with /ele:recall.\n"), output.String())
+}
+
+func TestWriteSessionStartWarnsWhenSyncIsStale(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	dataDirectory := filepath.Join(home, "data")
+	stamp := filepath.Join(dataDirectory, "last-sync")
+	tail := "; " + filepath.Join(dataDirectory, "sync.log") + " holds the background syncs' output, newest last.\n"
+
+	var output bytes.Buffer
+	_, err := writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "startup")
+	require.NoError(t, err)
+	require.NotContains(t, output.String(), "sync")
+
+	output.Reset()
+	_, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now().Add(25*time.Hour), "startup")
+	require.NoError(t, err)
+	require.Regexp(t, `^ele last synced \d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ`+regexp.QuoteMeta(tail), output.String())
+
+	writeFile(t, stamp, "garbage\n")
+	output.Reset()
+	_, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "startup")
+	require.NoError(t, err)
+	require.True(t, strings.HasPrefix(output.String(), "ele's sync stamp is malformed"+tail), output.String())
+
+	require.NoError(t, os.Remove(stamp))
+	output.Reset()
+	_, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "startup")
+	require.NoError(t, err)
+	require.True(t, strings.HasPrefix(output.String(), "ele has no record of a successful sync"+tail), output.String())
 }

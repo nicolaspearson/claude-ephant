@@ -85,6 +85,50 @@ func TestRunPlanCheckListsEachActivePlansWarningsWithoutFailing(t *testing.T) {
 	require.Contains(t, output, "ele: stale.md: invalid plan: kind \"spec\" is not plan\n")
 }
 
+func TestRunPlanCheckOutsideAnyOwnerCallsAnotherPlansBlockerMissing(t *testing.T) {
+	home := recallFixture(t)
+	stray := filepath.Join(home, "w", "stray")
+	require.NoError(t, os.MkdirAll(filepath.Join(stray, ".git"), 0o700))
+	writeFile(t, filepath.Join(stray, "reporting.md"), "---\nkind: plan\n---\n## Actions\n- [ ] report: Report\n  - done when x\n  - blocked: other/item\n- [ ] Close\n")
+	t.Chdir(stray)
+
+	output, code := runCommand(t, "plan", "check", "reporting.md")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "- line 5: report: blocker other/item does not exist\n", output)
+}
+
+func TestRunPlanCheckSaysAPlanInAnotherRepositoryCannotBlockAndTakesItsWaitAsProse(t *testing.T) {
+	home := recallFixture(t)
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	platform := filepath.Join(home, "w", "corp", "platform")
+	require.NoError(t, os.MkdirAll(filepath.Join(platform, ".git"), 0o700))
+	writeFile(t, filepath.Join(platform, "ordinal.md"), "---\nkind: plan\n---\n## Actions\n- [ ] fallback: Fallback\n")
+	writeFile(t, filepath.Join(gateway, "closed.md"), "---\nkind: plan\n---\n## Actions\n- [x] closed: Closed\n")
+	writeFile(t, filepath.Join(gateway, "gone.md"), "---\nkind: plan\n---\n## Actions\n- [ ] gone: Gone\n")
+	writeFile(t, filepath.Join(gateway, "reporting.md"), "---\nkind: plan\n---\n## Actions\n- [ ] report: Report\n  - done when x\n  - blocked: ordinal/fallback\n"+
+		"- [ ] unloaded: Unloaded\n  - done when x\n  - blocked: gone/gone\n"+
+		"- [ ] lacking: Lacking\n  - done when x\n  - blocked: closed/nope\n"+
+		"- [ ] waits: Waits\n  - done when x\n  - blocked: fallback in the platform's ordinal plan deployed; remove once it is\n- [ ] Close\n")
+	t.Chdir(platform)
+	output, code := runCommand(t, "plan", "start", "ordinal.md")
+	require.Equal(t, 0, code, output)
+	t.Chdir(gateway)
+	for _, path := range []string{"closed.md", "gone.md", "reporting.md"} {
+		output, code = runCommand(t, "plan", "start", path)
+		require.Equal(t, 0, code, output)
+	}
+	output, code = runCommand(t, "plan", "done", "closed.md")
+	require.Equal(t, 0, code, output)
+	require.NoError(t, os.Remove(filepath.Join(gateway, "gone.md")))
+
+	output, code = runCommand(t, "plan", "check", "reporting.md")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "Plan reporting.md: 3 warnings.\n"+
+		"- line 5: report: blocker ordinal/fallback names no started or closed plan of this project; start that plan, or write a wait on another repository's plan as prose, with no comma before its semicolon\n"+
+		"- line 8: unloaded: blocker gone/gone does not exist\n"+
+		"- line 11: lacking: blocker closed/nope does not exist\n", output)
+}
+
 func TestRunPlanCheckWarnsOnlyOnEleDataEleResolves(t *testing.T) {
 	home := recallFixture(t)
 	gateway := filepath.Join(home, "w", "corp", "gateway")
@@ -137,6 +181,106 @@ func TestRunPlanDonePrefersThePathFromTheWorkingDirectory(t *testing.T) {
 	require.True(t, strings.HasPrefix(output, "Done with plan docs/plans.md "), "the newer root plans.md matches the raw body, but the resolved path wins: "+output)
 }
 
+func TestRunPlanDoneStoresADeletedPlanFromItsLastCommitAndWarnsOfItsUntickedNames(t *testing.T) {
+	home := recallFixture(t)
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	require.NoError(t, os.RemoveAll(filepath.Join(gateway, ".git")))
+	git := func(args ...string) {
+		output, err := exec.Command("git", append([]string{"-C", gateway, "-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "commit.gpgsign=false"}, args...)...).CombinedOutput()
+		require.NoError(t, err, string(output))
+	}
+	git("init", "--quiet")
+	writeFile(t, filepath.Join(gateway, "build.md"), "---\nkind: plan\n---\n## Actions\n- [x] commands: Commands\n- [ ] parser: Parser\n")
+	writeFile(t, filepath.Join(gateway, "other.md"), "---\nkind: plan\n---\n## Actions\n- [ ] wire: Wire\n  blocked: build/commands\n- [ ] read: Read\n  blocked: build/parser\n")
+	git("add", "build.md")
+	git("commit", "--quiet", "-m", "plan")
+	t.Chdir(gateway)
+	for _, path := range []string{"build.md", "other.md"} {
+		output, code := runCommand(t, "plan", "start", path)
+		require.Equal(t, 0, code, output)
+	}
+	require.NoError(t, os.Remove(filepath.Join(gateway, "build.md")))
+
+	output, code := runCommand(t, "plan", "done", "build.md")
+	require.Equal(t, 0, code, output)
+	require.True(t, strings.HasPrefix(output, "build.md is gone, so its names were stored from its last commit, where parser is unticked; run ele plan done before deleting a plan.\nDone with plan build.md "), output)
+
+	output, code = runCommand(t, "plan", "show", "other.md")
+	require.Equal(t, 0, code, output)
+	require.Equal(t, "Plan other.md: 1 open, 1 blocked, 0 done, 0 in the inbox.\n3 warnings; ele plan check other.md lists them.\n"+
+		"Blocked:\n- read: Read\n  blocked: build/parser\n  flag: blocker build/parser is in a closed plan and was never done\n"+
+		"Flagged:\n- wire: Wire\n  flag: blocker build/commands is done; drop it from blocked:\n"+
+		"Next, line 5:\n- [ ] wire: Wire\n  blocked: build/commands\n", output)
+}
+
+func TestRunPlanDoneStoresItemNamesThatResolveEdgesAndStayReserved(t *testing.T) {
+	home := recallFixture(t)
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	writeFile(t, filepath.Join(gateway, "build.md"), "---\nkind: plan\n---\n## Actions\n- [x] parser: Parser\n- [ ] commands: Commands\n- [ ] Close it\n")
+	writeFile(t, filepath.Join(gateway, "other.md"), "---\nkind: plan\n---\n## Actions\n- [ ] wire: Wire\n  blocked: build/commands; reason\n- [ ] typo: Typo\n  blocked: build/nope\n")
+	t.Chdir(gateway)
+	for _, path := range []string{"build.md", "other.md"} {
+		output, code := runCommand(t, "plan", "start", path)
+		require.Equal(t, 0, code, output)
+	}
+
+	output, code := runCommand(t, "plan", "show", "other.md")
+	require.Equal(t, 0, code, output)
+	require.Equal(t, "Plan other.md: 0 open, 2 blocked, 0 done, 0 in the inbox.\n2 warnings; ele plan check other.md lists them.\nBlocked:\n- wire: Wire\n  blocked: build/commands; reason\n- typo: Typo\n  blocked: build/nope\n  flag: blocker build/nope does not exist\nNext: none; every open item is blocked.\n", output)
+
+	output, code = runCommand(t, "plan", "done", "build.md")
+	require.Equal(t, 0, code, output)
+	require.NoError(t, os.Remove(filepath.Join(gateway, "build.md")))
+	output, code = runCommand(t, "plan", "show", "other.md")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "- wire: Wire\n  blocked: build/commands; reason\n  flag: blocker build/commands is in a closed plan and was never done\n- typo", "the closed plan's stored state still holds it")
+
+	writeFile(t, filepath.Join(gateway, "third.md"), "---\nkind: plan\n---\n## Actions\n- [ ] parser: Parser again\n")
+	output, code = runCommand(t, "plan", "start", "third.md")
+	require.Equal(t, 1, code)
+	require.Equal(t, "ele: third.md: item name \"parser\" was used by closed plan build.md; item names are unique across active and closed plans\n", output)
+}
+
+func TestRunPlanShowFreesAnItemOnceAnotherPlansBlockerIsTicked(t *testing.T) {
+	home := recallFixture(t)
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	writeFile(t, filepath.Join(gateway, "build.md"), "---\nkind: plan\n---\n## Actions\n- [ ] commands: Commands\n")
+	writeFile(t, filepath.Join(gateway, "other.md"), "---\nkind: plan\n---\n## Actions\n- [ ] wire: Wire\n  blocked: build/commands\n")
+	t.Chdir(gateway)
+	for _, path := range []string{"build.md", "other.md"} {
+		output, code := runCommand(t, "plan", "start", path)
+		require.Equal(t, 0, code, output)
+	}
+	writeFile(t, filepath.Join(gateway, "build.md"), "---\nkind: plan\n---\n## Actions\n- [x] commands: Commands\n")
+
+	output, code := runCommand(t, "plan", "show", "other.md")
+	require.Equal(t, 0, code, output)
+	require.Equal(t, "Plan other.md: 1 open, 0 blocked, 0 done, 0 in the inbox.\n1 warning; ele plan check other.md lists it.\nFlagged:\n- wire: Wire\n  flag: blocker build/commands is done; drop it from blocked:\nNext, line 5:\n- [ ] wire: Wire\n  blocked: build/commands\n", output)
+}
+
+func TestRunPlanShowKeepsTheNextItemWhenGitFails(t *testing.T) {
+	home := recallFixture(t)
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	writeFile(t, filepath.Join(gateway, "build.md"), "---\nkind: plan\n---\n## Actions\n- [ ] wire: Wire\n  - done when x\n- [ ] Close\n")
+	t.Chdir(gateway)
+	t.Setenv("PATH", "")
+
+	output, code := runCommand(t, "plan", "show", "build.md")
+	require.Equal(t, 0, code, output)
+	require.Regexp(t, `^Plan build.md: 2 open, 0 blocked, 0 done, 0 in the inbox.\nPrevious: unknown; git rev-parse --verify --quiet HEAD: .+\nNext, line 5:\n- \[ \] wire: Wire\n  - done when x\n$`, output)
+}
+
+func TestRunPlanShowNamesAMalformedAfterAsTheReason(t *testing.T) {
+	home := recallFixture(t)
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	writeFile(t, filepath.Join(gateway, "build.md"), "---\nkind: plan\n---\n## Actions\n- [ ] wire: Wire\n  - done when x\n  - after: soon\n- [ ] Close\n")
+	t.Chdir(gateway)
+
+	output, code := runCommand(t, "plan", "show", "build.md")
+	require.Equal(t, 0, code, output)
+	require.Equal(t, "Plan build.md: 1 open, 1 blocked, 0 done, 0 in the inbox.\n1 warning; ele plan check build.md lists it.\nBlocked:\n- wire: Wire\n  after: soon, not a date; ele plan check names the line\nNext: none; every open item is blocked.\n", output)
+}
+
 func TestRunPlanShowNamesEachActivePlanOrAMissingFile(t *testing.T) {
 	home := recallFixture(t)
 	gateway := filepath.Join(home, "w", "corp", "gateway")
@@ -170,180 +314,6 @@ func TestRunPlanShowNamesEachActivePlanOrAMissingFile(t *testing.T) {
 	output, code = runCommand(t, "plan", "show")
 	require.Equal(t, 1, code)
 	require.Equal(t, "ele: plan first.md is not in this checkout; switch to its branch, or ele plan done first.md closes it\n", output)
-}
-
-func TestRunPlanStartRefusesANameAnotherActivePlanHoldsAndShowWarnsOfOne(t *testing.T) {
-	home := recallFixture(t)
-	gateway := filepath.Join(home, "w", "corp", "gateway")
-	named := "---\nkind: plan\n---\n## Actions\n- [ ] parser: Parser\n- [ ] commands: Commands\n"
-	writeFile(t, filepath.Join(gateway, "first.md"), named)
-	writeFile(t, filepath.Join(gateway, "second.md"), strings.Replace(named, "parser: Parser", "lexer: Lexer", 1))
-	t.Chdir(gateway)
-	output, code := runCommand(t, "plan", "start", "first.md")
-	require.Equal(t, 0, code, output)
-
-	output, code = runCommand(t, "plan", "start", "second.md")
-	require.Equal(t, 1, code)
-	require.Equal(t, "ele: second.md: item name \"commands\" is also in first.md; item names are unique across active and closed plans\n", output)
-
-	writeFile(t, filepath.Join(gateway, "second.md"), "---\nkind: plan\n---\n## Actions\n- [ ] lexer: Lexer\n")
-	output, code = runCommand(t, "plan", "start", "second.md")
-	require.Equal(t, 0, code, output)
-	writeFile(t, filepath.Join(gateway, "second.md"), named)
-	output, code = runCommand(t, "plan", "show", "first.md")
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "Next, line 5:\n- [ ] parser: Parser\n")
-	require.True(t, strings.HasSuffix(output, "- [ ] parser: Parser\n"+
-		"Warning: item name \"parser\" is also in second.md; item names are unique across active and closed plans.\n"+
-		"Warning: item name \"commands\" is also in second.md; item names are unique across active and closed plans.\n"), output)
-
-	output, code = runCommand(t, "plan", "show")
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "first.md: 2 open, 0 blocked, 0 done, 0 in the inbox. 3 warnings; ele plan check lists them. Next: parser: Parser Warning: item name \"parser\" is also in second.md, item name \"commands\" is also in second.md; item names are unique across active and closed plans.\n", "several active plans each warn in their summary")
-}
-
-func TestRunPlanDoneStoresItemNamesThatResolveEdgesAndStayReserved(t *testing.T) {
-	home := recallFixture(t)
-	gateway := filepath.Join(home, "w", "corp", "gateway")
-	writeFile(t, filepath.Join(gateway, "build.md"), "---\nkind: plan\n---\n## Actions\n- [x] parser: Parser\n- [ ] commands: Commands\n- [ ] Close it\n")
-	writeFile(t, filepath.Join(gateway, "other.md"), "---\nkind: plan\n---\n## Actions\n- [ ] wire: Wire\n  blocked: build/commands; reason\n- [ ] typo: Typo\n  blocked: build/nope\n")
-	t.Chdir(gateway)
-	for _, path := range []string{"build.md", "other.md"} {
-		output, code := runCommand(t, "plan", "start", path)
-		require.Equal(t, 0, code, output)
-	}
-
-	output, code := runCommand(t, "plan", "show", "other.md")
-	require.Equal(t, 0, code, output)
-	require.Equal(t, "Plan other.md: 0 open, 2 blocked, 0 done, 0 in the inbox.\n2 warnings; ele plan check other.md lists them.\nBlocked:\n- wire: Wire\n  blocked: build/commands; reason\n- typo: Typo\n  blocked: build/nope\n  flag: blocker build/nope does not exist\nNext: none; every open item is blocked.\n", output)
-
-	output, code = runCommand(t, "plan", "done", "build.md")
-	require.Equal(t, 0, code, output)
-	require.NoError(t, os.Remove(filepath.Join(gateway, "build.md")))
-	output, code = runCommand(t, "plan", "show", "other.md")
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "- wire: Wire\n  blocked: build/commands; reason\n  flag: blocker build/commands is in a closed plan and was never done\n- typo", "the closed plan's stored state still holds it")
-
-	writeFile(t, filepath.Join(gateway, "third.md"), "---\nkind: plan\n---\n## Actions\n- [ ] parser: Parser again\n")
-	output, code = runCommand(t, "plan", "start", "third.md")
-	require.Equal(t, 1, code)
-	require.Equal(t, "ele: third.md: item name \"parser\" was used by closed plan build.md; item names are unique across active and closed plans\n", output)
-}
-
-func TestRunPlanDoneStoresADeletedPlanFromItsLastCommitAndWarnsOfItsUntickedNames(t *testing.T) {
-	home := recallFixture(t)
-	gateway := filepath.Join(home, "w", "corp", "gateway")
-	require.NoError(t, os.RemoveAll(filepath.Join(gateway, ".git")))
-	git := func(args ...string) {
-		output, err := exec.Command("git", append([]string{"-C", gateway, "-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "commit.gpgsign=false"}, args...)...).CombinedOutput()
-		require.NoError(t, err, string(output))
-	}
-	git("init", "--quiet")
-	writeFile(t, filepath.Join(gateway, "build.md"), "---\nkind: plan\n---\n## Actions\n- [x] commands: Commands\n- [ ] parser: Parser\n")
-	writeFile(t, filepath.Join(gateway, "other.md"), "---\nkind: plan\n---\n## Actions\n- [ ] wire: Wire\n  blocked: build/commands\n- [ ] read: Read\n  blocked: build/parser\n")
-	git("add", "build.md")
-	git("commit", "--quiet", "-m", "plan")
-	t.Chdir(gateway)
-	for _, path := range []string{"build.md", "other.md"} {
-		output, code := runCommand(t, "plan", "start", path)
-		require.Equal(t, 0, code, output)
-	}
-	require.NoError(t, os.Remove(filepath.Join(gateway, "build.md")))
-
-	output, code := runCommand(t, "plan", "done", "build.md")
-	require.Equal(t, 0, code, output)
-	require.True(t, strings.HasPrefix(output, "build.md is gone, so its names were stored from its last commit, where parser is unticked; run ele plan done before deleting a plan.\nDone with plan build.md "), output)
-
-	output, code = runCommand(t, "plan", "show", "other.md")
-	require.Equal(t, 0, code, output)
-	require.Equal(t, "Plan other.md: 1 open, 1 blocked, 0 done, 0 in the inbox.\n3 warnings; ele plan check other.md lists them.\n"+
-		"Blocked:\n- read: Read\n  blocked: build/parser\n  flag: blocker build/parser is in a closed plan and was never done\n"+
-		"Flagged:\n- wire: Wire\n  flag: blocker build/commands is done; drop it from blocked:\n"+
-		"Next, line 5:\n- [ ] wire: Wire\n  blocked: build/commands\n", output)
-}
-
-func TestRunPlanShowFreesAnItemOnceAnotherPlansBlockerIsTicked(t *testing.T) {
-	home := recallFixture(t)
-	gateway := filepath.Join(home, "w", "corp", "gateway")
-	writeFile(t, filepath.Join(gateway, "build.md"), "---\nkind: plan\n---\n## Actions\n- [ ] commands: Commands\n")
-	writeFile(t, filepath.Join(gateway, "other.md"), "---\nkind: plan\n---\n## Actions\n- [ ] wire: Wire\n  blocked: build/commands\n")
-	t.Chdir(gateway)
-	for _, path := range []string{"build.md", "other.md"} {
-		output, code := runCommand(t, "plan", "start", path)
-		require.Equal(t, 0, code, output)
-	}
-	writeFile(t, filepath.Join(gateway, "build.md"), "---\nkind: plan\n---\n## Actions\n- [x] commands: Commands\n")
-
-	output, code := runCommand(t, "plan", "show", "other.md")
-	require.Equal(t, 0, code, output)
-	require.Equal(t, "Plan other.md: 1 open, 0 blocked, 0 done, 0 in the inbox.\n1 warning; ele plan check other.md lists it.\nFlagged:\n- wire: Wire\n  flag: blocker build/commands is done; drop it from blocked:\nNext, line 5:\n- [ ] wire: Wire\n  blocked: build/commands\n", output)
-}
-
-func TestRunPlanCheckSaysAPlanInAnotherRepositoryCannotBlockAndTakesItsWaitAsProse(t *testing.T) {
-	home := recallFixture(t)
-	gateway := filepath.Join(home, "w", "corp", "gateway")
-	platform := filepath.Join(home, "w", "corp", "platform")
-	require.NoError(t, os.MkdirAll(filepath.Join(platform, ".git"), 0o700))
-	writeFile(t, filepath.Join(platform, "ordinal.md"), "---\nkind: plan\n---\n## Actions\n- [ ] fallback: Fallback\n")
-	writeFile(t, filepath.Join(gateway, "closed.md"), "---\nkind: plan\n---\n## Actions\n- [x] closed: Closed\n")
-	writeFile(t, filepath.Join(gateway, "gone.md"), "---\nkind: plan\n---\n## Actions\n- [ ] gone: Gone\n")
-	writeFile(t, filepath.Join(gateway, "reporting.md"), "---\nkind: plan\n---\n## Actions\n- [ ] report: Report\n  - done when x\n  - blocked: ordinal/fallback\n"+
-		"- [ ] unloaded: Unloaded\n  - done when x\n  - blocked: gone/gone\n"+
-		"- [ ] lacking: Lacking\n  - done when x\n  - blocked: closed/nope\n"+
-		"- [ ] waits: Waits\n  - done when x\n  - blocked: fallback in the platform's ordinal plan deployed; remove once it is\n- [ ] Close\n")
-	t.Chdir(platform)
-	output, code := runCommand(t, "plan", "start", "ordinal.md")
-	require.Equal(t, 0, code, output)
-	t.Chdir(gateway)
-	for _, path := range []string{"closed.md", "gone.md", "reporting.md"} {
-		output, code = runCommand(t, "plan", "start", path)
-		require.Equal(t, 0, code, output)
-	}
-	output, code = runCommand(t, "plan", "done", "closed.md")
-	require.Equal(t, 0, code, output)
-	require.NoError(t, os.Remove(filepath.Join(gateway, "gone.md")))
-
-	output, code = runCommand(t, "plan", "check", "reporting.md")
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "Plan reporting.md: 3 warnings.\n"+
-		"- line 5: report: blocker ordinal/fallback names no started or closed plan of this project; start that plan, or write a wait on another repository's plan as prose, with no comma before its semicolon\n"+
-		"- line 8: unloaded: blocker gone/gone does not exist\n"+
-		"- line 11: lacking: blocker closed/nope does not exist\n", output)
-}
-
-func TestRunPlanCheckOutsideAnyOwnerCallsAnotherPlansBlockerMissing(t *testing.T) {
-	home := recallFixture(t)
-	stray := filepath.Join(home, "w", "stray")
-	require.NoError(t, os.MkdirAll(filepath.Join(stray, ".git"), 0o700))
-	writeFile(t, filepath.Join(stray, "reporting.md"), "---\nkind: plan\n---\n## Actions\n- [ ] report: Report\n  - done when x\n  - blocked: other/item\n- [ ] Close\n")
-	t.Chdir(stray)
-
-	output, code := runCommand(t, "plan", "check", "reporting.md")
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "- line 5: report: blocker other/item does not exist\n", output)
-}
-
-func TestRunPlanShowNamesAMalformedAfterAsTheReason(t *testing.T) {
-	home := recallFixture(t)
-	gateway := filepath.Join(home, "w", "corp", "gateway")
-	writeFile(t, filepath.Join(gateway, "build.md"), "---\nkind: plan\n---\n## Actions\n- [ ] wire: Wire\n  - done when x\n  - after: soon\n- [ ] Close\n")
-	t.Chdir(gateway)
-
-	output, code := runCommand(t, "plan", "show", "build.md")
-	require.Equal(t, 0, code, output)
-	require.Equal(t, "Plan build.md: 1 open, 1 blocked, 0 done, 0 in the inbox.\n1 warning; ele plan check build.md lists it.\nBlocked:\n- wire: Wire\n  after: soon, not a date; ele plan check names the line\nNext: none; every open item is blocked.\n", output)
-}
-
-func TestRunPlanShowKeepsTheNextItemWhenGitFails(t *testing.T) {
-	home := recallFixture(t)
-	gateway := filepath.Join(home, "w", "corp", "gateway")
-	writeFile(t, filepath.Join(gateway, "build.md"), "---\nkind: plan\n---\n## Actions\n- [ ] wire: Wire\n  - done when x\n- [ ] Close\n")
-	t.Chdir(gateway)
-	t.Setenv("PATH", "")
-
-	output, code := runCommand(t, "plan", "show", "build.md")
-	require.Equal(t, 0, code, output)
-	require.Regexp(t, `^Plan build.md: 2 open, 0 blocked, 0 done, 0 in the inbox.\nPrevious: unknown; git rev-parse --verify --quiet HEAD: .+\nNext, line 5:\n- \[ \] wire: Wire\n  - done when x\n$`, output)
 }
 
 func TestRunPlanStartNamesThePlansItCouldNotCheckAndDoneStoresAClosedPlansRecord(t *testing.T) {
@@ -412,6 +382,36 @@ func TestRunPlanStartNamesThePlansItCouldNotCheckAndDoneStoresAClosedPlansRecord
 	output, code = runCommand(t, "plan", "done", ids["gone"])
 	require.Equal(t, 1, code)
 	require.Equal(t, "ele: closed plan gone.md ("+ids["gone"]+") shares its path with an active plan, so its names cannot be read from it\n", output)
+}
+
+func TestRunPlanStartRefusesANameAnotherActivePlanHoldsAndShowWarnsOfOne(t *testing.T) {
+	home := recallFixture(t)
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	named := "---\nkind: plan\n---\n## Actions\n- [ ] parser: Parser\n- [ ] commands: Commands\n"
+	writeFile(t, filepath.Join(gateway, "first.md"), named)
+	writeFile(t, filepath.Join(gateway, "second.md"), strings.Replace(named, "parser: Parser", "lexer: Lexer", 1))
+	t.Chdir(gateway)
+	output, code := runCommand(t, "plan", "start", "first.md")
+	require.Equal(t, 0, code, output)
+
+	output, code = runCommand(t, "plan", "start", "second.md")
+	require.Equal(t, 1, code)
+	require.Equal(t, "ele: second.md: item name \"commands\" is also in first.md; item names are unique across active and closed plans\n", output)
+
+	writeFile(t, filepath.Join(gateway, "second.md"), "---\nkind: plan\n---\n## Actions\n- [ ] lexer: Lexer\n")
+	output, code = runCommand(t, "plan", "start", "second.md")
+	require.Equal(t, 0, code, output)
+	writeFile(t, filepath.Join(gateway, "second.md"), named)
+	output, code = runCommand(t, "plan", "show", "first.md")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "Next, line 5:\n- [ ] parser: Parser\n")
+	require.True(t, strings.HasSuffix(output, "- [ ] parser: Parser\n"+
+		"Warning: item name \"parser\" is also in second.md; item names are unique across active and closed plans.\n"+
+		"Warning: item name \"commands\" is also in second.md; item names are unique across active and closed plans.\n"), output)
+
+	output, code = runCommand(t, "plan", "show")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "first.md: 2 open, 0 blocked, 0 done, 0 in the inbox. 3 warnings; ele plan check lists them. Next: parser: Parser Warning: item name \"parser\" is also in second.md, item name \"commands\" is also in second.md; item names are unique across active and closed plans.\n", "several active plans each warn in their summary")
 }
 
 func TestRunPlanStartRefusesWhatIsNotAPlan(t *testing.T) {

@@ -18,35 +18,6 @@ func runSplit(t *testing.T, args ...string) (string, string, int) {
 	return stdout.String(), stderr.String(), code
 }
 
-func TestRunPrintsACommandsHelpFromItsFlags(t *testing.T) {
-	for _, flag := range []string{"--help", "-h"} {
-		stdout, stderr, code := runSplit(t, "handoff", "list", flag)
-		require.Equal(t, 0, code)
-		require.Empty(t, stderr)
-		require.Equal(t, `ele handoff list [--all] [--owner <name>] [--project <name>]
-Pending handoffs for the project, newest first.
-  --all              add closed and superseded handoffs
-  --owner <name>     list this owner's handoffs instead of the resolved one's
-  --project <name>   list this project's handoffs instead of the working directory's
-`, stdout)
-	}
-}
-
-func TestRunPrintsTheOverviewNamingEveryCommand(t *testing.T) {
-	for _, args := range [][]string{{}, {"--help"}, {"-h"}, {"help"}} {
-		stdout, stderr, code := runSplit(t, args...)
-		require.Equal(t, 0, code, args)
-		require.Empty(t, stderr, args)
-		for name := range commands {
-			require.Regexp(t, `(?m)^  `+name+`( \S+)? {2,}\S`, stdout, args)
-		}
-		require.Contains(t, stdout, "\n  ele remember --kind decision|fact|handoff|question|reminder [--done-file <path>] [--due <YYYY-MM-DD[THH:MM]>] [--every <interval>] [--everywhere | --global] [--owner <name>] [--project <name>] [--session <id>] [--supersedes <id>...] <words>\n", "every flag shows without a second call")
-	}
-	for _, row := range regexp.MustCompile(`(?m)^  ([a-z-]+)(?: [a-z-]+)? {2,}\S`).FindAllStringSubmatch(overview, -1) {
-		require.Contains(t, commands, row[1], "the overview names only commands that run")
-	}
-}
-
 func TestRunAnswersHelpForEveryCommand(t *testing.T) {
 	invocations := [][]string{{"checkpoint", "base"}, {"checkpoint", "check"}, {"checkpoint", "close"}, {"checkpoint", "density"}, {"checkpoint", "freeze"}, {"checkpoint", "gate"}, {"checkpoint", "hash"}, {"checkpoint", "log"}, {"checkpoint", "optout"}, {"checkpoint", "record"}, {"checkpoint", "snapshot"}, {"checkpoint", "stats"}, {"config", "get"}, {"config", "list"}, {"config", "set"}, {"config", "unset"}, {"flag", "bad"}, {"flag", "good"}, {"flag", "list"}, {"handoff", "close"}, {"handoff", "list"}, {"handoff", "reopen"}, {"owner", "add"}, {"owner", "add-path"}, {"owner", "add-project"}, {"owner", "remove-path"}, {"owner", "remove-project"}, {"plan", "done"}, {"plan", "list"}, {"plan", "show"}, {"plan", "start"}, {"reminder", "close"}, {"reminder", "list"}, {"reminder", "reopen"}, {"ticket", "claims"}, {"ticket", "corpus"}, {"ticket", "ledger"}}
 	for name := range commands {
@@ -87,6 +58,20 @@ func TestRunListsEachRecallFlagInItsHelp(t *testing.T) {
 	}
 }
 
+func TestRunPrintsACommandsHelpFromItsFlags(t *testing.T) {
+	for _, flag := range []string{"--help", "-h"} {
+		stdout, stderr, code := runSplit(t, "handoff", "list", flag)
+		require.Equal(t, 0, code)
+		require.Empty(t, stderr)
+		require.Equal(t, `ele handoff list [--all] [--owner <name>] [--project <name>]
+Pending handoffs for the project, newest first.
+  --all              add closed and superseded handoffs
+  --owner <name>     list this owner's handoffs instead of the resolved one's
+  --project <name>   list this project's handoffs instead of the working directory's
+`, stdout)
+	}
+}
+
 func TestRunPrintsSynopsisAndPurposeForACommandWithoutFlags(t *testing.T) {
 	stdout, stderr, code := runSplit(t, "stats", "--help")
 	require.Equal(t, 0, code)
@@ -94,28 +79,18 @@ func TestRunPrintsSynopsisAndPurposeForACommandWithoutFlags(t *testing.T) {
 	require.Equal(t, "ele stats\nIndex counts and disk use.\n", stdout)
 }
 
-func TestRunRejectsAMisusedCommandWithOnlyItsHelp(t *testing.T) {
-	stdout, stderr, code := runSplit(t, "backup")
-	require.Equal(t, 2, code)
-	require.Empty(t, stdout)
-	require.Equal(t, "ele backup <dir>\n"+purposes["backup"]+"\n", stderr)
-}
-
-func TestRunRejectsAMisusedGroupWithItsSynopses(t *testing.T) {
-	stdout, stderr, code := runSplit(t, "handoff", "bogus")
-	require.Equal(t, 2, code)
-	require.Empty(t, stdout)
-	require.Equal(t, `ele: unknown handoff subcommand "bogus"
-ele handoff close [--owner <name>] [--project <name>] <id>...
-ele handoff list [--all] [--owner <name>] [--project <name>]
-ele handoff reopen [--owner <name>] [--project <name>] <id>...
-`, stderr)
-
-	for _, flag := range []string{"--help", "-h"} {
-		stdout, stderr, code = runSplit(t, "handoff", flag)
-		require.Equal(t, 0, code, flag)
-		require.Empty(t, stderr, flag)
-		require.True(t, strings.HasPrefix(stdout, "ele handoff close "), stdout)
+func TestRunPrintsTheOverviewNamingEveryCommand(t *testing.T) {
+	for _, args := range [][]string{{}, {"--help"}, {"-h"}, {"help"}} {
+		stdout, stderr, code := runSplit(t, args...)
+		require.Equal(t, 0, code, args)
+		require.Empty(t, stderr, args)
+		for name := range commands {
+			require.Regexp(t, `(?m)^  `+name+`( \S+)? {2,}\S`, stdout, args)
+		}
+		require.Contains(t, stdout, "\n  ele remember --kind decision|fact|handoff|question|reminder [--done-file <path>] [--due <YYYY-MM-DD[THH:MM]>] [--every <interval>] [--everywhere | --global] [--owner <name>] [--project <name>] [--session <id>] [--supersedes <id>...] <words>\n", "every flag shows without a second call")
+	}
+	for _, row := range regexp.MustCompile(`(?m)^  ([a-z-]+)(?: [a-z-]+)? {2,}\S`).FindAllStringSubmatch(overview, -1) {
+		require.Contains(t, commands, row[1], "the overview names only commands that run")
 	}
 }
 
@@ -142,6 +117,31 @@ func TestRunReadsHelpAndVersionTheConventionalWays(t *testing.T) {
 	_, stderr, unknownCode := runSplit(t, "help", "bogus")
 	require.Equal(t, 2, unknownCode)
 	require.Equal(t, "ele: unknown command \"bogus\"\n"+usage+"\n", stderr)
+}
+
+func TestRunRejectsAMisusedCommandWithOnlyItsHelp(t *testing.T) {
+	stdout, stderr, code := runSplit(t, "backup")
+	require.Equal(t, 2, code)
+	require.Empty(t, stdout)
+	require.Equal(t, "ele backup <dir>\n"+purposes["backup"]+"\n", stderr)
+}
+
+func TestRunRejectsAMisusedGroupWithItsSynopses(t *testing.T) {
+	stdout, stderr, code := runSplit(t, "handoff", "bogus")
+	require.Equal(t, 2, code)
+	require.Empty(t, stdout)
+	require.Equal(t, `ele: unknown handoff subcommand "bogus"
+ele handoff close [--owner <name>] [--project <name>] <id>...
+ele handoff list [--all] [--owner <name>] [--project <name>]
+ele handoff reopen [--owner <name>] [--project <name>] <id>...
+`, stderr)
+
+	for _, flag := range []string{"--help", "-h"} {
+		stdout, stderr, code = runSplit(t, "handoff", flag)
+		require.Equal(t, 0, code, flag)
+		require.Empty(t, stderr, flag)
+		require.True(t, strings.HasPrefix(stdout, "ele handoff close "), stdout)
+	}
 }
 
 func TestRunRejectsAnUnknownCommandWithTheSynopsisList(t *testing.T) {

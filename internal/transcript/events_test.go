@@ -196,13 +196,6 @@ func TestParseEvents(t *testing.T) {
 	}
 }
 
-func TestParseEventsTruncatesALongReason(t *testing.T) {
-	_, events, err := Parse([]byte(`{"type":"user","isMeta":true,"message":{"content":"Stop hook feedback:\n` + strings.Repeat("x", 400) + `"}}`))
-	require.NoError(t, err)
-	require.Len(t, events, 1)
-	require.Equal(t, strings.Repeat("x", inputLimit)+"…", events[0].Attributes["reason"])
-}
-
 func TestParseEventsKeepsALongToolErrorHeadAndTail(t *testing.T) {
 	toolError := func(text string) map[string]any {
 		_, events, err := Parse([]byte(`{"type":"user","message":{"content":[{"type":"tool_result","is_error":true,"content":"` + text + `"}]}}`))
@@ -222,4 +215,11 @@ func TestParseEventsKeepsALongToolErrorHeadAndTail(t *testing.T) {
 		require.NotContains(t, value, "ghp_", "%s: a token cut at either end is redacted first", key)
 		require.NotContains(t, value, "0123456789", "%s: a token cut at either end is redacted first", key)
 	}
+}
+
+func TestParseEventsTruncatesALongReason(t *testing.T) {
+	_, events, err := Parse([]byte(`{"type":"user","isMeta":true,"message":{"content":"Stop hook feedback:\n` + strings.Repeat("x", 400) + `"}}`))
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	require.Equal(t, strings.Repeat("x", inputLimit)+"…", events[0].Attributes["reason"])
 }

@@ -16,6 +16,57 @@ import (
 	"github.com/nicolaspearson/claude-ephant/internal/store"
 )
 
+func TestHumanBytes(t *testing.T) {
+	tests := []struct {
+		count int64
+		text  string
+	}{
+		{count: 0, text: "0 B"},
+		{count: 1023, text: "1023 B"},
+		{count: 1536, text: "1.5 KiB"},
+		{count: 1048575, text: "1.0 MiB"},
+		{count: 2523886221, text: "2.4 GiB"},
+	}
+	for _, test := range tests {
+		require.Equal(t, test.text, humanBytes(test.count))
+	}
+}
+
+func TestLastSyncAndStopStateAreReplacedRatherThanWrittenInto(t *testing.T) {
+	home := recallFixture(t)
+	stamp := filepath.Join(home, "data", "last-sync")
+	held := filepath.Join(t.TempDir(), "held-stamp")
+	require.NoError(t, os.Link(stamp, held))
+	before, err := os.ReadFile(stamp)
+	require.NoError(t, err)
+	skippedList := filepath.Join(home, "data", syncSkippedFile)
+	writeFile(t, skippedList, "old\n")
+	heldList := filepath.Join(t.TempDir(), "held-list")
+	require.NoError(t, os.Link(skippedList, heldList))
+	unreadable := filepath.Join(home, ".claude", "projects", "-gateway", "zzz9.jsonl")
+	writeFile(t, unreadable, "{}\n")
+	require.NoError(t, os.Chmod(unreadable, 0o000))
+
+	output, code := runCommand(t, "sync")
+	require.Equal(t, 0, code, output)
+
+	kept, err := os.ReadFile(held)
+	require.NoError(t, err)
+	require.Equal(t, string(before), string(kept), "last-sync written in place")
+	keptList, err := os.ReadFile(heldList)
+	require.NoError(t, err)
+	require.Equal(t, "old\n", string(keptList), "sync-skipped written in place")
+
+	state := filepath.Join(t.TempDir(), "s1.json")
+	require.NoError(t, writeStopState(state, stopState{}))
+	heldState := filepath.Join(t.TempDir(), "held-state")
+	require.NoError(t, os.Link(state, heldState))
+	require.NoError(t, writeStopState(state, stopState{Offset: 42}))
+	keptState, err := os.ReadFile(heldState)
+	require.NoError(t, err)
+	require.NotContains(t, string(keptState), "42", "stop-check state written in place")
+}
+
 // A test that forgets its own HOME or ELE_HOME must not reach the real data dir: a background sync there runs this test binary again.
 func TestMain(m *testing.M) {
 	home, err := os.MkdirTemp("", "ele-test-")
@@ -38,20 +89,35 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func TestHumanBytes(t *testing.T) {
-	tests := []struct {
-		count int64
-		text  string
-	}{
-		{count: 0, text: "0 B"},
-		{count: 1023, text: "1023 B"},
-		{count: 1536, text: "1.5 KiB"},
-		{count: 1048575, text: "1.0 MiB"},
-		{count: 2523886221, text: "2.4 GiB"},
-	}
-	for _, test := range tests {
-		require.Equal(t, test.text, humanBytes(test.count))
-	}
+func TestRunReindexRebuildsFromTheArchiveAndNotes(t *testing.T) {
+	home := recallFixture(t)
+	noteDirectory := filepath.Join(home, "data", "notes")
+	_, err := notes.Write(noteDirectory, notes.Note{Body: "Pin pydantic below 2.14.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject})
+	require.NoError(t, err)
+	_, err = notes.Write(noteDirectory, notes.Note{Body: "Pin pydantic through the wrapper.", Date: "2026-10-16", ID: "20261016-bbbbbb", Kind: notes.KindDecision, Owner: "corp", Project: "proxy", Scope: notes.ScopeProject, Supersedes: []string{"20261015-aaaaaa"}})
+	require.NoError(t, err)
+	writeFile(t, filepath.Join(noteDirectory, "corp", "20261015-broken.md"), "no front matter\n")
+
+	output, code := runCommand(t, "sync")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "; indexed 2 notes.")
+	require.Contains(t, output, "Skipped a note: invalid note notes/corp/20261015-broken.md: first line is not ---")
+
+	before, code := runCommand(t, "recall", "--no-sync", "--all", "pydantic")
+	require.Equal(t, 0, code, before)
+	require.Contains(t, before, "4 matches")
+	require.Contains(t, before, "\n2026-10-15 · corp · gateway\n  note decision          (superseded by 20261016-bbbbbb) 20261015-aaaaaa Pin «pydantic» below 2.14.\n")
+	require.Contains(t, before, "\n2026-10-16 · corp · proxy\n  note decision          20261016-bbbbbb Pin «pydantic» through the wrapper.\n")
+	require.Contains(t, before, "  prompt                 pin «pydantic» below 2.14\n")
+	require.Contains(t, before, "Expand a session")
+
+	output, code = runCommand(t, "reindex")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "Rebuilt the index from the archive and notes. Archived 0 B from 0 transcripts; indexed 3 entries from 2 files; indexed 2 notes.")
+
+	after, code := runCommand(t, "recall", "--no-sync", "--all", "pydantic")
+	require.Equal(t, 0, code, after)
+	require.Equal(t, before, after)
 }
 
 func TestRunSyncArchivesAndIndexesEveryProfile(t *testing.T) {
@@ -89,113 +155,6 @@ func TestRunSyncArchivesTheConfigDirectoryProfileOutsideHome(t *testing.T) {
 	require.Equal(t, 0, code, output)
 	require.Equal(t, "Archived 86 B from 1 transcripts; indexed 1 entries from 1 files.\n", output)
 	require.FileExists(t, filepath.Join(dataDirectory, "archive", "transcripts", "scratch", "-repo", "s.jsonl.gz"))
-}
-
-func TestRunSyncSkipsAConfigDirectoryProfileWhoseNameIsTaken(t *testing.T) {
-	home := t.TempDir()
-	dataDirectory := filepath.Join(home, "data")
-	elsewhere := filepath.Join(t.TempDir(), ".claude-corp")
-	t.Setenv("HOME", home)
-	t.Setenv("ELE_HOME", dataDirectory)
-	t.Setenv("CLAUDE_CONFIG_DIR", elsewhere)
-	for _, profile := range []string{filepath.Join(home, ".claude-corp"), elsewhere} {
-		writeFile(t, filepath.Join(profile, "projects", "-repo", "s.jsonl"), `{"type":"user","cwd":"/w/repo","sessionId":"s","message":{"content":"remember this"}}`+"\n")
-	}
-
-	output, code := runCommand(t, "sync")
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "Archived 86 B from 1 transcripts")
-	require.Contains(t, output, "\nSkipped: profile "+elsewhere+": its name corp is taken by "+filepath.Join(home, ".claude-corp")+"\n")
-	require.FileExists(t, filepath.Join(dataDirectory, syncSkippedFile))
-}
-
-func TestRunSyncSkipsAFileItCannotReadAndSaysSoUntilASyncSkipsNone(t *testing.T) {
-	home := recallFixture(t)
-	dataDirectory := filepath.Join(home, "data")
-	unreadable := filepath.Join(home, ".claude", "projects", "-gateway", "zzz9.jsonl")
-	writeFile(t, unreadable, `{"type":"user","cwd":"/w","sessionId":"zzz9","message":{"content":"hidden"}}`+"\n")
-	require.NoError(t, os.Chmod(unreadable, 0o000))
-	// Sync names a file under projects/ as it resolves.
-	resolved, err := filepath.EvalSymlinks(filepath.Dir(unreadable))
-	require.NoError(t, err)
-	named := filepath.Join(resolved, "zzz9.jsonl")
-
-	output, code := runCommand(t, "sync")
-
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "Skipped: archive "+named)
-	require.FileExists(t, filepath.Join(dataDirectory, "last-sync"))
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-	output, code = runCommand(t, "session-start", "--no-sync")
-	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "ele's sync skipped 1 entry; ele status lists them.\n")
-	output, code = runCommand(t, "status")
-	require.Equal(t, 0, code, output)
-	require.Regexp(t, `\nSync skipped +1 entry, listed below\n`, output)
-	require.Contains(t, output, "\nSkipped by the last sync:\n  archive "+named)
-
-	require.NoError(t, os.Chmod(unreadable, 0o600))
-	output, code = runCommand(t, "sync")
-	require.Equal(t, 0, code, output)
-	require.NoFileExists(t, filepath.Join(dataDirectory, syncSkippedFile))
-	output, _ = runCommand(t, "session-start", "--no-sync")
-	require.NotContains(t, output, "skipped")
-}
-
-func TestRunSyncSweepsOldTemporaryNotesFromNotesAndForgotten(t *testing.T) {
-	home := recallFixture(t)
-	// As a killed ele owner move leaves them, in either tree.
-	left := []string{
-		filepath.Join(home, "data", "forgotten", "personal", "20261017-aaaaaa.md.123.tmp"),
-		filepath.Join(home, "data", "notes", "personal", "20261017-bbbbbb.md.456.tmp"),
-	}
-	for _, path := range left {
-		writeFile(t, path, "half")
-		old := time.Now().Add(-2 * 24 * time.Hour)
-		require.NoError(t, os.Chtimes(path, old, old))
-	}
-
-	output, code := runCommand(t, "sync")
-
-	require.Equal(t, 0, code, output)
-	for _, path := range left {
-		require.NoFileExists(t, path)
-	}
-}
-
-func TestLastSyncAndStopStateAreReplacedRatherThanWrittenInto(t *testing.T) {
-	home := recallFixture(t)
-	stamp := filepath.Join(home, "data", "last-sync")
-	held := filepath.Join(t.TempDir(), "held-stamp")
-	require.NoError(t, os.Link(stamp, held))
-	before, err := os.ReadFile(stamp)
-	require.NoError(t, err)
-	skippedList := filepath.Join(home, "data", syncSkippedFile)
-	writeFile(t, skippedList, "old\n")
-	heldList := filepath.Join(t.TempDir(), "held-list")
-	require.NoError(t, os.Link(skippedList, heldList))
-	unreadable := filepath.Join(home, ".claude", "projects", "-gateway", "zzz9.jsonl")
-	writeFile(t, unreadable, "{}\n")
-	require.NoError(t, os.Chmod(unreadable, 0o000))
-
-	output, code := runCommand(t, "sync")
-	require.Equal(t, 0, code, output)
-
-	kept, err := os.ReadFile(held)
-	require.NoError(t, err)
-	require.Equal(t, string(before), string(kept), "last-sync written in place")
-	keptList, err := os.ReadFile(heldList)
-	require.NoError(t, err)
-	require.Equal(t, "old\n", string(keptList), "sync-skipped written in place")
-
-	state := filepath.Join(t.TempDir(), "s1.json")
-	require.NoError(t, writeStopState(state, stopState{}))
-	heldState := filepath.Join(t.TempDir(), "held-state")
-	require.NoError(t, os.Link(state, heldState))
-	require.NoError(t, writeStopState(state, stopState{Offset: 42}))
-	keptState, err := os.ReadFile(heldState)
-	require.NoError(t, err)
-	require.NotContains(t, string(keptState), "42", "stop-check state written in place")
 }
 
 func TestRunSyncBuildsANewIndexWithoutRebuilding(t *testing.T) {
@@ -330,33 +289,74 @@ func TestRunSyncReportsAFailedBackgroundStart(t *testing.T) {
 	require.Contains(t, stderr.String(), "ele: could not start a background sync: ")
 }
 
-func TestRunReindexRebuildsFromTheArchiveAndNotes(t *testing.T) {
-	home := recallFixture(t)
-	noteDirectory := filepath.Join(home, "data", "notes")
-	_, err := notes.Write(noteDirectory, notes.Note{Body: "Pin pydantic below 2.14.", Date: "2026-10-15", ID: "20261015-aaaaaa", Kind: notes.KindDecision, Owner: "corp", Project: "gateway", Scope: notes.ScopeProject})
-	require.NoError(t, err)
-	_, err = notes.Write(noteDirectory, notes.Note{Body: "Pin pydantic through the wrapper.", Date: "2026-10-16", ID: "20261016-bbbbbb", Kind: notes.KindDecision, Owner: "corp", Project: "proxy", Scope: notes.ScopeProject, Supersedes: []string{"20261015-aaaaaa"}})
-	require.NoError(t, err)
-	writeFile(t, filepath.Join(noteDirectory, "corp", "20261015-broken.md"), "no front matter\n")
+func TestRunSyncSkipsAConfigDirectoryProfileWhoseNameIsTaken(t *testing.T) {
+	home := t.TempDir()
+	dataDirectory := filepath.Join(home, "data")
+	elsewhere := filepath.Join(t.TempDir(), ".claude-corp")
+	t.Setenv("HOME", home)
+	t.Setenv("ELE_HOME", dataDirectory)
+	t.Setenv("CLAUDE_CONFIG_DIR", elsewhere)
+	for _, profile := range []string{filepath.Join(home, ".claude-corp"), elsewhere} {
+		writeFile(t, filepath.Join(profile, "projects", "-repo", "s.jsonl"), `{"type":"user","cwd":"/w/repo","sessionId":"s","message":{"content":"remember this"}}`+"\n")
+	}
 
 	output, code := runCommand(t, "sync")
 	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "; indexed 2 notes.")
-	require.Contains(t, output, "Skipped a note: invalid note notes/corp/20261015-broken.md: first line is not ---")
+	require.Contains(t, output, "Archived 86 B from 1 transcripts")
+	require.Contains(t, output, "\nSkipped: profile "+elsewhere+": its name corp is taken by "+filepath.Join(home, ".claude-corp")+"\n")
+	require.FileExists(t, filepath.Join(dataDirectory, syncSkippedFile))
+}
 
-	before, code := runCommand(t, "recall", "--no-sync", "--all", "pydantic")
-	require.Equal(t, 0, code, before)
-	require.Contains(t, before, "4 matches")
-	require.Contains(t, before, "\n2026-10-15 · corp · gateway\n  note decision          (superseded by 20261016-bbbbbb) 20261015-aaaaaa Pin «pydantic» below 2.14.\n")
-	require.Contains(t, before, "\n2026-10-16 · corp · proxy\n  note decision          20261016-bbbbbb Pin «pydantic» through the wrapper.\n")
-	require.Contains(t, before, "  prompt                 pin «pydantic» below 2.14\n")
-	require.Contains(t, before, "Expand a session")
+func TestRunSyncSkipsAFileItCannotReadAndSaysSoUntilASyncSkipsNone(t *testing.T) {
+	home := recallFixture(t)
+	dataDirectory := filepath.Join(home, "data")
+	unreadable := filepath.Join(home, ".claude", "projects", "-gateway", "zzz9.jsonl")
+	writeFile(t, unreadable, `{"type":"user","cwd":"/w","sessionId":"zzz9","message":{"content":"hidden"}}`+"\n")
+	require.NoError(t, os.Chmod(unreadable, 0o000))
+	// Sync names a file under projects/ as it resolves.
+	resolved, err := filepath.EvalSymlinks(filepath.Dir(unreadable))
+	require.NoError(t, err)
+	named := filepath.Join(resolved, "zzz9.jsonl")
 
-	output, code = runCommand(t, "reindex")
+	output, code := runCommand(t, "sync")
+
 	require.Equal(t, 0, code, output)
-	require.Contains(t, output, "Rebuilt the index from the archive and notes. Archived 0 B from 0 transcripts; indexed 3 entries from 2 files; indexed 2 notes.")
+	require.Contains(t, output, "Skipped: archive "+named)
+	require.FileExists(t, filepath.Join(dataDirectory, "last-sync"))
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	output, code = runCommand(t, "session-start", "--no-sync")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "ele's sync skipped 1 entry; ele status lists them.\n")
+	output, code = runCommand(t, "status")
+	require.Equal(t, 0, code, output)
+	require.Regexp(t, `\nSync skipped +1 entry, listed below\n`, output)
+	require.Contains(t, output, "\nSkipped by the last sync:\n  archive "+named)
 
-	after, code := runCommand(t, "recall", "--no-sync", "--all", "pydantic")
-	require.Equal(t, 0, code, after)
-	require.Equal(t, before, after)
+	require.NoError(t, os.Chmod(unreadable, 0o600))
+	output, code = runCommand(t, "sync")
+	require.Equal(t, 0, code, output)
+	require.NoFileExists(t, filepath.Join(dataDirectory, syncSkippedFile))
+	output, _ = runCommand(t, "session-start", "--no-sync")
+	require.NotContains(t, output, "skipped")
+}
+
+func TestRunSyncSweepsOldTemporaryNotesFromNotesAndForgotten(t *testing.T) {
+	home := recallFixture(t)
+	// As a killed ele owner move leaves them, in either tree.
+	left := []string{
+		filepath.Join(home, "data", "forgotten", "personal", "20261017-aaaaaa.md.123.tmp"),
+		filepath.Join(home, "data", "notes", "personal", "20261017-bbbbbb.md.456.tmp"),
+	}
+	for _, path := range left {
+		writeFile(t, path, "half")
+		old := time.Now().Add(-2 * 24 * time.Hour)
+		require.NoError(t, os.Chtimes(path, old, old))
+	}
+
+	output, code := runCommand(t, "sync")
+
+	require.Equal(t, 0, code, output)
+	for _, path := range left {
+		require.NoFileExists(t, path)
+	}
 }

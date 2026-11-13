@@ -13,17 +13,6 @@ import (
 	"github.com/nicolaspearson/claude-ephant/internal/ticket"
 )
 
-type repeatedFlag []string
-
-func (values *repeatedFlag) Set(value string) error {
-	*values = append(*values, value)
-	return nil
-}
-
-func (values *repeatedFlag) String() string {
-	return strings.Join(*values, ",")
-}
-
 func ticketCommand(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
 	subcommands := map[string]func(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int{
 		"claims": ticketClaims,

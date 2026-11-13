@@ -23,16 +23,6 @@ func TestDensityCountsBareCarriageReturnsAsLineBreaks(t *testing.T) {
 	require.Equal(t, densityHeader+expectedRow("ci.yml", 1, 0, 0, 25, -1, 0, ""), output)
 }
 
-func TestDensityCreditsAQuotedPathAndIgnoresTheUsersDiffPrefixes(t *testing.T) {
-	root := densityRepository(t, map[string]string{"a.go": sourceLines(10, 0), `b"q.go`: sourceLines(10, 0)})
-	runGit(t, root, "config", "diff.noprefix", "true")
-	writeFile(t, root, `b"q.go`, sourceLines(10, 0)+"// why\n// because\n")
-
-	output := measureDensity(t, root)
-
-	require.Equal(t, densityHeader+expectedRow(`b"q.go`, 2, 2, 100, 17, -1, 0, "  <-- diff denser than its yardstick")+"\n1 file(s) flagged on this diff. In these, treat every added comment as deletable until it survives the sibling, restatement, pointer and audience tests.\n", output)
-}
-
 func TestDensityCreditsAPathHoldingASpace(t *testing.T) {
 	for _, name := range []string{"my file.go", `q" t.go`} {
 		t.Run(name, func(t *testing.T) {
@@ -44,6 +34,16 @@ func TestDensityCreditsAPathHoldingASpace(t *testing.T) {
 			require.Equal(t, densityHeader+expectedRow(name, 2, 2, 100, 17, -1, 0, "  <-- diff denser than its yardstick")+"\n1 file(s) flagged on this diff. In these, treat every added comment as deletable until it survives the sibling, restatement, pointer and audience tests.\n", output)
 		})
 	}
+}
+
+func TestDensityCreditsAQuotedPathAndIgnoresTheUsersDiffPrefixes(t *testing.T) {
+	root := densityRepository(t, map[string]string{"a.go": sourceLines(10, 0), `b"q.go`: sourceLines(10, 0)})
+	runGit(t, root, "config", "diff.noprefix", "true")
+	writeFile(t, root, `b"q.go`, sourceLines(10, 0)+"// why\n// because\n")
+
+	output := measureDensity(t, root)
+
+	require.Equal(t, densityHeader+expectedRow(`b"q.go`, 2, 2, 100, 17, -1, 0, "  <-- diff denser than its yardstick")+"\n1 file(s) flagged on this diff. In these, treat every added comment as deletable until it survives the sibling, restatement, pointer and audience tests.\n", output)
 }
 
 func TestDensityFlagsADiffDenserThanItsFileWithNoPeers(t *testing.T) {

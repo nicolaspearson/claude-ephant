@@ -30,6 +30,29 @@ func TestAge(t *testing.T) {
 	}
 }
 
+func TestReadSyncLogTailStartsOnALine(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sync.log")
+	writeFile(t, path, "one\n")
+	tail, cut, err := readSyncLogTail(path)
+	require.NoError(t, err)
+	require.Equal(t, "one\n", tail)
+	require.False(t, cut)
+
+	writeFile(t, path, strings.Repeat("x", syncLogTailBytes+10))
+	tail, cut, err = readSyncLogTail(path)
+	require.NoError(t, err)
+	require.True(t, cut)
+	require.Len(t, tail, syncLogTailBytes, "a cut with no newline after it keeps the line")
+
+	writeFile(t, path, strings.Repeat("old line\n", syncLogTailBytes/9+10)+"--- background sync 2026-10-15T11:00:00Z\nele: newest\n")
+	tail, cut, err = readSyncLogTail(path)
+	require.NoError(t, err)
+	require.True(t, cut)
+	require.LessOrEqual(t, len(tail), syncLogTailBytes)
+	require.True(t, strings.HasPrefix(tail, "old line\n"), "the first partial line is dropped")
+	require.True(t, strings.HasSuffix(tail, "ele: newest\n"))
+}
+
 func TestRunStatsCountsWhatTheIndexAndNotesHold(t *testing.T) {
 	home := recallFixture(t)
 	noteDirectory := filepath.Join(home, "data", "notes")
@@ -74,6 +97,16 @@ func TestRunStatsLeavesOutAnEmptyEverywhereRow(t *testing.T) {
 	require.NotContains(t, output, "Notes, "+notes.OwnerEverywhere)
 }
 
+func TestRunStatsLeavesOutTheRetiredClaudeMemArchive(t *testing.T) {
+	dataDirectory := filepath.Join(t.TempDir(), "data")
+	t.Setenv("ELE_HOME", dataDirectory)
+	writeFile(t, filepath.Join(dataDirectory, "archive", "claude-mem", "observations.jsonl"), "retired\n")
+
+	output, code := runCommand(t, "stats")
+	require.Equal(t, 0, code, output)
+	require.Regexp(t, `On disk +archive 0 B, index 0 B, notes 0 B\n`, output)
+}
+
 func TestRunStatsOnAFreshInstall(t *testing.T) {
 	dataDirectory := filepath.Join(t.TempDir(), "data")
 	t.Setenv("ELE_HOME", dataDirectory)
@@ -85,14 +118,16 @@ func TestRunStatsOnAFreshInstall(t *testing.T) {
 	require.NoDirExists(t, dataDirectory)
 }
 
-func TestRunStatsLeavesOutTheRetiredClaudeMemArchive(t *testing.T) {
-	dataDirectory := filepath.Join(t.TempDir(), "data")
-	t.Setenv("ELE_HOME", dataDirectory)
-	writeFile(t, filepath.Join(dataDirectory, "archive", "claude-mem", "observations.jsonl"), "retired\n")
+func TestRunStatusListsTheConfigDirectoryProfileOutsideHome(t *testing.T) {
+	recallFixture(t)
+	scratch := filepath.Join(t.TempDir(), "scratch")
+	t.Setenv("CLAUDE_CONFIG_DIR", scratch)
+	writeFile(t, filepath.Join(scratch, "projects", "-x", "s.jsonl"), "")
+	writeFile(t, filepath.Join(scratch, "settings.json"), `{"enabledPlugins": {"ele@claude-ephant": true}}`)
 
-	output, code := runCommand(t, "stats")
+	output, code := runCommand(t, "status")
 	require.Equal(t, 0, code, output)
-	require.Regexp(t, `On disk +archive 0 B, index 0 B, notes 0 B\n`, output)
+	require.Regexp(t, `Plugin ele@claude-ephant +claude no settings.json, scratch enabled\n`, output)
 }
 
 func TestRunStatusReportsSyncOwnerAndPlugin(t *testing.T) {
@@ -123,16 +158,41 @@ func TestRunStatusReportsSyncOwnerAndPlugin(t *testing.T) {
 	require.Regexp(t, `Sync running +yes\n`, output)
 }
 
-func TestRunStatusListsTheConfigDirectoryProfileOutsideHome(t *testing.T) {
-	recallFixture(t)
-	scratch := filepath.Join(t.TempDir(), "scratch")
-	t.Setenv("CLAUDE_CONFIG_DIR", scratch)
-	writeFile(t, filepath.Join(scratch, "projects", "-x", "s.jsonl"), "")
-	writeFile(t, filepath.Join(scratch, "settings.json"), `{"enabledPlugins": {"ele@claude-ephant": true}}`)
+func TestStatusConfigRowNamesOptionsOffTheirDefaults(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	path := filepath.Join(home, "data", "config.json")
 
-	output, code := runCommand(t, "status")
-	require.Equal(t, 0, code, output)
-	require.Regexp(t, `Plugin ele@claude-ephant +claude no settings.json, scratch enabled\n`, output)
+	tests := []struct {
+		content string
+		name    string
+		row     string
+	}{
+		{content: `{"checkpoint_gate": fals`, name: "broken", row: `(?m)^Config +parse .*config\.json: .*; every option reads as its default$`},
+		{content: `{}`, name: "defaults", row: `(?m)^Config +defaults$`},
+		{content: `{"owners": {"corp": {"checkpoint_gate": false}}}`, name: "owner override", row: `(?m)^Config +checkpoint_gate false \(owner corp; default true\)$`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			writeFile(t, path, test.content)
+			output, code := runCommand(t, "status")
+			require.Equal(t, 0, code, output)
+			require.Regexp(t, test.row, output)
+		})
+	}
+}
+
+func TestWriteStatusFindsNothingNewInACutTailOfOldRuns(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	writeFile(t, filepath.Join(home, "data", "last-sync"), "2026-10-15T10:00:00Z\n")
+	run := "--- background sync 2026-10-15T09:00:00Z\n--- locked 2026-10-15T09:00:00Z\nele: an old failure\n"
+	writeFile(t, filepath.Join(home, "data", "sync.log"), strings.Repeat(run, syncLogTailBytes/len(run)+10))
+
+	var output bytes.Buffer
+	require.NoError(t, writeStatus(&output, time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC)))
+	require.Contains(t, output.String(), "\nsync.log holds nothing since the last successful sync.\n")
+	require.NotContains(t, output.String(), "an old failure")
 }
 
 func TestWriteStatusKeepsEveryRowWhenTheOwnerMapIsBroken(t *testing.T) {
@@ -230,29 +290,6 @@ func TestWriteStatusShowsAgeAndTheSyncLogSinceTheLastSuccess(t *testing.T) {
 	require.Regexp(t, `Last sync +2026-10-15T10:00:00Z \(in the future; check the clock\)\n`, future.String())
 }
 
-func TestReadSyncLogTailStartsOnALine(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "sync.log")
-	writeFile(t, path, "one\n")
-	tail, cut, err := readSyncLogTail(path)
-	require.NoError(t, err)
-	require.Equal(t, "one\n", tail)
-	require.False(t, cut)
-
-	writeFile(t, path, strings.Repeat("x", syncLogTailBytes+10))
-	tail, cut, err = readSyncLogTail(path)
-	require.NoError(t, err)
-	require.True(t, cut)
-	require.Len(t, tail, syncLogTailBytes, "a cut with no newline after it keeps the line")
-
-	writeFile(t, path, strings.Repeat("old line\n", syncLogTailBytes/9+10)+"--- background sync 2026-10-15T11:00:00Z\nele: newest\n")
-	tail, cut, err = readSyncLogTail(path)
-	require.NoError(t, err)
-	require.True(t, cut)
-	require.LessOrEqual(t, len(tail), syncLogTailBytes)
-	require.True(t, strings.HasPrefix(tail, "old line\n"), "the first partial line is dropped")
-	require.True(t, strings.HasSuffix(tail, "ele: newest\n"))
-}
-
 func TestWriteStatusShowsTheTailWhenTheNewestRunOutgrowsIt(t *testing.T) {
 	home := recallFixture(t)
 	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
@@ -264,41 +301,4 @@ func TestWriteStatusShowsTheTailWhenTheNewestRunOutgrowsIt(t *testing.T) {
 	require.Contains(t, output.String(), "\nTail of sync.log, newest last:\n")
 	require.Contains(t, output.String(), "  panic: last\n")
 	require.NotContains(t, output.String(), "holds nothing since the last successful sync")
-}
-
-func TestWriteStatusFindsNothingNewInACutTailOfOldRuns(t *testing.T) {
-	home := recallFixture(t)
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-	writeFile(t, filepath.Join(home, "data", "last-sync"), "2026-10-15T10:00:00Z\n")
-	run := "--- background sync 2026-10-15T09:00:00Z\n--- locked 2026-10-15T09:00:00Z\nele: an old failure\n"
-	writeFile(t, filepath.Join(home, "data", "sync.log"), strings.Repeat(run, syncLogTailBytes/len(run)+10))
-
-	var output bytes.Buffer
-	require.NoError(t, writeStatus(&output, time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC)))
-	require.Contains(t, output.String(), "\nsync.log holds nothing since the last successful sync.\n")
-	require.NotContains(t, output.String(), "an old failure")
-}
-
-func TestStatusConfigRowNamesOptionsOffTheirDefaults(t *testing.T) {
-	home := recallFixture(t)
-	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
-	path := filepath.Join(home, "data", "config.json")
-
-	tests := []struct {
-		content string
-		name    string
-		row     string
-	}{
-		{content: `{"checkpoint_gate": fals`, name: "broken", row: `(?m)^Config +parse .*config\.json: .*; every option reads as its default$`},
-		{content: `{}`, name: "defaults", row: `(?m)^Config +defaults$`},
-		{content: `{"owners": {"corp": {"checkpoint_gate": false}}}`, name: "owner override", row: `(?m)^Config +checkpoint_gate false \(owner corp; default true\)$`},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			writeFile(t, path, test.content)
-			output, code := runCommand(t, "status")
-			require.Equal(t, 0, code, output)
-			require.Regexp(t, test.row, output)
-		})
-	}
 }

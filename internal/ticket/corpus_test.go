@@ -577,16 +577,16 @@ func TestSequenceMatcherRatioAndDiffFollowAutojunkRules(t *testing.T) {
 	require.Equal(t, "--- a\n+++ b\n@@ -1,10 +1,10 @@\n 1\n 2\n-3\n+three\n 4\n 5\n 6\n 7\n 8\n 9\n-10\n+ten", diff.String())
 }
 
-func TestSystemCommandsNamesTheExitOfACommandThatSaysNothing(t *testing.T) {
-	_, err := SystemCommands().Run(context.Background(), "sh", "-c", "exit 3")
-
-	require.EqualError(t, err, "sh -c exit 3 failed: exit status 3")
-}
-
 func TestSplitLinesEndsALineAtEachUnicodeBreak(t *testing.T) {
 	require.Equal(t, []string{"a", "b", "c", "d", "e", "", "f"}, splitLines("a\r\nb\rc d\x1ce\v\u0085f", false))
 	require.Equal(t, []string{"a\r\n", "b"}, splitLines("a\r\nb", true))
 	require.Equal(t, []string{"a\x1fb"}, splitLines("a\x1fb", false), "a unit separator ends no line")
+}
+
+func TestSystemCommandsNamesTheExitOfACommandThatSaysNothing(t *testing.T) {
+	_, err := SystemCommands().Run(context.Background(), "sh", "-c", "exit 3")
+
+	require.EqualError(t, err, "sh -c exit 3 failed: exit status 3")
 }
 
 func TestTrackerProjectPrintsNoCredentials(t *testing.T) {

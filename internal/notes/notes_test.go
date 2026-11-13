@@ -43,36 +43,31 @@ func TestClearShownRemovesOnlyThatKey(t *testing.T) {
 	require.ErrorIs(t, ClearShown(root, Note{ID: "broken", Owner: "personal"}), ErrInvalid)
 }
 
-func TestMarkShownRewritesOnlyThatKey(t *testing.T) {
-	root := t.TempDir()
-	directory := filepath.Join(root, "personal")
-	require.NoError(t, os.MkdirAll(directory, 0o700))
-	path := filepath.Join(directory, "20261016-a1b2c3.md")
-	handEdited := "---\nkind:  handoff \ndate: 2026-10-16\nowner: personal\nproject: claude-ephant\nscope: project\n---\n\nNext: item 3.\n  Kept as typed.\n"
-	require.NoError(t, os.WriteFile(path, []byte(handEdited), 0o644))
-	note := Note{ID: "20261016-a1b2c3", Owner: "personal"}
-
-	require.NoError(t, MarkShown(root, note, time.Date(2026, 10, 16, 9, 0, 0, 0, time.FixedZone("x", 3600))))
-	info, err := os.Stat(path)
-	require.NoError(t, err)
-	require.Equal(t, os.FileMode(0o644), info.Mode().Perm(), "a hand-made note keeps its mode")
-	content, err := os.ReadFile(path)
-	require.NoError(t, err)
-	require.Equal(t, "---\nkind:  handoff \ndate: 2026-10-16\nowner: personal\nproject: claude-ephant\nscope: project\nshown: 2026-10-16T08:00:00Z\n---\n\nNext: item 3.\n  Kept as typed.\n", string(content))
-
-	require.NoError(t, MarkShown(root, note, time.Date(2026, 10, 17, 0, 0, 0, 0, time.UTC)))
-	content, err = os.ReadFile(path)
-	require.NoError(t, err)
-	marked, err := Parse(path, content)
-	require.NoError(t, err)
-	require.Equal(t, "2026-10-17T00:00:00Z", marked.Shown, "a second mark replaces the first")
-	require.Equal(t, 1, strings.Count(string(content), "shown:"))
-	entries, err := os.ReadDir(directory)
-	require.NoError(t, err)
-	require.Len(t, entries, 1, "no temporary file left beside the note")
-
-	require.NoError(t, os.WriteFile(filepath.Join(directory, "broken.md"), []byte("---\nkind: handoff\n"), 0o600))
-	require.ErrorIs(t, MarkShown(root, Note{ID: "broken", Owner: "personal"}, time.Now()), ErrInvalid)
+func TestEveryRoundTripsEachUnit(t *testing.T) {
+	tests := []struct {
+		every   time.Duration
+		value   string
+		written string
+	}{
+		{every: 24 * time.Hour, value: "24h", written: "1"},
+		{every: 2 * 24 * time.Hour, value: "2d", written: "2"},
+		{every: 2 * time.Hour, value: "2h", written: "2h"},
+		{every: 5 * time.Minute, value: "5m", written: "5m"},
+		{every: 7 * 24 * time.Hour, value: "7", written: "7"},
+		{every: 90 * time.Minute, value: "90m", written: "90m"},
+	}
+	for _, test := range tests {
+		t.Run(test.value, func(t *testing.T) {
+			every, err := ParseEvery(test.value)
+			require.NoError(t, err)
+			require.Equal(t, test.every, every)
+			require.Equal(t, test.written, FormatEvery(every), "whole days are written bare, as builds before sub-day intervals read them")
+		})
+	}
+	for _, value := range []string{"", "0", "0m", "-1", "1h30m", "30s", "7 d", "d", "99999999999999999999"} {
+		_, err := ParseEvery(value)
+		require.Error(t, err, value)
+	}
 }
 
 func TestMarkClosedThenClearClosedRoundTrips(t *testing.T) {
@@ -125,6 +120,38 @@ func TestMarkShownAndMoveWaitForTheNotesLock(t *testing.T) {
 			require.FileExists(t, root+".lock")
 		})
 	}
+}
+
+func TestMarkShownRewritesOnlyThatKey(t *testing.T) {
+	root := t.TempDir()
+	directory := filepath.Join(root, "personal")
+	require.NoError(t, os.MkdirAll(directory, 0o700))
+	path := filepath.Join(directory, "20261016-a1b2c3.md")
+	handEdited := "---\nkind:  handoff \ndate: 2026-10-16\nowner: personal\nproject: claude-ephant\nscope: project\n---\n\nNext: item 3.\n  Kept as typed.\n"
+	require.NoError(t, os.WriteFile(path, []byte(handEdited), 0o644))
+	note := Note{ID: "20261016-a1b2c3", Owner: "personal"}
+
+	require.NoError(t, MarkShown(root, note, time.Date(2026, 10, 16, 9, 0, 0, 0, time.FixedZone("x", 3600))))
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0o644), info.Mode().Perm(), "a hand-made note keeps its mode")
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, "---\nkind:  handoff \ndate: 2026-10-16\nowner: personal\nproject: claude-ephant\nscope: project\nshown: 2026-10-16T08:00:00Z\n---\n\nNext: item 3.\n  Kept as typed.\n", string(content))
+
+	require.NoError(t, MarkShown(root, note, time.Date(2026, 10, 17, 0, 0, 0, 0, time.UTC)))
+	content, err = os.ReadFile(path)
+	require.NoError(t, err)
+	marked, err := Parse(path, content)
+	require.NoError(t, err)
+	require.Equal(t, "2026-10-17T00:00:00Z", marked.Shown, "a second mark replaces the first")
+	require.Equal(t, 1, strings.Count(string(content), "shown:"))
+	entries, err := os.ReadDir(directory)
+	require.NoError(t, err)
+	require.Len(t, entries, 1, "no temporary file left beside the note")
+
+	require.NoError(t, os.WriteFile(filepath.Join(directory, "broken.md"), []byte("---\nkind: handoff\n"), 0o600))
+	require.ErrorIs(t, MarkShown(root, Note{ID: "broken", Owner: "personal"}, time.Now()), ErrInvalid)
 }
 
 func TestMoveRefusesAFileWithoutFrontMatter(t *testing.T) {
@@ -185,10 +212,34 @@ func TestNewIDIsDatedAndUnique(t *testing.T) {
 	require.NotEqual(t, first, second)
 }
 
+func TestParseAndReadOwnerTakeABodyLineOverSixtyFourKiB(t *testing.T) {
+	root := t.TempDir()
+	note := valid
+	note.Body = strings.Repeat("x", 70000)
+	path, err := Write(root, note)
+	require.NoError(t, err)
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+
+	parsed, err := Parse(path, content)
+	require.NoError(t, err)
+	require.Equal(t, note.Body, parsed.Body)
+	read, invalid, err := ReadOwner(root, "personal")
+	require.NoError(t, err, "one long line fails its owner's whole read")
+	require.Zero(t, invalid)
+	require.Len(t, read, 1)
+}
+
 func TestParseReadsAHandEditedNote(t *testing.T) {
 	note, err := Parse("notes/personal/20261015-a1b2c3.md", []byte("\xef\xbb\xbf---\nkind:  question \nscope: global\nowner: personal\nsupersedes: 20261014-aaaaaa ,20261014-bbbbbb,\ndate: 2026-10-15\n---\n\nShould ele index tool output?\nIt would triple the index.\n\n"))
 	require.NoError(t, err)
 	require.Equal(t, Note{Body: "Should ele index tool output?\nIt would triple the index.", Date: "2026-10-15", ID: "20261015-a1b2c3", Kind: KindQuestion, Owner: "personal", Scope: ScopeGlobal, Supersedes: []string{"20261014-aaaaaa", "20261014-bbbbbb"}}, note)
+}
+
+func TestParseReadsAPlanNote(t *testing.T) {
+	note, err := Parse("notes/personal/20261017-a1b2c3.md", []byte("---\ndate: 2026-10-17\nkind: plan\nowner: personal\nproject: claude-ephant\nscope: project\n---\n.documentation/plans/plans.md\n"))
+	require.NoError(t, err)
+	require.Equal(t, ".documentation/plans/plans.md", note.Body)
 }
 
 func TestParseRejectsInvalidNotes(t *testing.T) {
@@ -253,12 +304,6 @@ func TestParseRejectsInvalidNotes(t *testing.T) {
 	}
 }
 
-func TestParseReadsAPlanNote(t *testing.T) {
-	note, err := Parse("notes/personal/20261017-a1b2c3.md", []byte("---\ndate: 2026-10-17\nkind: plan\nowner: personal\nproject: claude-ephant\nscope: project\n---\n.documentation/plans/plans.md\n"))
-	require.NoError(t, err)
-	require.Equal(t, ".documentation/plans/plans.md", note.Body)
-}
-
 func TestReadForAddsEverywhereNotesToTheOwners(t *testing.T) {
 	directory := t.TempDir()
 	_, err := Write(directory, valid)
@@ -305,6 +350,21 @@ func TestReadOwnerSkipsInvalidNotesAndOtherOwners(t *testing.T) {
 	require.Zero(t, invalid)
 }
 
+func TestRelocateMovesANoteToAnotherDirectoryAndRefusesToOverwrite(t *testing.T) {
+	from, to := t.TempDir(), t.TempDir()
+	_, err := Write(from, valid)
+	require.NoError(t, err)
+
+	require.NoError(t, Relocate(from, to, valid))
+
+	require.NoFileExists(t, filepath.Join(from, "personal", valid.ID+".md"))
+	require.FileExists(t, filepath.Join(to, "personal", valid.ID+".md"))
+	_, err = Write(from, valid)
+	require.NoError(t, err)
+	require.ErrorContains(t, Relocate(from, to, valid), "already exists")
+	require.FileExists(t, filepath.Join(from, "personal", valid.ID+".md"))
+}
+
 func TestSetDueRewritesOnlyTheDueOfANudge(t *testing.T) {
 	root := t.TempDir()
 	nudge := Note{Body: "Run /hook-stats.", Date: "2026-10-22", DoneFile: "/home/u/.claude/cache/hook-stats.last", Due: "2026-10-22", Every: 7 * 24 * time.Hour, ID: "20261022-a1b2c3", Kind: KindReminder, Owner: "personal", Scope: ScopeGlobal}
@@ -323,66 +383,6 @@ func TestSetDueRewritesOnlyTheDueOfANudge(t *testing.T) {
 	require.ErrorIs(t, SetDue(root, nudge, "next week"), ErrInvalid)
 	require.NoError(t, SetDue(root, nudge, "2026-10-29T15:05"), "a sub-day nudge re-arms to a time")
 	require.ErrorIs(t, SetDue(root, nudge, ""), ErrInvalid)
-}
-
-func TestEveryRoundTripsEachUnit(t *testing.T) {
-	tests := []struct {
-		every   time.Duration
-		value   string
-		written string
-	}{
-		{every: 24 * time.Hour, value: "24h", written: "1"},
-		{every: 2 * 24 * time.Hour, value: "2d", written: "2"},
-		{every: 2 * time.Hour, value: "2h", written: "2h"},
-		{every: 5 * time.Minute, value: "5m", written: "5m"},
-		{every: 7 * 24 * time.Hour, value: "7", written: "7"},
-		{every: 90 * time.Minute, value: "90m", written: "90m"},
-	}
-	for _, test := range tests {
-		t.Run(test.value, func(t *testing.T) {
-			every, err := ParseEvery(test.value)
-			require.NoError(t, err)
-			require.Equal(t, test.every, every)
-			require.Equal(t, test.written, FormatEvery(every), "whole days are written bare, as builds before sub-day intervals read them")
-		})
-	}
-	for _, value := range []string{"", "0", "0m", "-1", "1h30m", "30s", "7 d", "d", "99999999999999999999"} {
-		_, err := ParseEvery(value)
-		require.Error(t, err, value)
-	}
-}
-
-func TestParseAndReadOwnerTakeABodyLineOverSixtyFourKiB(t *testing.T) {
-	root := t.TempDir()
-	note := valid
-	note.Body = strings.Repeat("x", 70000)
-	path, err := Write(root, note)
-	require.NoError(t, err)
-	content, err := os.ReadFile(path)
-	require.NoError(t, err)
-
-	parsed, err := Parse(path, content)
-	require.NoError(t, err)
-	require.Equal(t, note.Body, parsed.Body)
-	read, invalid, err := ReadOwner(root, "personal")
-	require.NoError(t, err, "one long line fails its owner's whole read")
-	require.Zero(t, invalid)
-	require.Len(t, read, 1)
-}
-
-func TestRelocateMovesANoteToAnotherDirectoryAndRefusesToOverwrite(t *testing.T) {
-	from, to := t.TempDir(), t.TempDir()
-	_, err := Write(from, valid)
-	require.NoError(t, err)
-
-	require.NoError(t, Relocate(from, to, valid))
-
-	require.NoFileExists(t, filepath.Join(from, "personal", valid.ID+".md"))
-	require.FileExists(t, filepath.Join(to, "personal", valid.ID+".md"))
-	_, err = Write(from, valid)
-	require.NoError(t, err)
-	require.ErrorContains(t, Relocate(from, to, valid), "already exists")
-	require.FileExists(t, filepath.Join(from, "personal", valid.ID+".md"))
 }
 
 func TestSweepTemporaryRemovesOnlyOldLeftovers(t *testing.T) {

@@ -12,6 +12,48 @@ func judgment(era string, session string, timestamp string, result string) Judgm
 	return Judgment{Classifier: "c", Era: era, Result: json.RawMessage(result), Session: session, Timestamp: timestamp}
 }
 
+func TestInlineReadsAnEraFromTheTimestampWhereNoneIsStored(t *testing.T) {
+	require.True(t, judgment("", "s1", "2026-10-06T10:00:00Z", `{}`).Inline())
+	require.False(t, judgment("", "s1", "2026-10-08T10:00:00Z", `{}`).Inline())
+	require.True(t, judgment("inline", "s1", "2026-10-08T10:00:00Z", `{}`).Inline())
+	require.False(t, judgment("subagent", "s1", "2026-10-06T10:00:00Z", `{}`).Inline())
+}
+
+func TestReportKeepsTheNotesTheMinedRunsProposed(t *testing.T) {
+	runs := []Judgment{
+		judgment("subagent", "s1", "2026-10-16T10:00:00Z", `{"mode":"full","findings":[],"notes":{"approved":1,"proposed":2}}`),
+		judgment("subagent", "s1", "2026-10-17T10:00:00Z", `{"mode":"full","findings":[],"notes":{"approved":0,"proposed":1}}`),
+	}
+	var report bytes.Buffer
+
+	require.NoError(t, Report(&report, runs, nil, nil))
+
+	require.Contains(t, report.String(), "\nNotes: 3 proposed, 1 approved\n")
+
+	report.Reset()
+	require.NoError(t, Report(&report, []Judgment{judgment("subagent", "s1", "2026-10-21T10:00:00Z", `{"mode":"full","findings":[],"notes":{"approved":0,"proposed":0}}`)}, nil, nil))
+	require.Contains(t, report.String(), "\nNotes: 0 proposed, 0 approved\n", "a mined zero is a figure")
+
+	report.Reset()
+	require.NoError(t, Report(&report, []Judgment{judgment("subagent", "s1", "2026-10-21T10:00:00Z", `{"mode":"full","findings":[]}`)}, nil, nil))
+	require.NotContains(t, report.String(), "Notes:")
+}
+
+func TestReportLeavesInlineEraCyclesOutOfTheSubagentEra(t *testing.T) {
+	cycles := []Judgment{
+		judgment("", "s1", "2026-10-06T10:00:00Z", `{"started_by":"before"}`),
+		judgment("inline", "s1", "2026-10-06T11:00:00Z", `{"started_by":"before"}`),
+		judgment("", "s1", "2026-10-08T10:00:00Z", `{"started_by":"after"}`),
+	}
+	var report bytes.Buffer
+
+	require.NoError(t, Report(&report, nil, cycles, nil))
+
+	require.Contains(t, report.String(), "review-cycle judgments 1,")
+	require.Contains(t, report.String(), "Review cycles started by after 1.")
+	require.Contains(t, report.String(), "Inline-era review cycles, not reported: 2.")
+}
+
 func TestReportLeavesOutACycleInsideAJudgedRunsWindow(t *testing.T) {
 	runs := []Judgment{judgment("subagent", "s1", "2026-10-08T10:00:00Z", `{"report_ts":"2026-10-08T10:30:00Z"}`)}
 	cycles := []Judgment{
@@ -44,24 +86,20 @@ func TestReportLeavesOutAnInlineRunJudgedWithoutPerPassCounts(t *testing.T) {
 	require.Contains(t, report.String(), "Said a checkpoint was unwanted: units 1.", "a unit judged no checkpoint still counts")
 }
 
-func TestReportKeepsTheNotesTheMinedRunsProposed(t *testing.T) {
+func TestReportLeavesOutAndCountsAJudgmentItCannotRead(t *testing.T) {
 	runs := []Judgment{
-		judgment("subagent", "s1", "2026-10-16T10:00:00Z", `{"mode":"full","findings":[],"notes":{"approved":1,"proposed":2}}`),
-		judgment("subagent", "s1", "2026-10-17T10:00:00Z", `{"mode":"full","findings":[],"notes":{"approved":0,"proposed":1}}`),
+		judgment("subagent", "s1", "2026-10-08T10:00:00Z", `{"is_checkpoint":"yes"}`),
+		judgment("subagent", "s2", "2026-10-08T10:00:00Z", `{"change":{"lines":"12"}}`),
+		judgment("subagent", "s3", "2026-10-08T10:00:00Z", `{"report_ts":"yesterday"}`),
+		judgment("subagent", "s4", "2026-10-08T10:00:00Z", `{}`),
 	}
+	cycles := []Judgment{judgment("", "s3", "2026-10-08T10:10:00Z", `{"started_by":"after"}`)}
 	var report bytes.Buffer
 
-	require.NoError(t, Report(&report, runs, nil, nil))
+	require.NoError(t, Report(&report, runs, cycles, nil))
 
-	require.Contains(t, report.String(), "\nNotes: 3 proposed, 1 approved\n")
-
-	report.Reset()
-	require.NoError(t, Report(&report, []Judgment{judgment("subagent", "s1", "2026-10-21T10:00:00Z", `{"mode":"full","findings":[],"notes":{"approved":0,"proposed":0}}`)}, nil, nil))
-	require.Contains(t, report.String(), "\nNotes: 0 proposed, 0 approved\n", "a mined zero is a figure")
-
-	report.Reset()
-	require.NoError(t, Report(&report, []Judgment{judgment("subagent", "s1", "2026-10-21T10:00:00Z", `{"mode":"full","findings":[]}`)}, nil, nil))
-	require.NotContains(t, report.String(), "Notes:")
+	require.Contains(t, report.String(), "run judgments 2, review-cycle judgments 1, cycles inside a judged run's window left out 0")
+	require.Contains(t, report.String(), "Judgments whose result the report cannot read, left out: 2; a report_ts it cannot read, so covering no cycle: 1.")
 }
 
 func TestReportReadsTheLastStoredJudgmentPerUnit(t *testing.T) {
@@ -95,42 +133,4 @@ func TestReportTimesTheUnitsItHasATimingFor(t *testing.T) {
 	require.Contains(t, report.String(), "Window, opening to last line: median 10.0m")
 	require.Contains(t, report.String(), "Bash in the main thread: median 60s, gate median 30s")
 	require.Contains(t, report.String(), "bugs 1                      1      1      90     -           1                2      7")
-}
-
-func TestReportLeavesOutAndCountsAJudgmentItCannotRead(t *testing.T) {
-	runs := []Judgment{
-		judgment("subagent", "s1", "2026-10-08T10:00:00Z", `{"is_checkpoint":"yes"}`),
-		judgment("subagent", "s2", "2026-10-08T10:00:00Z", `{"change":{"lines":"12"}}`),
-		judgment("subagent", "s3", "2026-10-08T10:00:00Z", `{"report_ts":"yesterday"}`),
-		judgment("subagent", "s4", "2026-10-08T10:00:00Z", `{}`),
-	}
-	cycles := []Judgment{judgment("", "s3", "2026-10-08T10:10:00Z", `{"started_by":"after"}`)}
-	var report bytes.Buffer
-
-	require.NoError(t, Report(&report, runs, cycles, nil))
-
-	require.Contains(t, report.String(), "run judgments 2, review-cycle judgments 1, cycles inside a judged run's window left out 0")
-	require.Contains(t, report.String(), "Judgments whose result the report cannot read, left out: 2; a report_ts it cannot read, so covering no cycle: 1.")
-}
-
-func TestReportLeavesInlineEraCyclesOutOfTheSubagentEra(t *testing.T) {
-	cycles := []Judgment{
-		judgment("", "s1", "2026-10-06T10:00:00Z", `{"started_by":"before"}`),
-		judgment("inline", "s1", "2026-10-06T11:00:00Z", `{"started_by":"before"}`),
-		judgment("", "s1", "2026-10-08T10:00:00Z", `{"started_by":"after"}`),
-	}
-	var report bytes.Buffer
-
-	require.NoError(t, Report(&report, nil, cycles, nil))
-
-	require.Contains(t, report.String(), "review-cycle judgments 1,")
-	require.Contains(t, report.String(), "Review cycles started by after 1.")
-	require.Contains(t, report.String(), "Inline-era review cycles, not reported: 2.")
-}
-
-func TestInlineReadsAnEraFromTheTimestampWhereNoneIsStored(t *testing.T) {
-	require.True(t, judgment("", "s1", "2026-10-06T10:00:00Z", `{}`).Inline())
-	require.False(t, judgment("", "s1", "2026-10-08T10:00:00Z", `{}`).Inline())
-	require.True(t, judgment("inline", "s1", "2026-10-08T10:00:00Z", `{}`).Inline())
-	require.False(t, judgment("subagent", "s1", "2026-10-06T10:00:00Z", `{}`).Inline())
 }

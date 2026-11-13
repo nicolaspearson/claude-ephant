@@ -100,18 +100,6 @@ func TestWriteClaimsNamesEachAskedNumberItCouldNotCheck(t *testing.T) {
 	require.Equal(t, "No open ticket is mistyped or grants itself execution.\n", stdout+stderr)
 }
 
-func TestWriteClaimsWarnsWhenTheListReachesItsCap(t *testing.T) {
-	tickets := make([]Ticket, ticketListLimit)
-	for index := range tickets {
-		tickets[index] = Ticket{Body: "clean", Number: index + 1, Title: "Bug"}
-	}
-
-	stdout, stderr := writeClaims(t, newClaimsTracker(tickets...), nil, true)
-
-	require.Empty(t, stdout)
-	require.Equal(t, "Warning: gh listed 500 open tickets, its cap, so any beyond were not checked; pass their numbers to check them.\n", stderr)
-}
-
 func TestWriteClaimsSaysWhyNothingWasChecked(t *testing.T) {
 	tracker := newClaimsTracker()
 
@@ -143,6 +131,18 @@ func TestWriteClaimsSaysWhyNothingWasChecked(t *testing.T) {
 	stdout, stderr = writeClaims(t, tracker, nil, true)
 	require.Empty(t, stdout)
 	require.Equal(t, "Warning: the ticket claim check needs a git repository.\n", stderr)
+}
+
+func TestWriteClaimsWarnsWhenTheListReachesItsCap(t *testing.T) {
+	tickets := make([]Ticket, ticketListLimit)
+	for index := range tickets {
+		tickets[index] = Ticket{Body: "clean", Number: index + 1, Title: "Bug"}
+	}
+
+	stdout, stderr := writeClaims(t, newClaimsTracker(tickets...), nil, true)
+
+	require.Empty(t, stdout)
+	require.Equal(t, "Warning: gh listed 500 open tickets, its cap, so any beyond were not checked; pass their numbers to check them.\n", stderr)
 }
 
 func (tracker *claimsTracker) commands() Commands {

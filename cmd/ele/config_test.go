@@ -110,42 +110,6 @@ func TestConfigReviewVoiceRoundTripsGloballyAndPerOwner(t *testing.T) {
 	require.Contains(t, output, "voice file ele:review drafts comments from")
 }
 
-func TestConfigSetRefusesABrokenFile(t *testing.T) {
-	home := recallFixture(t)
-	t.Setenv("CLAUDECODE", "")
-	path := filepath.Join(home, "data", "config.json")
-	writeFile(t, path, `{"checkpoint_gate": fals`)
-
-	output, code := runCommand(t, "config", "set", "checkpoint_gate", "false")
-	require.Equal(t, 1, code, output)
-	require.Contains(t, output, "fix or remove it before setting an option")
-	content, err := os.ReadFile(path)
-	require.NoError(t, err)
-	require.Equal(t, `{"checkpoint_gate": fals`, string(content))
-}
-
-func TestConfigSetRefusesAnUnlistedOwner(t *testing.T) {
-	recallFixture(t)
-	t.Setenv("CLAUDECODE", "")
-
-	output, code := runCommand(t, "config", "set", "--owner", "acme", "checkpoint_gate", "false")
-	require.Equal(t, 1, code, output)
-	require.Contains(t, output, `owner-map.json does not list owner "acme"`)
-}
-
-func TestConfigSetRefusesInsideASession(t *testing.T) {
-	home := recallFixture(t)
-	t.Setenv("CLAUDECODE", "1")
-
-	for _, args := range [][]string{{"set", "checkpoint_gate", "false"}, {"unset", "checkpoint_gate"}} {
-		output, code := runCommand(t, append([]string{"config"}, args...)...)
-		require.Equal(t, 1, code, output)
-		require.Contains(t, output, "refuses to run inside one; the user runs it outside the session: ele config "+args[0])
-	}
-	_, err := os.Stat(filepath.Join(home, "data", "config.json"))
-	require.ErrorIs(t, err, os.ErrNotExist)
-}
-
 func TestConfigSetAndUnsetWaitForTheConfigLock(t *testing.T) {
 	for _, args := range [][]string{{"set", "checkpoint_gate", "false"}, {"unset", "checkpoint_gate"}} {
 		t.Run(args[0], func(t *testing.T) {
@@ -180,6 +144,42 @@ func TestConfigSetAndUnsetWaitForTheConfigLock(t *testing.T) {
 			require.NotEqual(t, string(before), string(after))
 		})
 	}
+}
+
+func TestConfigSetRefusesABrokenFile(t *testing.T) {
+	home := recallFixture(t)
+	t.Setenv("CLAUDECODE", "")
+	path := filepath.Join(home, "data", "config.json")
+	writeFile(t, path, `{"checkpoint_gate": fals`)
+
+	output, code := runCommand(t, "config", "set", "checkpoint_gate", "false")
+	require.Equal(t, 1, code, output)
+	require.Contains(t, output, "fix or remove it before setting an option")
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, `{"checkpoint_gate": fals`, string(content))
+}
+
+func TestConfigSetRefusesAnUnlistedOwner(t *testing.T) {
+	recallFixture(t)
+	t.Setenv("CLAUDECODE", "")
+
+	output, code := runCommand(t, "config", "set", "--owner", "acme", "checkpoint_gate", "false")
+	require.Equal(t, 1, code, output)
+	require.Contains(t, output, `owner-map.json does not list owner "acme"`)
+}
+
+func TestConfigSetRefusesInsideASession(t *testing.T) {
+	home := recallFixture(t)
+	t.Setenv("CLAUDECODE", "1")
+
+	for _, args := range [][]string{{"set", "checkpoint_gate", "false"}, {"unset", "checkpoint_gate"}} {
+		output, code := runCommand(t, append([]string{"config"}, args...)...)
+		require.Equal(t, 1, code, output)
+		require.Contains(t, output, "refuses to run inside one; the user runs it outside the session: ele config "+args[0])
+	}
+	_, err := os.Stat(filepath.Join(home, "data", "config.json"))
+	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
 func TestConfigUnsetSaysWhenNoValueIsSet(t *testing.T) {

@@ -52,6 +52,72 @@ func TestCheckpointRunsMergesSkillAndCommandEventsOldestFirst(t *testing.T) {
 	}, runs)
 }
 
+func TestNamedHoldsAnOpenUnit(t *testing.T) {
+	units := []dto.MiningUnit{
+		{Session: "s1", Timestamp: "2026-10-15T10:00:00Z"},
+		{Open: true, Session: "s2", Timestamp: "2026-10-15T11:00:00Z"},
+	}
+	named, backlog, err := Named(units, []byte(`{"session":"s1","timestamp":"2026-10-15T10:00:00Z"}`+"\n"+`{"session":"s2","timestamp":"2026-10-15T11:00:00Z"}`))
+	require.NoError(t, err)
+	require.Equal(t, units[:1], named)
+	require.Equal(t, Backlog{Open: 1}, backlog)
+
+	named, backlog, err = Named(units, []byte(`{"session":"s2","timestamp":"2026-10-15T11:00:00Z"}`))
+	require.NoError(t, err, "a named unit held is not a file naming none")
+	require.Empty(t, named)
+	require.Equal(t, Backlog{Open: 1}, backlog)
+}
+
+func TestNamedListsTheUnitsALineNamesJudgedOrNot(t *testing.T) {
+	units := []dto.MiningUnit{
+		{Session: "s1", Timestamp: "2026-10-15T10:00:00Z"},
+		{Session: "s1", Timestamp: "2026-10-15T11:00:00Z"},
+		{Session: "s2", Timestamp: "2026-10-15T12:00:00Z"},
+	}
+	named, _, err := Named(units, []byte(`{"session":"s2","timestamp":"2026-10-15T12:00:00Z","digest":"/old/path.txt"}`+"\n\n"+`{"session":"s1","timestamp":"2026-10-15T10:00:00Z"}`+"\n"))
+	require.NoError(t, err)
+	require.Equal(t, []dto.MiningUnit{units[0], units[2]}, named, "in unit order, a listing line naming its unit as well as a bare one")
+
+	_, _, err = Named(units, []byte(`{"session":"s1","timestamp":"2026-10-15T10:00:00Z"}`+"\n"+`{"session":"s1","timestamp":"2026-10-15T10:00:00.000Z"}`))
+	require.ErrorContains(t, err, `units line 2: no unit has session "s1" and timestamp "2026-10-15T10:00:00.000Z"`)
+	_, _, err = Named(units, []byte("\n"))
+	require.ErrorContains(t, err, "no units named")
+}
+
+func TestPendingHoldsAnOpenUnit(t *testing.T) {
+	units := []dto.MiningUnit{
+		{Session: "s1", Timestamp: "2026-10-15T10:00:00Z"},
+		{Open: true, Session: "s2", Timestamp: "2026-10-15T11:00:00Z"},
+	}
+	pending, backlog, err := Pending(units, nil, time.Time{})
+	require.NoError(t, err)
+	require.Equal(t, units[:1], pending)
+	require.Equal(t, Backlog{Open: 1}, backlog)
+}
+
+func TestPendingListsUnjudgedUnitsPastTheWatermarkAndCountsTheRest(t *testing.T) {
+	units := []dto.MiningUnit{
+		{Session: "s1", Timestamp: "2026-10-15T10:00:00Z"},
+		{Session: "s1", Timestamp: "2026-10-15T11:00:00Z"},
+		{Session: "s1", Timestamp: "2026-10-15T12:00:00Z"},
+		{Session: "s1", Timestamp: "2026-10-15T13:00:00Z"},
+		{Session: "s1", Timestamp: "2026-10-15T14:00:00Z"},
+	}
+	judgments := []Judgment{
+		{Classifier: "a", Result: json.RawMessage(`{}`), Session: "s1", Timestamp: "2026-10-15T10:00:00Z"},
+		{Classifier: "b", Result: json.RawMessage(`{}`), Session: "s1", Timestamp: "2026-10-15T13:00:00Z"},
+	}
+	pending, backlog, err := Pending(units, judgments, time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC))
+	require.NoError(t, err)
+	require.Equal(t, []dto.MiningUnit{{Session: "s1", Timestamp: "2026-10-15T14:00:00Z"}}, pending, "a judgment under any classifier counts")
+	require.Equal(t, Backlog{Behind: 2}, backlog, "the unit at the watermark is behind it")
+}
+
+func TestPendingRefusesAnUnparseableTimestamp(t *testing.T) {
+	_, _, err := Pending([]dto.MiningUnit{{Session: "s1", Timestamp: "yesterday"}}, nil, time.Time{})
+	require.ErrorContains(t, err, "s1")
+}
+
 func TestReviewCyclesGiveARereviewAfterARunItsOwnCycle(t *testing.T) {
 	launches := []dto.Event{
 		launch("s1", "2026-10-15T11:27:00Z", "Bugs review", "bugs"),
@@ -159,56 +225,6 @@ func TestReviewCyclesSplitOffAnyLaunchARunPrecedes(t *testing.T) {
 	}, cycles, "a run between two launches closes the cycle to the second, re-review or fresh, however soon; a re-review a run closed out never joins as a fresh launch")
 }
 
-func TestPendingListsUnjudgedUnitsPastTheWatermarkAndCountsTheRest(t *testing.T) {
-	units := []dto.MiningUnit{
-		{Session: "s1", Timestamp: "2026-10-15T10:00:00Z"},
-		{Session: "s1", Timestamp: "2026-10-15T11:00:00Z"},
-		{Session: "s1", Timestamp: "2026-10-15T12:00:00Z"},
-		{Session: "s1", Timestamp: "2026-10-15T13:00:00Z"},
-		{Session: "s1", Timestamp: "2026-10-15T14:00:00Z"},
-	}
-	judgments := []Judgment{
-		{Classifier: "a", Result: json.RawMessage(`{}`), Session: "s1", Timestamp: "2026-10-15T10:00:00Z"},
-		{Classifier: "b", Result: json.RawMessage(`{}`), Session: "s1", Timestamp: "2026-10-15T13:00:00Z"},
-	}
-	pending, backlog, err := Pending(units, judgments, time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC))
-	require.NoError(t, err)
-	require.Equal(t, []dto.MiningUnit{{Session: "s1", Timestamp: "2026-10-15T14:00:00Z"}}, pending, "a judgment under any classifier counts")
-	require.Equal(t, Backlog{Behind: 2}, backlog, "the unit at the watermark is behind it")
-}
-
-func TestPendingRefusesAnUnparseableTimestamp(t *testing.T) {
-	_, _, err := Pending([]dto.MiningUnit{{Session: "s1", Timestamp: "yesterday"}}, nil, time.Time{})
-	require.ErrorContains(t, err, "s1")
-}
-
-func TestNamedListsTheUnitsALineNamesJudgedOrNot(t *testing.T) {
-	units := []dto.MiningUnit{
-		{Session: "s1", Timestamp: "2026-10-15T10:00:00Z"},
-		{Session: "s1", Timestamp: "2026-10-15T11:00:00Z"},
-		{Session: "s2", Timestamp: "2026-10-15T12:00:00Z"},
-	}
-	named, _, err := Named(units, []byte(`{"session":"s2","timestamp":"2026-10-15T12:00:00Z","digest":"/old/path.txt"}`+"\n\n"+`{"session":"s1","timestamp":"2026-10-15T10:00:00Z"}`+"\n"))
-	require.NoError(t, err)
-	require.Equal(t, []dto.MiningUnit{units[0], units[2]}, named, "in unit order, a listing line naming its unit as well as a bare one")
-
-	_, _, err = Named(units, []byte(`{"session":"s1","timestamp":"2026-10-15T10:00:00Z"}`+"\n"+`{"session":"s1","timestamp":"2026-10-15T10:00:00.000Z"}`))
-	require.ErrorContains(t, err, `units line 2: no unit has session "s1" and timestamp "2026-10-15T10:00:00.000Z"`)
-	_, _, err = Named(units, []byte("\n"))
-	require.ErrorContains(t, err, "no units named")
-}
-
-func TestPendingHoldsAnOpenUnit(t *testing.T) {
-	units := []dto.MiningUnit{
-		{Session: "s1", Timestamp: "2026-10-15T10:00:00Z"},
-		{Open: true, Session: "s2", Timestamp: "2026-10-15T11:00:00Z"},
-	}
-	pending, backlog, err := Pending(units, nil, time.Time{})
-	require.NoError(t, err)
-	require.Equal(t, units[:1], pending)
-	require.Equal(t, Backlog{Open: 1}, backlog)
-}
-
 func TestSettleOpensEveryUnitOfALiveSession(t *testing.T) {
 	now := time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC)
 	units := []dto.MiningUnit{
@@ -223,20 +239,4 @@ func TestSettleOpensEveryUnitOfALiveSession(t *testing.T) {
 
 	_, err = Settle(units, map[string]string{"live": "soon"}, now)
 	require.ErrorContains(t, err, "live")
-}
-
-func TestNamedHoldsAnOpenUnit(t *testing.T) {
-	units := []dto.MiningUnit{
-		{Session: "s1", Timestamp: "2026-10-15T10:00:00Z"},
-		{Open: true, Session: "s2", Timestamp: "2026-10-15T11:00:00Z"},
-	}
-	named, backlog, err := Named(units, []byte(`{"session":"s1","timestamp":"2026-10-15T10:00:00Z"}`+"\n"+`{"session":"s2","timestamp":"2026-10-15T11:00:00Z"}`))
-	require.NoError(t, err)
-	require.Equal(t, units[:1], named)
-	require.Equal(t, Backlog{Open: 1}, backlog)
-
-	named, backlog, err = Named(units, []byte(`{"session":"s2","timestamp":"2026-10-15T11:00:00Z"}`))
-	require.NoError(t, err, "a named unit held is not a file naming none")
-	require.Empty(t, named)
-	require.Equal(t, Backlog{Open: 1}, backlog)
 }
