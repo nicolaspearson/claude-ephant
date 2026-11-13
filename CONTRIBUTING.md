@@ -74,7 +74,8 @@ as new as the plugin.
   `plugin/skills/`: a skill the model can invoke has `Use when` in its
   description, each relative link resolves, each `SKILL.md` stays under 500
   lines, and a skill keeps nothing beside `SKILL.md` but `references/`,
-  `scripts/`, `assets/` and `reviewers/`
+  `scripts/`, `assets/` and `reviewers/`; it also holds `plugin.json`'s
+  description equal to `marketplace.json`'s entry for `ele`
 - CI runs `task check FORCE=1` and `task audit` on every pull request, every
   push to `main` and weekly
 
@@ -152,10 +153,12 @@ repository must allow Actions to create pull requests.
 
 Merging the release PR creates a draft release with its tag. When the
 release's commit is the one the run checked, one job cross-compiles macOS and
-Linux for amd64 and arm64 with `CGO_ENABLED=0`, uploads unversioned tarballs
-and a `checksums.txt`, and publishes the release as latest, so
-`releases/latest/download/<name>` is a stable URL. A release of any other
-commit stays a draft for a person. There is no GoReleaser and no Windows build.
+Linux for amd64 and arm64 with `CGO_ENABLED=0`, uploads unversioned tarballs,
+each holding `ele`, `LICENSE` and the `LICENSE-PSF` that `internal/ticket`'s
+port of difflib carries, and a `checksums.txt`, and publishes the release as
+latest, so `releases/latest/download/<name>` is a stable URL. A release of any
+other commit stays a draft for a person. There is no GoReleaser and no Windows
+build.
 
 To publish such a draft, run Release by hand with its tag. The run checks the
 tag's commit and refuses a release that is not a draft. It refuses a draft

@@ -1,6 +1,7 @@
 package skilllint
 
 import (
+	"encoding/json"
 	"maps"
 	"os"
 	"path/filepath"
@@ -80,6 +81,28 @@ func TestCheckReadsEverySkill(t *testing.T) {
 	problems, err := Check(root)
 	require.NoError(t, err)
 	require.Equal(t, []string{filepath.Join(root, "a", "SKILL.md") + ": no front matter", filepath.Join(root, "b", "SKILL.md") + ": no front matter"}, problems)
+}
+
+func TestPluginDescriptionMatchesTheMarketplaceEntry(t *testing.T) {
+	var plugin struct {
+		Description string `json:"description"`
+	}
+	content, err := os.ReadFile(filepath.Join("..", "..", "plugin", ".claude-plugin", "plugin.json"))
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(content, &plugin))
+	var marketplace struct {
+		Plugins []struct {
+			Description string `json:"description"`
+			Name        string `json:"name"`
+		} `json:"plugins"`
+	}
+	content, err = os.ReadFile(filepath.Join("..", "..", ".claude-plugin", "marketplace.json"))
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(content, &marketplace))
+	require.Len(t, marketplace.Plugins, 1)
+	require.Equal(t, "ele", marketplace.Plugins[0].Name)
+	require.NotEmpty(t, plugin.Description)
+	require.Equal(t, plugin.Description, marketplace.Plugins[0].Description, "marketplace.json's description of ele differs from plugin.json's")
 }
 
 func TestPluginSkills(t *testing.T) {

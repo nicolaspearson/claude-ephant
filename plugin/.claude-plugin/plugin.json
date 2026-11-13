@@ -3,5 +3,8 @@
     "name": "Nicolas Pearson"
   },
   "description": "Cross-session memory: recall what earlier sessions discussed, and start each session with the open questions, decisions and facts that matter here.",
-  "name": "ele"
+  "homepage": "https://github.com/nicolaspearson/claude-ephant",
+  "license": "GPL-3.0-or-later",
+  "name": "ele",
+  "repository": "https://github.com/nicolaspearson/claude-ephant"
 }

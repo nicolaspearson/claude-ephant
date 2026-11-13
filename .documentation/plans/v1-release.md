@@ -2595,8 +2595,15 @@ keep.
     and `internal/ticket/LICENSE-PSF`, as the PSF agreement asks of a
     derivative version, binaries included; in the Taskfile and manifests
     group
-  - next: the nits in groups, a checkpoint each: Taskfile and manifests;
-    checkpoint and review skills; the other skills; evals and CONTRIBUTING
+  - as of 2026-11-13: group 2 done, in the commit carrying this line:
+    `FORCE=0` no longer forces the tests; `release:check` lists a copy on a
+    path with a space whole; release tarballs hold `LICENSE` and
+    `LICENSE-PSF`; `plugin.json` names its homepage, repository and license,
+    `GPL-3.0-or-later` on the user's ruling, as the bare GPLv3 text lets a
+    recipient pick any version; a skill-lint test holds its description equal
+    to the marketplace entry's
+  - next: the nits in groups, a checkpoint each: checkpoint and review
+    skills; the other skills; evals and CONTRIBUTING
 - [ ] audit-fixes: The audits' data and state defects the user ruled to fix
   - done when, each by a test seen red: `ele backup` copies while holding
     the notes and forgotten locks; `ele forget A B` forgets both when A

@@ -105,6 +105,7 @@ jobs:
             name="ele_${target%/*}_${target#*/}"
             mkdir "dist/$name"
             CGO_ENABLED=0 GOOS="${target%/*}" GOARCH="${target#*/}" go build -trimpath -ldflags "-s -w -X main.version=$TAG" -o "dist/$name/ele" ./cmd/ele
+            cp LICENSE internal/ticket/LICENSE-PSF "dist/$name/"
             tar -C dist -czf "dist/$name.tar.gz" "$name"
           done
           (cd dist && sha256sum ele_*.tar.gz > checksums.txt && cat checksums.txt)

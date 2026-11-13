@@ -141,7 +141,7 @@ tasks:
           echo "\`{{.BINARY}} version\` prints $installed; the latest release is $tag" >&2
           exit 1
         fi
-        for copy in $(which -a {{.BINARY}}); do
+        which -a {{.BINARY}} | while IFS= read -r copy; do
           if [ "$(cd "$(dirname "$copy")" && pwd -P)" != "$dir" ]; then
             echo "Also on PATH, behind it: $copy"
           fi
@@ -293,7 +293,7 @@ tasks:
   test:
     desc: "Run the tests. Usage: task test [FORCE=1] to bypass the test cache."
     vars:
-      FORCE: "{{if .FORCE}}-count=1{{end}}"
+      FORCE: '{{if and .FORCE (ne .FORCE "0")}}-count=1{{end}}'
     cmds:
       - go test {{.FORCE}} -race ./...
 
