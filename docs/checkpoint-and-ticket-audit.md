@@ -15,8 +15,9 @@ Ask for one, or let Claude run it before saying the work is done. A run:
 2. **Reviews** it. A small change to tracked files in one repository, up to 40
    changed lines or 100 in Markdown or text, gets one reviewer. Any other change
    gets a bugs reviewer and a conventions
-   and prose reviewer in parallel. When the brief quotes a plan item or ticket, a
-   spec reviewer checks the change against what it asked for
+   and prose reviewer in parallel. When the brief quotes a plan item, a ticket,
+   or a done-when you confirmed in the session with the task and the chosen
+   design, a spec reviewer checks the change against what it asked for
 3. **Verifies** each finding against the code before fixing it, and breaks the
    code each new or changed test covers to watch the test fail
 4. **Runs the project's checks**, the ones its CI runs, again after the fixes. A

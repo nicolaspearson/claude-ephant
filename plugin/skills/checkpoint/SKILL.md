@@ -111,13 +111,8 @@ generated-code drift. The repository's local gate is often narrower, and as of
 2026-10-15 that gap was the commonest way a defect got past a checkpoint. A check
 that cannot run here is reported as unverified, never as passing.
 
-With a file under `.documentation/plans/` on the change list, the gate also runs
-`(cd <root> && ele plan check <path>)` for each one still on disk. For a change
-list of plan files alone, §2's check list is those runs plus any CI check that
-reads `.documentation/`, such as a docs lint; §10 names the rest as not run,
-not as unverified. It exits 0 on warnings, so read them from the log: one on a
-line the change touched is a finding, stage `gate`, source `ele plan check`; any
-other, a warning with no line included, is named in §10.
+With a file under `.documentation/plans/` on the change list, read
+`references/PLAN-GATE.md`; it adds to the gate.
 
 Gather what is settled, for the brief:
 
@@ -145,8 +140,9 @@ paths only, the reviewer reads them:
   the gate enforces.
 
 If the work came from a ticket, fetch it; from a plan item, read it from the
-plan file. A checkpoint that cannot say what was asked cannot say whether it was
-delivered.
+plan file; from a done-when the user confirmed this session, take it with the
+task in the user's words and the design they chose. A checkpoint that cannot say
+what was asked cannot say whether it was delivered.
 
 §2 is done when the CI check list exists and every brief field it gathers has a
 value or is stated empty.
@@ -160,10 +156,12 @@ One brief, shared by every reviewer, every path absolute:
 - The change list, untracked and outside-git files marked as such.
 - The paths §1 found staged differently from the working tree.
 - The convention file paths.
-- What was asked — the ticket, or the user's request in their words. A plan
-  item or fetched ticket is quoted whole: the item's line and body, or the
-  ticket's body and comments. Say which of its requirements this change sets
-  out to deliver, where it delivers only some.
+- What was asked — the ticket, or the user's request in their words. An item
+  is quoted whole: a plan item's line and body, a fetched ticket's body and
+  comments, or a confirmed done-when with the task in the user's words and the
+  chosen design, without which every file the design touches reads as unasked.
+  Say which of its requirements this change sets out to deliver, where it
+  delivers only some.
 - **Observed**: with a quoted item, what was run or measured toward it — a
   real-session run, a measurement — and where its output is. This is evidence,
   not the author's case, and the spec reviewer has no other way to see it.
@@ -194,10 +192,11 @@ repository or any file outside git makes the change full, whatever each freeze
 printed. Small runs one fresh `general-purpose` reviewer that reads the reviewer
 files and reports under each of their labels; full runs one reviewer per file.
 
-**Spec.** The spec reviewer runs only when the brief quotes a plan item or
-fetched ticket: in full mode as a third reviewer, launched with the other two;
-in small mode its file, `reviewers/spec.md`, joins the single reviewer's, which
-then also reports under §10's Spec reviewer label.
+**Spec.** The spec reviewer runs only when the brief quotes a plan item, a
+fetched ticket or a confirmed done-when: in full mode as a third reviewer,
+launched with the other two; in small mode its file, `reviewers/spec.md`,
+joins the single reviewer's, which then also reports under §10's Spec reviewer
+label.
 
 **Launch.** Full mode: launch them all in one message so they run in parallel,
 each as the subagent type below. Each prompt is the brief plus one line: read
@@ -244,7 +243,8 @@ if any.
 Give each finding one of these verdicts:
 
 - **`deliberate`** — confirmed, and a missing or partial requirement the brief
-  says this change does not set out to deliver: left to §7's `next:` line.
+  says this change does not set out to deliver: left to §7's `next:` line, or
+  with no plan to §10's deliberately-left list.
 - **`fixed`** — confirmed, and fixed below.
 - **`open`** — neither confirmed nor refuted: reported as a question. A
   confirmed unasked change, or a finding against a settled item, goes to the
@@ -349,8 +349,8 @@ to diff. Launch one fresh `ele:checkpoint-reviewer`, Bugs included on purpose,
 or `general-purpose` where that type is not listed, with both frozen diffs, the
 files the fixes touched, the findings they fixed, the brief's Settled, Report
 only and Errors fields and, when the spec reviewer ran, §7 wrote a line or held
-a tick, the item quoted whole from the plan file, with what the change sets out
-to deliver and the brief's Observed field; for a held tick, also the commits
+a tick, the item quoted whole as the brief quotes it, with what the change sets
+out to deliver and the brief's Observed field; for a held tick, also the commits
 holding its work, where any are committed. It reads the reviewer files that apply, scoped to
 what the fixes changed:
 

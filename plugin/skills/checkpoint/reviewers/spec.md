@@ -1,14 +1,16 @@
 # Spec reviewer
 
-Judge the change against what was asked: the plan item or ticket the brief
-quotes. Whether the code is good is the other reviewers' question; yours is
+Judge the change against what was asked, the item the brief quotes: a plan
+item, a ticket, or a done-when the user confirmed with the task and the chosen
+design. Whether the code is good is the other reviewers' question; yours is
 whether it is what the item asked for, all of it and nothing else.
 
 ## Read
 
-- The item as the brief quotes it: its line and body, or the ticket's body and
-  comments. A decision below the item, or in a comment, binds as much as the
-  line itself.
+- The item as the brief quotes it: its line and body, the ticket's body and
+  comments, or the done-when with the task and the chosen design. A decision
+  below the item, in a comment, or in the design, binds as much as the line
+  itself: a file or change the design names is asked for.
 - The frozen diff, whole, and every untracked and outside-git file on the change
   list, whole.
 - Enough of the code around the change to tell whether a requirement is met

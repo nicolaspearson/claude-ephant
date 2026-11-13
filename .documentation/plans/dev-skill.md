@@ -174,11 +174,9 @@ use them where it reads code or weighs designs in the main session.
     cover
 - [ ] checkpoint-done-when: Checkpoint quotes a done-when the user confirmed in
   the session as it quotes a plan item, with the task and chosen design, and
-  runs the spec reviewer on it; update `checkpoint/SKILL.md` §2, §3's What was
-  asked and §4's Spec paragraph, `reviewers/spec.md`'s Read section, the
+  runs the spec reviewer on it; update `checkpoint/SKILL.md` §2 to §5 and §8
+  where they name a quoted item, `reviewers/spec.md` throughout, the
   checkpoint spec and `docs/checkpoint-and-ticket-audit.md`
-  - blocked: v1-release/cut-v1; v1-release's open items also edit
-    `checkpoint/SKILL.md`, which has one line under the lint's limit
   - room in `checkpoint/SKILL.md` comes from moving a case only some runs need
     into its `references/`, as the skill lint's message says
   - done when `checkpoint/SKILL.md` stays under 500 lines with `task test`
@@ -187,6 +185,26 @@ use them where it reads code or weighs designs in the main session.
     shows a `reviewers/spec.md` launch in `ele events --kind agent` whose
     brief, read with `ele show`, quotes the task, the done-when and the
     chosen design
+  - as of 2026-11-13: `checkpoint/SKILL.md` was 499 lines; `internal/skilllint`
+    `maxSkillLines` is 500 and fails at 500 or more, so §2's plan-files gate
+    moved to `references/PLAN-GATE.md` to make room
+  - as of 2026-11-13: the spec rule's "quoted item" wording also sits in §3's
+    Observed bullet, §5's spec-finding check and §8's re-review brief, and in
+    `reviewers/spec.md`'s intro, Hunt and Output beyond its Read section
+  - as of 2026-11-13: `ele events --kind agent` records the reviewer files a
+    launch named (`spec` among them) but not the brief; `ele show <session>
+    --at <timestamp>` opens the session to read it; not checked that it shows
+    the full brief
+  - as of 2026-11-13: matches `dev-skill`'s Decision that the brief quotes the
+    task in the user's words, the done-when and the chosen design together
+  - as of 2026-11-13: checkpoint quotes a confirmed done-when with the task in
+    the user's words and the chosen design, and runs the spec reviewer on it
+    (`checkpoint/SKILL.md` §2 to §5 and §8, `reviewers/spec.md`, the spec and
+    docs page); §2's plan-files gate moved to `references/PLAN-GATE.md`,
+    leaving `SKILL.md` at 499 lines; `task check FORCE=1` and `task audit` pass
+  - next: in a `task dev` session, run one checkpoint briefed with a confirmed
+    done-when, then read its spec launch with `ele events --kind agent` and
+    `ele show`
 - [ ] dev-skill: Write `plugin/skills/dev/SKILL.md`,
   `.documentation/specs/dev.md` and `docs/dev.md`, and add `/ele:dev` to
   design.md's Names table and Integration list, the README's skill list and
