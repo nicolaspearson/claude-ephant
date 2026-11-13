@@ -134,6 +134,13 @@ func FormatEvery(every time.Duration) string {
 	return strconv.Itoa(int(every/time.Minute)) + "m"
 }
 
+// Lock takes a note tree's advisory lock, blocking until it is free. Unlocked, a later rename drops the other rewrite's
+// key, and a rewrite racing a Move recreates the note under its old owner.
+func Lock(directory string) (func(), error) {
+	// Beside the tree, not in it: every reader of notes/ takes each entry for an owner's folder.
+	return atomicfile.Lock(filepath.Clean(directory) + ".lock")
+}
+
 func MarkClosed(directory string, note Note, when time.Time) error {
 	return setKey(directory, note, "closed", when.UTC().Format(time.RFC3339))
 }
@@ -147,7 +154,7 @@ func Move(directory string, note Note, owner string) error {
 	from := filepath.Join(directory, note.Owner, note.ID+".md")
 	to := filepath.Join(directory, owner, note.ID+".md")
 	failed := func(err error) error { return fmt.Errorf("move %s to %s: %w", from, owner, err) }
-	unlock, err := lock(directory)
+	unlock, err := Lock(directory)
 	if err != nil {
 		return failed(err)
 	}
@@ -208,7 +215,7 @@ func Move(directory string, note Note, owner string) error {
 func Relocate(fromDirectory string, toDirectory string, note Note) error {
 	from := filepath.Join(fromDirectory, note.Owner, note.ID+".md")
 	to := filepath.Join(toDirectory, note.Owner, note.ID+".md")
-	unlock, err := lock(fromDirectory)
+	unlock, err := Lock(fromDirectory)
 	if err != nil {
 		return fmt.Errorf("relocate %s: %w", from, err)
 	}
@@ -476,13 +483,6 @@ func clearKey(directory string, note Note, key string) error {
 	})
 }
 
-// Unlocked, a later rename drops the other rewrite's key, and a rewrite racing
-// a Move recreates the note under its old owner.
-func lock(directory string) (func(), error) {
-	// Beside the tree, not in it: every reader of notes/ takes each entry for an owner's folder.
-	return atomicfile.Lock(filepath.Clean(directory) + ".lock")
-}
-
 func onePathElement(name string) bool {
 	return filepath.IsLocal(name) && name != "." && name == strings.TrimSpace(name) && !strings.ContainsAny(name, `/\`) && projectShape.MatchString(name)
 }
@@ -575,7 +575,7 @@ func repeated(identifiers []string) string {
 func rewriteKey(directory string, note Note, key string, action string, change func(lines []string, closing int, keyIndex int) []string) error {
 	path := filepath.Join(directory, note.Owner, note.ID+".md")
 	failed := func(err error) error { return fmt.Errorf("%s %s %s: %w", action, path, key, err) }
-	unlock, err := lock(directory)
+	unlock, err := Lock(directory)
 	if err != nil {
 		return failed(err)
 	}

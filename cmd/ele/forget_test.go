@@ -9,6 +9,31 @@ import (
 	"github.com/nicolaspearson/claude-ephant/internal/notes"
 )
 
+func TestRunForgetForgetsASupersededNoteWithEveryCorrection(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	output, code := runCommand(t, "remember", "--kind", "decision", "--session", "", "Pin pydantic below 2.14.")
+	require.Equal(t, 0, code, output)
+	original := readRemembered(t, output)
+	var corrections []string
+	for _, words := range []string{"Pin pydantic below 2.15.", "Pin pydantic below 2.16."} {
+		output, code = runCommand(t, "remember", "--kind", "decision", "--session", "", "--supersedes", original.ID, words)
+		require.Equal(t, 0, code, output)
+		corrections = append(corrections, readRemembered(t, output).ID)
+	}
+
+	output, code = runCommand(t, "forget", corrections[0], original.ID)
+	require.Equal(t, 1, code, output)
+	require.Equal(t, "ele: note "+corrections[1]+" supersedes "+original.ID+"; forget "+corrections[1]+" first, or leave both\n", output, "a correction left live still hides the original")
+
+	output, code = runCommand(t, "forget", corrections[0], corrections[1], original.ID)
+	require.Equal(t, 0, code, output)
+	require.NotContains(t, output, "live again")
+	output, code = runCommand(t, "context")
+	require.Equal(t, 0, code, output)
+	require.NotContains(t, output, "Pin pydantic below")
+}
+
 func TestRunForgetMovesANoteOutOfContextUntilRestored(t *testing.T) {
 	home := recallFixture(t)
 	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
@@ -158,11 +183,7 @@ func TestRunForgetRestoresASupersededNoteBesideOneSayingTheSame(t *testing.T) {
 	require.Equal(t, 0, code, output)
 	correction := readRemembered(t, output)
 	output, code = runCommand(t, "forget", correction.ID, original.ID)
-	require.Equal(t, 1, code, "the correction is checked before it moves, so the original is still superseded: %s", output)
-	for _, identifier := range []string{correction.ID, original.ID} {
-		output, code = runCommand(t, "forget", identifier)
-		require.Equal(t, 0, code, output)
-	}
+	require.Equal(t, 0, code, "forgotten with its correction, the original hides nothing: %s", output)
 	output, code = runCommand(t, "forget", "--restore", correction.ID)
 	require.Equal(t, 0, code, output)
 	output, code = runCommand(t, "remember", "--kind", "decision", "--session", "", "Pin pydantic below 2.14.")

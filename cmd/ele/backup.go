@@ -13,6 +13,7 @@ import (
 	"github.com/nicolaspearson/claude-ephant/internal/archive"
 	"github.com/nicolaspearson/claude-ephant/internal/datadir"
 	"github.com/nicolaspearson/claude-ephant/internal/hookversion"
+	"github.com/nicolaspearson/claude-ephant/internal/notes"
 	"github.com/nicolaspearson/claude-ephant/internal/store"
 )
 
@@ -95,6 +96,17 @@ func copyDataDirectory(ctx context.Context, dataDirectory string, target string)
 	}
 	var sizes []string
 	for _, part := range backupParts {
+		switch part {
+		case "forgotten":
+			copied, err := copyNoteTrees(dataDirectory, target)
+			if err != nil {
+				return nil, err
+			}
+			sizes = append(sizes, copied...)
+			continue
+		case "notes":
+			continue
+		}
 		source := filepath.Join(dataDirectory, part)
 		if _, statErr := os.Lstat(source); errors.Is(statErr, fs.ErrNotExist) {
 			continue
@@ -125,6 +137,33 @@ func copyDataDirectory(ctx context.Context, dataDirectory string, target string)
 			return nil, err
 		}
 		sizes = append(sizes, "index "+humanBytes(info.Size()))
+	}
+	return sizes, nil
+}
+
+// Both trees under both locks: a forget or restore between two separate copies would leave its note in neither.
+// Only for these copies, so a session start marking its handoff shown waits for no more; after the archive lock, the
+// order ele owner nests them in.
+func copyNoteTrees(dataDirectory string, target string) ([]string, error) {
+	trees := []string{"forgotten", "notes"}
+	for _, tree := range trees {
+		unlock, err := notes.Lock(filepath.Join(dataDirectory, tree))
+		if err != nil {
+			return nil, err
+		}
+		defer unlock()
+	}
+	var sizes []string
+	for _, tree := range trees {
+		source := filepath.Join(dataDirectory, tree)
+		if _, statErr := os.Lstat(source); errors.Is(statErr, fs.ErrNotExist) {
+			continue
+		}
+		size, err := copyTree(source, filepath.Join(target, tree))
+		if err != nil {
+			return nil, err
+		}
+		sizes = append(sizes, fmt.Sprintf("%s %s", tree, humanBytes(size)))
 	}
 	return sizes, nil
 }

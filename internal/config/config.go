@@ -11,6 +11,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/nicolaspearson/claude-ephant/internal/atomicfile"
 )
 
 const (
@@ -189,12 +191,7 @@ func Save(path string, config Config) error {
 	if err != nil {
 		return fmt.Errorf("encode config: %w", err)
 	}
-	temporary := path + ".tmp"
-	if err = os.WriteFile(temporary, append(content, '\n'), 0o600); err != nil {
-		return fmt.Errorf("write %s: %w", path, err)
-	}
-	if err = os.Rename(temporary, path); err != nil {
-		_ = os.Remove(temporary)
+	if err = atomicfile.Write(path, append(content, '\n')); err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
 	return nil

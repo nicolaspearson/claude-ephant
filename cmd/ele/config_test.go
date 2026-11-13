@@ -1,11 +1,16 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/nicolaspearson/claude-ephant/internal/atomicfile"
 )
 
 func TestConfigGetReadsABrokenFileAsDefaults(t *testing.T) {
@@ -139,6 +144,42 @@ func TestConfigSetRefusesInsideASession(t *testing.T) {
 	}
 	_, err := os.Stat(filepath.Join(home, "data", "config.json"))
 	require.ErrorIs(t, err, os.ErrNotExist)
+}
+
+func TestConfigSetAndUnsetWaitForTheConfigLock(t *testing.T) {
+	for _, args := range [][]string{{"set", "checkpoint_gate", "false"}, {"unset", "checkpoint_gate"}} {
+		t.Run(args[0], func(t *testing.T) {
+			home := recallFixture(t)
+			t.Setenv("CLAUDECODE", "")
+			output, code := runCommand(t, "config", "set", "checkpoint_gate", "true")
+			require.Equal(t, 0, code, output)
+			path := filepath.Join(home, "data", "config.json")
+			before, err := os.ReadFile(path)
+			require.NoError(t, err)
+			unlock, err := atomicfile.Lock(path + ".lock")
+			require.NoError(t, err)
+			done := make(chan int, 1)
+
+			go func() {
+				var output bytes.Buffer
+				done <- run(context.Background(), append([]string{"config"}, args...), &output, &output)
+			}()
+
+			select {
+			case <-done:
+				t.Fatalf("config %s wrote while another writer held the lock", args[0])
+			case <-time.After(300 * time.Millisecond):
+			}
+			during, err := os.ReadFile(path)
+			require.NoError(t, err)
+			require.Equal(t, string(before), string(during))
+			unlock()
+			require.Equal(t, 0, <-done)
+			after, err := os.ReadFile(path)
+			require.NoError(t, err)
+			require.NotEqual(t, string(before), string(after))
+		})
+	}
 }
 
 func TestConfigUnsetSaysWhenNoValueIsSet(t *testing.T) {

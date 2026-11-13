@@ -98,6 +98,21 @@ func TestSaveKeepsUnknownKeysAndDropsEmptyOwners(t *testing.T) {
 	require.Equal(t, "{\n  \"checkpoint_gate\": false,\n  \"later_option\": 3\n}\n", string(content))
 }
 
+func TestSaveWritesThroughATemporaryFileOfItsOwn(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	// Another writer's temporary file at a fixed name, as two saves at once would share.
+	require.NoError(t, os.Mkdir(path+".tmp", 0o700))
+	config, err := Load(path)
+	require.NoError(t, err)
+	require.NoError(t, config.Set("checkpoint_gate", "", "false"))
+
+	require.NoError(t, Save(path, config))
+
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, "{\n  \"checkpoint_gate\": false\n}\n", string(content))
+}
+
 func TestSetRefusesAnUnknownOptionOrAValueOfTheWrongKind(t *testing.T) {
 	config := Defaults()
 	require.ErrorContains(t, config.Set("checkpoint_gat", "", "false"), `no option "checkpoint_gat"; options: auto_note_writes, checkpoint_gate`)

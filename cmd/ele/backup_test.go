@@ -12,11 +12,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/nicolaspearson/claude-ephant/internal/archive"
+	"github.com/nicolaspearson/claude-ephant/internal/notes"
 	"github.com/nicolaspearson/claude-ephant/internal/store"
 )
 
 func TestBackupCopiesNotesBeforePlans(t *testing.T) {
-	notesAt, plansAt := slices.Index(backupParts, "notes"), slices.Index(backupParts, "plans")
+	// Notes copy with forgotten, at forgotten's place in the list.
+	notesAt, plansAt := slices.Index(backupParts, "forgotten"), slices.Index(backupParts, "plans")
 	require.NotEqual(t, -1, notesAt)
 	require.NotEqual(t, -1, plansAt)
 	require.Less(t, notesAt, plansAt, "ele plan done stores a plan's names before marking its note closed, so a note copied as closed has whatever names were stored in the plans copied after it")
@@ -152,16 +154,22 @@ func TestRunBackupRefusesATargetItCannotOwn(t *testing.T) {
 func TestRunBackupWaitsForEachLock(t *testing.T) {
 	tests := []struct {
 		directory string
+		lock      func(string) (func(), error)
 		name      string
 	}{
-		{directory: filepath.Join("archive", "transcripts"), name: "archive"},
-		{directory: filepath.Join("mining", "cache"), name: "mining cache"},
+		{directory: filepath.Join("archive", "transcripts"), lock: archive.Lock, name: "archive"},
+		{directory: "forgotten", lock: notes.Lock, name: "forgotten notes"},
+		{directory: filepath.Join("mining", "cache"), lock: archive.Lock, name: "mining cache"},
+		{directory: "notes", lock: notes.Lock, name: "notes"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			home := recallFixture(t)
 			target := filepath.Join(home, "backup")
-			unlock, err := archive.Lock(filepath.Join(home, "data", test.directory))
+			for _, tree := range []string{"forgotten", "notes", test.directory} {
+				writeFile(t, filepath.Join(home, "data", tree, "personal", "20261017-aaaaaa.md"), "a note\n")
+			}
+			unlock, err := test.lock(filepath.Join(home, "data", test.directory))
 			require.NoError(t, err)
 
 			done := make(chan int, 1)
@@ -175,6 +183,7 @@ func TestRunBackupWaitsForEachLock(t *testing.T) {
 			case <-time.After(300 * time.Millisecond):
 			}
 			require.NoFileExists(t, filepath.Join(target, "ele.db"))
+			require.NoDirExists(t, filepath.Join(target, "forgotten"), "both note trees copy under both locks, or a forget between them loses its note")
 			unlock()
 			require.Equal(t, 0, <-done)
 			require.FileExists(t, filepath.Join(target, "ele.db"))

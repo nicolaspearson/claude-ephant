@@ -36,9 +36,10 @@ directory, unused.
 claude-ephant/
   archive/         transcripts, copied verbatim and compressed
   config.json      options
+  config.json.lock held while ele config sets or unsets an option
   ele.db           the search index
   forgotten/       notes ele forget moved out
-  forgotten.lock   held while ele moves a forgotten note
+  forgotten.lock   held while ele moves a forgotten note or backs them up
   hook-versions/   the ele version each session's hooks ran, one file a session
   last-sync        when the last sync succeeded
   logs/            checkpoints.jsonl and ticket-audits.jsonl, with
@@ -46,7 +47,7 @@ claude-ephant/
   mining/          mining judgments of checkpoint runs and review cycles
   move-notice      the data directory and log moves' outcomes, until a session shows them
   notes/           notes, one Markdown file each, by owner
-  notes.lock       held while ele rewrites or moves a note
+  notes.lock       held while ele rewrites, moves or backs up a note
   owner-map.json   owners, path rules and project entries
   plans/           item names of closed plans
   stop-check/      the Stop hook's state per session

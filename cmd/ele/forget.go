@@ -64,7 +64,10 @@ func forget(ctx context.Context, args []string, stdout io.Writer, stderr io.Writ
 	for _, note := range candidates {
 		byID[note.ID] = note
 	}
-	superseded := supersededBy(live)
+	named := map[string]bool{}
+	for _, identifier := range identifiers {
+		named[identifier] = true
+	}
 	// Grows as each restore is checked, so two forgotten notes saying the same are not both restored.
 	restoring := slices.Clone(live)
 	// Checked before any is moved, so a mistyped id or a clash moves nothing.
@@ -77,7 +80,7 @@ func forget(ctx context.Context, args []string, stdout io.Writer, stderr io.Writ
 			fmt.Fprintf(stderr, "ele: %s has no %s note %s; --owner <name> for another owner's\n", cmp.Or(resolved, notes.OwnerEverywhere), where, identifier)
 			return 1
 		}
-		if by := superseded[identifier]; !*restore && by != "" {
+		if by := supersederOutside(live, identifier, named); !*restore && by != "" {
 			fmt.Fprintf(stderr, "ele: note %s supersedes %s; forget %s first, or leave both\n", by, identifier, by)
 			return 1
 		}
@@ -128,6 +131,16 @@ func forget(ctx context.Context, args []string, stdout io.Writer, stderr io.Writ
 		}
 	}
 	return 0
+}
+
+// A superseder forgotten in the same call hides nothing.
+func supersederOutside(live []notes.Note, identifier string, named map[string]bool) string {
+	for _, note := range live {
+		if !named[note.ID] && slices.Contains(note.Supersedes, identifier) {
+			return note.ID
+		}
+	}
+	return ""
 }
 
 func supersessorCounts(all []notes.Note) map[string]int {

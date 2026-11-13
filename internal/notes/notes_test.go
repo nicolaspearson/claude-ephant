@@ -108,7 +108,7 @@ func TestMarkShownAndMoveWaitForTheNotesLock(t *testing.T) {
 			root := t.TempDir()
 			_, err := Write(root, valid)
 			require.NoError(t, err)
-			unlock, err := lock(root)
+			unlock, err := Lock(root)
 			require.NoError(t, err)
 			done := make(chan error, 1)
 

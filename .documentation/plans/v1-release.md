@@ -2374,6 +2374,9 @@ keep.
     and `corpus_test.go`'s test funcs in byte order, a move-only change
 - [ ] audit-tidy: Order, comments and shape the audits found
   - done when each nit below is fixed or dropped on the user's ruling
+  - 2026-11-13, from audit-tests' sort checkpoint, triaged in:
+    `internal/ticket`'s `claims_test.go` and `ledger_test.go` hold test
+    funcs out of byte order, which the audits did not list
   - 2026-10-30, from audit-cmd: duplicated helpers. `remember`'s `~`
     expansion repeats `ticket`'s `expandHome`; the one-line collapse
     `strings.Join(strings.Fields(redact.Redact(…)), " ")` recurs in flag,
@@ -2646,8 +2649,42 @@ keep.
     hold a lock and write through `atomicfile.Write`; `archive`'s `syncFile`
     records the tail hash of the bytes it read; the checkpoint gate's
     `lastTurn` starts a turn at a prompt whose content is an array of text
-    or image parts; `checkpoint.StateFile` lives under the data dir
+    or image parts; `checkpoint.StateFile` lives under the data dir; the
+    gate's `stillLeft` counts "one remains" as work left
   - 2026-11-13, from audit-questions: ruled by the user, each above
+  - as of 2026-11-13 (0fc6bbf), premise check: all seven hold. `notes`'
+    `lock` is unexported, and archive-then-notes is the only lock order in
+    use, so backup taking the notes locks after its archive lock inverts
+    nothing. `forget`'s check reads `supersededBy`, one superseder per note,
+    last wins, so it cannot tell whether a live note outside the call also
+    supersedes. `writeOwnerChange` makes one map edit, which a path rule
+    can make for many projects, saving the whole map after the moves: a
+    partial save can only mean saving that edit. `config.Save` writes a
+    fixed `.tmp`. `syncFile` re-reads the source for the hash after reading
+    its chunk, and the hash window runs back past the chunk into bytes read
+    before. `lastTurn` marks a turn only at string content, so a prompt with
+    an image starts none. `StateFile` and `sweepStale` use
+    `os.TempDir()`/`claude-checkpoint`, and no `internal/checkpoint` test
+    sets `ELE_HOME`, so a move under the data dir needs one
+  - 2026-11-13, ruled by the user: an owner move failing after at least one
+    note moved saves the edit, starts the sync and exits 1 naming each
+    unmoved note with how to finish it, and with none moved writes nothing,
+    as now; the old `claude-checkpoint/` under the temp directory is left
+    for the system to clear
+  - 2026-11-13, from audit-tests' group 3 checkpoint, triaged in: the gate's
+    `stillLeft` ends `(remain|to go)\b`, so "two more remain" counts as work
+    left but "one remains" does not, and a turn ending "done; one remains"
+    reads as a done claim the gate sees nothing left against
+  - as of 2026-11-13: group A done, in the commit carrying this line: `ele
+    backup` copies `forgotten/` and `notes/` together under both their
+    locks, after its archive lock, so no forget leaves a note in neither
+    tree and a session start waits only for those copies;
+    `ele forget` refuses only a note a live note outside the call
+    supersedes; `ele config set` and `unset` hold `config.json.lock` and
+    save through `atomicfile.Write`; each by a test that failed against a
+    mutation
+  - next: group B, the partial owner move and `syncFile`'s hash, then group
+    C, the gate's `lastTurn` and `stillLeft` and `StateFile`
 - [x] atomic-helpers: One internal package holds the atomic write and the file
   lock, and the notes temp sweep covers `forgotten/`
   - asserted in the atomic-helpers commit: `internal/atomicfile` holds the one
@@ -2734,14 +2771,6 @@ keep.
   .documentation/plans/v1-release.md`, and delete this plan
 
 ## Inbox
-
-- 2026-11-13, from audit-tests' group 3 checkpoint: `checkpoint`'s
-  `stillLeft` ends `(remain|to go)\b`, so "two more remain" counts as work
-  left but "one remains" does not, and a turn ending "done; one remains"
-  reads as a done claim the gate sees nothing left against
-- 2026-11-13, from audit-tests' sort checkpoint: `internal/ticket`'s
-  `claims_test.go` and `ledger_test.go` hold test funcs out of byte order,
-  which the audits did not list
 
 ## Out of scope
 

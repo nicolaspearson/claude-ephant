@@ -10,6 +10,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/nicolaspearson/claude-ephant/internal/atomicfile"
 	"github.com/nicolaspearson/claude-ephant/internal/config"
 	"github.com/nicolaspearson/claude-ephant/internal/datadir"
 	"github.com/nicolaspearson/claude-ephant/internal/index"
@@ -114,14 +115,16 @@ func configPath(dataDirectory string) string {
 
 func configSet(scope configScope, arguments []string, stdout io.Writer, _ io.Writer) error {
 	path := configPath(scope.dataDirectory)
+	unlock, err := atomicfile.Lock(path + ".lock")
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	settings, err := config.Load(path)
 	if err != nil {
 		return fmt.Errorf("%w; fix or remove it before setting an option", err)
 	}
 	if err = settings.Set(arguments[0], scope.owner, arguments[1]); err != nil {
-		return err
-	}
-	if err = os.MkdirAll(scope.dataDirectory, 0o700); err != nil {
 		return err
 	}
 	if err = config.Save(path, settings); err != nil {
@@ -137,6 +140,11 @@ func configSet(scope configScope, arguments []string, stdout io.Writer, _ io.Wri
 
 func configUnset(scope configScope, arguments []string, stdout io.Writer, _ io.Writer) error {
 	path := configPath(scope.dataDirectory)
+	unlock, err := atomicfile.Lock(path + ".lock")
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	settings, err := config.Load(path)
 	if err != nil {
 		return fmt.Errorf("%w; fix or remove it before unsetting an option", err)
