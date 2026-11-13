@@ -60,8 +60,8 @@ other item is ticked.
   before its `;`
 - As of 2026-11-13: no active plan holds a same-project `<plan>/<item>` edge
   since v1-release closed; the new form must keep resolving one, which
-  `internal/plan`'s `TestResolveFreesABlockedItemOnceItsBlockerIsTicked`
-  carries, not a live plan line
+  `cmd/ele`'s `TestRunPlanShowFreesAnItemOnceAnotherPlansBlockerIsTicked`
+  carries through the real lookup, not a live plan line
 - Not checked: whether the test fixtures can run a sync over a second
   checkout's transcript, or need to seed the `directories` table through
   `internal/index`
@@ -139,10 +139,6 @@ other item is ticked.
       this plan
 
 ## Inbox
-
-- 2026-11-13, from the v1-release close checkpoint's re-review: `internal/plan`'s
-  resolve tests inject the lookup, so no test covers the real lookup scoping a
-  same-project `<plan>/<item>` edge, which `foreign-blockers` changes
 
 ## Out of scope
 
