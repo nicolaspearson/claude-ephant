@@ -2788,6 +2788,51 @@ keep.
 
 ## Inbox
 
+- 2026-11-13, from a writing-for-agents audit of `plugin/` (skills,
+  references, agents, commands); nothing fixed yet:
+  - Wrong now, each re-checked 2026-11-13: plan-audit's Which plans list of
+    `ele plan check` warnings misses a blocker cycle, an unreadable
+    `blocked:` list, a ticked item with an open blocker and an unreadable
+    checkbox or inbox line, and names an "inbox holds items" warning the help
+    lacks; `blocker` is defined twice, differently, in checkpoint's LOG.md
+    and review's Filter step, both written to `ele checkpoint log`'s one
+    `severity` field; remember's
+    Write lists flags but not `--done-file` or `--session`;
+    `commands/checkpoint-stats.md` Duration has a garbled sentence ("coming
+    two hours after the freeze before it sets it") and restates the stats
+    computation
+  - Move to a reference loaded only on the branch that needs it:
+    plan-practices.md down to Severity and ADRs files,
+    the ledger to `.documentation/specs/`; plan's Asking in rounds,
+    Grounding, Designs and Review loop to a drafting reference; review's log
+    schema to a reference, its strip perl to an `ele` subcommand, its
+    AskUserQuestion packing under one heading; plan-audit's Close and Drafts
+    modes to references, Drafts phrased positively; recipe's Audit to a
+    reference; checkpoint §1's outside-git rules to a reference, freeze and
+    record refusals to its Errors table
+  - Single source: the ask protocol in remember Propose, cited by wrap,
+    recipe, setup and flag; checkpoint's held tick in PLAN.md, the red-test
+    rule in §5 only, the reviewers' shared Read and Errors in §3's brief (the
+    spec reviewer file has no Errors section), the intro's fresh-review
+    exceptions cut; explorer reference's rules the agent file already
+    states; plan-audit's `mktemp` and no-ele-data restatements;
+    ticket-audit's corpus `--help` restatement and its What this is for
+    section
+  - Wording: descriptions of checkpoint (done or ready to commit twice),
+    flag (three phrases, one branch), setup (two signals, one branch),
+    recipe (audit said twice; positive "only when asked" in place of "never
+    start one unasked", wrap too); recall has no done-when, checkpoint's
+    opt-out has none, and checkpoint never handles freeze's dirty paths past
+    200; checkpoint §8's re-review brief and wrap §2's handoff condition as
+    lists; one word for a phrase spelled out at each site: red for
+    checkpoint's "failed for the reason stated" and "did not bite", frontier
+    for plan's settled-prerequisites question, opened for ticket-audit's
+    premise carrying its `file:line`; architect reference Rules led by the
+    positive target
+  - Keep: mine's two classifier prompts stay separate (each hashes its
+    bytes); re-verify the dated Claude Code claim in review's preamble
+    before reshaping its steps 8 to 13
+
 ## Out of scope
 
 - Self-audit of ele's own records: a feature, not a release gate (ruled
