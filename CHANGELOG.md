@@ -1,5 +1,48 @@
 # Changelog
 
+## [1.0.0](https://github.com/nicolaspearson/claude-ephant/compare/v0.14.1...v1.0.0) (2026-11-13)
+
+
+### Features
+
+* **agents:** add ele:architect, a read-only agent that commits to one design under the constraint its brief names (architect-agent) ([725a19e](https://github.com/nicolaspearson/claude-ephant/commit/725a19e2fb958472618779ca3588d57460e75fc3))
+* **agents:** add ele:explorer, a read-only agent that answers a question about a repository with file:line cites and recall findings (explorer-agent) ([103070b](https://github.com/nicolaspearson/claude-ephant/commit/103070b5c216e2997406b8e70a688a3b2846c272))
+* **checkpoint:** stats leave out runs over a repository under a temp directory (scratch-log) ([201b313](https://github.com/nicolaspearson/claude-ephant/commit/201b313c7a11583f7454f4b6ed3c7609de369f4a))
+* **events:** hook events carry the ele build their session's hooks last recorded, as eleVersion (build-version) ([90186b1](https://github.com/nicolaspearson/claude-ephant/commit/90186b1b03d65227d6f1f01b16ac975871238ff8))
+* **plan:** new and convert ground their rounds with ele:explorer agents (plan-grounding-explorers) ([800a4e1](https://github.com/nicolaspearson/claude-ephant/commit/800a4e1a8db5b1588b02be828235ccbabf979f0e))
+* **plan:** new and convert launch two ele:architect agents before an architectural design question (plan-decision-architects) ([562be46](https://github.com/nicolaspearson/claude-ephant/commit/562be46a6f9532f8e63be7e914a56df6b3e6d241))
+* **plan:** pickup's premise check launches an ele:explorer to re-derive the item's claims (pickup-premise-explorer) ([0463583](https://github.com/nicolaspearson/claude-ephant/commit/0463583caa867ede67a4d3f84e0c61347f05ddd2))
+* **show:** --from pages a session within the output budget, naming the next page, and --all prints every entry whole (show-paging) ([3321034](https://github.com/nicolaspearson/claude-ephant/commit/33210345e7978b268915875919459f9c14776275))
+
+
+### Bug Fixes
+
+* a partial owner move saves the map and names the notes left, the archive hashes the bytes it read, the gate starts a turn at an image prompt only, and checkpoint state lives in the data dir (audit-fixes) ([cc8289d](https://github.com/nicolaspearson/claude-ephant/commit/cc8289d412b6d4db20c8521ed077891b633b5c62))
+* **architect:** extension search falls back from Glob to Grep's glob filter to find in Bash (architect-search-tools) ([69ef39f](https://github.com/nicolaspearson/claude-ephant/commit/69ef39f1e80d7c87e29c5a416e43f118b9b6dda7))
+* **architect:** language rule excludes only vendor, node_modules and testdata (architect-language-rule) ([c1ec5d2](https://github.com/nicolaspearson/claude-ephant/commit/c1ec5d200da2c691e353d33c21d0149341d5aef2))
+* **architect:** name a new file only in a language seen where Glob and Grep are missing (architect-search-fallback) ([6cb59a1](https://github.com/nicolaspearson/claude-ephant/commit/6cb59a174b7d870a97d0a824228bfbfaff53cd6b))
+* **build:** FORCE=0 runs cached tests, release:check survives a spaced path, tarballs ship LICENSE and LICENSE-PSF, and plugin.json names its homepage, repository and GPL-3.0-or-later license (audit-questions) ([c0b856e](https://github.com/nicolaspearson/claude-ephant/commit/c0b856e930de889c9530c46550f169f54c1fb0a7))
+* **checkpoint-reviewer:** Read every file, absolute paths, grep in Bash only where Grep is missing (reviewer-tool-rules) ([c04968b](https://github.com/nicolaspearson/claude-ephant/commit/c04968bb93fb55a726cbd281c6295f9fb83432ff))
+* **cli:** backup copies both note trees under their locks, forget takes a correction with what it corrects, and config set and unset lock and write atomically (audit-fixes) ([a2ba510](https://github.com/nicolaspearson/claude-ephant/commit/a2ba5101b039891b7f83295690b6966f767fdea7))
+* **cli:** owner's lock message names backup, recall refuses a limit below 1, ticket refuses flags it ignored, close and reminder close say what happened, and difflib carries the PSF notice (audit-questions) ([1319cf3](https://github.com/nicolaspearson/claude-ephant/commit/1319cf34bcb199e11cea6a6fd02363970fecde58))
+* **cli:** show --at compares instants, context --size reads the tail, worktrees take their repository's project, density counts spaced paths, glob stops backtracking, and precommit checks the tree it leaves (small-cli) ([6e093a6](https://github.com/nicolaspearson/claude-ephant/commit/6e093a6def9aa3826c0744349ba7f1692d12b5a2))
+* **explorer:** Read every file, ele recall first, grep in Bash only where Grep is missing (explorer-commands) ([6f9aadb](https://github.com/nicolaspearson/claude-ephant/commit/6f9aadb237ad6265322a60dfb2bfec5f9cd5c238))
+* **index:** a symlinked archive directory is indexed, and query punctuation, --since on transcripts and dispute wordings each have a test (audit-tests) ([d6be832](https://github.com/nicolaspearson/claude-ephant/commit/d6be83202734a63c9aa37cf8d039926073b37a66))
+* **index:** a symlinked archive directory is indexed, and query punctuation, --since on transcripts and dispute wordings each have a test (audit-tests) ([bff9e72](https://github.com/nicolaspearson/claude-ephant/commit/bff9e72a60ee9876f1c98ebfa2b0e289148b0561))
+* **mining:** one bad judgment line or unit stops no listing or report, and a live session's units wait (mining-robust) ([16df795](https://github.com/nicolaspearson/claude-ephant/commit/16df7957aae3fd3d632bc5739136e0d793300f4c))
+* **plan:** Grounding launches explorers however small the repository, reading no code before the first round (plan-grounding-explorers) ([985b956](https://github.com/nicolaspearson/claude-ephant/commit/985b956375b724c0de9928826c82f826db02f4e2))
+* **recipe:** audit checks a relative path as a file, the no-shell-write graders catch sed and perl in-place edits of a SKILL.md, and the scaffolds date their sandbox claims (eval-fixes) ([6cc1fcb](https://github.com/nicolaspearson/claude-ephant/commit/6cc1fcb563f3136c5e6b885710b054b0f2259f38))
+* **recipe:** audit runs nothing for a relative path that is no #! script, and the spec and docs say a compiled tool still runs once only on PATH or by absolute path (eval-fixes) ([fc7aefc](https://github.com/nicolaspearson/claude-ephant/commit/fc7aefc2181b3296ff951a14f170d7f7fb4b4816))
+* **redact:** bearer, URL, Slack, Stripe, Google, npm, cut PEM and secret-flag values are redacted, and token counts survive (redact-extras) ([16ab016](https://github.com/nicolaspearson/claude-ephant/commit/16ab016905f3cf347e6fd555ac3d609844ad4d86))
+* **skills:** checkpoint reruns the gate after a fix and its bugs reviewer reads the gate log, branch and delta rules are stated, and review keeps a missing requirement and drops Tests to mutate uncounted (audit-questions) ([25525d6](https://github.com/nicolaspearson/claude-ephant/commit/25525d64c72648aa0d0d056c7dc080e9ef2a29c5))
+* **skills:** front matter alphabetised, missing done-whens and warnings listed, errors.md holds the lock retry and an outcome row, and flag, setup, checkpoint-stats and the mining prompts say what ele does (audit-questions) ([0fc6bbf](https://github.com/nicolaspearson/claude-ephant/commit/0fc6bbfd34bd556eb311361e1c3397049184e1e2))
+* **skills:** plan check help names every warning, plan-audit points at it, remember names --done-file, and checkpoint-stats' clock sentence reads ([cfbc9dd](https://github.com/nicolaspearson/claude-ephant/commit/cfbc9dd79870512f22a2fefd7f4403f9c931a6e9))
+
+
+### Miscellaneous Chores
+
+* release 1.0.0 ([11357a5](https://github.com/nicolaspearson/claude-ephant/commit/11357a5b97fe5505a6c876db793e783b35b97460))
+
 ## [0.14.1](https://github.com/nicolaspearson/claude-ephant/compare/v0.14.0...v0.14.1) (2026-11-08)
 
 
