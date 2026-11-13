@@ -2298,6 +2298,43 @@ keep.
     fenced heading in `planItems`, a torn ledger line. Out of order:
     `corpus_test.go`'s and `plan_test.go`'s test funcs and the
     `TestCompareMatches…` and `TestDetectCLI…` tables
+  - as of 2026-11-13 (6e093a6), premise check: every identifier named still
+    exists. Already covered, by tests added before or since the audits:
+    `checkPlan`'s parse error (`TestRunPlanCheckListsEachActivePlansWarningsWithoutFailing`),
+    `writeResults`' "Top N (--limit)", reached by recall's "Top 1 match
+    (--limit)", the plural being the same branch,
+    `changed` redaction (`TestUpdateKeepsNoFragmentOfASecretTheCutSplits`;
+    whether it reads back the stored attribute not checked), a short archive
+    file, `--since` across a local day for notes (transcripts not), over 200
+    dirty paths, a `*e*` optout, a dangling symlink, a spaced path in
+    `density`, a self-block, cycle, empty `blocked:`, merged header and
+    capitalised `Blocked:`, a renamed or reverted tick, a fenced heading in
+    `planItems`, a torn ledger line
+  - as of 2026-11-13 (6e093a6), still open: `configUnset`, `copyTree` and
+    `indexedMoment`'s branches; `TestSearchTreatsQueryPunctuationAsWords`;
+    `disputingReply` and `followNotesAsk` alone; a symlinked archive root,
+    where `index.Index.Update` walks the directory unresolved while
+    `archive` and `index`'s notes walk resolve it first, so it may index
+    nothing (not run); `TestAppendKeepsTheFreezeTimeWhenTheLineIsNotWritten`
+    cannot fail, as it writes `ReviewedFile`'s `.started` while `Append`
+    removes `RunFile`'s session-hashed one; `gate`'s `lastTurn`, `finalText`
+    and `spokenText`; a path dirtied after `Record` that was never listed;
+    the "front matter never closes" case and
+    `TestNextIsNoneWhenEveryOpenItemIsBlocked`; a BOM, tabs and an empty file
+    in `plan.Parse`; `WriteStored`'s cleanup; difflib's several hunks and
+    empty or identical inputs; `plan_test.go`'s and `corpus_test.go`'s func
+    order. "Hyphenated keys" names no key the code was found to hold; the
+    `TestCompareMatches…` and `TestDetectCLI…` tables read as ordered by
+    their leading fields
+  - 2026-11-13, ruled by the user: hyphenated keys and the two table-order
+    nits dropped, as above; the symlinked archive root gets a test and, if it
+    goes red, the fix resolving the root as the notes walk does; the path
+    dirtied after `Record` and never listed is in scope
+  - as of 2026-11-13: group 1 (cmd) done:
+    `TestConfigUnsetSaysWhenNoValueIsSet`,
+    `TestRunBackupRefusesANonRegularFile` and `TestRunFlagRefusesBadInput`'s
+    "no timestamped entry" row, each seen red with its branch disabled
+  - next: groups index, checkpoint and plan, a checkpoint each
 - [ ] audit-tidy: Order, comments and shape the audits found
   - done when each nit below is fixed or dropped on the user's ruling
   - 2026-10-30, from audit-cmd: duplicated helpers. `remember`'s `~`
@@ -2543,3 +2580,9 @@ keep.
 - Moving `mining`'s `Judgment`, `Timing`, `TimedUnit`, `UnitKey` and `Taken`
   into `dto`: a rename that changes no behaviour (ruled 2026-11-12, from
   mining-robust's premise check)
+- A worktree of a checkout reached through a symlink taking the link's
+  project: git writes `gitdir` as the real path, so the worktree cannot learn
+  the link; resolving every root would rename linked checkouts and learning
+  the link would hang on indexing order, so `docs/owners.md` says to work by
+  the real path and `TestResolveNamesAWorktreeOfALinkedCheckoutAfterTheRealFolder`
+  pins it (ruled 2026-11-13, from small-cli's checkpoint)

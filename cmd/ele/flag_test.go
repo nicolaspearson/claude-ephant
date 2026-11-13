@@ -114,6 +114,10 @@ func TestRunFlagRefusesBadInput(t *testing.T) {
 	home := recallFixture(t)
 	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "")
+	writeFile(t, filepath.Join(home, ".claude", "projects", "-gateway", "nostamp.jsonl"),
+		`{"type":"user","cwd":"`+filepath.Join(home, "w", "corp", "gateway")+`","sessionId":"nostamp","uuid":"u-nostamp","message":{"content":"no time"}}`+"\n")
+	output, code := runCommand(t, "sync")
+	require.Equal(t, 0, code, output)
 
 	tests := []struct {
 		args    []string
@@ -123,6 +127,7 @@ func TestRunFlagRefusesBadInput(t *testing.T) {
 	}{
 		{args: []string{"remember", "--kind", "flag", "Sneaked in."}, code: 2, message: `ele: a flag note is written by ele flag good|bad "<why>", not ele remember` + "\n", name: "flag through remember"},
 		{args: []string{"flag", "bad", "Outside a session."}, code: 2, message: "ele: no running session to flag; pass --session <id>\n", name: "no session"},
+		{args: []string{"flag", "bad", "--session", "nostamp", "No time."}, code: 1, message: "ele: session nostamp has no timestamped entry to flag\n", name: "no timestamped entry"},
 		{args: []string{"flag", "good", "--session", "abc1"}, code: 2, message: "ele flag good ", name: "no why"},
 		{args: []string{"flag", "good", "--session", "abc1", "one\ntwo\nthree\nfour"}, code: 2, message: "ele: a flag is at most 3 lines, not 4", name: "too long"},
 		{args: []string{"flag", "bad", "--session", "zzz", "Typo."}, code: 1, message: `ele: no indexed session starts with "zzz"; ele sync indexes a recent one` + "\n", name: "unknown session"},

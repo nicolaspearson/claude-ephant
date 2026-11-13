@@ -141,6 +141,17 @@ func TestConfigSetRefusesInsideASession(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
+func TestConfigUnsetSaysWhenNoValueIsSet(t *testing.T) {
+	home := recallFixture(t)
+	t.Setenv("CLAUDECODE", "")
+
+	output, code := runCommand(t, "config", "unset", "checkpoint_gate")
+	require.Equal(t, 0, code, output)
+	require.Equal(t, "checkpoint_gate has no value set globally.\n", output)
+	_, err := os.Stat(filepath.Join(home, "data", "config.json"))
+	require.ErrorIs(t, err, os.ErrNotExist)
+}
+
 func TestSessionStartNamesOptionsOffTheirDefaults(t *testing.T) {
 	home := recallFixture(t)
 	writeFile(t, filepath.Join(home, "data", "config.json"), `{"checkpoint_gate": false}`)

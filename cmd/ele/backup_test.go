@@ -110,6 +110,18 @@ func TestRunBackupLeavesOutImportOnceItIsGone(t *testing.T) {
 	require.FileExists(t, filepath.Join(target, "ele.db"))
 }
 
+func TestRunBackupRefusesANonRegularFile(t *testing.T) {
+	home := recallFixture(t)
+	link := filepath.Join(home, "data", "notes", "personal", "20261017-aaaaaa.md")
+	require.NoError(t, os.MkdirAll(filepath.Dir(link), 0o700))
+	require.NoError(t, os.Symlink(filepath.Join(home, "elsewhere.md"), link))
+	target := filepath.Join(home, "backup")
+
+	output, code := runCommand(t, "backup", target)
+	require.Equal(t, 1, code, output)
+	require.Equal(t, "ele: "+link+" is not a regular file; "+target+" is incomplete\n", output)
+}
+
 func TestRunBackupRefusesATargetItCannotOwn(t *testing.T) {
 	home := recallFixture(t)
 	checkout := filepath.Join(home, "w", "personal", "notes")
