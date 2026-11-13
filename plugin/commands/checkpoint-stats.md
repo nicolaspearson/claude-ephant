@@ -49,13 +49,13 @@ Report what each section says about the skill, not the code:
   findings instead.
 - **Duration.** From the freeze that opened the run to the log line, so it
   includes the reviewers, the fixes, the re-review, and any wait for the user's
-  reply before the log line is written. A freeze given `--start`, finding no
-  clock for its session, or coming two hours after the freeze before it sets
-  it; one with no session id sets none. Durations of 0 seconds or less are left
-  out of the median and counted on their own line. Full mode's median beside
-  small's is the cost to weigh against what the extra reviewers find. Runs
-  logged before duration existed, or with no freeze behind them, carry none;
-  say how many.
+  reply before the log line is written. A freeze starts the clock when given
+  `--start`, when its session has no clock yet, or when it comes two hours or
+  more after the previous freeze; a freeze with no session id starts none.
+  Durations of 0 seconds or less are left out of the median and counted on
+  their own line. Full mode's median beside small's is the cost to weigh
+  against what the extra reviewers find. Runs logged before duration existed,
+  or with no freeze behind them, carry none; say how many.
 - **Reviews.** `/ele:review` runs, apart from the checkpoints above. The skip rate is the share of
   answered findings the user skipped: the reviewers' precision on other
   people's changes, which checkpoint cannot measure because it acts on what it

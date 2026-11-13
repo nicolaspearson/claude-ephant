@@ -25,6 +25,7 @@ ele remember --kind reminder --every <interval> [--due YYYY-MM-DD[THH:MM]] <word
 
 - `--due`: the local date a reminder first shows, or date and time as `YYYY-MM-DDTHH:MM` when the user names a time; work out a spoken date such as "next Tuesday" from `date +%F`, and give the date in the report
 - `--every <interval>`: a nudge, shown again that long after each close: `5m`, `2h`, `7d`, or a bare number of days; with no `--due` it shows today
+- `--done-file <path>`: with `--every`, for something ele does not run, such as a periodic report: the file's last change marks the nudge done
 - Owner and project come from the working directory unless `--project` names one; profile, session and time are recorded automatically
 - `--project <name>`: the note concerns a project other than the working directory's. Works from any directory; `ele` names the owner or refuses
 - `--global`: applies to every project of the owner, not just this one; never on a handoff
