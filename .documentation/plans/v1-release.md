@@ -2303,8 +2303,8 @@ keep.
     `checkPlan`'s parse error (`TestRunPlanCheckListsEachActivePlansWarningsWithoutFailing`),
     `writeResults`' "Top N (--limit)", reached by recall's "Top 1 match
     (--limit)", the plural being the same branch,
-    `changed` redaction (`TestUpdateKeepsNoFragmentOfASecretTheCutSplits`;
-    whether it reads back the stored attribute not checked), a short archive
+    `changed` redaction (`TestUpdateKeepsNoFragmentOfASecretTheCutSplits`),
+    a short archive
     file, `--since` across a local day for notes (transcripts not), over 200
     dirty paths, a `*e*` optout, a dangling symlink, a spaced path in
     `density`, a self-block, cycle, empty `blocked:`, merged header and
@@ -2334,7 +2334,18 @@ keep.
     `TestConfigUnsetSaysWhenNoValueIsSet`,
     `TestRunBackupRefusesANonRegularFile` and `TestRunFlagRefusesBadInput`'s
     "no timestamped entry" row, each seen red with its branch disabled
-  - next: groups index, checkpoint and plan, a checkpoint each
+  - 2026-11-13, ruled by the user: no separate test of `followNotesAsk`'s
+    heuristics, which are SQL conditions that run only against the index;
+    `TestEventsFollowANotesAskToItsWorkAndNote` reaches each work class
+  - as of 2026-11-13: group 2 (index) done: `index.Index.Update` resolves a
+    symlinked archive root, `TestUpdateIndexesThroughASymlinkedArchiveDirectory`;
+    `TestSearchTreatsQueryPunctuationAsWords` proves a phrase match;
+    `TestDisputingReplyMatchesEachDisputeWording`;
+    `TestSearchSinceComparesATranscriptEntryByItsInstant`; each seen red with
+    its code disabled. `TestUpdateKeepsNoFragmentOfASecretTheCutSplits` reads
+    `changed` back from the stored attribute, seen red with its redaction
+    disabled
+  - next: groups checkpoint and plan, a checkpoint each
 - [ ] audit-tidy: Order, comments and shape the audits found
   - done when each nit below is fixed or dropped on the user's ruling
   - 2026-10-30, from audit-cmd: duplicated helpers. `remember`'s `~`
@@ -2520,6 +2531,29 @@ keep.
     `writeAtomically`, a third copy, with no lock, so two sessions recording
     at once can lose one run's lines, where the old append could not; it
     takes the shared file lock once one exists
+  - as of 2026-11-13 (59b8dcb), premise check: `cmd/ele`'s, `mining`'s and
+    `ticket`'s `writeAtomically` share one body (temp, write, `Sync`,
+    rename); `ticket`'s first resolves a symlinked ledger, pinned by
+    `TestRecordWritesThroughASymlinkedLedger`. Seven more temp-then-rename
+    writes differ: `ownermap.Save`, `plan.WriteStored` (chmods 0o644),
+    `notes.Move` and `rewriteKey` (keep the note's mode) skip `Sync`;
+    `config`'s save, `archive.saveManifest`, `archive.appendMember` and
+    `cmd/ele`'s checkpoint state use a fixed `.tmp` name; `checkpoint`'s
+    freeze and state write several files in sequence; none syncs the
+    directory. `notes.lock` (a `.lock` beside the tree, blocking) and
+    `archive.lock` (`.lock` inside the directory, blocking or not, wrapped
+    errors) share only the flock calls; `datadir.move` flocks a directory
+    handle. `ticket.Record` takes no lock. `notes.SweepTemporary` walks
+    `notes/` alone, run by `runSync`; `ele owner` moves forgotten notes
+    with `notes.Move` on `forgotten/`, which can leave a `.tmp` there, and
+    `design.md` says such a one stays. `archive`, `notes`, `config` and
+    `plan` import no internal package and none holds file helpers, so a new
+    leaf package is cycle-free
+  - 2026-11-13, ruled by the user: a new leaf `internal/atomicfile` holds
+    `Write` and the lock taking its lock file's path; only the three
+    same-body `writeAtomically` copies move, `ticket` keeping its symlink
+    step before the call; `ticket.Record` takes the lock on a `.lock` beside
+    the resolved ledger, listed in the data-dir layout docs
 - [ ] stop-attachments: Count the notes ask when the checkpoint gate and the
   notes ask both continue one stop
   - done when a `hook-output-probe` run with both Stop hooks continuing one
