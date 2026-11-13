@@ -99,6 +99,11 @@ func TestReplayTranscriptJudgesEachRecordedStop(t *testing.T) {
 	}, replayed(t, lines), "an ask sent as additional context is an ask")
 
 	lines = &replayLines{}
+	// Probe shape, headless on Claude Code 2.1.311: one attachment per hook, the ask's first.
+	lines.prompt().tool("Edit", `{"file_path":"a.go"}`).context(rememberReason).context("Files changed this turn, the reply says the work is done, and no checkpoint was reported.").stop()
+	require.True(t, replayed(t, lines)[0].Asked, "the gate's context after the ask leaves the stop asked")
+
+	lines = &replayLines{}
 	lines.prompt().tool("Edit", `{"file_path":"a.go"}`).stop()
 	first := lines.stamp()
 	lines.prompt().tool("Edit", `{"file_path":"b.go"}`).stop()

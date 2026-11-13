@@ -2353,7 +2353,19 @@ keep.
     `TestGatePatternsMatchTheirWordings` and
     `TestRecordDoesNotCoverAPathDirtiedAfterIt`; each seen red with its code
     disabled
-  - next: group 4 (plan), with its order nits
+  - 2026-11-13, ruled by the user: `TestNextIsNoneWhenEveryOpenItemIsBlocked`'s
+    closing action dropped, as
+    `TestNextLeavesTheClosingActionUntilEveryOtherIsDone`'s "prose" and
+    "cycle" rows cover it; the order nits are fixed in a move-only commit of
+    their own
+  - as of 2026-11-13: group 4 (plan) tests done: `TestParseRejectsInvalidPlans`'
+    "empty file" and "front matter never closes" rows,
+    `TestParseReadsABOMAndATabIndentedBody`,
+    `TestWriteStoredRemovesItsTemporaryFileWhenTheRenameFails`,
+    `TestWriteUnifiedDiffSplitsDistantChangesAndPrintsNothingForNone`; each
+    seen red with its code disabled
+  - next: sort `plan_test.go`'s and `corpus_test.go`'s test funcs, a
+    move-only commit
 - [ ] audit-tidy: Order, comments and shape the audits found
   - done when each nit below is fixed or dropped on the user's ruling
   - 2026-10-30, from audit-cmd: duplicated helpers. `remember`'s `~`
@@ -2571,8 +2583,13 @@ keep.
     same-body `writeAtomically` copies move, `ticket` keeping its symlink
     step before the call; `ticket.Record` takes the lock on a `.lock` beside
     the resolved ledger, listed in the data-dir layout docs
-- [ ] stop-attachments: Count the notes ask when the checkpoint gate and the
+- [x] stop-attachments: Count the notes ask when the checkpoint gate and the
   notes ask both continue one stop
+  - asserted in the stop-attachments commit: a headless probe on Claude Code
+    2.1.311 recorded one Stop attachment per hook, so no fix applies; under
+    `go test`, that shape, the ask's attachment before the gate's, gives the
+    index a followed notes ask beside the gate's block and leaves `--replay`'s
+    stop asked, each test failing against a mutation of the code it covers
   - done when a `hook-output-probe` run with both Stop hooks continuing one
     stop shows whether Claude Code writes one `hook_additional_context`
     attachment per hook or one holding both, and, if one, the index's
@@ -2580,6 +2597,18 @@ keep.
     red
   - 2026-11-04, from block-as-error: with one attachment, the event's reason
     is the gate's first line, so both miss the ask
+  - as of 2026-11-13 (9138a19), premise check: `transcript.StopContext` and
+    `attachmentEvents` make one `hook-block` event per Stop attachment, its
+    `reason` the first line; `index`'s `notesAskCondition` and `--replay`'s
+    `replayer.block` test the event for `ele:remember`. No test then fixtured
+    two hooks' context in one stop; none of 209 local Stop attachments held
+    both texts or sat beside the other hook's
+  - as of 2026-11-13, a headless `hook-output-probe` run on Claude Code
+    2.1.311, two command hooks in one Stop entry as `plugin/hooks/hooks.json`
+    has them, each continuing the stop: one `hook_additional_context`
+    attachment per hook, 1 ms apart, the second hook's first, each holding its
+    own text; `stop_hook_summary`'s `hookAdditionalContext` lists both, and
+    the model received both
 
 ### Release
 

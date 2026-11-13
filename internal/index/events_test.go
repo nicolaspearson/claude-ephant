@@ -279,6 +279,32 @@ func TestEventsFollowAHookBlockToItsReply(t *testing.T) {
 	}, follow)
 }
 
+func TestEventsFollowANotesAskSentBesideTheGatesBlock(t *testing.T) {
+	root := t.TempDir()
+	projects := filepath.Join(root, "projects")
+	line := func(at string, body string) string {
+		return `{"sessionId":"s1","timestamp":"2026-10-15T10:` + at + `Z","uuid":"u` + at + `",` + body + "}\n"
+	}
+	attached := func(at string, text string) string {
+		return line(at, `"type":"attachment","attachment":{"type":"hook_additional_context","hookEvent":"Stop","hookName":"Stop","content":["`+text+`"]}`)
+	}
+	// Probe shape, headless on Claude Code 2.1.311: one attachment per hook, the ask's first.
+	write(t, filepath.Join(projects, "-w", "s1.jsonl"),
+		line("00:00.000", `"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit","input":{"file_path":"/w/a.go"}}]}`)+
+			attached("01:00.000", "This stretch's work has not been proposed as notes; /ele:remember's Propose section covers it.")+
+			attached("01:00.001", `Files changed this turn, the reply says the work is done, and no checkpoint was reported.\n\nChanged: a.go`)+
+			line("02:00.000", `"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"ele remember --kind fact 'a'"}}]}`))
+	index := open(t, filepath.Join(root, "ele.db"))
+	update(t, index, projects, filepath.Join(root, "archive"), ownermap.OwnerMap{})
+
+	events, _, err := index.Events(context.Background(), dto.EventQuery{Kind: "hook-block"})
+	require.NoError(t, err)
+	require.Len(t, events, 2)
+	require.Equal(t, "edits", events[0].Attributes["work"], "the ask is followed as an ask")
+	require.Equal(t, true, events[0].Attributes["noted"])
+	require.Equal(t, []any{"a.go"}, events[1].Attributes["changed"], "the gate's block keeps its own event")
+}
+
 func TestEventsFollowANotesAskToItsWorkAndNote(t *testing.T) {
 	root := t.TempDir()
 	projects := filepath.Join(root, "projects")
