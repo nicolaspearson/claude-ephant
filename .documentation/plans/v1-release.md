@@ -2356,8 +2356,8 @@ keep.
   - 2026-11-13, ruled by the user: `TestNextIsNoneWhenEveryOpenItemIsBlocked`'s
     closing action dropped, as
     `TestNextLeavesTheClosingActionUntilEveryOtherIsDone`'s "prose" and
-    "cycle" rows cover it; the order nits are fixed in a move-only commit of
-    their own
+    "cycle" rows cover it; the order nits go in a move-only commit of their
+    own
   - as of 2026-11-13: group 4 (plan) tests done: `TestParseRejectsInvalidPlans`'
     "empty file" and "front matter never closes" rows,
     `TestParseReadsABOMAndATabIndentedBody`,

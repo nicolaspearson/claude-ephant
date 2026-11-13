@@ -115,6 +115,13 @@ func TestCheckWarnsOnEachLineFormItHoldsOrDrops(t *testing.T) {
 	}
 }
 
+func TestParseReadsABOMAndATabIndentedBody(t *testing.T) {
+	parsed, err := Parse([]byte("\xef\xbb\xbf---\nkind: plan\n---\n## Actions\n- [ ] a: A\n\tblocked: b\n- [ ] b: B\n"))
+	require.NoError(t, err)
+	require.Len(t, parsed.Actions, 2)
+	require.Equal(t, []Edge{{Name: "b"}}, parsed.Actions[0].Edges)
+}
+
 func TestParseReadsBlockedAndAfterInAnyCaseAndAWrappedList(t *testing.T) {
 	parsed, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n" +
 		"- [ ] a: A\n  - Blocked: b,\n    c; once both land\n  - AFTER: 2099-01-01\n  - next: more\n" +
@@ -415,7 +422,9 @@ func TestParseRejectsInvalidPlans(t *testing.T) {
 		name    string
 	}{
 		{content: "---\nkind: plan\n---\n## Actions\n- [ ] a: A\n  after: 2026-10-22\n  after: 2026-10-23\n", message: "a second after: on line 7", name: "after twice"},
-		{content: "---\nkind: plan\n## Actions\n", message: "is not key: value", name: "front matter never closes"},
+		{content: "", message: "first line is not ---", name: "empty file"},
+		{content: "---\nkind: plan\n## Actions\n", message: "is not key: value", name: "front matter line not key: value"},
+		{content: "---\nkind: plan\n", message: "front matter never closes", name: "front matter never closes"},
 		{content: "---\nkind: plan\n---\n## Actions\n- [ ] edges: one\n- [x] other: two\n- [ ] edges: three\n", message: `item name "edges" on lines 5 and 7`, name: "name twice"},
 		{content: "---\nkind: plan\n---\n## Tasks\n- [ ] x\n", message: "no ## Actions section", name: "no actions section"},
 		{content: "# Plan\n", message: "first line is not ---", name: "no front matter"},
@@ -610,6 +619,19 @@ func TestWriteStoredLeavesAReaderOfTheEarlierFileItWhole(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.Equal(t, Stored{Items: []StoredItem{{Done: true, Name: "a"}, {Name: "b"}}, Path: "later.md"}, stored)
+}
+
+func TestWriteStoredRemovesItsTemporaryFileWhenTheRenameFails(t *testing.T) {
+	directory := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(directory, "id.json", "occupied"), 0o755))
+	plan, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n- [ ] a: A\n"))
+	require.NoError(t, err)
+
+	require.Error(t, WriteStored(directory, "id", "plan.md", plan))
+
+	left, err := filepath.Glob(filepath.Join(directory, "*.tmp"))
+	require.NoError(t, err)
+	require.Empty(t, left)
 }
 
 func runGit(t *testing.T, root string, args ...string) {

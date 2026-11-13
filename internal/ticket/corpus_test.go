@@ -569,6 +569,26 @@ func TestTrackerProjectPrintsNoCredentials(t *testing.T) {
 	require.EqualError(t, err, "cannot read a project path from remote 'https://example.com'")
 }
 
+func TestWriteUnifiedDiffSplitsDistantChangesAndPrintsNothingForNone(t *testing.T) {
+	diff := func(left string, right string) string {
+		var written bytes.Buffer
+		writeUnifiedDiff(&written, splitLines(left, true), splitLines(right, true), "a", "b")
+		return written.String()
+	}
+	var numbers []string
+	for number := 1; number <= 20; number++ {
+		numbers = append(numbers, fmt.Sprint(number))
+	}
+	before := strings.Join(numbers, "\n") + "\n"
+	after := strings.Replace(strings.Replace(before, "\n2\n", "\ntwo\n", 1), "\n18\n", "\neighteen\n", 1)
+
+	require.Equal(t, "--- a\n+++ b\n@@ -1,5 +1,5 @@\n 1\n-2\n+two\n 3\n 4\n 5\n@@ -15,6 +15,6 @@\n 15\n 16\n 17\n-18\n+eighteen\n 19\n 20\n", diff(before, after))
+	require.Empty(t, diff(before, before))
+	require.Empty(t, diff("", ""))
+	require.Equal(t, "--- a\n+++ b\n@@ -0,0 +1 @@\n+a\n", diff("", "a\n"))
+	require.Equal(t, "--- a\n+++ b\n@@ -1 +0,0 @@\n-a\n", diff("a\n", ""))
+}
+
 func (tracker *fakeTracker) commands() Commands {
 	return Commands{
 		LookPath: func(file string) (string, error) { return "/bin/" + file, nil },
