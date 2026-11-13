@@ -15,14 +15,20 @@ import (
 )
 
 const (
-	coverWindow = 30 * time.Minute
-	cycleGap    = 5 * time.Minute
+	coverWindow  = 30 * time.Minute
+	cycleGap     = 5 * time.Minute
+	settlePeriod = time.Hour
 )
 
 var (
 	rereview      = regexp.MustCompile(`(?i)re-?review|round 2|second round`)
 	subagentEraAt = time.Date(2026, 10, 7, 11, 48, 0, 0, time.UTC)
 )
+
+type Backlog struct {
+	Behind int
+	Open   int
+}
 
 type timedUnit struct {
 	at          time.Time
@@ -99,7 +105,8 @@ func ReviewCycles(launches []dto.Event, runs []dto.MiningUnit) ([]dto.MiningUnit
 	return sortedUnits(uncovered), nil
 }
 
-func Named(units []dto.MiningUnit, lines []byte) ([]dto.MiningUnit, error) {
+// Named holds back an open unit, as Pending does: Take refuses one.
+func Named(units []dto.MiningUnit, lines []byte) ([]dto.MiningUnit, Backlog, error) {
 	wanted := make(map[[2]string]bool, len(units))
 	for _, unit := range units {
 		wanted[[2]string{unit.Session, unit.Timestamp}] = false
@@ -115,52 +122,77 @@ func Named(units []dto.MiningUnit, lines []byte) ([]dto.MiningUnit, error) {
 			Timestamp string `json:"timestamp"`
 		}
 		if err := json.Unmarshal(scanner.Bytes(), &record); err != nil {
-			return nil, fmt.Errorf("units line %d: %w", line, err)
+			return nil, Backlog{}, fmt.Errorf("units line %d: %w", line, err)
 		}
 		key := [2]string{record.Session, record.Timestamp}
 		if _, ok := wanted[key]; !ok {
-			return nil, fmt.Errorf("units line %d: no unit has session %q and timestamp %q", line, record.Session, record.Timestamp)
+			return nil, Backlog{}, fmt.Errorf("units line %d: no unit has session %q and timestamp %q", line, record.Session, record.Timestamp)
 		}
 		wanted[key] = true
 	}
 	if err := scanner.Err(); err != nil {
-		return nil, err
+		return nil, Backlog{}, err
 	}
 	var named []dto.MiningUnit
+	var backlog Backlog
 	for _, unit := range units {
-		if wanted[[2]string{unit.Session, unit.Timestamp}] {
+		switch {
+		case !wanted[[2]string{unit.Session, unit.Timestamp}]:
+		case unit.Open:
+			backlog.Open++
+		default:
 			named = append(named, unit)
 		}
 	}
-	if len(named) == 0 {
-		return nil, errors.New("no units named")
+	if len(named) == 0 && backlog.Open == 0 {
+		return nil, Backlog{}, errors.New("no units named")
 	}
-	return named, nil
+	return named, backlog, nil
 }
 
-// Pending returns the unjudged units past the watermark and counts those at or before it.
-func Pending(units []dto.MiningUnit, judgments []Judgment, watermark time.Time) ([]dto.MiningUnit, int, error) {
+// Pending returns the unjudged units past the watermark, holding back an open one: a judgment is final.
+func Pending(units []dto.MiningUnit, judgments []Judgment, watermark time.Time) ([]dto.MiningUnit, Backlog, error) {
 	judged := map[[2]string]bool{}
 	for _, judgment := range judgments {
 		judged[[2]string{judgment.Session, judgment.Timestamp}] = true
 	}
 	var pending []dto.MiningUnit
-	behind := 0
+	var backlog Backlog
 	for _, unit := range units {
 		if judged[[2]string{unit.Session, unit.Timestamp}] {
 			continue
 		}
 		at, err := parseTimestamp(unit.Session, unit.Timestamp)
 		if err != nil {
-			return nil, 0, err
+			return nil, Backlog{}, err
 		}
-		if at.After(watermark) {
+		switch {
+		case !at.After(watermark):
+			backlog.Behind++
+		case unit.Open:
+			backlog.Open++
+		default:
 			pending = append(pending, unit)
-		} else {
-			behind++
 		}
 	}
-	return pending, behind, nil
+	return pending, backlog, nil
+}
+
+// Settle opens every unit of a session that wrote within settlePeriod of now, bounded or not: a digest reads the next human messages past its window.
+func Settle(units []dto.MiningUnit, lastLines map[string]string, now time.Time) ([]dto.MiningUnit, error) {
+	settled := slices.Clone(units)
+	for position, unit := range settled {
+		last, ok := lastLines[unit.Session]
+		if !ok {
+			continue
+		}
+		at, err := parseTimestamp(unit.Session, last)
+		if err != nil {
+			return nil, err
+		}
+		settled[position].Open = now.Sub(at) < settlePeriod
+	}
+	return settled, nil
 }
 
 // coverage returns, per run from since on, its session's first cycle within coverWindow after it, or -1.

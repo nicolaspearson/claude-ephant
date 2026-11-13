@@ -7,9 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/nicolaspearson/claude-ephant/internal/archive"
 	"github.com/nicolaspearson/claude-ephant/internal/dto"
 )
 
@@ -340,4 +342,43 @@ func TestDigestRefusesAUnitItCannotPlace(t *testing.T) {
 	require.ErrorContains(t, err, "no archived transcript")
 	_, err = Digest(archiveDirectory, "checkpoint-runs", dto.MiningUnit{Session: "s1", Source: "t1.jsonl.gz", Timestamp: "2026-10-16T11:00:00Z"})
 	require.ErrorContains(t, err, "no line at that time in t1.jsonl.gz")
+}
+
+func TestReadTranscriptFollowsNoAgentIDThatIsNotAName(t *testing.T) {
+	archiveDirectory := t.TempDir()
+	path := filepath.Join(archiveDirectory, "t1.jsonl.gz")
+	writeArchived(t, path,
+		strings.TrimSuffix(transcriptLine(t, "10:01:01", "user", toolResult("tu1", "done", false)), "}\n")+`,"toolUseResult":{"agentId":"../../t2"}}`+"\n",
+		strings.TrimSuffix(transcriptLine(t, "10:01:02", "user", toolResult("tu2", "done", false)), "}\n")+`,"toolUseResult":{"agentId":"a2"}}`+"\n",
+	)
+
+	file, err := readTranscript(path)
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{"tu2": "a2"}, file.agents)
+}
+
+func TestDigestAndTimeWaitForTheArchiveLock(t *testing.T) {
+	archiveDirectory := t.TempDir()
+	writeArchived(t, filepath.Join(archiveDirectory, "t1.jsonl.gz"), transcriptLine(t, "10:00:00", "user", "hello"))
+	unit := dto.MiningUnit{Session: "s1", Source: "t1.jsonl.gz", Timestamp: "2026-10-16T10:00:00Z"}
+	unlock, err := archive.Lock(archiveDirectory)
+	require.NoError(t, err)
+
+	done := make(chan struct{}, 2)
+	go func() {
+		_, _ = Digest(archiveDirectory, "review-cycles", unit)
+		done <- struct{}{}
+	}()
+	go func() {
+		Time(archiveDirectory, []TimedUnit{{Analysis: "review-cycles", Unit: unit}})
+		done <- struct{}{}
+	}()
+	select {
+	case <-done:
+		t.Fatal("read the archive while sync held its lock")
+	case <-time.After(200 * time.Millisecond):
+	}
+	unlock()
+	<-done
+	<-done
 }

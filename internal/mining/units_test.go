@@ -171,10 +171,10 @@ func TestPendingListsUnjudgedUnitsPastTheWatermarkAndCountsTheRest(t *testing.T)
 		{Classifier: "a", Result: json.RawMessage(`{}`), Session: "s1", Timestamp: "2026-10-15T10:00:00Z"},
 		{Classifier: "b", Result: json.RawMessage(`{}`), Session: "s1", Timestamp: "2026-10-15T13:00:00Z"},
 	}
-	pending, behind, err := Pending(units, judgments, time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC))
+	pending, backlog, err := Pending(units, judgments, time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC))
 	require.NoError(t, err)
 	require.Equal(t, []dto.MiningUnit{{Session: "s1", Timestamp: "2026-10-15T14:00:00Z"}}, pending, "a judgment under any classifier counts")
-	require.Equal(t, 2, behind, "the unit at the watermark is behind it")
+	require.Equal(t, Backlog{Behind: 2}, backlog, "the unit at the watermark is behind it")
 }
 
 func TestPendingRefusesAnUnparseableTimestamp(t *testing.T) {
@@ -188,12 +188,55 @@ func TestNamedListsTheUnitsALineNamesJudgedOrNot(t *testing.T) {
 		{Session: "s1", Timestamp: "2026-10-15T11:00:00Z"},
 		{Session: "s2", Timestamp: "2026-10-15T12:00:00Z"},
 	}
-	named, err := Named(units, []byte(`{"session":"s2","timestamp":"2026-10-15T12:00:00Z","digest":"/old/path.txt"}`+"\n\n"+`{"session":"s1","timestamp":"2026-10-15T10:00:00Z"}`+"\n"))
+	named, _, err := Named(units, []byte(`{"session":"s2","timestamp":"2026-10-15T12:00:00Z","digest":"/old/path.txt"}`+"\n\n"+`{"session":"s1","timestamp":"2026-10-15T10:00:00Z"}`+"\n"))
 	require.NoError(t, err)
 	require.Equal(t, []dto.MiningUnit{units[0], units[2]}, named, "in unit order, a listing line naming its unit as well as a bare one")
 
-	_, err = Named(units, []byte(`{"session":"s1","timestamp":"2026-10-15T10:00:00Z"}`+"\n"+`{"session":"s1","timestamp":"2026-10-15T10:00:00.000Z"}`))
+	_, _, err = Named(units, []byte(`{"session":"s1","timestamp":"2026-10-15T10:00:00Z"}`+"\n"+`{"session":"s1","timestamp":"2026-10-15T10:00:00.000Z"}`))
 	require.ErrorContains(t, err, `units line 2: no unit has session "s1" and timestamp "2026-10-15T10:00:00.000Z"`)
-	_, err = Named(units, []byte("\n"))
+	_, _, err = Named(units, []byte("\n"))
 	require.ErrorContains(t, err, "no units named")
+}
+
+func TestPendingHoldsAnOpenUnit(t *testing.T) {
+	units := []dto.MiningUnit{
+		{Session: "s1", Timestamp: "2026-10-15T10:00:00Z"},
+		{Open: true, Session: "s2", Timestamp: "2026-10-15T11:00:00Z"},
+	}
+	pending, backlog, err := Pending(units, nil, time.Time{})
+	require.NoError(t, err)
+	require.Equal(t, units[:1], pending)
+	require.Equal(t, Backlog{Open: 1}, backlog)
+}
+
+func TestSettleOpensEveryUnitOfALiveSession(t *testing.T) {
+	now := time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC)
+	units := []dto.MiningUnit{
+		{Session: "live", Timestamp: "2026-10-15T09:00:00Z", Until: "2026-10-15T10:00:00Z"},
+		{Session: "live", Timestamp: "2026-10-15T10:00:00Z"},
+		{Session: "quiet", Timestamp: "2026-10-15T10:00:00Z"},
+		{Session: "unindexed", Timestamp: "2026-10-15T10:00:00Z"},
+	}
+	settled, err := Settle(units, map[string]string{"live": "2026-10-15T11:30:00Z", "quiet": "2026-10-15T10:59:59Z"}, now)
+	require.NoError(t, err)
+	require.Equal(t, []bool{true, true, false, false}, []bool{settled[0].Open, settled[1].Open, settled[2].Open, settled[3].Open}, "a bounded unit too: its digest reads the next human messages past its window")
+
+	_, err = Settle(units, map[string]string{"live": "soon"}, now)
+	require.ErrorContains(t, err, "live")
+}
+
+func TestNamedHoldsAnOpenUnit(t *testing.T) {
+	units := []dto.MiningUnit{
+		{Session: "s1", Timestamp: "2026-10-15T10:00:00Z"},
+		{Open: true, Session: "s2", Timestamp: "2026-10-15T11:00:00Z"},
+	}
+	named, backlog, err := Named(units, []byte(`{"session":"s1","timestamp":"2026-10-15T10:00:00Z"}`+"\n"+`{"session":"s2","timestamp":"2026-10-15T11:00:00Z"}`))
+	require.NoError(t, err)
+	require.Equal(t, units[:1], named)
+	require.Equal(t, Backlog{Open: 1}, backlog)
+
+	named, backlog, err = Named(units, []byte(`{"session":"s2","timestamp":"2026-10-15T11:00:00Z"}`))
+	require.NoError(t, err, "a named unit held is not a file naming none")
+	require.Empty(t, named)
+	require.Equal(t, Backlog{Open: 1}, backlog)
 }

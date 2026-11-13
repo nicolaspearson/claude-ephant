@@ -57,7 +57,7 @@ ele mine --judgments <scratchpad>/mine/<analysis>.judged.jsonl --prompt <prompt>
 
 When no batch wrote an output file, store nothing and report every unit as unjudged.
 
-`ele` hashes the digest file each batch read. It refuses the whole file when a line names no unit of the analysis, a unit with no digest file, or one unit twice, and stores nothing. Correct that line's `session` or `timestamp` from line 1 of its digest — never the prompt — and store again. A line no digest corrects stops that analysis: report the error and every unit as unjudged. A unit a batch left out is not a failure: the watermark stops before it, and the next mine lists it again.
+`ele` hashes the digest file each batch read. It refuses the whole file when a line names no unit of the analysis, a unit with no digest file, one unit twice, or a unit whose session is still live, and stores nothing. Correct that line's `session` or `timestamp` from line 1 of its digest — never the prompt — and store again; drop a line naming a live unit, as the next mine lists it once its session is quiet. A line no digest corrects stops that analysis: report the error and every unit as unjudged. A line whose result the report cannot read, such as a string `is_checkpoint` or a `report_ts` that is not RFC 3339, is left out with a `left out` line on stderr and the rest stored; report its unit as unjudged. A unit a batch left out is not a failure: the watermark stops before it, and the next mine lists it again.
 
 Done when, per analysis, `ele mine --judgments` has printed `Stored <n> of <m> judgments`, or it stored nothing and reports every unit unjudged: no batch wrote output, or a refusal no digest corrects, its error reported.
 

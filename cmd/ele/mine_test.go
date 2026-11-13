@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -160,7 +161,7 @@ func TestRunMineStoresJudgmentsAndListsOnlyTheUnitsLeft(t *testing.T) {
 	prompt := filepath.Join(home, "classify.md")
 	writeFile(t, prompt, "Classify the run.\n")
 	judgments := filepath.Join(home, "judgments.jsonl")
-	writeFile(t, judgments, `{"session":"mn3","timestamp":"2026-10-16T09:00:00Z","mode":"full"}`+"\n"+`{"session":"mn3","timestamp":"2026-10-16T11:00:00Z","mode":"small"}`+"\n")
+	writeFile(t, judgments, `{"session":"mn3","timestamp":"2026-10-16T09:00:00Z","mode":"full"}`+"\n"+`{"session":"mn3","timestamp":"2026-10-16T10:00:00Z","report_ts":"later"}`+"\n"+`{"session":"mn3","timestamp":"2026-10-16T11:00:00Z","mode":"small"}`+"\n")
 	digests := filepath.Join(home, "digests")
 
 	var stdout, stderr bytes.Buffer
@@ -168,8 +169,10 @@ func TestRunMineStoresJudgmentsAndListsOnlyTheUnitsLeft(t *testing.T) {
 	stdout.Reset()
 	require.Equal(t, 0, run(context.Background(), []string{"mine", "--no-sync", "--judgments", judgments, "--prompt", prompt, "--digests", digests, "checkpoint-runs"}, &stdout, &stderr), stderr.String())
 	require.Equal(t, "Stored 2 of 2 judgments in checkpoint-runs under classifier "+mining.Classifier([]byte("Classify the run.\n"))[:12]+"; watermark 2026-10-16T09:00:00Z\n", stdout.String())
+	require.Contains(t, stderr.String(), "ele: left out judgments line 2: ", "a line the report cannot read is left out, the rest stored")
 
 	stdout.Reset()
+	stderr.Reset()
 	require.Equal(t, 0, run(context.Background(), []string{"mine", "--no-sync", "checkpoint-runs"}, &stdout, &stderr), stderr.String())
 	require.Equal(t, []dto.MiningUnit{{Owner: "corp", Project: "gateway", Session: "mn3", Timestamp: "2026-10-16T10:00:00Z"}}, decodeUnits(t, stdout.String()))
 	require.Empty(t, stderr.String())
@@ -232,4 +235,43 @@ func decodeUnits(t *testing.T, output string) []dto.MiningUnit {
 		units = append(units, unit)
 	}
 	return units
+}
+
+func TestWriteDigestsLeavesOutAUnitItCannotDigestAndListsTheRest(t *testing.T) {
+	archiveDirectory := t.TempDir()
+	file, err := os.Create(filepath.Join(archiveDirectory, "t1.jsonl.gz"))
+	require.NoError(t, err)
+	writer := gzip.NewWriter(file)
+	_, err = writer.Write([]byte(`{"type":"user","sessionId":"s2","timestamp":"2026-10-16T10:00:00Z","message":{"content":"hello"}}` + "\n"))
+	require.NoError(t, err)
+	require.NoError(t, writer.Close())
+	require.NoError(t, file.Close())
+	digests := t.TempDir()
+	var stderr bytes.Buffer
+
+	listed, err := writeDigests(archiveDirectory, digests, "review-cycles", []dto.MiningUnit{
+		{Session: "s1", Timestamp: "2026-10-16T09:00:00Z"},
+		{Session: "s2", Source: "t1.jsonl.gz", Timestamp: "2026-10-16T10:00:00Z"},
+	}, &stderr)
+	require.NoError(t, err)
+	require.Equal(t, []dto.MiningUnit{{Digest: filepath.Join(digests, "s2-2026-10-16T100000Z.txt"), Session: "s2", Source: "t1.jsonl.gz", Timestamp: "2026-10-16T10:00:00Z"}}, listed)
+	require.Equal(t, "ele: left out s1 at 2026-10-16T09:00:00Z: no archived transcript\n", stderr.String())
+}
+
+func TestRunMineHoldsTheUnitsOfASessionStillWriting(t *testing.T) {
+	home := recallFixture(t)
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	skillLine := func(session string, at time.Time) string {
+		return `{"cwd":"` + gateway + `","sessionId":"` + session + `","timestamp":"` + at.Format(time.RFC3339) + `","uuid":"` + session + `","type":"assistant","message":{"content":[{"type":"tool_use","name":"Skill","input":{"skill":"checkpoint"}}]}}` + "\n"
+	}
+	now := time.Now().UTC().Truncate(time.Second)
+	writeFile(t, filepath.Join(home, ".claude", "projects", "-gateway", "live.jsonl"), skillLine("live", now.Add(-30*time.Minute)))
+	writeFile(t, filepath.Join(home, ".claude", "projects", "-gateway", "quiet.jsonl"), skillLine("quiet", now.Add(-3*time.Hour)))
+	cache := filepath.Join(home, "data", "mining", "cache")
+	require.NoError(t, mining.Advance(cache, "checkpoint-runs", now.Add(-4*time.Hour)))
+
+	var stdout, stderr bytes.Buffer
+	require.Equal(t, 0, run(context.Background(), []string{"mine", "checkpoint-runs"}, &stdout, &stderr), stderr.String())
+	require.Equal(t, []dto.MiningUnit{{Owner: "corp", Project: "gateway", Session: "quiet", Timestamp: now.Add(-3 * time.Hour).Format(time.RFC3339)}}, decodeUnits(t, stdout.String()))
+	require.Contains(t, stderr.String(), "ele: units in checkpoint-runs held until their session has been quiet an hour: 1\n")
 }

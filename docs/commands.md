@@ -18,7 +18,8 @@ number of days back such as `7d`, which the `--since` of `recall`, `events`,
 into UTC before comparing. `--due`'s time is local too; an RFC 3339 time, which
 `stop-check --replay`'s `--since` and `--until` take, and `after:`'s `HH:MMZ`
 carry their offset.
-`ele show --at` takes a stored stamp as printed, in UTC. A note keeps both: its
+`ele show --at` takes an RFC 3339 time in any offset, or a prefix of a stored
+stamp, such as `2026-10-15T10:00`, read as UTC. A note keeps both: its
 `date` is the local day it was written, its `time` the UTC moment, and
 handoffs, flags and plans listed newest first are ordered by `time`.
 
@@ -364,6 +365,7 @@ directory by default.
 `review-cycles`, or the units `--units` names, judged or not, writing each
 digest into `--digests`. With `--judgments`, a file of classifications, and
 `--prompt`, the classifier prompt they were made with, it stores them, reading
-the digests back from `--digests`. `--report` reports figures from the last
-judgment stored per unit, both analyses together. `--no-sync` reads without
-syncing first.
+the digests back from `--digests`. A unit whose session wrote in the last hour
+is held until it goes quiet, as its judgment would be final. `--report`
+reports figures from the last judgment stored per unit, both analyses
+together. `--no-sync` reads without syncing first.

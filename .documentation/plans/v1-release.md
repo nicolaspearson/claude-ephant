@@ -2130,7 +2130,7 @@ keep.
     `tokens` whose value is digits alone is left as is, while `token: 123456`
     and a `tokens` list stay redacted. The escaped-quote tail is out: it did
     not reproduce
-- [ ] mining-robust: One bad mining line or unit stops no listing or report
+- [x] mining-robust: One bad mining line or unit stops no listing or report
   - done when each defect below has a test that fails before its fix, or the
     user rules it out
   - 2026-10-30, from audit-rest: `mining`'s `Take` stores each classifier
@@ -2159,7 +2159,45 @@ keep.
     takes `pending[0]` as the earliest, relying on its callers' sort.
     `subagentPath` joins an unchecked `agentId`. `Judgment`, `Timing`,
     `TimedUnit`, `UnitKey` and `Taken` cross into `cmd/ele` outside `dto`
-- [ ] small-cli: Smaller CLI and tooling defects
+  - as of 2026-11-12 (16ab016), premise check: every claim above still holds,
+    read from the code, none run; no mining commit since 2026-10-30 touches
+    them, and no test covers any. Cites: `mining` `Take`, `lastPerUnit`,
+    `result`, `uncovered`, `Store`, `appendLine`, `Load`, `loadWatermarks`,
+    `readTranscript`, `subagentPath`, `Pending`, `ReviewCycles`,
+    `upperQuartile`; `archive` `appendMember`, `Lock`; `cmd/ele`
+    `writeDigests`, `timeJudgedUnits`, `miningUnits`; the format-version
+    paragraph of `design.md`. Not checked: other users of the five `mining`
+    types outside `cmd/ele/mine.go`, a `docs/` page repeating the
+    `design.md` format claim, and `archive.Sync`'s path into `appendMember`
+  - as of 2026-11-12: a stuck bad line clears only under the same prompt; a
+    re-judgment under a changed prompt hashes differently and `lastPerUnit`
+    takes the last line per unit
+  - as of 2026-11-12: `subagentPath`'s `agentId` comes unchecked from
+    `toolUseResult`, so `../` reaches `filepath.Join`; the text-match
+    fallback is limited to `[A-Za-z0-9]+`
+  - ruled 2026-11-12: fix every defect in the first two bullets, and of the
+    third `writeDigests`, `subagentPath`, `upperQuartile`, `Take`'s order and
+    the inline-era cycles; a bad line or unit is skipped and counted, never
+    fatal. `Pending` holds a unit until its session has been quiet for a
+    settle period; `readTranscript` takes `archive.Lock` while it reads. The
+    five `mining` types stay outside `dto` for v1
+  - as of 2026-11-12: `archive.Lock` closes the read race: `appendMember`'s
+    only caller is `archive.Sync`, which `cmd/ele` runs holding `archive.Lock`
+    or `archive.TryLock` on `archive/transcripts`, the directory `mine` passes
+    to `Digest` and `Time`
+  - ruled 2026-11-13: a bad line stored before this change stays, skipped and
+    counted, until a hand edit; a re-judge under the same prompt does not
+    replace it, since the first judgment stands and `Take` stores no new one
+  - ruled 2026-11-13: `Take` leaves out and names a line whose result the
+    report cannot read, storing the rest, so one bad classifier answer loses
+    no batch; a line naming no unit, one twice or a live one still refuses
+    the file
+  - asserted in the mining-robust commit: each ruled-in defect has a test in
+    `mining`, `index` or `cmd/ele` that went red under a mutation of its fix
+    (30 mutations), and `task check FORCE=1`, `task audit` and
+    `ele plan check` pass; the `dto` move was ruled out. No `ele mine` run
+    against the real archive
+- [x] small-cli: Smaller CLI and tooling defects
   - done when each defect below is fixed with a test, or dropped on the user's
     ruling
   - 2026-10-30, from audit-cmd: `ele show --at` compares its argument with
@@ -2191,6 +2229,45 @@ keep.
     then `lint-fix` (`gofmt -s -w`) and `fix` (`go fix`), so the tree it
     leaves to commit is not the one `check` passed, and `lint`'s `gofmt -l`
     without `-s` never sees those rewrites; CONTRIBUTING documents the order
+  - as of 2026-11-12 (16ab016), premise check: all seven hold.
+    `show`'s `--at` is a string `>=` on `Timestamp`, and
+    `TestRunShowCentresOnAMatch` has no millisecond or offset case.
+    `contextSize` reads every line and refuses `len(paths) != 1`;
+    no test has two matches. `handoffSection` prints bodies whole, and
+    `writePlanView`'s blocked and flagged lists and `planSummary` lines are
+    uncapped; only `writeNotes` gets `blockBudget`. `index.GitRoot` stops at
+    the first `.git` that stats, file or directory, with no test. `addedLines`
+    keeps the tab on `+++ b/my file.go\t` and on `+++ "b/q\" t.go"\t` (git
+    output probed with `--no-index`). `glob`'s `match` took 1.68 s on the
+    stated case (probed). `precommit` runs `format`, `check`, `lint-fix`,
+    `fix`, and `lint` runs `gofmt -l` without `-s`
+  - as of 2026-11-12: no session's transcript sits under two project
+    directories across the two local profiles (4342 names). Handoff bodies
+    run median 560, p90 926, max 2076 bytes over 294 notes, so about seven
+    pending in one project would near `blockBudget`'s 9500 units. Not
+    checked: the spec's "compute it alike", `OptedOut`'s 200-path cap
+  - 2026-11-12, ruled by the user: `--at` compares as an instant when it
+    parses as RFC 3339, else as a prefix; `contextSize` reads the tail and
+    still refuses two matches; the handoff budget is dropped, since real
+    handoffs sit far below `blockBudget`; `GitRoot` follows a worktree's
+    `gitdir:` and `commondir` to the main repository; `addedLines` trims the
+    header's tab and `match` stops backtracking; `precommit` rewrites before
+    `check`, and `lint` runs `gofmt -s -l`
+  - as of 2026-11-13: built with `GitRoot` unchanged, since plan files are read
+    from the checkout root, which in a worktree is the worktree; only
+    `Projects.Resolve`'s project name follows `gitdir:` and `commondir`
+  - ruled 2026-11-13: no `index.Version` bump, since 17 is unreleased and
+    released installs rebuild at the next release; `show --at` keeps comparing
+    a stamp that is not RFC 3339, such as a note's date, as text
+  - asserted in the small-cli commit: on a HEAD export holding only this
+    change, `task check FORCE=1` (`actionlint` run in the checkout),
+    `task audit` and `ele plan check` pass; tests went red under mutation for
+    `show --at` with an offset and with a millisecond stamp,
+    `Projects.Resolve` on a linked, a relative-gitdir and a bare-repository
+    worktree, `density` on paths holding a space, and `glob` on many stars and
+    on keeping only the first star; `contextSize`'s tail read has no test able
+    to fail, its output pinned by the existing ones; the handoff budget dropped
+    on the user's ruling. No real-session run
 - [ ] audit-tests: Tests the audits found missing or unable to fail
   - done when each test below exists and has gone red once against a mutation,
     and the order nits beside them are fixed or dropped on the user's ruling
@@ -2463,3 +2540,6 @@ keep.
   `ele checkpoint check`, `git status` and `ele checkpoint freeze`, each of
   which runs git; ticket-audit needs a tracker through `gh` or `glab` (ruled
   2026-11-12, from checkpoint-evals' premise check)
+- Moving `mining`'s `Judgment`, `Timing`, `TimedUnit`, `UnitKey` and `Taken`
+  into `dto`: a rename that changes no behaviour (ruled 2026-11-12, from
+  mining-robust's premise check)

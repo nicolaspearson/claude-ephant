@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"time"
 
 	"github.com/nicolaspearson/claude-ephant/internal/archive"
 )
@@ -24,6 +25,22 @@ type Judgment struct {
 	Result     json.RawMessage `json:"result"`
 	Session    string          `json:"session"`
 	Timestamp  string          `json:"timestamp"`
+}
+
+// Inline reads an unstored era from the timestamp: review cycles were stored without one.
+func (judgment Judgment) Inline() bool {
+	if judgment.Era != "" {
+		return judgment.Era == "inline"
+	}
+	at, err := time.Parse(time.RFC3339Nano, judgment.Timestamp)
+	return err == nil && eraAt(at) == "inline"
+}
+
+func eraAt(at time.Time) string {
+	if at.Before(subagentEraAt) {
+		return "inline"
+	}
+	return "subagent"
 }
 
 var analysisName = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
@@ -45,28 +62,39 @@ func fingerprint(content []byte) string {
 }
 
 func Load(directory string, analysis string) ([]Judgment, error) {
+	judgments, _, err := load(directory, analysis)
+	return judgments, err
+}
+
+// load returns each judgment's line as stored too, so Store rewrites it with keys this build does not declare.
+func load(directory string, analysis string) ([]Judgment, [][]byte, error) {
 	if err := checkAnalysis(analysis); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	path := filepath.Join(directory, analysis+".jsonl")
 	content, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil
+		return nil, nil, nil
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var judgments []Judgment
+	var lines [][]byte
 	scanner := bufio.NewScanner(bytes.NewReader(content))
 	scanner.Buffer(nil, len(content)+1)
 	for line := 1; scanner.Scan(); line++ {
+		if len(bytes.TrimSpace(scanner.Bytes())) == 0 {
+			continue
+		}
 		var judgment Judgment
 		if err = json.Unmarshal(scanner.Bytes(), &judgment); err != nil {
-			return nil, fmt.Errorf("%s line %d: %w", path, line, err)
+			return nil, nil, fmt.Errorf("%s line %d: %w", path, line, err)
 		}
 		judgments = append(judgments, judgment)
+		lines = append(lines, bytes.Clone(scanner.Bytes()))
 	}
-	return judgments, scanner.Err()
+	return judgments, lines, scanner.Err()
 }
 
 // SavePrompt keeps the prompt beside the judgments, so a classifier hash stays readable after its source is gone.
@@ -89,7 +117,7 @@ func Store(directory string, analysis string, judgments []Judgment) (int, error)
 		return 0, err
 	}
 	defer unlock()
-	held, err := Load(directory, analysis)
+	held, lines, err := load(directory, analysis)
 	if err != nil {
 		return 0, err
 	}
@@ -99,10 +127,9 @@ func Store(directory string, analysis string, judgments []Judgment) (int, error)
 		seen[key{judgment.Classifier, judgment.Digest, judgment.Session, judgment.Timestamp}] = true
 	}
 	var content bytes.Buffer
-	for _, judgment := range held {
-		if err = appendLine(&content, judgment); err != nil {
-			return 0, err
-		}
+	for _, line := range lines {
+		content.Write(line)
+		content.WriteByte('\n')
 	}
 	added := 0
 	for _, judgment := range judgments {

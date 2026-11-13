@@ -8,6 +8,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/nicolaspearson/claude-ephant/internal/archive"
 	"github.com/nicolaspearson/claude-ephant/internal/dto"
 	"github.com/nicolaspearson/claude-ephant/internal/transcript"
 )
@@ -67,17 +68,26 @@ func Time(archiveDirectory string, units []TimedUnit) map[UnitKey]Timing {
 		if source == "" {
 			continue
 		}
-		file, err := readTranscript(filepath.Join(archiveDirectory, filepath.FromSlash(source)))
-		if err != nil {
-			continue
-		}
-		for _, timed := range bySource[source] {
-			if timing, err := timeUnit(file, timed); err == nil {
-				timings[UnitKey{Analysis: timed.Analysis, Session: timed.Unit.Session, Timestamp: timed.Unit.Timestamp}] = timing
-			}
-		}
+		timeSource(archiveDirectory, source, bySource[source], timings)
 	}
 	return timings
+}
+
+// ToTime pairs each subagent-era judgment with its unit: an inline-era unit has no reviewer subagents to time.
+func ToTime(analysis string, judgments []Judgment, units []dto.MiningUnit) []TimedUnit {
+	reported := map[[2]string]string{}
+	for _, judgment := range judgments {
+		if !judgment.Inline() {
+			reported[[2]string{judgment.Session, judgment.Timestamp}] = ReportedAt(judgment)
+		}
+	}
+	var timed []TimedUnit
+	for _, unit := range units {
+		if reportedAt, judged := reported[[2]string{unit.Session, unit.Timestamp}]; judged {
+			timed = append(timed, TimedUnit{Analysis: analysis, ReportedAt: reportedAt, Unit: unit})
+		}
+	}
+	return timed
 }
 
 // bashSeconds pairs each Bash call with its result, both inside lines; a call whose result falls outside is not counted.
@@ -150,6 +160,24 @@ func reviewerTiming(lines []digestLine, role string, round int) ReviewerTiming {
 		timing.Seconds = &elapsed
 	}
 	return timing
+}
+
+// timeSource holds the archive lock while it reads, as sync appends to a transcript in place.
+func timeSource(archiveDirectory string, source string, units []TimedUnit, timings map[UnitKey]Timing) {
+	unlock, err := archive.Lock(archiveDirectory)
+	if err != nil {
+		return
+	}
+	defer unlock()
+	file, err := readTranscript(filepath.Join(archiveDirectory, filepath.FromSlash(source)))
+	if err != nil {
+		return
+	}
+	for _, timed := range units {
+		if timing, err := timeUnit(file, timed); err == nil {
+			timings[UnitKey{Analysis: timed.Analysis, Session: timed.Unit.Session, Timestamp: timed.Unit.Timestamp}] = timing
+		}
+	}
 }
 
 func timeUnit(file transcriptFile, timed TimedUnit) (Timing, error) {

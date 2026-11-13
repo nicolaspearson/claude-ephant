@@ -10,6 +10,20 @@ import (
 	"github.com/nicolaspearson/claude-ephant/internal/dto"
 )
 
+func TestLastLinesTakesEachSessionsLatestLineButNotANote(t *testing.T) {
+	index := open(t, filepath.Join(t.TempDir(), "ele.db"))
+	_, err := index.db.Exec(`INSERT INTO entries (kind, owner, profile, project, session, source, subagent, text, timestamp, uuid) VALUES
+		('prompt', 'corp', 'claude', 'gateway', 'busy', 'claude/-gateway/busy.jsonl.gz', 0, 'first', '2026-10-20T09:00:00.000Z', 'b1'),
+		('tool', 'corp', 'claude', 'gateway', 'busy', 'claude/-gateway/busy/subagents/agent-a.jsonl.gz', 1, 'Edit: x', '2026-10-20T10:00:00.000Z', 'b2'),
+		('note', 'corp', 'claude', 'gateway', 'busy', 'notes/corp/20261020-aaaaaa.md', 0, 'a note', '2026-10-20T11:00:00.000Z', 'b3'),
+		('prompt', 'corp', 'claude', 'gateway', 'other', 'claude/-gateway/other.jsonl.gz', 0, 'unasked', '2026-10-20T12:00:00.000Z', 'o1')`)
+	require.NoError(t, err)
+
+	lastLines, err := index.LastLines(context.Background(), []string{"busy", "gone"})
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{"busy": "2026-10-20T10:00:00.000Z"}, lastLines)
+}
+
 func TestMainTranscriptsListsThoseWithALineInTheWindowByFirstLine(t *testing.T) {
 	index := open(t, filepath.Join(t.TempDir(), "ele.db"))
 	_, err := index.db.Exec(`INSERT INTO entries (kind, owner, profile, project, session, source, subagent, text, timestamp, uuid) VALUES

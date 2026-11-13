@@ -2,9 +2,38 @@ package index
 
 import (
 	"context"
+	"strings"
 
 	"github.com/nicolaspearson/claude-ephant/internal/dto"
 )
+
+// LastLines maps each session to its latest indexed line, a subagent's included: a subagent at work keeps its session
+// live.
+func (x *Index) LastLines(ctx context.Context, sessions []string) (map[string]string, error) {
+	lastLines := make(map[string]string, len(sessions))
+	if len(sessions) == 0 {
+		return lastLines, nil
+	}
+	arguments := make([]any, len(sessions))
+	for position, session := range sessions {
+		arguments[position] = session
+	}
+	rows, err := x.db.QueryContext(ctx, `SELECT session, max(timestamp) FROM entries
+		WHERE source NOT LIKE 'notes/%' AND session IN (?`+strings.Repeat(", ?", len(sessions)-1)+`)
+		GROUP BY session`, arguments...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var session, timestamp string
+		if err = rows.Scan(&session, &timestamp); err != nil {
+			return nil, err
+		}
+		lastLines[session] = timestamp
+	}
+	return lastLines, rows.Err()
+}
 
 // MainTranscripts lists the owned main transcripts with a line in [since, until), ordered by earliest indexed line. The
 // owner, project and session are the earliest line's: SQLite takes bare columns from the row min() picks.

@@ -31,6 +31,7 @@ const (
 
 var (
 	agentID           = regexp.MustCompile(`agentId: ([A-Za-z0-9]+)`)
+	agentName         = regexp.MustCompile(`^[A-Za-z0-9]+$`)
 	checkpointCommand = regexp.MustCompile(`<command-name>/?(ele:)?checkpoint</command-name>`)
 	checkpointSkill   = regexp.MustCompile(`^(ele:)?checkpoint$`)
 	coveredLine       = regexp.MustCompile(`(?m)^(not )?covered: `)
@@ -155,8 +156,13 @@ type transcriptFile struct {
 // Digest renders a unit from its archived transcript and its subagents' for a classifier to judge. Transcript text is redacted before it is cut, so a cut cannot leave half a secret the patterns miss.
 func Digest(archiveDirectory string, analysis string, unit dto.MiningUnit) (string, error) {
 	if unit.Source == "" {
-		return "", fmt.Errorf("unit %s %s: no archived transcript", unit.Session, unit.Timestamp)
+		return "", errors.New("no archived transcript")
 	}
+	unlock, err := archive.Lock(archiveDirectory)
+	if err != nil {
+		return "", err
+	}
+	defer unlock()
 	file, err := readTranscript(filepath.Join(archiveDirectory, filepath.FromSlash(unit.Source)))
 	if err != nil {
 		return "", err
@@ -348,7 +354,7 @@ func openingLine(file transcriptFile, analysis string, unit dto.MiningUnit) (int
 	if first >= 0 {
 		return first, nil
 	}
-	return -1, fmt.Errorf("unit %s %s: no line at that time in %s", unit.Session, unit.Timestamp, unit.Source)
+	return -1, fmt.Errorf("no line at that time in %s", unit.Source)
 }
 
 func optionalTime(timestamp string) (time.Time, error) {
@@ -516,7 +522,7 @@ func runDigest(file transcriptFile, opening int, unit dto.MiningUnit) (string, e
 
 	ended, err := time.Parse(time.RFC3339Nano, found.last)
 	if err != nil {
-		return "", fmt.Errorf("unit %s: %w", unit.Session, err)
+		return "", fmt.Errorf("last line's time: %w", err)
 	}
 	header := runHeader{
 		Agents:          len(found.agents),
@@ -718,7 +724,7 @@ func (l *digestLine) parse(file transcriptFile) {
 		switch match := agentID.FindStringSubmatch(text); {
 		case block.IsError:
 			file.failures[block.ToolUseID] = text
-		case result.AgentID != "":
+		case agentName.MatchString(result.AgentID):
 			file.agents[block.ToolUseID] = result.AgentID
 		case match != nil:
 			file.agents[block.ToolUseID] = match[1]

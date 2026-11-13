@@ -3,6 +3,7 @@ package dto
 // MiningUnit is keyed by the session and time of the event opening it. Reviewers and Rereviews are set for review cycles only.
 type MiningUnit struct {
 	Digest    string `json:"digest,omitempty"`
+	Open      bool   `json:"-"` // its session wrote a line within the settle period, so its digest can still change
 	Owner     string `json:"owner,omitempty"`
 	Project   string `json:"project,omitempty"`
 	Rereviews int    `json:"rereviews,omitempty"`

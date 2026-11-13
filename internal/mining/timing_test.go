@@ -1,6 +1,7 @@
 package mining
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -87,13 +88,13 @@ func TestTimeStartsACycleAtItsFirstLaunch(t *testing.T) {
 	}}, timings, "the 09:56 gate is the cycle's lead-in, not its time")
 }
 
-func TestUpperQuartileInterpolatesByTheExclusiveMethod(t *testing.T) {
+func TestUpperQuartileInterpolatesByTheExclusiveMethodWithinTheValues(t *testing.T) {
 	for _, test := range []struct {
 		values []float64
 		want   float64
 	}{
 		{values: []float64{5, 1, 4, 2, 3}, want: 4.5},
-		{values: []float64{10, 20}, want: 22.5},
+		{values: []float64{10, 20}, want: 20},
 	} {
 		quartile, ok := upperQuartile(test.values)
 		require.True(t, ok, test.values)
@@ -101,4 +102,18 @@ func TestUpperQuartileInterpolatesByTheExclusiveMethod(t *testing.T) {
 	}
 	_, ok := upperQuartile([]float64{1})
 	require.False(t, ok)
+}
+
+func TestToTimeTakesOnlySubagentEraJudgments(t *testing.T) {
+	units := []dto.MiningUnit{
+		{Session: "s1", Timestamp: "2026-10-06T10:00:00Z"},
+		{Session: "s1", Timestamp: "2026-10-08T10:00:00Z"},
+		{Session: "s1", Timestamp: "2026-10-09T10:00:00Z"},
+	}
+	judgments := []Judgment{
+		{Classifier: "c", Result: json.RawMessage(`{}`), Session: "s1", Timestamp: "2026-10-06T10:00:00Z"},
+		{Classifier: "c", Result: json.RawMessage(`{"report_ts":"2026-10-08T10:30:00Z"}`), Session: "s1", Timestamp: "2026-10-08T10:00:00Z"},
+	}
+
+	require.Equal(t, []TimedUnit{{Analysis: "review-cycles", ReportedAt: "2026-10-08T10:30:00Z", Unit: units[1]}}, ToTime("review-cycles", judgments, units), "an untagged cycle before the subagent era is not timed, nor an unjudged unit")
 }

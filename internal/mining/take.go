@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/nicolaspearson/claude-ephant/internal/dto"
@@ -15,6 +16,7 @@ type Taken struct {
 	Added      int
 	Classifier string
 	Judgments  int
+	LeftOut    []string
 	Watermark  time.Time
 }
 
@@ -32,6 +34,7 @@ func Take(cache string, analysis string, prompt []byte, digest func(dto.MiningUn
 	}
 	classifier := Classifier(prompt)
 	var parsed []Judgment
+	var leftOut []string
 	named := map[[2]string]int{}
 	scanner := bufio.NewScanner(bytes.NewReader(judgments))
 	scanner.Buffer(nil, len(judgments)+1)
@@ -54,22 +57,26 @@ func Take(cache string, analysis string, prompt []byte, digest func(dto.MiningUn
 		if first, ok := named[key]; ok {
 			return Taken{}, fmt.Errorf("judgments line %d: line %d already judges session %q at %q", line, first, record.Session, record.Timestamp)
 		}
+		if byKey[key].Open {
+			return Taken{}, fmt.Errorf("judgments line %d: session %q is still live, so its unit at %q can still grow", line, record.Session, record.Timestamp)
+		}
 		named[key] = line
+		if err := checkResult(scanner.Bytes()); err != nil {
+			leftOut = append(leftOut, fmt.Sprintf("judgments line %d: %v", line, err))
+			continue
+		}
 		content, err := digest(byKey[key])
 		if err != nil {
 			return Taken{}, fmt.Errorf("judgments line %d: %w", line, err)
 		}
-		judgment := Judgment{Classifier: classifier, Digest: fingerprint([]byte(content)), Result: bytes.Clone(scanner.Bytes()), Session: record.Session, Timestamp: record.Timestamp}
-		if analysis == "checkpoint-runs" {
-			judgment.Era = "subagent"
-			if at.Before(subagentEraAt) {
-				judgment.Era = "inline"
-			}
-		}
+		judgment := Judgment{Classifier: classifier, Digest: fingerprint([]byte(content)), Era: eraAt(at), Result: bytes.Clone(scanner.Bytes()), Session: record.Session, Timestamp: record.Timestamp}
 		parsed = append(parsed, judgment)
 	}
 	if err := scanner.Err(); err != nil {
 		return Taken{}, err
+	}
+	if len(parsed) == 0 && len(leftOut) > 0 {
+		return Taken{}, fmt.Errorf("no judgments to store; left out %s", strings.Join(leftOut, "; "))
 	}
 	if len(parsed) == 0 {
 		return Taken{}, errors.New("no judgments to store")
@@ -89,13 +96,15 @@ func Take(cache string, analysis string, prompt []byte, digest func(dto.MiningUn
 	if err != nil {
 		return Taken{}, err
 	}
-	pending, _, err := Pending(units, held, watermark)
-	if err != nil {
-		return Taken{}, err
+	judged := map[[2]string]bool{}
+	for _, judgment := range held {
+		judged[[2]string{judgment.Session, judgment.Timestamp}] = true
 	}
 	var firstPending time.Time
-	if len(pending) > 0 {
-		firstPending = known[[2]string{pending[0].Session, pending[0].Timestamp}]
+	for key, at := range known {
+		if !judged[key] && at.After(watermark) && (firstPending.IsZero() || at.Before(firstPending)) {
+			firstPending = at
+		}
 	}
 	raised := watermark
 	for _, at := range known {
@@ -108,5 +117,5 @@ func Take(cache string, analysis string, prompt []byte, digest func(dto.MiningUn
 			return Taken{}, err
 		}
 	}
-	return Taken{Added: added, Classifier: classifier, Judgments: len(parsed), Watermark: raised}, nil
+	return Taken{Added: added, Classifier: classifier, Judgments: len(parsed), LeftOut: leftOut, Watermark: raised}, nil
 }

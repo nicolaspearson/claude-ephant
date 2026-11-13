@@ -1,6 +1,8 @@
 package mining
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -32,4 +34,17 @@ func TestWatermarkIsZeroForAnAnalysisNeverMined(t *testing.T) {
 	watermark, err := Watermark(t.TempDir(), "checkpoint-runs")
 	require.NoError(t, err)
 	require.True(t, watermark.IsZero())
+}
+
+func TestWatermarksIgnoreAndKeepAKeyTheyDoNotKnow(t *testing.T) {
+	directory := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(directory, watermarksFile), []byte(`{"review-cycles":"2026-10-15T16:58:57Z","version":2}`), 0o600))
+
+	watermark, err := Watermark(directory, "review-cycles")
+	require.NoError(t, err)
+	require.Equal(t, time.Date(2026, 10, 15, 16, 58, 57, 0, time.UTC), watermark)
+	require.NoError(t, Advance(directory, "checkpoint-runs", watermark))
+	content, err := os.ReadFile(filepath.Join(directory, watermarksFile))
+	require.NoError(t, err)
+	require.Contains(t, string(content), `"version": 2`)
 }

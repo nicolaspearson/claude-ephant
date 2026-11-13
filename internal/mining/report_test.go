@@ -96,3 +96,41 @@ func TestReportTimesTheUnitsItHasATimingFor(t *testing.T) {
 	require.Contains(t, report.String(), "Bash in the main thread: median 60s, gate median 30s")
 	require.Contains(t, report.String(), "bugs 1                      1      1      90     -           1                2      7")
 }
+
+func TestReportLeavesOutAndCountsAJudgmentItCannotRead(t *testing.T) {
+	runs := []Judgment{
+		judgment("subagent", "s1", "2026-10-08T10:00:00Z", `{"is_checkpoint":"yes"}`),
+		judgment("subagent", "s2", "2026-10-08T10:00:00Z", `{"change":{"lines":"12"}}`),
+		judgment("subagent", "s3", "2026-10-08T10:00:00Z", `{"report_ts":"yesterday"}`),
+		judgment("subagent", "s4", "2026-10-08T10:00:00Z", `{}`),
+	}
+	cycles := []Judgment{judgment("", "s3", "2026-10-08T10:10:00Z", `{"started_by":"after"}`)}
+	var report bytes.Buffer
+
+	require.NoError(t, Report(&report, runs, cycles, nil))
+
+	require.Contains(t, report.String(), "run judgments 2, review-cycle judgments 1, cycles inside a judged run's window left out 0")
+	require.Contains(t, report.String(), "Judgments whose result the report cannot read, left out: 2; a report_ts it cannot read, so covering no cycle: 1.")
+}
+
+func TestReportLeavesInlineEraCyclesOutOfTheSubagentEra(t *testing.T) {
+	cycles := []Judgment{
+		judgment("", "s1", "2026-10-06T10:00:00Z", `{"started_by":"before"}`),
+		judgment("inline", "s1", "2026-10-06T11:00:00Z", `{"started_by":"before"}`),
+		judgment("", "s1", "2026-10-08T10:00:00Z", `{"started_by":"after"}`),
+	}
+	var report bytes.Buffer
+
+	require.NoError(t, Report(&report, nil, cycles, nil))
+
+	require.Contains(t, report.String(), "review-cycle judgments 1,")
+	require.Contains(t, report.String(), "Review cycles started by after 1.")
+	require.Contains(t, report.String(), "Inline-era review cycles, not reported: 2.")
+}
+
+func TestInlineReadsAnEraFromTheTimestampWhereNoneIsStored(t *testing.T) {
+	require.True(t, judgment("", "s1", "2026-10-06T10:00:00Z", `{}`).Inline())
+	require.False(t, judgment("", "s1", "2026-10-08T10:00:00Z", `{}`).Inline())
+	require.True(t, judgment("inline", "s1", "2026-10-08T10:00:00Z", `{}`).Inline())
+	require.False(t, judgment("subagent", "s1", "2026-10-06T10:00:00Z", `{}`).Inline())
+}

@@ -66,19 +66,19 @@ func mine(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer
 		return takeJudgments(cache, *digests, analysis, *promptFile, *judgmentsFile, units, stdout, stderr)
 	}
 	var pending []dto.MiningUnit
-	behind := 0
+	var backlog mining.Backlog
 	var watermark time.Time
 	if *unitsFile != "" {
-		pending, err = namedUnits(*unitsFile, units)
+		pending, backlog, err = namedUnits(*unitsFile, units)
 	} else {
-		pending, behind, watermark, err = pendingUnits(cache, analysis, units)
+		pending, backlog, watermark, err = pendingUnits(cache, analysis, units)
 	}
 	if err != nil {
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return 1
 	}
 	if *digests != "" {
-		if err = writeDigests(archiveDirectory, *digests, analysis, pending); err != nil {
+		if pending, err = writeDigests(archiveDirectory, *digests, analysis, pending, stderr); err != nil {
 			fmt.Fprintf(stderr, "ele: %v\n", err)
 			return 1
 		}
@@ -90,8 +90,11 @@ func mine(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer
 			return 1
 		}
 	}
-	if behind > 0 {
-		fmt.Fprintf(stderr, "ele: unjudged units in %s at or before the watermark %s: %d\n", analysis, watermark.Format(time.RFC3339Nano), behind)
+	if backlog.Behind > 0 {
+		fmt.Fprintf(stderr, "ele: unjudged units in %s at or before the watermark %s: %d\n", analysis, watermark.Format(time.RFC3339Nano), backlog.Behind)
+	}
+	if backlog.Open > 0 {
+		fmt.Fprintf(stderr, "ele: units in %s held until their session has been quiet an hour: %d\n", analysis, backlog.Open)
 	}
 	return 0
 }
@@ -115,31 +118,47 @@ func miningUnits(ctx context.Context, searchIndex *index.Index, analysis string)
 	if err != nil {
 		return nil, err
 	}
+	var units []dto.MiningUnit
 	if analysis == "checkpoint-runs" {
-		return mining.BoundRuns(launches, runs)
+		units, err = mining.BoundRuns(launches, runs)
+	} else {
+		units, err = mining.ReviewCycles(launches, runs)
 	}
-	return mining.ReviewCycles(launches, runs)
-}
-
-func namedUnits(unitsFile string, units []dto.MiningUnit) ([]dto.MiningUnit, error) {
-	lines, err := os.ReadFile(unitsFile)
 	if err != nil {
 		return nil, err
+	}
+	var sessions []string
+	for _, unit := range units {
+		if !slices.Contains(sessions, unit.Session) {
+			sessions = append(sessions, unit.Session)
+		}
+	}
+	lastLines, err := searchIndex.LastLines(ctx, sessions)
+	if err != nil {
+		return nil, err
+	}
+	return mining.Settle(units, lastLines, time.Now())
+}
+
+func namedUnits(unitsFile string, units []dto.MiningUnit) ([]dto.MiningUnit, mining.Backlog, error) {
+	lines, err := os.ReadFile(unitsFile)
+	if err != nil {
+		return nil, mining.Backlog{}, err
 	}
 	return mining.Named(units, lines)
 }
 
-func pendingUnits(cache string, analysis string, units []dto.MiningUnit) ([]dto.MiningUnit, int, time.Time, error) {
+func pendingUnits(cache string, analysis string, units []dto.MiningUnit) ([]dto.MiningUnit, mining.Backlog, time.Time, error) {
 	judgments, err := mining.Load(cache, analysis)
 	if err != nil {
-		return nil, 0, time.Time{}, err
+		return nil, mining.Backlog{}, time.Time{}, err
 	}
 	watermark, err := mining.Watermark(cache, analysis)
 	if err != nil {
-		return nil, 0, time.Time{}, err
+		return nil, mining.Backlog{}, time.Time{}, err
 	}
-	pending, behind, err := mining.Pending(units, judgments, watermark)
-	return pending, behind, watermark, err
+	pending, backlog, err := mining.Pending(units, judgments, watermark)
+	return pending, backlog, watermark, err
 }
 
 func reportJudgments(ctx context.Context, noSync bool, stdout io.Writer, stderr io.Writer) int {
@@ -171,7 +190,6 @@ func reportJudgments(ctx context.Context, noSync bool, stdout io.Writer, stderr 
 	return 0
 }
 
-// timeJudgedUnits times only subagent-era units: an inline-era run has no reviewer subagents to time.
 func timeJudgedUnits(ctx context.Context, noSync bool, dataDirectory string, judgments map[string][]mining.Judgment, stderr io.Writer) (map[mining.UnitKey]mining.Timing, error) {
 	searchIndex, err := syncedIndex(ctx, noSync, stderr, "these units")
 	if err != nil {
@@ -180,21 +198,11 @@ func timeJudgedUnits(ctx context.Context, noSync bool, dataDirectory string, jud
 	defer searchIndex.Close()
 	var timed []mining.TimedUnit
 	for _, analysis := range analyses {
-		reported := map[[2]string]string{}
-		for _, judgment := range judgments[analysis] {
-			if judgment.Era != "inline" {
-				reported[[2]string{judgment.Session, judgment.Timestamp}] = mining.ReportedAt(judgment)
-			}
-		}
 		units, err := miningUnits(ctx, searchIndex, analysis)
 		if err != nil {
 			return nil, err
 		}
-		for _, unit := range units {
-			if reportedAt, judged := reported[[2]string{unit.Session, unit.Timestamp}]; judged {
-				timed = append(timed, mining.TimedUnit{Analysis: analysis, ReportedAt: reportedAt, Unit: unit})
-			}
-		}
+		timed = append(timed, mining.ToTime(analysis, judgments[analysis], units)...)
 	}
 	return mining.Time(filepath.Join(dataDirectory, "archive", "transcripts"), timed), nil
 }
@@ -219,30 +227,36 @@ func takeJudgments(cache string, digests string, analysis string, promptFile str
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return 1
 	}
+	for _, reason := range taken.LeftOut {
+		fmt.Fprintf(stderr, "ele: left out %s\n", reason)
+	}
 	fmt.Fprintf(stdout, "Stored %d of %d judgments in %s under classifier %s; watermark %s\n", taken.Added, taken.Judgments, analysis, taken.Classifier[:12], taken.Watermark.Format(time.RFC3339Nano))
 	return 0
 }
 
-// writeDigests names each file for its unit, so a re-run rewrites the same file.
-func writeDigests(archiveDirectory string, directory string, analysis string, units []dto.MiningUnit) error {
+// writeDigests names each file for its unit, so a re-run rewrites the same file. A unit it cannot digest stays pending, so it is left out rather than stopping every later listing.
+func writeDigests(archiveDirectory string, directory string, analysis string, units []dto.MiningUnit, stderr io.Writer) ([]dto.MiningUnit, error) {
 	if err := os.MkdirAll(directory, 0o700); err != nil {
-		return err
+		return nil, err
 	}
-	for position := range units {
-		digest, err := mining.Digest(archiveDirectory, analysis, units[position])
+	var digested []dto.MiningUnit
+	for _, unit := range units {
+		digest, err := mining.Digest(archiveDirectory, analysis, unit)
 		if err != nil {
-			return err
+			fmt.Fprintf(stderr, "ele: left out %s at %s: %v\n", unit.Session, unit.Timestamp, err)
+			continue
 		}
-		path, err := filepath.Abs(filepath.Join(directory, digestName(units[position])))
+		path, err := filepath.Abs(filepath.Join(directory, digestName(unit)))
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if err = os.WriteFile(path, []byte(digest), 0o600); err != nil {
-			return err
+			return nil, err
 		}
-		units[position].Digest = path
+		unit.Digest = path
+		digested = append(digested, unit)
 	}
-	return nil
+	return digested, nil
 }
 
 func digestName(unit dto.MiningUnit) string {

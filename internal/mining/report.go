@@ -43,6 +43,7 @@ type judged struct {
 	analysis  string
 	at        time.Time
 	date      string
+	reported  time.Time
 	result    result
 	session   string
 	timestamp string
@@ -82,16 +83,26 @@ type result struct {
 	StartedBy       string             `json:"started_by"`
 }
 
+func (parsed result) reported() (time.Time, error) {
+	if parsed.ReportTimestamp == "" {
+		return time.Time{}, nil
+	}
+	return time.Parse(time.RFC3339Nano, parsed.ReportTimestamp)
+}
+
+type unread struct {
+	reportTimestamps int
+	results          int
+}
+
+func (u unread) add(other unread) unread {
+	return unread{reportTimestamps: u.reportTimestamps + other.reportTimestamps, results: u.results + other.results}
+}
+
 // Report reads the last stored judgment per unit, and leaves out a review cycle starting inside a subagent-era run's window, which that run's judgment already covers.
 func Report(w io.Writer, runs []Judgment, cycles []Judgment, timings map[UnitKey]Timing) error {
-	runUnits, err := lastPerUnit(runs, "checkpoint-runs")
-	if err != nil {
-		return err
-	}
-	cycleUnits, err := lastPerUnit(cycles, "review-cycles")
-	if err != nil {
-		return err
-	}
+	runUnits, runsUnread := lastPerUnit(runs, "checkpoint-runs")
+	cycleUnits, cyclesUnread := lastPerUnit(cycles, "review-cycles")
 	var inline, subagent []judged
 	for _, unit := range runUnits {
 		if unit.era == "inline" {
@@ -100,13 +111,36 @@ func Report(w io.Writer, runs []Judgment, cycles []Judgment, timings map[UnitKey
 			subagent = append(subagent, unit.judged)
 		}
 	}
-	kept, err := uncovered(subagent, cycleUnits)
-	if err != nil {
+	var subagentCycles []judged
+	inlineCycles := 0
+	for _, unit := range cycleUnits {
+		if unit.era == "inline" {
+			inlineCycles++
+		} else {
+			subagentCycles = append(subagentCycles, unit.judged)
+		}
+	}
+	kept := uncovered(subagent, subagentCycles)
+	writeSubagentEra(w, subagent, kept, len(subagentCycles)-len(kept), timings)
+	writeInlineEra(w, inline)
+	if inlineCycles > 0 {
+		fmt.Fprintf(w, "Inline-era review cycles, not reported: %d.\n", inlineCycles)
+	}
+	skipped := runsUnread.add(cyclesUnread)
+	if skipped.results > 0 || skipped.reportTimestamps > 0 {
+		fmt.Fprintf(w, "Judgments whose result the report cannot read, left out: %d; a report_ts it cannot read, so covering no cycle: %d.\n", skipped.results, skipped.reportTimestamps)
+	}
+	return nil
+}
+
+// checkResult refuses a result Report cannot read, so a bad line never reaches the cache, where its unit is judged for good.
+func checkResult(line []byte) error {
+	var parsed result
+	if err := json.Unmarshal(line, &parsed); err != nil {
 		return err
 	}
-	writeSubagentEra(w, subagent, kept, len(cycleUnits)-len(kept), timings)
-	writeInlineEra(w, inline)
-	return nil
+	_, err := parsed.reported()
+	return err
 }
 
 func cut(text string, limit int) string {
@@ -146,19 +180,30 @@ func joinCounts(counts map[string]int) string {
 	return strings.Join(parts, ", ")
 }
 
-func lastPerUnit(judgments []Judgment, analysis string) ([]eraUnit, error) {
+// lastPerUnit leaves out a judgment it cannot read rather than failing: a stored line stays until someone edits the cache by hand.
+func lastPerUnit(judgments []Judgment, analysis string) ([]eraUnit, unread) {
 	at := map[[2]string]int{}
 	var units []eraUnit
+	var skipped unread
 	for _, judgment := range judgments {
 		var parsed result
-		if err := json.Unmarshal(judgment.Result, &parsed); err != nil {
-			return nil, fmt.Errorf("judgment of %s at %s: %w", judgment.Session, judgment.Timestamp, err)
-		}
 		when, err := parseTimestamp(judgment.Session, judgment.Timestamp)
-		if err != nil {
-			return nil, err
+		if err == nil {
+			err = json.Unmarshal(judgment.Result, &parsed)
 		}
-		unit := eraUnit{era: judgment.Era, judged: judged{analysis: analysis, at: when, date: when.Format(time.DateOnly), result: parsed, session: judgment.Session, timestamp: judgment.Timestamp}}
+		if err != nil {
+			skipped.results++
+			continue
+		}
+		reported, err := parsed.reported()
+		if err != nil {
+			skipped.reportTimestamps++
+		}
+		era := judgment.Era
+		if judgment.Inline() {
+			era = "inline"
+		}
+		unit := eraUnit{era: era, judged: judged{analysis: analysis, at: when, date: when.Format(time.DateOnly), reported: reported, result: parsed, session: judgment.Session, timestamp: judgment.Timestamp}}
 		key := [2]string{judgment.Session, judgment.Timestamp}
 		if position, seen := at[key]; seen {
 			units[position] = unit
@@ -170,38 +215,27 @@ func lastPerUnit(judgments []Judgment, analysis string) ([]eraUnit, error) {
 	slices.SortStableFunc(units, func(a, b eraUnit) int {
 		return cmp.Or(a.at.Compare(b.at), strings.Compare(a.session, b.session))
 	})
-	return units, nil
+	return units, skipped
 }
 
 func shortSession(session string) string {
 	return session[:min(8, len(session))]
 }
 
-func uncovered(runs []judged, cycles []eraUnit) ([]judged, error) {
+func uncovered(runs []judged, cycles []judged) []judged {
 	var kept []judged
 	for _, cycle := range cycles {
-		covered := false
-		for _, run := range runs {
-			if run.session != cycle.session || run.result.ReportTimestamp == "" || cycle.at.Before(run.at) {
-				continue
-			}
-			reported, err := parseTimestamp(run.session, run.result.ReportTimestamp)
-			if err != nil {
-				return nil, err
-			}
-			if !cycle.at.After(reported) {
-				covered = true
-				break
-			}
-		}
+		covered := slices.ContainsFunc(runs, func(run judged) bool {
+			return run.session == cycle.session && !run.reported.IsZero() && !cycle.at.Before(run.at) && !cycle.at.After(run.reported)
+		})
 		if !covered {
-			kept = append(kept, cycle.judged)
+			kept = append(kept, cycle)
 		}
 	}
-	return kept, nil
+	return kept
 }
 
-// upperQuartile is the exclusive method: lower index 3(n+1)/4, clamped to 1..n-1, so a short slice extrapolates.
+// upperQuartile is the exclusive method: lower index 3(n+1)/4, clamped to 1..n-1, and the result to the slowest value, which a short slice would extrapolate past.
 func upperQuartile(values []float64) (float64, bool) {
 	if len(values) < 2 {
 		return 0, false
@@ -209,7 +243,7 @@ func upperQuartile(values []float64) (float64, bool) {
 	sorted := slices.Sorted(slices.Values(values))
 	position := min(max(3*(len(sorted)+1)/4, 1), len(sorted)-1)
 	delta := float64(3*(len(sorted)+1) - 4*position)
-	return (sorted[position-1]*(4-delta) + sorted[position]*delta) / 4, true
+	return min((sorted[position-1]*(4-delta)+sorted[position]*delta)/4, sorted[len(sorted)-1]), true
 }
 
 func writeInlineEra(w io.Writer, units []judged) {
