@@ -166,45 +166,6 @@ func TestCompareShowsTheFirstOfEquallyCloseComments(t *testing.T) {
 	require.True(t, strings.HasPrefix(stdout.String(), "#164: nothing matches "+expectPath+"; closest is the comment 1:\n"), stdout.String())
 }
 
-func TestCorpusFetchesInParallelAndListsTicketsInTheOrderAsked(t *testing.T) {
-	tracker := &fakeTracker{delay: 20 * time.Millisecond, issues: map[int]fakeIssue{}, remote: "git@github.com:owner/repo.git"}
-	for _, number := range []int{1, 3, 5, 7, 9} {
-		tracker.issues[number] = fakeIssue{body: "body", title: fmt.Sprintf("Title %d", number)}
-	}
-	var stdout bytes.Buffer
-
-	code := Corpus(context.Background(), &stdout, &bytes.Buffer{}, tracker.commands(), CorpusOptions{Out: t.TempDir(), Tickets: []int{9, 3, 7, 1, 5, 3}})
-
-	require.Equal(t, 0, code)
-	require.Greater(t, tracker.most, 1)
-	require.True(t, strings.HasPrefix(stdout.String(), "#9     open   "), stdout.String())
-	var listed []string
-	for _, line := range strings.Split(stdout.String(), "\n")[:5] {
-		listed = append(listed, strings.Fields(line)[0])
-	}
-	require.Equal(t, []string{"#9", "#3", "#7", "#1", "#5"}, listed)
-}
-
-func TestCorpusRefusesADirectoryHoldingAnEarlierRunUnlessCleaned(t *testing.T) {
-	tracker := &fakeTracker{issues: map[int]fakeIssue{9: {title: "Nine"}}, remote: "git@github.com:owner/repo.git"}
-	for stale, count := range map[string]int{"99.md": 2, "manifest alone": 1, "raw/99.md": 2} {
-		out := t.TempDir()
-		require.NoError(t, os.MkdirAll(filepath.Join(out, "raw"), 0o700))
-		require.NoError(t, os.WriteFile(filepath.Join(out, manifestName), []byte(`[{"file": "99.md"}]`), 0o600))
-		if stale != "manifest alone" {
-			require.NoError(t, os.WriteFile(filepath.Join(out, stale), []byte("# 99 [closed] a previous map\n"), 0o600))
-		}
-		var stderr bytes.Buffer
-
-		require.Equal(t, 1, Corpus(context.Background(), &bytes.Buffer{}, &stderr, tracker.commands(), CorpusOptions{Out: out, Tickets: []int{9}}), stale)
-		require.Equal(t, fmt.Sprintf("ele: %s already holds %d corpus file(s) — pass --clean, or name an empty directory\n", out, count), stderr.String())
-
-		require.Equal(t, 0, Corpus(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, tracker.commands(), CorpusOptions{Clean: true, Out: out, Tickets: []int{9}}), stale)
-		require.NoFileExists(t, filepath.Join(out, "99.md"))
-		require.NoFileExists(t, filepath.Join(out, "raw", "99.md"))
-	}
-}
-
 func TestCorpusCleanKeepsWhatNoCorpusManifestLists(t *testing.T) {
 	tracker := &fakeTracker{issues: map[int]fakeIssue{9: {title: "Nine"}}, remote: "git@github.com:owner/repo.git"}
 	for _, check := range []struct {
@@ -242,49 +203,23 @@ func TestCorpusCleanReplacesAnEarlierRunInTheSameDirectory(t *testing.T) {
 	require.FileExists(t, filepath.Join(out, "9.md"))
 }
 
-func TestCorpusRefusesAManifestListingAnythingButACorpusFileName(t *testing.T) {
-	tracker := &fakeTracker{issues: map[int]fakeIssue{9: {title: "Nine"}}, remote: "git@github.com:owner/repo.git"}
-	for _, listed := range []string{"../elsewhere.md", "x.txt"} {
-		out := t.TempDir()
-		require.NoError(t, os.WriteFile(filepath.Join(out, manifestName), []byte(`[{"file": "`+listed+`"}]`), 0o600))
-		var stderr bytes.Buffer
-
-		require.Equal(t, 1, Corpus(context.Background(), &bytes.Buffer{}, &stderr, tracker.commands(), CorpusOptions{Clean: true, Out: out, Tickets: []int{9}}), listed)
-
-		require.Equal(t, "ele: "+filepath.Join(out, manifestName)+" lists \""+listed+"\", not a corpus file name\n", stderr.String())
+func TestCorpusFetchesInParallelAndListsTicketsInTheOrderAsked(t *testing.T) {
+	tracker := &fakeTracker{delay: 20 * time.Millisecond, issues: map[int]fakeIssue{}, remote: "git@github.com:owner/repo.git"}
+	for _, number := range []int{1, 3, 5, 7, 9} {
+		tracker.issues[number] = fakeIssue{body: "body", title: fmt.Sprintf("Title %d", number)}
 	}
-}
+	var stdout bytes.Buffer
 
-func TestCorpusRefusesTwoPlanItemsWithOneKey(t *testing.T) {
-	plan := writePlan(t, strings.Replace(corpusPlan, "Ship the thing", "Build the thing", 1))
-	var stderr bytes.Buffer
+	code := Corpus(context.Background(), &stdout, &bytes.Buffer{}, tracker.commands(), CorpusOptions{Out: t.TempDir(), Tickets: []int{9, 3, 7, 1, 5, 3}})
 
-	code := Corpus(context.Background(), &bytes.Buffer{}, &stderr, (&fakeTracker{}).commands(), CorpusOptions{Out: t.TempDir(), Plans: []string{plan}})
-
-	require.Equal(t, 1, code)
-	require.Equal(t, "ele: two items share a key, so a ruling could land on either: repo/.documentation/plans/plan.md: Build the thing\n", stderr.String())
-}
-
-func TestCorpusRefusesTwoPlansOfOneFileName(t *testing.T) {
-	plans := []string{writePlanAt(t, "first", "plan.md", corpusPlan), writePlanAt(t, "second", "plan.md", corpusPlan)}
-	var stderr bytes.Buffer
-
-	code := Corpus(context.Background(), &bytes.Buffer{}, &stderr, (&fakeTracker{}).commands(), CorpusOptions{Out: t.TempDir(), Plans: plans})
-
-	require.Equal(t, 1, code)
-	require.Equal(t, "ele: two plans share a file name, so one would overwrite the other: plan-01.md; plan-02.md; plan-03.md\n", stderr.String())
-}
-
-func TestCorpusWritesNoManifestWhenALaterPlanCannotBeRead(t *testing.T) {
-	out := t.TempDir()
-	plans := []string{writePlan(t, corpusPlan), filepath.Join(t.TempDir(), "missing.md"), writePlanAt(t, "other", "third.md", corpusPlan)}
-	var stderr bytes.Buffer
-
-	code := Corpus(context.Background(), &bytes.Buffer{}, &stderr, (&fakeTracker{}).commands(), CorpusOptions{Out: out, Plans: plans})
-
-	require.Equal(t, 1, code)
-	require.Contains(t, stderr.String(), "missing.md")
-	require.NoFileExists(t, filepath.Join(out, manifestName))
+	require.Equal(t, 0, code)
+	require.Greater(t, tracker.most, 1)
+	require.True(t, strings.HasPrefix(stdout.String(), "#9     open   "), stdout.String())
+	var listed []string
+	for _, line := range strings.Split(stdout.String(), "\n")[:5] {
+		listed = append(listed, strings.Fields(line)[0])
+	}
+	require.Equal(t, []string{"#9", "#3", "#7", "#1", "#5"}, listed)
 }
 
 func TestCorpusKeysANamedPlanItemOnItsNameSoARewordKeepsItsRulings(t *testing.T) {
@@ -337,6 +272,59 @@ func TestCorpusKeysAnInboxItemOnItsTitleAndAnActionOnItsName(t *testing.T) {
 	}, fieldOf(entries, "key"))
 }
 
+func TestCorpusRefusesADirectoryHoldingAnEarlierRunUnlessCleaned(t *testing.T) {
+	tracker := &fakeTracker{issues: map[int]fakeIssue{9: {title: "Nine"}}, remote: "git@github.com:owner/repo.git"}
+	for stale, count := range map[string]int{"99.md": 2, "manifest alone": 1, "raw/99.md": 2} {
+		out := t.TempDir()
+		require.NoError(t, os.MkdirAll(filepath.Join(out, "raw"), 0o700))
+		require.NoError(t, os.WriteFile(filepath.Join(out, manifestName), []byte(`[{"file": "99.md"}]`), 0o600))
+		if stale != "manifest alone" {
+			require.NoError(t, os.WriteFile(filepath.Join(out, stale), []byte("# 99 [closed] a previous map\n"), 0o600))
+		}
+		var stderr bytes.Buffer
+
+		require.Equal(t, 1, Corpus(context.Background(), &bytes.Buffer{}, &stderr, tracker.commands(), CorpusOptions{Out: out, Tickets: []int{9}}), stale)
+		require.Equal(t, fmt.Sprintf("ele: %s already holds %d corpus file(s) — pass --clean, or name an empty directory\n", out, count), stderr.String())
+
+		require.Equal(t, 0, Corpus(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, tracker.commands(), CorpusOptions{Clean: true, Out: out, Tickets: []int{9}}), stale)
+		require.NoFileExists(t, filepath.Join(out, "99.md"))
+		require.NoFileExists(t, filepath.Join(out, "raw", "99.md"))
+	}
+}
+
+func TestCorpusRefusesAManifestListingAnythingButACorpusFileName(t *testing.T) {
+	tracker := &fakeTracker{issues: map[int]fakeIssue{9: {title: "Nine"}}, remote: "git@github.com:owner/repo.git"}
+	for _, listed := range []string{"../elsewhere.md", "x.txt"} {
+		out := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(out, manifestName), []byte(`[{"file": "`+listed+`"}]`), 0o600))
+		var stderr bytes.Buffer
+
+		require.Equal(t, 1, Corpus(context.Background(), &bytes.Buffer{}, &stderr, tracker.commands(), CorpusOptions{Clean: true, Out: out, Tickets: []int{9}}), listed)
+
+		require.Equal(t, "ele: "+filepath.Join(out, manifestName)+" lists \""+listed+"\", not a corpus file name\n", stderr.String())
+	}
+}
+
+func TestCorpusRefusesTwoPlanItemsWithOneKey(t *testing.T) {
+	plan := writePlan(t, strings.Replace(corpusPlan, "Ship the thing", "Build the thing", 1))
+	var stderr bytes.Buffer
+
+	code := Corpus(context.Background(), &bytes.Buffer{}, &stderr, (&fakeTracker{}).commands(), CorpusOptions{Out: t.TempDir(), Plans: []string{plan}})
+
+	require.Equal(t, 1, code)
+	require.Equal(t, "ele: two items share a key, so a ruling could land on either: repo/.documentation/plans/plan.md: Build the thing\n", stderr.String())
+}
+
+func TestCorpusRefusesTwoPlansOfOneFileName(t *testing.T) {
+	plans := []string{writePlanAt(t, "first", "plan.md", corpusPlan), writePlanAt(t, "second", "plan.md", corpusPlan)}
+	var stderr bytes.Buffer
+
+	code := Corpus(context.Background(), &bytes.Buffer{}, &stderr, (&fakeTracker{}).commands(), CorpusOptions{Out: t.TempDir(), Plans: plans})
+
+	require.Equal(t, 1, code)
+	require.Equal(t, "ele: two plans share a file name, so one would overwrite the other: plan-01.md; plan-02.md; plan-03.md\n", stderr.String())
+}
+
 func TestCorpusSplitsAPlanIntoActionsThenInboxItems(t *testing.T) {
 	out := t.TempDir()
 
@@ -360,23 +348,20 @@ func TestCorpusSplitsAPlanIntoActionsThenInboxItems(t *testing.T) {
 	require.Equal(t, []string{"closed"}, statesOf(planItems("## Inbox\n\n- [x] Done")), "a ticked Inbox item is closed")
 }
 
-func TestPlanItemsReadsSectionsAndItemsAsPlanParseDoes(t *testing.T) {
-	text := "---\nkind: plan\n---\n\n## Actions\n\n- [ ] first: First\n  - done when x\n\n```\n## Inbox\n- [ ] fenced\n```\n\n- a note, not an action\n- [ ] second: Second\n  ```\n## Inbox\n  ```\n\n# Elsewhere\n\n- [ ] past the plan\n\n## Inbox\n\n- an idea\n"
+func TestCorpusTakesSeveralPlansInTheOrderGiven(t *testing.T) {
+	out := t.TempDir()
+	plans := []string{writePlanAt(t, "repo", "second.md", "## Actions\n\n- [ ] ship-it: Ship\n"), writePlanAt(t, "other", "first.md", corpusPlan)}
 
-	items := planItems(text)
-
-	var titles []string
-	for _, item := range items {
-		titles = append(titles, item.title)
-	}
-	require.Equal(t, []string{"first: First", "second: Second", "an idea"}, titles)
-	require.Equal(t, []string{"open", "open", "inbox"}, statesOf(items))
-	require.Contains(t, items[1].raw, "## Inbox", "a fence in an item's body stays in its body")
-	parsed, err := plan.Parse([]byte(text))
+	code := Corpus(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, (&fakeTracker{}).commands(), CorpusOptions{Out: out, Plans: plans})
+	require.Equal(t, 0, code)
+	content, err := os.ReadFile(filepath.Join(out, manifestName))
 	require.NoError(t, err)
-	require.Equal(t, []string{"first: First", "second: Second"}, []string{parsed.Actions[0].Title, parsed.Actions[1].Title})
-	require.Len(t, parsed.Actions, 2)
-	require.Len(t, parsed.Inbox, 1)
+	var entries []map[string]string
+	require.NoError(t, json.Unmarshal(content, &entries))
+
+	require.Equal(t, []string{"second-01.md", "first-01.md", "first-02.md", "first-03.md"}, fieldOf(entries, "file"))
+	require.Equal(t, "repo/.documentation/plans/second.md: ship-it", entries[0]["key"])
+	require.Equal(t, "other/.documentation/plans/first.md: Build the thing", entries[1]["key"])
 }
 
 func TestCorpusWarnsWhenAListReachesThePageCap(t *testing.T) {
@@ -398,35 +383,6 @@ func TestCorpusWarnsWhenAListReachesThePageCap(t *testing.T) {
 	_, err := nativeChildren(context.Background(), &stderr, commands, "gh", 4)
 	require.NoError(t, err)
 	require.Equal(t, "warning: #4's sub-issues reach the 2000-item cap, so any beyond were not read\n", stderr.String())
-}
-
-func TestSearchWarnsWhenGlabReachesThePageCap(t *testing.T) {
-	commands := Commands{Run: func(context.Context, string, ...string) (string, error) {
-		return encode(fullPage(map[string]any{"description": "Part of #1", "iid": 2, "state": "opened"})), nil
-	}}
-	var stderr bytes.Buffer
-
-	hits, err := search(context.Background(), &stderr, commands, "glab", "Part of #1")
-
-	require.NoError(t, err)
-	require.Len(t, hits, maximumPages*pageSize)
-	require.Equal(t, "warning: hit the 2000-issue search cap — pass --tickets for the full set\n", stderr.String())
-}
-
-func TestCorpusTakesSeveralPlansInTheOrderGiven(t *testing.T) {
-	out := t.TempDir()
-	plans := []string{writePlanAt(t, "repo", "second.md", "## Actions\n\n- [ ] ship-it: Ship\n"), writePlanAt(t, "other", "first.md", corpusPlan)}
-
-	code := Corpus(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, (&fakeTracker{}).commands(), CorpusOptions{Out: out, Plans: plans})
-	require.Equal(t, 0, code)
-	content, err := os.ReadFile(filepath.Join(out, manifestName))
-	require.NoError(t, err)
-	var entries []map[string]string
-	require.NoError(t, json.Unmarshal(content, &entries))
-
-	require.Equal(t, []string{"second-01.md", "first-01.md", "first-02.md", "first-03.md"}, fieldOf(entries, "file"))
-	require.Equal(t, "repo/.documentation/plans/second.md: ship-it", entries[0]["key"])
-	require.Equal(t, "other/.documentation/plans/first.md: Build the thing", entries[1]["key"])
 }
 
 func TestCorpusWritesBothCopiesAndAManifestAndFlagsAPartialCorpus(t *testing.T) {
@@ -471,6 +427,18 @@ func TestCorpusWritesBothCopiesAndAManifestAndFlagsAPartialCorpus(t *testing.T) 
 	require.NoError(t, err)
 	require.Equal(t, fmt.Sprintf("[\n  {\n    \"file\": \"155.md\",\n    \"hash\": \"%s\",\n    \"key\": \"owner/repo#155\",\n    \"state\": \"open\"\n  },\n  {\n    \"file\": \"164.md\",\n    \"hash\": \"%s\",\n    \"key\": \"owner/repo#164\",\n    \"state\": \"open\"\n  },\n  {\n    \"file\": \"170.md\",\n    \"hash\": \"%s\",\n    \"key\": \"owner/repo#170\",\n    \"state\": \"closed\"\n  }\n]\n",
 		itemHash("The map\nthe map"), itemHash("Title 164\n"+tracker.issues[164].body+"\n\nfirst comment"), itemHash("Title 170\nPart of #MAP")), string(manifest), "the hash covers title, body and comments")
+}
+
+func TestCorpusWritesNoManifestWhenALaterPlanCannotBeRead(t *testing.T) {
+	out := t.TempDir()
+	plans := []string{writePlan(t, corpusPlan), filepath.Join(t.TempDir(), "missing.md"), writePlanAt(t, "other", "third.md", corpusPlan)}
+	var stderr bytes.Buffer
+
+	code := Corpus(context.Background(), &bytes.Buffer{}, &stderr, (&fakeTracker{}).commands(), CorpusOptions{Out: out, Plans: plans})
+
+	require.Equal(t, 1, code)
+	require.Contains(t, stderr.String(), "missing.md")
+	require.NoFileExists(t, filepath.Join(out, manifestName))
 }
 
 func TestDetectCLIPicksTheRemotesTrackerAndRefusesAGuess(t *testing.T) {
@@ -530,6 +498,38 @@ func TestPlaceholderAndPartOfAreLiterals(t *testing.T) {
 	require.False(t, saysPartOf("part of the map, see #87", 87))
 }
 
+func TestPlanItemsReadsSectionsAndItemsAsPlanParseDoes(t *testing.T) {
+	text := "---\nkind: plan\n---\n\n## Actions\n\n- [ ] first: First\n  - done when x\n\n```\n## Inbox\n- [ ] fenced\n```\n\n- a note, not an action\n- [ ] second: Second\n  ```\n## Inbox\n  ```\n\n# Elsewhere\n\n- [ ] past the plan\n\n## Inbox\n\n- an idea\n"
+
+	items := planItems(text)
+
+	var titles []string
+	for _, item := range items {
+		titles = append(titles, item.title)
+	}
+	require.Equal(t, []string{"first: First", "second: Second", "an idea"}, titles)
+	require.Equal(t, []string{"open", "open", "inbox"}, statesOf(items))
+	require.Contains(t, items[1].raw, "## Inbox", "a fence in an item's body stays in its body")
+	parsed, err := plan.Parse([]byte(text))
+	require.NoError(t, err)
+	require.Equal(t, []string{"first: First", "second: Second"}, []string{parsed.Actions[0].Title, parsed.Actions[1].Title})
+	require.Len(t, parsed.Actions, 2)
+	require.Len(t, parsed.Inbox, 1)
+}
+
+func TestSearchWarnsWhenGlabReachesThePageCap(t *testing.T) {
+	commands := Commands{Run: func(context.Context, string, ...string) (string, error) {
+		return encode(fullPage(map[string]any{"description": "Part of #1", "iid": 2, "state": "opened"})), nil
+	}}
+	var stderr bytes.Buffer
+
+	hits, err := search(context.Background(), &stderr, commands, "glab", "Part of #1")
+
+	require.NoError(t, err)
+	require.Len(t, hits, maximumPages*pageSize)
+	require.Equal(t, "warning: hit the 2000-issue search cap — pass --tickets for the full set\n", stderr.String())
+}
+
 func TestSequenceMatcherRatioAndDiffFollowAutojunkRules(t *testing.T) {
 	require.InDelta(t, 0.75, newSequenceMatcher([]rune("abcd"), []rune("bcde")).ratio(), 1e-9)
 	require.InDelta(t, 0.006600660066006601, newSequenceMatcher([]rune("aab"), []rune(strings.Repeat("ab", 150))).ratio(), 1e-12, "a character in more than 1% of a long b starts no match, though one can extend into it")
@@ -542,6 +542,16 @@ func TestSplitLinesEndsALineAtEachUnicodeBreak(t *testing.T) {
 	require.Equal(t, []string{"a", "b", "c", "d", "e", "", "f"}, splitLines("a\r\nb\rc d\x1ce\v\u0085f", false))
 	require.Equal(t, []string{"a\r\n", "b"}, splitLines("a\r\nb", true))
 	require.Equal(t, []string{"a\x1fb"}, splitLines("a\x1fb", false), "a unit separator ends no line")
+}
+
+func TestTrackerProjectPrintsNoCredentials(t *testing.T) {
+	commands := Commands{Run: func(context.Context, string, ...string) (string, error) {
+		return "https://user:s3cr3t@example.com\n", nil
+	}}
+
+	_, err := trackerProject(context.Background(), commands)
+
+	require.EqualError(t, err, "cannot read a project path from remote 'https://example.com'")
 }
 
 func TestTrackerProjectReadsEitherRemoteForm(t *testing.T) {
@@ -557,16 +567,6 @@ func TestTrackerProjectReadsEitherRemoteForm(t *testing.T) {
 		require.NoError(t, err, remote)
 		require.Equal(t, want, project, remote)
 	}
-}
-
-func TestTrackerProjectPrintsNoCredentials(t *testing.T) {
-	commands := Commands{Run: func(context.Context, string, ...string) (string, error) {
-		return "https://user:s3cr3t@example.com\n", nil
-	}}
-
-	_, err := trackerProject(context.Background(), commands)
-
-	require.EqualError(t, err, "cannot read a project path from remote 'https://example.com'")
 }
 
 func TestWriteUnifiedDiffSplitsDistantChangesAndPrintsNothingForNone(t *testing.T) {

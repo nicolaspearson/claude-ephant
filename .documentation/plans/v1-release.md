@@ -2268,7 +2268,7 @@ keep.
     on keeping only the first star; `contextSize`'s tail read has no test able
     to fail, its output pinned by the existing ones; the handoff budget dropped
     on the user's ruling. No real-session run
-- [ ] audit-tests: Tests the audits found missing or unable to fail
+- [x] audit-tests: Tests the audits found missing or unable to fail
   - done when each test below exists and has gone red once against a mutation,
     and the order nits beside them are fixed or dropped on the user's ruling
   - 2026-10-30, from audit-cmd: branches no test reaches: `configUnset`'s "has
@@ -2364,8 +2364,14 @@ keep.
     `TestWriteStoredRemovesItsTemporaryFileWhenTheRenameFails`,
     `TestWriteUnifiedDiffSplitsDistantChangesAndPrintsNothingForNone`; each
     seen red with its code disabled
-  - next: sort `plan_test.go`'s and `corpus_test.go`'s test funcs, a
-    move-only commit
+  - asserted in the audit-tests commit, after 0f8c24e, d6be832, 9138a19 and
+    e40634a: each test the four audit lines left open exists under `go test`
+    and failed against a mutation of the code it covers,
+    `index.Index.Update`'s symlinked archive root fixed along the way; those
+    the premise check found already covered were covered before this work,
+    and only `changed` redaction's was mutated in it; the rest dropped on the
+    user's rulings; `plan_test.go`'s
+    and `corpus_test.go`'s test funcs in byte order, a move-only change
 - [ ] audit-tidy: Order, comments and shape the audits found
   - done when each nit below is fixed or dropped on the user's ruling
   - 2026-10-30, from audit-cmd: duplicated helpers. `remember`'s `~`
@@ -2537,6 +2543,59 @@ keep.
     `reports-stale-pin`'s, a regex on `go 1.21` that still needs a Go newer
     than 1.21.0 installed. `reports-partial-help` is now an `llm` judge that
     `--oneline` is no finding, so its `man git-log` point no longer holds
+  - as of 2026-11-13 (cf98d4c), premise check: every claim above still holds
+    but these. The project-owner skip is gone, since `projectOwner` takes
+    the working directory's owner; plan pickup step 4 now lists the ele-data
+    warning, though neither it nor plan-audit lists the inbox-at-close one;
+    `writes-once` reads the written file, so only `writes` counts Write
+    calls; the stale-pin regex is `go ?1\.21`; `reports-partial-help`'s
+    point is dropped, as above. `backup`'s refusal of a non-regular file is
+    now pinned by `TestRunBackupRefusesANonRegularFile`; `config.Save` still
+    writes a fixed `.tmp`, left by atomic-helpers' ruling. Not checked, as
+    each needs a probe: whether Claude Code sends `stop_hook_active` as a
+    string, whether the Stop hook's `session_id` matches
+    `CLAUDE_CODE_SESSION_ID` after `/clear` or a resume, whether `ele sync
+    --background` outlives SessionEnd, and whether the eval sandbox lets the
+    installed plugin read `plan-practices.md`
+  - 2026-11-13, ruled by the user. Moved to audit-fixes: backup holds the
+    notes and forgotten locks; `forget A B` allowed when A supersedes B;
+    a partial owner move saves the map for what moved and names what failed;
+    `config set` and `unset` lock and write through `atomicfile`; the
+    archive hashes the bytes it read; `lastTurn` counts a prompt with array
+    content; `StateFile` moves under the data dir. Done here: the PSF
+    attribution in `difflib.go`; `plugin.json`'s `homepage`, `repository`
+    and `license`; checkpoint §8 re-runs the gate when a fix changed code;
+    review step 6.2 keeps a missing requirement; front matter alphabetised;
+    a general do-not-rerun row in `errors.md`; setup's retry text points at
+    it; the owner lock message names backup too; the spec states that
+    `collapseWhitespace` and `itemHash` cannot change after 1.0. Kept:
+    backup's refusal of a non-regular file, the guard-hook rows, wrap's
+    unasked plan-candidate notes. Dropped: a rewrite keeping the last 4 KiB,
+    directory syncs, review's `export-ignore`, `bump-minor-pre-major`,
+    copied grader regexes, Python compatibility. Probes to run: the
+    `stop_hook_active` type, the session id after a resume (the `/clear`
+    half is the user's), SessionEnd detach
+  - as of 2026-11-13, headless probes on Claude Code 2.1.311: the Stop
+    hook's `stop_hook_active` is a JSON boolean, false then true, so
+    `stop-check`'s bool holds and the gate's `"true"` is leniency; its
+    `session_id` equals `CLAUDE_CODE_SESSION_ID`, and so after `--resume`,
+    which keeps the id; a process the SessionEnd hook starts in its own
+    process group outlives the session, landing its file 12 seconds after
+    the hook returned. Not probed: the id after an interactive `/clear`,
+    left to the user
+  - next: the nits in groups, a checkpoint each: cmd and ticket flags;
+    Taskfile and manifests; checkpoint and review skills; the other skills;
+    evals and CONTRIBUTING
+- [ ] audit-fixes: The audits' data and state defects the user ruled to fix
+  - done when, each by a test seen red: `ele backup` copies while holding
+    the notes and forgotten locks; `ele forget A B` forgets both when A
+    supersedes B; an `ele owner` move failing partway saves the owner map
+    for the notes moved and names the rest; `ele config set` and `unset`
+    hold a lock and write through `atomicfile.Write`; `archive`'s `syncFile`
+    records the tail hash of the bytes it read; the checkpoint gate's
+    `lastTurn` starts a turn at a prompt whose content is an array of text
+    or image parts; `checkpoint.StateFile` lives under the data dir
+  - 2026-11-13, from audit-questions: ruled by the user, each above
 - [x] atomic-helpers: One internal package holds the atomic write and the file
   lock, and the notes temp sweep covers `forgotten/`
   - asserted in the atomic-helpers commit: `internal/atomicfile` holds the one
@@ -2671,3 +2730,9 @@ keep.
   the link would hang on indexing order, so `docs/owners.md` says to work by
   the real path and `TestResolveNamesAWorktreeOfALinkedCheckoutAfterTheRealFolder`
   pins it (ruled 2026-11-13, from small-cli's checkpoint)
+- A recall during `ele sync --rebuild` reading a partial index unwarned:
+  rebuilds are rare and rerunning recall after shows the whole index (ruled
+  2026-11-13, from audit-questions)
+- Whether the eval sandbox lets the installed plugin read
+  `plan-practices.md`: settling it needs a `task eval` run, not asked for
+  (ruled 2026-11-13, from audit-questions)
