@@ -172,7 +172,7 @@ use them where it reads code or weighs designs in the main session.
     Grep and Read; the run predates the checkpoint's rewording of the reference
     file's Rules and Costs and of the agent body, which the done-when does not
     cover
-- [ ] checkpoint-done-when: Checkpoint quotes a done-when the user confirmed in
+- [x] checkpoint-done-when: Checkpoint quotes a done-when the user confirmed in
   the session as it quotes a plan item, with the task and chosen design, and
   runs the spec reviewer on it; update `checkpoint/SKILL.md` §2 to §5 and §8
   where they name a quoted item, `reviewers/spec.md` throughout, the
@@ -193,23 +193,24 @@ use them where it reads code or weighs designs in the main session.
     `reviewers/spec.md`'s intro, Hunt and Output beyond its Read section
   - as of 2026-11-13: `ele events --kind agent` records the reviewer files a
     launch named (`spec` among them) but not the brief; `ele show <session>
-    --at <timestamp>` opens the session to read it; not checked that it shows
-    the full brief
-  - as of 2026-11-13: matches `dev-skill`'s Decision that the brief quotes the
-    task in the user's words, the done-when and the chosen design together
+    --all` prints a launch's brief whole, `--at <timestamp> --context 1`
+    truncates it
   - as of 2026-11-13: checkpoint quotes a confirmed done-when with the task in
     the user's words and the chosen design, and runs the spec reviewer on it
     (`checkpoint/SKILL.md` §2 to §5 and §8, `reviewers/spec.md`, the spec and
     docs page); §2's plan-files gate moved to `references/PLAN-GATE.md`,
     leaving `SKILL.md` at 499 lines; `task check FORCE=1` and `task audit` pass
-  - next: in a `task dev` session, run one checkpoint briefed with a confirmed
-    done-when, then read its spec launch with `ele events --kind agent` and
-    `ele show`
+  - asserted in the checkpoint-done-when commit and 103b032: at 103b032
+    `checkpoint/SKILL.md` is 499 lines and `task check FORCE=1` passes; the
+    spec and docs page say a confirmed done-when runs the spec reviewer; in a
+    `task dev` session a checkpoint over a `cmd/ele/plan.go` change briefed with
+    a done-when the user confirmed logged a launch in `ele events --kind agent`
+    with `spec` among its reviewers, whose brief, read with `ele show --all`,
+    quotes the task, the done-when and the design in the user's words
 - [ ] dev-skill: Write `plugin/skills/dev/SKILL.md`,
   `.documentation/specs/dev.md` and `docs/dev.md`, and add `/ele:dev` to
   design.md's Names table and Integration list, the README's skill list and
   `docs/commands.md`
-  - blocked: checkpoint-done-when
   - done when `task check FORCE=1` passes, and one `/ele:dev` run in a
     `task dev` session, on a small task in this repository with a real design
     choice, goes from intake to checkpoint with `ele:explorer`,
