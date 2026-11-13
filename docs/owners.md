@@ -39,7 +39,12 @@ A session's project is the basename of the git root above its working
 directory, or the directory itself outside a repository. In a linked worktree
 it is the main repository's name, so a worktree shares its repository's notes;
 once the worktree is removed, a rebuilt index files its sessions under the
-worktree's folder name again. Its owner is decided in this order:
+worktree's folder name again. git records the main repository by its real path,
+so a checkout reached through a symlink under another name is one project and
+its worktrees another, named after the real folder. A project entry names one
+of them, so give each name its own entry. Starting sessions from the real path
+makes them one project, though sessions and notes already filed under the
+link's name stay there. A session's owner is decided in this order:
 
 1. A project entry, set with `ele owner add-project <name> <owner>`, wins
 2. Otherwise the longest path rule containing the working directory decides, so

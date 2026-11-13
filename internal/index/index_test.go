@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -85,6 +86,26 @@ func TestResolveNamesALinkedWorktreeAfterItsMainRepository(t *testing.T) {
 
 	project, _ = projects.Resolve(repository)
 	require.Equal(t, "claude-ephant", project)
+}
+
+func TestResolveNamesAWorktreeOfALinkedCheckoutAfterTheRealFolder(t *testing.T) {
+	base, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	checkout := filepath.Join(base, "real-name")
+	require.NoError(t, os.MkdirAll(checkout, 0o700))
+	runGit(t, checkout, "init", "--quiet")
+	runGit(t, checkout, "commit", "--quiet", "--allow-empty", "-m", "initial")
+	link := filepath.Join(base, "link-name")
+	require.NoError(t, os.Symlink(checkout, link))
+	worktree := filepath.Join(base, "feature")
+	runGit(t, link, "worktree", "add", "--quiet", worktree)
+	projects := NewProjects(ownermap.OwnerMap{})
+
+	project, _ := projects.Resolve(link)
+	require.Equal(t, "link-name", project)
+
+	project, _ = projects.Resolve(worktree)
+	require.Equal(t, "real-name", project)
 }
 
 func TestUpdateIndexesNewArchiveBytesWithOwners(t *testing.T) {
@@ -310,6 +331,12 @@ func rows(t *testing.T, index *Index) []row {
 	}
 	require.NoError(t, result.Err())
 	return rows
+}
+
+func runGit(t *testing.T, root string, args ...string) {
+	t.Helper()
+	output, err := exec.Command("git", append([]string{"-C", root, "-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "commit.gpgsign=false"}, args...)...).CombinedOutput()
+	require.NoError(t, err, string(output))
 }
 
 func update(t *testing.T, index *Index, projects string, archiveDirectory string, ownerMap ownermap.OwnerMap) Summary {
