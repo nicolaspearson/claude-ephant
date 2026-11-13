@@ -58,9 +58,10 @@ other item is ticked.
   `docs/plans.md` and `plugin/skills/plan/SKILL.md` say a plan in another
   repository cannot block and that its wait is written as prose with no comma
   before its `;`
-- As of 2026-11-12: `.documentation/plans/dev-skill.md`'s
-  `checkpoint-done-when` holds `blocked: v1-release/cut-v1`, a same-project
-  edge the new form must keep resolving
+- As of 2026-11-13: no active plan holds a same-project `<plan>/<item>` edge
+  since v1-release closed; the new form must keep resolving one, which
+  `internal/plan`'s `TestResolveFreesABlockedItemOnceItsBlockerIsTicked`
+  carries, not a live plan line
 - Not checked: whether the test fixtures can run a sync over a second
   checkout's transcript, or need to seed the `directories` table through
   `internal/index`

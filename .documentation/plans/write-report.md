@@ -197,7 +197,6 @@ session's evidence before the user sees it.
   row and layout bullet
   - done when the spec holds every Decision above with its reason, and
     `task lint-docs` and `task format` pass
-  - blocked: v1-release/cut-v1
 - [ ] write-report-voice-option: Add `report_voice`, `KindPath`, default empty,
   to `internal/config` `Options`, with tests beside `review_voice`'s in both
   `config_test.go` files; add it to design.md's Options bullet,

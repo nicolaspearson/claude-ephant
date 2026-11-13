@@ -167,10 +167,12 @@ build.
 To publish such a draft, run Release by hand with its tag. The run checks the
 tag's commit and refuses a release that is not a draft. It refuses a draft
 that is not a pre-release when its tag sorts below the latest release, since
-publishing it would move `install.sh` and brew users back, and when its tag
-has a pre-release suffix such as `-rc.1`, which `sort -V` places above the
-bare version. Then it builds, uploads and publishes it as a push would. A
-pre-release is never marked latest and never reaches the Tap job. `gh workflow
+publishing it would move `install.sh` and brew users back, and publishing it
+as not latest would list an outdated build beside the current one; and when
+its tag has a pre-release suffix such as `-rc.1`, which `sort -V` places above
+the bare version. Then it builds, uploads and publishes it as a push would. A
+pre-release is still published, since the throwaway dispatch below is one, but
+never marked latest and never reaches the Tap job. `gh workflow
 run` runs the workflow as it is on `main` unless `--ref` names another branch.
 To try it without cutting a version, tag `main` with a throwaway tag, make a
 draft pre-release on it and run Release:
