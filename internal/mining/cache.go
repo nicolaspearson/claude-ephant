@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/nicolaspearson/claude-ephant/internal/archive"
+	"github.com/nicolaspearson/claude-ephant/internal/atomicfile"
 )
 
 // Judgment cannot be rebuilt from the archive, so the cache is a source of truth, not an index.
@@ -104,7 +105,7 @@ func SavePrompt(directory string, prompt []byte) (string, error) {
 	if _, err := os.Stat(path); err == nil {
 		return classifier, nil
 	}
-	if err := writeAtomically(path, prompt); err != nil {
+	if err := atomicfile.Write(path, prompt); err != nil {
 		return "", err
 	}
 	return classifier, nil
@@ -149,7 +150,7 @@ func Store(directory string, analysis string, judgments []Judgment) (int, error)
 	if added == 0 {
 		return 0, nil
 	}
-	return added, writeAtomically(filepath.Join(directory, analysis+".jsonl"), content.Bytes())
+	return added, atomicfile.Write(filepath.Join(directory, analysis+".jsonl"), content.Bytes())
 }
 
 func appendLine(content *bytes.Buffer, judgment Judgment) error {
@@ -165,28 +166,4 @@ func appendLine(content *bytes.Buffer, judgment Judgment) error {
 	content.Write(line)
 	content.WriteByte('\n')
 	return nil
-}
-
-func writeAtomically(path string, content []byte) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
-	}
-	temporary, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*.tmp")
-	if err != nil {
-		return err
-	}
-	_, err = temporary.Write(content)
-	if err == nil {
-		err = temporary.Sync()
-	}
-	if closeErr := temporary.Close(); err == nil {
-		err = closeErr
-	}
-	if err == nil {
-		err = os.Rename(temporary.Name(), path)
-	}
-	if err != nil {
-		_ = os.Remove(temporary.Name())
-	}
-	return err
 }

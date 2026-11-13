@@ -14,7 +14,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"syscall"
+
+	"github.com/nicolaspearson/claude-ephant/internal/atomicfile"
 )
 
 const tailWindow = 4096
@@ -60,8 +61,7 @@ func LoadManifest(directory string) (Manifest, error) {
 
 // Lock is advisory and blocks until released.
 func Lock(directory string) (func(), error) {
-	unlock, _, err := lock(directory, syscall.LOCK_EX)
-	return unlock, err
+	return atomicfile.Lock(filepath.Join(directory, ".lock"))
 }
 
 func Open(path string) (io.ReadCloser, error) {
@@ -154,11 +154,7 @@ func Sync(sources []Source, directory string) (Summary, error) {
 
 // TryLock reports false, holding nothing, when another holder has the lock.
 func TryLock(directory string) (func(), bool, error) {
-	unlock, held, err := lock(directory, syscall.LOCK_EX|syscall.LOCK_NB)
-	if errors.Is(err, syscall.EWOULDBLOCK) {
-		return nil, false, nil
-	}
-	return unlock, held, err
+	return atomicfile.TryLock(filepath.Join(directory, ".lock"))
 }
 
 type readCloser struct {
@@ -214,24 +210,6 @@ func appendMember(path string, chunk []byte, fresh bool) (int64, error) {
 		return 0, err
 	}
 	return written.Size(), nil
-}
-
-func lock(directory string, how int) (func(), bool, error) {
-	if err := os.MkdirAll(directory, 0o700); err != nil {
-		return nil, false, fmt.Errorf("create %s: %w", directory, err)
-	}
-	file, err := os.OpenFile(filepath.Join(directory, ".lock"), os.O_CREATE|os.O_RDWR, 0o600)
-	if err != nil {
-		return nil, false, fmt.Errorf("open lock: %w", err)
-	}
-	if err := syscall.Flock(int(file.Fd()), how); err != nil {
-		_ = file.Close()
-		return nil, false, fmt.Errorf("lock %s: %w", directory, err)
-	}
-	return func() {
-		_ = syscall.Flock(int(file.Fd()), syscall.LOCK_UN)
-		_ = file.Close()
-	}, true, nil
 }
 
 // rollback truncates appends to recorded files that a crash left past the saved manifest.

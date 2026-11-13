@@ -2345,7 +2345,15 @@ keep.
     its code disabled. `TestUpdateKeepsNoFragmentOfASecretTheCutSplits` reads
     `changed` back from the stored attribute, seen red with its redaction
     disabled
-  - next: groups checkpoint and plan, a checkpoint each
+  - as of 2026-11-13: group 3 (checkpoint) done:
+    `TestAppendKeepsTheFreezeTimeWhenTheLineIsNotWritten` writes this
+    session's `RunFile`; `TestFinalTextKeepsOnlyTheLastTextBlock`,
+    `TestSpokenTextJoinsEveryTextBlock`, `TestLastTurnStartsAtTheLastPrompt`,
+    `TestLastTurnWithItsPromptPastTheTailStartsWithoutOne`,
+    `TestGatePatternsMatchTheirWordings` and
+    `TestRecordDoesNotCoverAPathDirtiedAfterIt`; each seen red with its code
+    disabled
+  - next: group 4 (plan), with its order nits
 - [ ] audit-tidy: Order, comments and shape the audits found
   - done when each nit below is fixed or dropped on the user's ruling
   - 2026-10-30, from audit-cmd: duplicated helpers. `remember`'s `~`
@@ -2517,8 +2525,17 @@ keep.
     `reports-stale-pin`'s, a regex on `go 1.21` that still needs a Go newer
     than 1.21.0 installed. `reports-partial-help` is now an `llm` judge that
     `--oneline` is no finding, so its `man git-log` point no longer holds
-- [ ] atomic-helpers: One internal package holds the atomic write and the file
+- [x] atomic-helpers: One internal package holds the atomic write and the file
   lock, and the notes temp sweep covers `forgotten/`
+  - asserted in the atomic-helpers commit: `internal/atomicfile` holds the one
+    `Write`, `Lock` and `TryLock`; the `writeAtomically` copies in `cmd/ele`,
+    `mining` and `ticket` and the `notes` and `archive` flock bodies are
+    deleted, those packages calling it. Under `go test`, a sync removes a
+    day-old `.md.*.tmp` from `forgotten/<owner>/` as from `notes/`;
+    `ticket.Record` through a symlinked ledger waits while another holds
+    `.lock` beside the target; backup leaves out `ticket-audits.jsonl.lock`.
+    Each of these tests, and `atomicfile`'s `Write` and `TryLock` tests,
+    failed against a mutation of the code it covers
   - done when `cmd/ele`'s `writeAtomically` and `internal/mining`'s copy, and
     `internal/notes`' lock and `internal/archive`'s, are each one function in
     one package with the old copies deleted, and a test shows a `.tmp` left in
@@ -2534,7 +2551,7 @@ keep.
   - as of 2026-11-13 (59b8dcb), premise check: `cmd/ele`'s, `mining`'s and
     `ticket`'s `writeAtomically` share one body (temp, write, `Sync`,
     rename); `ticket`'s first resolves a symlinked ledger, pinned by
-    `TestRecordWritesThroughASymlinkedLedger`. Seven more temp-then-rename
+    `TestRecordWritesThroughASymlinkedLedger`. The other temp-then-rename
     writes differ: `ownermap.Save`, `plan.WriteStored` (chmods 0o644),
     `notes.Move` and `rewriteKey` (keep the note's mode) skip `Sync`;
     `config`'s save, `archive.saveManifest`, `archive.appendMember` and
@@ -2577,6 +2594,11 @@ keep.
   .documentation/plans/v1-release.md`, and delete this plan
 
 ## Inbox
+
+- 2026-11-13, from audit-tests' group 3 checkpoint: `checkpoint`'s
+  `stillLeft` ends `(remain|to go)\b`, so "two more remain" counts as work
+  left but "one remains" does not, and a turn ending "done; one remains"
+  reads as a done claim the gate sees nothing left against
 
 ## Out of scope
 

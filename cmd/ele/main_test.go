@@ -141,6 +141,27 @@ func TestRunSyncSkipsAFileItCannotReadAndSaysSoUntilASyncSkipsNone(t *testing.T)
 	require.NotContains(t, output, "skipped")
 }
 
+func TestRunSyncSweepsOldTemporaryNotesFromNotesAndForgotten(t *testing.T) {
+	home := recallFixture(t)
+	// As a killed ele owner move leaves them, in either tree.
+	left := []string{
+		filepath.Join(home, "data", "forgotten", "personal", "20261017-aaaaaa.md.123.tmp"),
+		filepath.Join(home, "data", "notes", "personal", "20261017-bbbbbb.md.456.tmp"),
+	}
+	for _, path := range left {
+		writeFile(t, path, "half")
+		old := time.Now().Add(-2 * 24 * time.Hour)
+		require.NoError(t, os.Chtimes(path, old, old))
+	}
+
+	output, code := runCommand(t, "sync")
+
+	require.Equal(t, 0, code, output)
+	for _, path := range left {
+		require.NoFileExists(t, path)
+	}
+}
+
 func TestLastSyncAndStopStateAreReplacedRatherThanWrittenInto(t *testing.T) {
 	home := recallFixture(t)
 	stamp := filepath.Join(home, "data", "last-sync")
@@ -174,26 +195,6 @@ func TestLastSyncAndStopStateAreReplacedRatherThanWrittenInto(t *testing.T) {
 	keptState, err := os.ReadFile(heldState)
 	require.NoError(t, err)
 	require.NotContains(t, string(keptState), "42", "stop-check state written in place")
-}
-
-func TestWriteAtomicallyReplacesTheFileRatherThanWritingIntoIt(t *testing.T) {
-	directory := t.TempDir()
-	path := filepath.Join(directory, "last-sync")
-	writeFile(t, path, "old\n")
-	// A reader holding the old file, as a session start racing a sync does.
-	require.NoError(t, os.Link(path, filepath.Join(directory, "held")))
-
-	require.NoError(t, writeAtomically(path, []byte("new\n")))
-
-	held, err := os.ReadFile(filepath.Join(directory, "held"))
-	require.NoError(t, err)
-	require.Equal(t, "old\n", string(held), "written in place, the holder would read the new or half of it")
-	written, err := os.ReadFile(path)
-	require.NoError(t, err)
-	require.Equal(t, "new\n", string(written))
-	leftovers, err := filepath.Glob(filepath.Join(directory, "*.tmp"))
-	require.NoError(t, err)
-	require.Empty(t, leftovers)
 }
 
 func TestRunSyncBuildsANewIndexWithoutRebuilding(t *testing.T) {

@@ -31,6 +31,7 @@ func TestRunBackupCopiesTheDataDirectoryAndTheIndex(t *testing.T) {
 	writeFile(t, filepath.Join(data, "notes", "personal", "20261017-aaaaaa.md.123.tmp"), "half")
 	writeFile(t, filepath.Join(data, "logs", "checkpoints.jsonl"), `{"scope":"diff"}`+"\n")
 	writeFile(t, filepath.Join(data, "logs", "ticket-audits.jsonl"), `{"key":"k"}`+"\n")
+	writeFile(t, filepath.Join(data, "logs", "ticket-audits.jsonl.lock"), "")
 	writeFile(t, filepath.Join(data, "mining", "cache", "checkpoint-runs.jsonl"), "{}\n")
 	writeFile(t, filepath.Join(data, "archive", "claude-mem", "observations.jsonl"), "retired\n")
 	target := filepath.Join(home, "backups", "2026-10-17")
@@ -60,6 +61,7 @@ func TestRunBackupCopiesTheDataDirectoryAndTheIndex(t *testing.T) {
 		filepath.Join("archive", "claude-mem", "observations.jsonl"),
 		filepath.Join("archive", "transcripts", ".lock"),
 		"last-sync",
+		filepath.Join("logs", "ticket-audits.jsonl.lock"),
 		filepath.Join("notes", "personal", "20261017-aaaaaa.md.123.tmp"),
 		"sync.log",
 	} {

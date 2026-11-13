@@ -144,7 +144,7 @@ func copyTree(source string, target string) (int64, error) {
 		case entry.IsDir():
 			return os.MkdirAll(destination, 0o700)
 		// A .tmp is an unlocked write in flight, renamed away mid-copy.
-		case entry.Name() == ".lock", strings.HasSuffix(entry.Name(), ".tmp"):
+		case strings.HasSuffix(entry.Name(), ".lock"), strings.HasSuffix(entry.Name(), ".tmp"):
 			return nil
 		case !entry.Type().IsRegular():
 			return fmt.Errorf("%s is not a regular file", path)

@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/nicolaspearson/claude-ephant/internal/atomicfile"
 )
 
 const (
@@ -288,4 +290,33 @@ func TestRecordResolvesARelativeLinkFromTheLogsDirectoryItsLinkReaches(t *testin
 	require.Contains(t, string(written), firstKey)
 	require.Contains(t, string(written), secondKey)
 	require.NoDirExists(t, filepath.Join(directory, "kept"), "`..` is the link's real directory's parent")
+}
+
+func TestRecordWaitsForTheLockBesideTheLedgersTarget(t *testing.T) {
+	directory := t.TempDir()
+	ledgerPath := filepath.Join(directory, "logs", "ticket-audits.jsonl")
+	target := filepath.Join(directory, "kept", "ledger.jsonl")
+	require.NoError(t, os.MkdirAll(filepath.Dir(ledgerPath), 0o700))
+	require.NoError(t, os.MkdirAll(filepath.Dir(target), 0o700))
+	require.NoError(t, os.Symlink(target, ledgerPath))
+	// Another session recording through the target itself.
+	unlock, err := atomicfile.Lock(target + ".lock")
+	require.NoError(t, err)
+	done := make(chan error, 1)
+
+	go func() {
+		_, recordErr := record(t, directory, `[{"key":"`+secondKey+`","methods":[],"rulings":[]}]`, ledgerPath)
+		done <- recordErr
+	}()
+
+	select {
+	case err = <-done:
+		t.Fatalf("recorded while another held the lock: %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+	unlock()
+	require.NoError(t, <-done)
+	written, err := os.ReadFile(target)
+	require.NoError(t, err)
+	require.Contains(t, string(written), secondKey)
 }

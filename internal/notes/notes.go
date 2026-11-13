@@ -14,8 +14,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
+
+	"github.com/nicolaspearson/claude-ephant/internal/atomicfile"
 )
 
 const Day = 24 * time.Hour
@@ -478,23 +479,8 @@ func clearKey(directory string, note Note, key string) error {
 // Unlocked, a later rename drops the other rewrite's key, and a rewrite racing
 // a Move recreates the note under its old owner.
 func lock(directory string) (func(), error) {
-	directory = filepath.Clean(directory)
-	if err := os.MkdirAll(filepath.Dir(directory), 0o700); err != nil {
-		return nil, err
-	}
 	// Beside the tree, not in it: every reader of notes/ takes each entry for an owner's folder.
-	file, err := os.OpenFile(directory+".lock", os.O_CREATE|os.O_RDWR, 0o600)
-	if err != nil {
-		return nil, err
-	}
-	if err = syscall.Flock(int(file.Fd()), syscall.LOCK_EX); err != nil {
-		_ = file.Close()
-		return nil, err
-	}
-	return func() {
-		_ = syscall.Flock(int(file.Fd()), syscall.LOCK_UN)
-		_ = file.Close()
-	}, nil
+	return atomicfile.Lock(filepath.Clean(directory) + ".lock")
 }
 
 func onePathElement(name string) bool {

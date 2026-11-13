@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/nicolaspearson/claude-ephant/internal/archive"
+	"github.com/nicolaspearson/claude-ephant/internal/atomicfile"
 )
 
 const watermarksFile = "watermarks.json"
@@ -38,7 +39,7 @@ func Advance(directory string, analysis string, timestamp time.Time) error {
 	if err != nil {
 		return err
 	}
-	return writeAtomically(filepath.Join(directory, watermarksFile), append(content, '\n'))
+	return atomicfile.Write(filepath.Join(directory, watermarksFile), append(content, '\n'))
 }
 
 // Watermark returns the zero time for an analysis never mined.

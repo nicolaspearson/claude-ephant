@@ -15,6 +15,7 @@ import (
 	"unicode"
 	"unicode/utf16"
 
+	"github.com/nicolaspearson/claude-ephant/internal/atomicfile"
 	"github.com/nicolaspearson/claude-ephant/internal/datadir"
 )
 
@@ -60,6 +61,13 @@ func Record(w io.Writer, manifestPath string, recordsPath string, ledgerPath str
 	if err = json.Unmarshal(records, &listed); err != nil {
 		return err
 	}
+	target := ledgerTarget(ledgerPath)
+	// Unlocked, two sessions recording at once each rewrite the ledger they read, losing one run's lines.
+	unlock, err := atomicfile.Lock(target + ".lock")
+	if err != nil {
+		return fmt.Errorf("nothing recorded: %w", err)
+	}
+	defer unlock()
 	ledger, err := loadLedger(w, ledgerPath)
 	if err != nil {
 		return fmt.Errorf("nothing recorded: %w", err)
@@ -78,7 +86,7 @@ func Record(w io.Writer, manifestPath string, recordsPath string, ledgerPath str
 	for _, line := range mergeLines(ledger) {
 		lines.WriteString(dumpsLine(line))
 	}
-	if err = writeAtomically(ledgerPath, lines.Bytes()); err != nil {
+	if err = atomicfile.Write(target, lines.Bytes()); err != nil {
 		return err
 	}
 	fmt.Fprintf(w, "recorded %d item(s) in %s\n", len(listed), ledgerPath)
@@ -225,6 +233,21 @@ func jsonString(raw json.RawMessage) (string, bool) {
 		return "", false
 	}
 	return text, true
+}
+
+// A rename over a symlink would replace the link, so the ledger is written, and locked, at its target.
+func ledgerTarget(path string) string {
+	target, err := os.Readlink(path)
+	if err != nil {
+		return path
+	}
+	if resolved, resolveErr := filepath.EvalSymlinks(path); resolveErr == nil {
+		return resolved
+	}
+	if !filepath.IsAbs(target) {
+		return filepath.Join(filepath.Dir(path), target)
+	}
+	return target
 }
 
 // Refuses a bad line rather than skipping it: a skipped line is a hidden ruling.
@@ -400,40 +423,4 @@ func wellFormed(raw json.RawMessage) bool {
 		}
 	}
 	return true
-}
-
-// A reader racing the write sees the old ledger or the new one, never half of either.
-// A rename over a symlink would replace the link, so the temporary file goes beside its target.
-func writeAtomically(path string, content []byte) error {
-	if target, err := os.Readlink(path); err == nil {
-		resolved, resolveErr := filepath.EvalSymlinks(path)
-		switch {
-		case resolveErr == nil:
-			target = resolved
-		case !filepath.IsAbs(target):
-			target = filepath.Join(filepath.Dir(path), target)
-		}
-		path = target
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
-	}
-	temporary, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*.tmp")
-	if err != nil {
-		return err
-	}
-	_, err = temporary.Write(content)
-	if err == nil {
-		err = temporary.Sync()
-	}
-	if closeErr := temporary.Close(); err == nil {
-		err = closeErr
-	}
-	if err == nil {
-		err = os.Rename(temporary.Name(), path)
-	}
-	if err != nil {
-		_ = os.Remove(temporary.Name())
-	}
-	return err
 }

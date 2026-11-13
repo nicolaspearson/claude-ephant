@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nicolaspearson/claude-ephant/internal/atomicfile"
 	"github.com/nicolaspearson/claude-ephant/internal/datadir"
 	"github.com/nicolaspearson/claude-ephant/internal/dto"
 	"github.com/nicolaspearson/claude-ephant/internal/highlight"
@@ -501,5 +502,5 @@ func writeStopState(path string, state stopState) error {
 	if err != nil {
 		return err
 	}
-	return writeAtomically(path, content)
+	return atomicfile.Write(path, content)
 }

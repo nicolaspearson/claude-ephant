@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/nicolaspearson/claude-ephant/internal/archive"
+	"github.com/nicolaspearson/claude-ephant/internal/atomicfile"
 	"github.com/nicolaspearson/claude-ephant/internal/datadir"
 	"github.com/nicolaspearson/claude-ephant/internal/hookversion"
 	"github.com/nicolaspearson/claude-ephant/internal/index"
@@ -276,13 +277,16 @@ func syncAll(ctx context.Context, stdout io.Writer, wait bool, rebuild bool) err
 		return err
 	}
 	stateErr := removeStaleStopState(dataDirectory, time.Now())
-	sweepErr := notes.SweepTemporary(filepath.Join(dataDirectory, "notes"), notes.Day, time.Now())
+	sweepErr := errors.Join(
+		notes.SweepTemporary(filepath.Join(dataDirectory, "notes"), notes.Day, time.Now()),
+		notes.SweepTemporary(filepath.Join(dataDirectory, "forgotten"), notes.Day, time.Now()),
+	)
 	skipped := slices.Concat(profilesSkipped, archived.Skipped, indexed.Skipped, noted.Skipped)
 	if err := writeSyncSkipped(dataDirectory, skipped); err != nil {
 		return fmt.Errorf("write %s: %w", syncSkippedFile, err)
 	}
 	stamp := filepath.Join(dataDirectory, "last-sync")
-	if err := writeAtomically(stamp, []byte(time.Now().UTC().Format(time.RFC3339Nano)+"\n")); err != nil {
+	if err := atomicfile.Write(stamp, []byte(time.Now().UTC().Format(time.RFC3339Nano)+"\n")); err != nil {
 		return fmt.Errorf("write %s: %w", stamp, err)
 	}
 

@@ -41,7 +41,8 @@ claude-ephant/
   forgotten.lock   held while ele moves a forgotten note
   hook-versions/   the ele version each session's hooks ran, one file a session
   last-sync        when the last sync succeeded
-  logs/            checkpoints.jsonl and ticket-audits.jsonl
+  logs/            checkpoints.jsonl and ticket-audits.jsonl, with
+                   ticket-audits.jsonl.lock held while ele records an audit
   mining/          mining judgments of checkpoint runs and review cycles
   move-notice      the data directory and log moves' outcomes, until a session shows them
   notes/           notes, one Markdown file each, by owner
