@@ -18,17 +18,41 @@ tools, since another plugin's names change between versions.
   the size check at intake sees only the task's wording
 - A size stop proposes no handoff: `/ele:plan new` launches its own explorers
   before its first round, so what dev's explorers found would only aim their
-  briefs, and a handoff holds three lines
-- Dev writes no plan file. A task that needs no plan would otherwise leave one
-  to close and delete
+  briefs, and a handoff holds three lines. Follow-ups held for the mini plan's
+  inbox are still proposed, since no mini plan is written to keep them
+- Dev writes no plan file in the repository. A task that needs no plan would
+  otherwise leave one to close and delete
+
+## Mini plan
+
+- Once the design is settled, dev writes what was agreed to a mini plan in the
+  session scratchpad: `## Ask`, the task in the user's words; `## Requirements`,
+  numbered, the done-when and each answer the user gave; `## Decisions`, the
+  design and each turned down with its reason; and `## Inbox`, follow-ups found
+  while building or reviewing. The checkpoint's comparison of what was built
+  against what was asked needs every answer, and the conversation alone loses
+  them to compaction; a session that compacted re-reads the file
+- The scratchpad, not the repository: a file there is nothing to commit, close
+  or delete, and is never on the checkpoint's change list. Not doing: a file in
+  the repository, deleted at wrap or kept, since one is a plan to close and the
+  other a claim about code that goes stale
+- Work found that the task does not take goes under `## Inbox`, never done
+  unasked or only said; at wrap, or at a mid-task stop, each line is proposed
+  as deferred work, an active plan's inbox item or a `Plan candidate:` question
+  note, since the scratchpad ends with the session. Proposed together, not one
+  by one, so the build and review run uninterrupted; a session ended with
+  neither loses them
+- The checkpoint's brief quotes the mini plan less its inbox: an inbox line is
+  work the task left out, and quoted as asked it would read as missing
 
 ## Approvals
 
 - Three, then the build: the user confirms the done-when, the answers to the
   question rounds, and the design where there is a real choice. After the last,
   the build runs unasked
-- Nothing is edited or written before the design is picked: what is built
-  before then is the design chosen for the user
+- Nothing is edited or written before the design is picked, but the mini plan
+  in the scratchpad: what is built before then is the design chosen for the
+  user
 - A real choice is two or more designs that each meet the done-when and differ
   in what the change costs or leaves behind: its files, its interfaces, its
   behaviour beyond the done-when. With none, dev states the one design and goes
@@ -53,7 +77,7 @@ tools, since another plugin's names change between versions.
   one resting on the task's wording alone gives the user nothing to weigh. A
   question the findings cannot ground gets another explorer first
 - The design step always says whether there is a real choice and names the
-  design, so the checkpoint has a design to quote and a session cannot pass
+  design, so the mini plan has a design to record and a session cannot pass
   from the answers to its first edit with neither
 
 ## Agents
@@ -70,19 +94,22 @@ tools, since another plugin's names change between versions.
 
 ## Review
 
-- `ele:checkpoint` reviews the change. Its brief quotes the task in the user's
-  words, the confirmed done-when and the chosen design together, since the
-  done-when alone would leave every file the design touches reading as unasked,
-  and a confirmed done-when runs the spec reviewer as a plan item does
-- Where dev weighed designs, the chosen one and each rejected, with its reason,
-  are proposed as one `decision` note through `/ele:remember`
+- `ele:checkpoint` reviews the change. Its brief quotes the mini plan whole,
+  less its inbox, as what was asked: the done-when alone would leave every file
+  the design touches reading as unasked, and an answer left out is never
+  checked. The spec reviewer gives each numbered requirement its own verdict
+- The mini plan's Decisions are proposed as one `decision` note through
+  `/ele:remember` on every run: the design built and, where dev weighed
+  designs, each rejected with its reason, so a run with no real choice still
+  leaves its design on record
 - Dev then runs `ele:wrap`. The user typing `/ele:dev` is the ask wrap's own
   description requires; wrap still asks before a recipe and, unless
   `auto_note_writes` is on, before each note and handoff it writes
 - A session stopping before the checkpoint, by the user's word or because the
   task is blocked, proposes `/ele:handoff`, quoting the task, the done-when and
-  the chosen design, since no plan file carries the place across `/clear`; a
-  size stop proposes none, as Size says
+  the chosen design and saying the answers are to be confirmed again: the
+  session after `/clear` has its own scratchpad, and a handoff names no path
+  in one. A size stop proposes none, as Size says
 
 ## In the plugin
 

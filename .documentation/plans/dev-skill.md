@@ -101,6 +101,24 @@ use them where it reads code or weighs designs in the main session.
   - rejected: a handoff carrying the explorers' findings to `/ele:plan new`,
     because they could only aim the plan's own explorers' briefs, in three
     lines at most
+- What dev agreed is written to a mini plan in the session scratchpad, with a
+  plan's Ask, Requirements, Decisions and Inbox sections, which the checkpoint
+  quotes whole, less its inbox, as what was asked, since the final comparison needs every
+  answer and the conversation alone loses them to compaction; its inbox lines
+  go at wrap to an active plan's inbox, else a `Plan candidate:` question
+  note, since the scratchpad ends with the session (ruled 2026-11-14)
+  - rejected: proposing each inbox line the moment it is found, because each
+    would interrupt the build or review that runs unasked after the last
+    approval; they are proposed together at wrap or at a mid-task stop, and a
+    session ended with neither loses them (ruled 2026-11-14)
+  - rejected: naming the mini plan's path in a mid-task handoff, because a
+    session after `/clear` has its own scratchpad; the handoff quotes the
+    task, the done-when and the design, and the answers are re-confirmed
+  - rejected: a file in the repository deleted at wrap, because it is a file
+    to close and delete, as a plan is, and the checkpoint reviews it as part
+    of the change
+  - rejected: a file in the repository kept and committed, because it is a
+    claim about code that goes stale with nothing to close it
 - The chosen design and its rejected options are proposed as one `decision`
   note through `/ele:remember`
 - ele ships its own `ele:explorer` and `ele:architect` agents (ruled
@@ -508,6 +526,51 @@ use them where it reads code or weighs designs in the main session.
     with `find` in Bash, by absolute paths and for searching only, where both
     are missing and the launch has Bash; the Read-only fallback holds only
     where none of the three is there; a text property, with no launch run
+- [x] dev-card: `/ele:dev` keeps a mini plan in the session scratchpad,
+  written at step 4's end before any build edit: `## Ask`, the task in the
+  user's words; `## Requirements`, the done-when and each answer, numbered;
+  `## Decisions`, the design and each rejected one with its reason; and
+  `## Inbox`, follow-ups found while building or reviewing, dated with where
+  they came from. Dev re-reads it after compaction; step 6's brief quotes it
+  whole, less its inbox, and `reviewers/spec.md` gives each numbered requirement on a quoted
+  mini plan its own verdict; step 7 proposes its Decisions as one `decision`
+  note on every run, and each inbox line as an inbox item of the active plan
+  it belongs to, else a `Plan candidate:` question note; a mid-task handoff
+  quotes the task, the done-when and the design and says the answers are
+  re-confirmed; "Edit and Write nothing before step 5" allows the mini plan.
+  Update `.documentation/specs/dev.md`, `docs/dev.md`, and the checkpoint's
+  spec and docs
+  - from the user's question after dev-size-stop, 2026-11-14: step 6's brief
+    quoted the task, done-when and design but not the round answers, so a
+    build against an answer went unchecked; nothing but the conversation held
+    what was agreed, so compaction could drop it; and a follow-up found
+    mid-task had nowhere to go
+  - as of 2026-11-14: `plugin/skills/handoff/SKILL.md` leaves out a
+    scratchpad path, since a new session after `/clear` has its own
+    scratchpad, so the handoff quotes rather than points. `reviewers/spec.md`
+    binds "a decision below the item, in a comment, or in the design" but
+    names no answer. The Stop check in `cmd/ele` counts any Write as work,
+    whatever its path, which a build Write would also do; the checkpoint gate
+    in `internal/checkpoint` counts only paths inside the repository, and
+    `ele checkpoint freeze` takes repository paths, so the mini plan is never
+    on a change list. `dev-size-gate`'s `no-write` grader is unaffected: a
+    size stop comes before step 4
+  - done when `task check FORCE=1` passes, and one `/ele:dev` run in a
+    `task dev` session, on a small task in this repository, shows a Write of
+    the mini plan to the scratchpad before the first Edit or Write of the
+    repository, a checkpoint brief quoting it, the spec reviewer giving a
+    verdict per requirement, a `decision` note, and each inbox line, where
+    there is one, proposed; the trial change is reverted unless the user keeps
+    it
+  - asserted in the dev-card commit: `task check FORCE=1` passes. A `task dev`
+    run of `/ele:dev` on making `ele plan check` go on past an unreadable plan
+    wrote its mini plan to the scratchpad four seconds before its first
+    repository Edit. Its checkpoint brief quoted the mini plan less its inbox,
+    and the spec reviewer gave a verdict per numbered requirement, finding the
+    test's plan order partial, which the run fixed. It wrote a `decision` note
+    with no design weighed. Wrap was given its three inbox lines and wrote
+    each as a note. The change was kept, as 3966de5. Not exercised:
+    re-reading after compaction, and a mid-task stop
 - [ ] Fold each Decision through `/ele:plan-audit close
   .documentation/plans/dev-skill.md`, propose each out-of-scope line as a
   `decision` through `/ele:remember`, run `ele plan done

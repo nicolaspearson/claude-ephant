@@ -140,9 +140,9 @@ paths only, the reviewer reads them:
   the gate enforces.
 
 If the work came from a ticket, fetch it; from a plan item, read it from the
-plan file; from a done-when the user confirmed this session, take it with the
-task in the user's words and the design they chose. A checkpoint that cannot say
-what was asked cannot say whether it was delivered.
+plan file; from a done-when the user confirmed, with their task and chosen design,
+or `/ele:dev`'s mini plan less its inbox. A checkpoint that cannot say what was
+asked cannot say whether it was delivered.
 
 §2 is done when the CI check list exists and every brief field it gathers has a
 value or is stated empty.
@@ -159,9 +159,9 @@ One brief, shared by every reviewer, every path absolute:
 - What was asked — the ticket, or the user's request in their words. An item
   is quoted whole: a plan item's line and body, a fetched ticket's body and
   comments, or a confirmed done-when with the task in the user's words and the
-  chosen design, without which every file the design touches reads as unasked.
-  Say which of its requirements this change sets out to deliver, where it
-  delivers only some.
+  chosen design, without which every file the design touches reads as unasked;
+  `/ele:dev`'s mini plan holds all three and the user's answers. Say which of its
+  requirements this change sets out to deliver, where it delivers only some.
 - **Observed**: with a quoted item, what was run or measured toward it — a
   real-session run, a measurement — and where its output is. This is evidence,
   not the author's case, and the spec reviewer has no other way to see it.
@@ -193,7 +193,7 @@ printed. Small runs one fresh `general-purpose` reviewer that reads the reviewer
 files and reports under each of their labels; full runs one reviewer per file.
 
 **Spec.** The spec reviewer runs only when the brief quotes a plan item, a
-fetched ticket or a confirmed done-when: in full mode as a third reviewer,
+fetched ticket, a confirmed done-when or `/ele:dev`'s mini plan: in full mode as a third reviewer,
 launched with the other two; in small mode its file, `reviewers/spec.md`,
 joins the single reviewer's, which then also reports under §10's Spec reviewer
 label.
