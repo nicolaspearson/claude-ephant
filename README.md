@@ -1,39 +1,137 @@
 # claude-ephant
 
-Cross-session memory for Claude Code. The `ele` binary archives the transcripts
-of every profile under `~/.claude`, `~/.claude-*` and `CLAUDE_CONFIG_DIR` and
-indexes them, so a later session can search what earlier ones discussed.
-Decisions, open questions and dated facts are saved as notes, and each session
-starts with the ones for its project.
+Memory and a review workflow for Claude Code, kept on your own machine.
 
-No model runs in the background: the only model calls are made by skills, inside
-the session already running. See [Data and privacy](docs/data-and-privacy.md).
+Every Claude Code session starts from nothing, and Claude Code deletes old
+transcripts. `ele` archives them, indexes them for search, and opens each
+session with the decisions, open questions and handoffs of its project. The
+`ele` plugin adds the skills that plan work across sessions and review it
+before it is called done.
+
+## Why ele
+
+### It remembers, so you never re-explain
+
+- **Every session starts briefed.** Each one opens with its project's due
+  reminders, open questions and newest decisions, so Claude knows what was
+  settled before you type a word
+- **Everything you discuss, searchable.** Ask "did we already decide how
+  retries work?" and `/ele:recall` searches every session of the work: what
+  you typed, Claude's replies and the commands it ran. Then it opens the
+  discussion that settled it, even months after Claude Code's
+  `cleanupPeriodDays` deleted the transcript, since ele copies each one as it
+  grows
+- **Every account, one memory.** Run Claude Code under several accounts or
+  profiles (`~/.claude`, `~/.claude-work`, `CLAUDE_CONFIG_DIR`) and ele
+  archives them all into one store. A note, handoff or plan made under one is
+  there when you open the same project under another, and recall searches
+  them together
+- **`/clear` without losing your place.** A handoff carries where the work
+  stands into the next session: type `continue` and it picks up. With several
+  streams of work, none is dropped
+- **Reminders that find you.** "Remind me on Friday" shows at every session
+  start from Friday until you close it; a nudge comes back on its interval
+- **It watches your context.** By default, past 150k tokens it suggests
+  `/compact` or a handoff, before a long context costs you on every turn
+- **Clients and your own work kept apart.** A client's sessions never surface in
+  your personal recall, and their notes never reach your sessions
+- **Procedures become skills.** `/ele:recipe` keeps a procedure a session
+  worked out as a skill of your own, and audits your skills for commands that
+  no longer exist
+
+### It plans and reviews, so done means done
+
+- **A fresh-eyes review before work is called done.** `/ele:checkpoint` hands
+  the change to subagents that never saw it written, for bugs, conventions and
+  prose, and the spec when there is a ticket or plan item. It works out what
+  your CI runs and runs it, makes every new test fail once to prove it can,
+  and re-reviews its own fixes. A Stop hook holds a "done" claimed over
+  changed files without one
+- **Plans that survive `/clear`.** `/ele:plan` works a plan one item a
+  session, ele keeping your place, and `/ele:plan-audit` finds the premises the
+  code has since moved past
+- **Small tasks, agreed and checked.** `/ele:dev` agrees what done looks like,
+  explores the code in subagents before asking you anything, weighs designs
+  from separate architects where there is a real choice, and ends in a
+  checkpoint
+- **Merge requests reviewed in your voice.** `/ele:review`, experimental, runs
+  the same reviewers over someone else's MR or PR, major findings first, and
+  posts only what you pick
+- **Tickets checked against the code.** `/ele:ticket-audit` finds the tickets
+  whose premises the code no longer holds, before you pick one up
+
+### It is yours
+
+- **Your data stays yours.** The archive, index and notes live in one
+  directory on your machine, the archive and index readable only by you. ele
+  has no server, no account and no telemetry, and sends nothing to its
+  maintainers. What a skill reads into your session reaches Anthropic, as
+  anything in a Claude Code session does; see
+  [What leaves your machine](docs/data-and-privacy.md#what-leaves-your-machine)
+- **No background model.** Archiving, indexing and search are plain code. A
+  model runs only when a skill does, inside the session you already have open
+- **Secrets redacted.** Known token formats, bearer tokens, passwords in URLs
+  and secret-looking values are redacted before anything is indexed or shown;
+  see [Secrets](docs/data-and-privacy.md#secrets)
+- **You can help improve it, if you choose.** `/ele:mine` and
+  `/ele:checkpoint-stats` measure, on your machine, how well the reviewers do.
+  The reports are mostly counts; you read one, cut what you would rather keep,
+  and decide whether to share it; see [Improving ele](docs/improving-ele.md)
+
+### In the author's own use
+
+As of 2026-11-14, on the author's own work across two Claude Code accounts:
+
+- 790 sessions and 2,224 notes since 2026-09-09, kept apart under three owners
+- 1,635 checkpoints in the month since the checkpoint log began on 2026-10-15,
+  fixing 9,795 findings before the work was called done, with 823 more checked
+  and refuted
+- Re-reviews of those fixes caught 1,831 problems a fix had introduced, and 261
+  the first review missed
+- 6,518 mutations of code under new tests, 6,129 of which made the test fail
+  as it should
 
 ## Skills at a glance
 
-The `ele` plugin adds the skills and hooks that use the binary:
+### Memory
 
-- `/ele:setup`, which maps a directory no owner covers to an owner, after
-  installing or in a new repository
-- `/ele:handoff`, `/ele:plan`, `/ele:recall` and `/ele:remember` for memory and
-  plans
-- `/ele:flag`, which marks a moment of the session as good or bad, with why,
-  for later study
-- `/ele:wrap`, which at a session's end asks what to keep as notes, plan inbox
-  items, progress lines or a recipe, which due reminders to close, and whether to
-  hand off
-- `/ele:recipe`, which keeps a procedure you will run again as a skill of your
-  own
-- `/ele:checkpoint`, a review of the change in subagents before work is reported
-  done, with a Stop hook that blocks a done claim made without one
-- `/ele:dev`, which takes a task too small for a plan from an agreed done-when
-  through explorers, questions and a chosen design to a checkpoint
-- `/ele:plan-audit`, for stale premises, contradictions, stuck waits and inbox
-  triage across the active plans
-- `/ele:ticket-audit`, for stale premises and contradictions across a tracker's
-  tickets, and `/ele:ticket-claims`, for open GitHub tickets mistyped as a task
-- `/ele:checkpoint-stats`, which reports what checkpoints found, and `/ele:mine`,
-  which judges past checkpoint runs and review cycles
+| Skill           | What it does                                                                         | Guide                                                     |
+| --------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| `/ele:flag`     | Mark a moment as good or bad, with why, for later study                              | [Flags](docs/notes-and-recall.md#flags)                   |
+| `/ele:handoff`  | Write the note the session after `/clear` opens with                                 | [Handoffs](docs/handoffs-and-reminders.md#handoffs)       |
+| `/ele:recall`   | Search what earlier sessions discussed                                               | [Recall](docs/notes-and-recall.md#recall)                 |
+| `/ele:remember` | Save a decision, open question, dated fact or reminder                               | [Notes](docs/notes-and-recall.md#saving-one)              |
+| `/ele:setup`    | Map a directory to an owner, after installing or in a new repository                 | [Owners](docs/owners.md#setting-up)                       |
+| `/ele:wrap`     | At a session's end, ask what to keep, which reminders to close, whether to hand off  | [Wrapping up](docs/handoffs-and-reminders.md#wrapping-up) |
+
+### Planning and building
+
+| Skill             | What it does                                                                     | Guide                                          |
+| ----------------- | -------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `/ele:dev`        | Take a task too small for a plan from an agreed done-when to a checkpoint        | [Dev](docs/dev.md)                             |
+| `/ele:plan`       | Work a plan one item a session, or write a new one                               | [Plans](docs/plans.md)                         |
+| `/ele:plan-audit` | Find stale premises, contradictions and stuck waits across plans                 | [Auditing plans](docs/plans.md#auditing-plans) |
+| `/ele:recipe`     | Keep a procedure you will run again as a skill of your own, or audit your skills | [Recipes](docs/recipes.md)                     |
+
+### Review
+
+| Skill                | What it does                                                                       | Guide                                                              |
+| -------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `/ele:checkpoint`    | Review a change in subagents before it is reported done                            | [Checkpoint](docs/checkpoint-and-ticket-audit.md#checkpoint)       |
+| `/ele:review`        | Review an MR, PR, branch or commit and publish the findings you pick; experimental | [Review](docs/review.md)                                           |
+| `/ele:ticket-audit`  | Check a tracker's tickets against the code                                         | [Ticket-audit](docs/checkpoint-and-ticket-audit.md#ticket-audit)   |
+| `/ele:ticket-claims` | Find open GitHub tickets mistyped as a task                                        | [Ticket claims](docs/checkpoint-and-ticket-audit.md#ticket-claims) |
+
+### Improving ele
+
+| Skill                   | What it does                                           | Guide                                                                                |
+| ----------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| `/ele:checkpoint-stats` | Report what checkpoints found and which stage found it | [What checkpoints found](docs/checkpoint-and-ticket-audit.md#what-checkpoints-found) |
+| `/ele:mine`             | Judge past checkpoint runs and review cycles           | [Mining](docs/improving-ele.md#mining)                                               |
+
+Claude starts most of these when what you say calls for one. `/ele:plan`,
+`/ele:dev`, `/ele:review`, `/ele:ticket-claims`, `/ele:checkpoint-stats` and
+`/ele:mine` run only when you type them.
 
 ## Prerequisites
 
@@ -103,9 +201,24 @@ The `ele` plugin adds the skills and hooks that use the binary:
    session picks up where the last stopped; see
    [Handoffs](docs/handoffs-and-reminders.md#handoffs)
 
-[Plans](docs/plans.md), [Dev](docs/dev.md), [Recipes](docs/recipes.md), [Checkpoint and ticket-audit](docs/checkpoint-and-ticket-audit.md)
-and [Review](docs/review.md) (`/ele:review`, experimental) cover the rest, and the [command reference](docs/commands.md) lists every
-command.
+## Guides
+
+- [Owners](docs/owners.md): which sessions and notes belong to which project
+- [Notes and recall](docs/notes-and-recall.md): saving, changing and finding
+  what was decided
+- [Handoffs and reminders](docs/handoffs-and-reminders.md): carrying work
+  across `/clear`, and dated reminders
+- [Plans](docs/plans.md): work that spans sessions
+- [Dev](docs/dev.md): one task from done-when to checkpoint
+- [Recipes](docs/recipes.md): procedures kept as your own skills
+- [Checkpoint and ticket-audit](docs/checkpoint-and-ticket-audit.md): review
+  before done, and tickets checked against the code
+- [Review](docs/review.md): merge requests and pull requests, experimental
+- [Data and privacy](docs/data-and-privacy.md): what is stored, where, what is
+  redacted, and what leaves your machine
+- [Improving ele](docs/improving-ele.md): measuring the skills on your own data,
+  and sharing it if you choose
+- [Command reference](docs/commands.md): every command and flag
 
 ## Options
 
@@ -167,4 +280,7 @@ plugin; see [Update](#update).
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+Code: see [CONTRIBUTING.md](CONTRIBUTING.md). Without writing any, a report of
+how the checkpoint reviewers did on your own work helps tune them for
+everyone; [Improving ele](docs/improving-ele.md) says how to make one, what it
+holds, and how to share it.

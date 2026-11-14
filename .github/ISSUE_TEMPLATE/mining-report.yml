@@ -1,0 +1,43 @@
+name: Mining report
+description: Share what ele's checkpoint reviewers found on your own work, to help tune them
+title: "Mining report: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing. ele never sends this itself: what you paste here is all the maintainers see, and this issue is public.
+
+        Read both reports before pasting, and cut what [What a report holds](https://github.com/nicolaspearson/claude-ephant/blob/main/docs/improving-ele.md#what-a-report-holds) names: the lines under `User reported a problem after …` in `ele mine --report` carry a session id prefix and a summary written from your conversation.
+  - type: input
+    id: version
+    attributes:
+      label: ele version
+      description: Output of `ele version`
+    validations:
+      required: true
+  - type: textarea
+    id: work
+    attributes:
+      label: What kind of work the reports come from
+      description: Languages, kind of project, solo or team. No names needed.
+    validations:
+      required: true
+  - type: textarea
+    id: mine-report
+    attributes:
+      label: ele mine --report
+      description: After `/ele:mine`, with the lines under `User reported a problem after …` removed
+      render: text
+  - type: textarea
+    id: checkpoint-stats
+    attributes:
+      label: ele checkpoint stats
+      description: For example `ele checkpoint stats --since 30d`
+      render: text
+  - type: checkboxes
+    id: read
+    attributes:
+      label: Before submitting
+      options:
+        - label: I have read both reports and removed anything I would rather keep, knowing this issue is public
+          required: true

@@ -1,5 +1,25 @@
 # Data and privacy
 
+## What leaves your machine
+
+ele has no server, no account and no telemetry. Your archive, index, notes and
+ele's own logs stay in one [data directory](#storage) on your machine, the
+archive and index readable only by you, and ele uploads, syncs or sends none of
+it to its maintainers or anyone else.
+
+Three things do cross the network, each one you already use:
+
+- **Your Claude Code session.** A skill runs inside the session you have open,
+  so what it reads into that session, such as a recall result, a note, a diff
+  for `/ele:checkpoint`'s reviewers or a digest for `/ele:mine`'s classifiers, goes to
+  Anthropic on your account, as anything else in the session does
+- **Your tracker, through `gh` or `glab`.** The binary's ticket commands only
+  read tickets; the `/ele:review` skill publishes the comments you pick, once
+  you approve
+- **What you share yourself.** A report from
+  [Improving ele](improving-ele.md) leaves your machine only if you attach it
+  to an issue
+
 ## No background model
 
 ele runs no model of its own. Archiving, indexing and search are plain code on

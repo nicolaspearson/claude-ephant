@@ -28,21 +28,21 @@ handoffs, flags and plans listed newest first are ordered by `time`.
 | Command                 | What it does                                                                                     |
 | ----------------------- | ------------------------------------------------------------------------------------------------ |
 | `/ele:checkpoint`       | Review a change in subagents before it is reported done; see [Checkpoint](checkpoint-and-ticket-audit.md#checkpoint) |
-| `/ele:checkpoint-stats` | What checkpoints found and which stage found it, then reviews apart, over the last 30 days or since the date or `Nd` given |
+| `/ele:checkpoint-stats` | What checkpoints found and which stage found it, then reviews apart, over the last 30 days or since the date or `Nd` given; see [What checkpoints found](checkpoint-and-ticket-audit.md#what-checkpoints-found) |
 | `/ele:dev`              | Take a task too small for a plan from an agreed done-when to a checkpoint; see [Dev](dev.md) |
 | `/ele:flag`             | Flag a moment of the session as good or bad with why, or `list` the project's flags; see [Flags](notes-and-recall.md#flags) |
 | `/ele:handoff`          | Write the handoff the next session opens with, or `list` pending and closed ones; see [Handoffs](handoffs-and-reminders.md#handoffs) |
-| `/ele:mine`             | Judge past checkpoint runs and review cycles, for tuning the checkpoint skill                    |
+| `/ele:mine`             | Judge past checkpoint runs and review cycles, for tuning the checkpoint skill; see [Mining](improving-ele.md#mining) |
 | `/ele:plan`             | Pick up the active plan, or `new <name>` or `convert <spec>`; see [Plans](plans.md)              |
-| `/ele:plan-audit`       | Audit active plans against the code and each other, `drafts` before a start, or `close` a plan's Decisions |
+| `/ele:plan-audit`       | Audit active plans against the code and each other, `drafts` before a start, or `close` a plan's Decisions; see [Auditing plans](plans.md#auditing-plans) |
 | `/ele:recall`           | Search earlier sessions; see [Recall](notes-and-recall.md#recall)                                 |
 | `/ele:recipe`           | Keep a procedure the session ran as a skill of your own, or `audit` your skills for stale commands; see [Recipes](recipes.md) |
-| `/ele:remember`         | Save a decision, question, fact or reminder                                                       |
+| `/ele:remember`         | Save a decision, question, fact or reminder; see [Saving one](notes-and-recall.md#saving-one)     |
 | `/ele:review`           | Review an MR, PR, branch or commit and publish the findings you pick, major ones first; see [Review](review.md) |
 | `/ele:setup`            | Map a directory no owner covers to an owner, proposing the `ele owner` commands and running them once approved; see [Owners](owners.md#setting-up) |
-| `/ele:ticket-audit`     | Audit a tracker's ticket map against the code                                                     |
-| `/ele:ticket-claims`    | Flag open GitHub tickets mistyped as a task or granting themselves execution                      |
-| `/ele:wrap`             | At a session's end, ask what to keep, a recipe included, which reminders to close and whether to hand off |
+| `/ele:ticket-audit`     | Audit a tracker's ticket map against the code; see [Ticket-audit](checkpoint-and-ticket-audit.md#ticket-audit) |
+| `/ele:ticket-claims`    | Flag open GitHub tickets mistyped as a task or granting themselves execution; see [Ticket claims](checkpoint-and-ticket-audit.md#ticket-claims) |
+| `/ele:wrap`             | At a session's end, ask what to keep, a recipe included, which reminders to close and whether to hand off; see [Wrapping up](handoffs-and-reminders.md#wrapping-up) |
 
 ## Notes
 

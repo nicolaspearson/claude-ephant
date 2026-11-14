@@ -33,6 +33,25 @@ ele handoff list --all      # with closed and superseded ones
 ele handoff reopen <id>     # show a closed one again at the next start
 ```
 
+### Wrapping up
+
+`/ele:wrap [what the next session is for]` ends a session without losing what
+the next one would have to work out again. Claude starts it only when you ask
+to wrap up. It gathers, then asks about each in one round of questions:
+
+- a progress line for a plan item the session worked
+- work put off, as an inbox item of the plan it serves, or a `question` note
+  starting `Plan candidate:` when it serves none
+- notes worth keeping, as `/ele:remember` words them
+- a recipe for a procedure the session ran, unless the `recipes` option is off
+- due reminders whose subject the session finished, to close
+- a handoff, unless the start block alone sends the next session to the right
+  place
+
+It writes only what you approve; with `auto_note_writes` on, notes and the
+handoff are written without asking, and a recipe is still asked. It ends with
+what to do next, such as `/clear, then continue`.
+
 ### When to hand off
 
 As a session's context grows past 150k tokens, ele's Stop hook suggests a

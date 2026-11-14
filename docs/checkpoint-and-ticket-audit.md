@@ -79,6 +79,10 @@ with how often you skipped what the reviewers found and how many anchored
 comments each forge kept, moved or refused. A review logged again after a
 later finding is counted once, from the later line.
 
+Checkpoints from before the log started are counted by `/ele:mine` and
+`ele mine --report` instead, and a report of either can help tune the shipped
+reviewers if you share it; see [Improving ele](improving-ele.md).
+
 ## Ticket-audit
 
 `/ele:ticket-audit` audits a tracker's ticket map, a parent ticket and its
