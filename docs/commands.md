@@ -124,7 +124,9 @@ naming each plan it could not check for one. `show` prints its counts, previous 
 blocked items and next item, the project's active plan by default. `list` lists
 active plans; `--all` adds done and superseded ones. `check` lists a plan's
 warnings with their lines, every active plan's with no path, and exits 1 when
-any plan it checks has a warning or does not parse, so a gate can fail on it;
+any plan it checks has a warning, does not parse or cannot be read, so a gate
+can fail on it; it names each plan it cannot read or parse and goes on to the
+next;
 an active plan missing from the checkout is not a warning.
 `ele plan check --help` lists what it warns on. `done` closes plans
 and keeps their item names, so run it from each plan's checkout once its last

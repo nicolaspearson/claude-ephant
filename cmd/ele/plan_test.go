@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"os/exec"
@@ -105,6 +106,34 @@ func TestRunPlanCheckOutsideAnyOwnerCallsAnotherPlansBlockerMissing(t *testing.T
 	output, code := runCommand(t, "plan", "check", "reporting.md")
 	require.Equal(t, 1, code, output)
 	require.Contains(t, output, "- line 5: report: blocker other/item does not exist\n", output)
+}
+
+func TestRunPlanCheckReportsAPlanItCannotReadAndChecksTheNext(t *testing.T) {
+	home := recallFixture(t)
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	writeFile(t, filepath.Join(gateway, "clean.md"), "---\nkind: plan\n---\n## Actions\n- [ ] beta: Beta\n  done when it is\n- [ ] Close\n")
+	writeFile(t, filepath.Join(gateway, "directory.md"), "---\nkind: plan\n---\n## Actions\n- [ ] alpha: Alpha\n  done when it is\n- [ ] Close\n")
+	writeFile(t, filepath.Join(gateway, "folder.md"), "---\nkind: plan\n---\n## Actions\n- [ ] gamma: Gamma\n  done when it is\n- [ ] Close\n")
+	t.Chdir(gateway)
+	for _, path := range []string{"clean.md", "directory.md", "folder.md"} {
+		output, code := runCommand(t, "plan", "start", path)
+		require.Equal(t, 0, code, output)
+	}
+	// Two unreadable plans: active plans started in one second come in random id order.
+	for _, path := range []string{"directory.md", "folder.md"} {
+		require.NoError(t, os.Remove(filepath.Join(gateway, path)))
+		require.NoError(t, os.Mkdir(filepath.Join(gateway, path), 0o755))
+	}
+
+	var stdout, stderr bytes.Buffer
+	code := run(context.Background(), []string{"plan", "check"}, &stdout, &stderr)
+	require.Equal(t, 1, code, stdout.String()+stderr.String())
+	require.Equal(t, "Plan clean.md: no warnings, 2 items.\n", stdout.String())
+	require.Contains(t, stderr.String(), "ele: directory.md: is a directory\n")
+	require.Contains(t, stderr.String(), "ele: folder.md: is a directory\n")
+	output, code := runCommand(t, "plan", "check", "directory.md")
+	require.Equal(t, 1, code, output)
+	require.Equal(t, "ele: directory.md: is a directory\n", output)
 }
 
 func TestRunPlanCheckSaysAPlanInAnotherRepositoryCannotBlockAndTakesItsWaitAsProse(t *testing.T) {

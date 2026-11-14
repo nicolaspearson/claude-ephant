@@ -91,8 +91,14 @@ func checkPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.W
 			fmt.Fprintf(stderr, "ele: %s is not in this checkout\n", relative)
 			return 1
 		case readErr != nil:
-			fmt.Fprintf(stderr, "ele: %v\n", readErr)
-			return 1
+			reason := readErr
+			var pathErr *fs.PathError
+			if errors.As(readErr, &pathErr) {
+				reason = pathErr.Err
+			}
+			fmt.Fprintf(stderr, "%s\n", redact.Redact(fmt.Sprintf("ele: %s: %v", relative, reason)))
+			code = 1
+			continue
 		}
 		parsed, parseErr := plan.Parse(content)
 		if parseErr != nil {
