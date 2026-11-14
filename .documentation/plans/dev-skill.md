@@ -95,7 +95,12 @@ use them where it reads code or weighs designs in the main session.
   - rejected: writing a one-item plan file per task, because a task that needs
     no plan would then leave one to close and delete
 - Stopping mid-task proposes `/ele:handoff`, quoting the done-when and the
-  chosen design, since no plan file carries the place across `/clear`
+  chosen design, since no plan file carries the place across `/clear`; a size
+  stop proposes none, since `/ele:plan new` launches its own explorers before
+  its first round (ruled 2026-11-14)
+  - rejected: a handoff carrying the explorers' findings to `/ele:plan new`,
+    because they could only aim the plan's own explorers' briefs, in three
+    lines at most
 - The chosen design and its rejected options are proposed as one `decision`
   note through `/ele:remember`
 - ele ships its own `ele:explorer` and `ele:architect` agents (ruled
@@ -290,15 +295,29 @@ use them where it reads code or weighs designs in the main session.
     `names-plan-new` in 3 of 3 runs and `no-write` in 1 of 3 when step 1
     wrote the task to a file and went on, `no-explore` in 3 of 3 when it
     launched an `ele:explorer`
-- [ ] dev-size-stop: `/ele:dev` step 3 stops on a proposed done-when that would
-  need two, as it does on an answer that splits the task, and a size stop
-  after the explorers proposes `/ele:handoff` carrying their findings; update
-  `.documentation/specs/dev.md` and `docs/dev.md`
+- [x] dev-size-stop: `/ele:dev` step 3 stops on a proposed done-when that would
+  need two, as it does on an answer that splits the task, and "Stopping
+  mid-task" and the spec's Review section say a size stop proposes no handoff,
+  `/ele:plan new` grounding itself; update `.documentation/specs/dev.md` and
+  `docs/dev.md`
   - done when `task check FORCE=1` passes and SKILL.md step 3, the spec's Size
     section and `docs/dev.md` each say both
-  - as of 2026-11-14, from the dev-skill checkpoint: step 3 stops only on an
-    answer that splits the task, and a size stop proposes no handoff, so the
-    explorers' findings are lost across `/clear`
+  - as of 2026-11-14: `plugin/skills/dev/SKILL.md` step 3 stops only on an
+    answer, and its "Stopping mid-task" covers the user's word or a blocked
+    task, quoting a done-when and design a size stop does not have. The
+    spec's Review section says any stop before the checkpoint proposes a
+    handoff, unqualified, against SKILL.md. `/ele:plan new`'s Grounding
+    launches its own explorers before its first round and reads no code
+    first, so carried findings could only aim its briefs, and `/ele:handoff`
+    holds three lines at most; the handoff was dropped from this item for it
+  - asserted in the dev-size-stop commit: `task check FORCE=1` passes.
+    SKILL.md step 3 stops on a done-when the findings show would need to be
+    two, as on an answer that splits the task, proposing no handoff, and its
+    "Stopping mid-task" says a size stop proposes none. The spec's Size
+    section and `docs/dev.md` each say both, and the spec's Review section
+    now limits the handoff to a stop on the user's word or a blocked task.
+    Text only: no eval reaches step 3, since AskUserQuestion does not load in
+    the eval sandbox
 - [x] plan-grounding-explorers: `/ele:plan` `new` and `convert` launch
   `ele:explorer` agents for the facts each round rests on; update the Plans
   section of design.md and `docs/plans.md`

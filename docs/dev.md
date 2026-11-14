@@ -11,7 +11,10 @@ same checkpoint a plan item does.
 
 It runs only when you type it, since it launches several agents. A task that
 needs more than one done-when, or more than one session, is a plan: dev says so
-and points you at [`/ele:plan new <name>`](plans.md#starting-one).
+and points you at [`/ele:plan new <name>`](plans.md#starting-one). It checks
+at the start, and again once the explorers report: a done-when they show would
+need to be two, or an answer of yours that splits the task, stops it the same
+way. It writes no handoff then, since `/ele:plan new` explores for itself.
 
 ## A run
 
@@ -39,6 +42,6 @@ and points you at [`/ele:plan new <name>`](plans.md#starting-one).
    anything, except that with `auto_note_writes` on it keeps notes and a
    handoff unasked
 
-Stopping before the checkpoint, it offers a handoff quoting the task, the
-done-when and the design, so the next session can pick the task up after
-`/clear`.
+Stopping before the checkpoint on your word or a blocked task, it offers a
+handoff quoting the task, the done-when and the design, so the next session can
+pick the task up after `/clear`.

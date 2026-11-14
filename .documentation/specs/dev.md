@@ -13,6 +13,12 @@ tools, since another plugin's names change between versions.
 - A task needing more than one done-when, or more than one session, stops at
   intake: dev tells the user to run `/ele:plan new <name>`, since `/ele:plan`
   is invoked only by the user
+- It stops the same way in the question rounds, on a done-when the explorers'
+  findings show would need to be two or on an answer that splits the task:
+  the size check at intake sees only the task's wording
+- A size stop proposes no handoff: `/ele:plan new` launches its own explorers
+  before its first round, so what dev's explorers found would only aim their
+  briefs, and a handoff holds three lines
 - Dev writes no plan file. A task that needs no plan would otherwise leave one
   to close and delete
 
@@ -30,8 +36,7 @@ tools, since another plugin's names change between versions.
 - The done-when is proposed in the first question round, after the explorers
   report, not at intake: before them its recommendation could rest only on the
   task's wording, and which tests exist or which page describes the behaviour
-  is theirs to find. Intake runs the size check on the task as stated, and an
-  answer that fails it stops dev there too
+  is theirs to find
 - The done-when names the outcome, never the mechanism, so it holds whichever
   design is picked
 - Questions run in rounds as `/ele:plan`'s do: each round asks every question
@@ -74,9 +79,10 @@ tools, since another plugin's names change between versions.
 - Dev then runs `ele:wrap`. The user typing `/ele:dev` is the ask wrap's own
   description requires; wrap still asks before a recipe and, unless
   `auto_note_writes` is on, before each note and handoff it writes
-- A session stopping before the checkpoint proposes `/ele:handoff`, quoting the
-  task, the done-when and the chosen design, since no plan file carries the
-  place across `/clear`
+- A session stopping before the checkpoint, by the user's word or because the
+  task is blocked, proposes `/ele:handoff`, quoting the task, the done-when and
+  the chosen design, since no plan file carries the place across `/clear`; a
+  size stop proposes none, as Size says
 
 ## In the plugin
 
