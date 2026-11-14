@@ -174,6 +174,22 @@ loads what its run needs and each rule changes in one place.
 
 ## Inbox
 
+- 2026-11-14, from a plan audit of plan candidates, first raised 2026-10-23
+  in a session's feedback: batch pickup. `/ele:plan pickup` works one item a
+  session; propose instead every startable item, plus inbox items touching the
+  same files, that would ship as one commit, with one checkpoint over the batch
+  and a tick line per item. Also: plan-only edits mid-session ride along with
+  the next code commit instead of their own checkpoint, which needs the Stop
+  gate or checkpoint's plan-only path to allow it
+- 2026-11-14, from a plan audit of plan candidates, first asked 2026-10-26 in
+  a by-hand local review run: a review fix step. The user asked to "fix it
+  now" or "fix all" on a finding. Not in the walk-through, since an edit moves
+  later findings' lines and the review reads a frozen copy; instead a step
+  after it, on a local run or an MR whose head is the checked-out branch, that
+  applies the findings the user picked, then runs ele:checkpoint. It cuts
+  across the decision that review only reports and checkpoint fixes. Open:
+  should review hand the picked findings to checkpoint?
+
 ## Out of scope
 
 - Moving plan's Asking in rounds, Grounding, Designs and Review loop to a
