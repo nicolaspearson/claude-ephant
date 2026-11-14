@@ -306,7 +306,7 @@ func writeHookOutput(stdout io.Writer, block string, shown string) error {
 	return encoder.Encode(output)
 }
 
-func writeNotes(stdout io.Writer, owner string, project string, all []notes.Note, invalid int, sessions int, room int) {
+func writeNotes(stdout io.Writer, owner string, project string, all []notes.Note, invalid int, sessions int, room int) (candidateLine string) {
 	live, others := liveNotes(all, project)
 	var candidates, questions []notes.Note
 	for _, note := range live {
@@ -321,7 +321,8 @@ func writeNotes(stdout io.Writer, owner string, project string, all []notes.Note
 		header = fmt.Sprintf("ele has no notes for %s.\n", present(owner, project))
 	}
 	if len(candidates) > 0 {
-		header += fmt.Sprintf("%s, newest %s; /ele:plan-audit groups them, ele context lists them.\n", plural(len(candidates), "plan candidate", "plan candidates"), candidates[0].Date)
+		candidateLine = fmt.Sprintf("%s, newest %s; /ele:plan-audit groups them, ele context lists them.\n", plural(len(candidates), "plan candidate", "plan candidates"), candidates[0].Date)
+		header += candidateLine
 	}
 	reserve := trailerRoom + len(sessionHint)
 	written, units := len(header), utf16Units(header)
@@ -381,6 +382,7 @@ func writeNotes(stdout io.Writer, owner string, project string, all []notes.Note
 		text = render(count)
 	}
 	fmt.Fprint(stdout, text)
+	return candidateLine
 }
 
 func writeSessionStart(ctx context.Context, stdout io.Writer, dataDirectory string, now time.Time, source string) (string, error) {
@@ -474,7 +476,9 @@ func writeSessionStart(ctx context.Context, stdout io.Writer, dataDirectory stri
 			fmt.Fprintf(stdout, "ele could not count past sessions: %v\n", err)
 		}
 	}
-	writeNotes(stdout, owner, project, all, invalid, sessions, blockBudget-written.units)
+	if candidateLine := writeNotes(stdout, owner, project, all, invalid, sessions, blockBudget-written.units); candidateLine != "" {
+		shown = append(shown, candidateLine)
+	}
 	return highlight.Message(strings.TrimSuffix(strings.Join(shown, "\n"), "\n"), coloured), nil
 }
 

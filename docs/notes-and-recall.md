@@ -96,7 +96,7 @@ block ele prints for its project and owner:
    their date and time
 4. One line counting the plan candidates, open questions starting `Plan
    candidate` then `:`, `(` or `,` in any case, with the newest one's date;
-   `/ele:plan-audit` groups them
+   `/ele:plan-audit` groups them. You see this line too, after any reminders
 5. Every other open question, then decisions and facts, newest first.
    Decisions and facts are held to about 1,500 tokens, oldest cut first;
    questions are cut only when the whole block grows too long for Claude Code

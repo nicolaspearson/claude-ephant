@@ -723,6 +723,34 @@ func TestWriteSessionStartKeepsNotesWhenTheIndexFails(t *testing.T) {
 	require.True(t, strings.HasSuffix(output.String(), "\n- 2026-10-14 decision 20261014-dddddd: Pin pydantic.\nsearch with /ele:recall.\n"), output.String())
 }
 
+func TestWriteSessionStartShowsPlanCandidatesToTheUser(t *testing.T) {
+	home := recallFixture(t)
+	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
+	dataDirectory := filepath.Join(home, "data")
+	noteDirectory := filepath.Join(dataDirectory, "notes")
+	_, err := notes.Write(noteDirectory, notes.Note{Body: "Should ele index tool output?", Date: "2026-10-10", ID: "20261010-qqqqqq", Kind: notes.KindQuestion, Owner: "corp", Scope: notes.ScopeGlobal})
+	require.NoError(t, err)
+	var output bytes.Buffer
+	shown, err := writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "resume")
+	require.NoError(t, err)
+	require.Empty(t, shown)
+
+	_, err = notes.Write(noteDirectory, notes.Note{Body: "Plan candidate: start-block layout.", Date: "2026-11-14", ID: "20261114-cccccc", Kind: notes.KindQuestion, Owner: "corp", Scope: notes.ScopeGlobal})
+	require.NoError(t, err)
+	output.Reset()
+	shown, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "resume")
+	require.NoError(t, err)
+	require.Equal(t, "1 plan candidate, newest 2026-11-14; /ele:plan-audit groups them, ele context lists them.", shown)
+
+	_, err = notes.Write(noteDirectory, notes.Note{Body: "Run the measurement.", Date: "2026-10-01", Due: "2026-10-01", ID: "20261001-rrrrrr", Kind: notes.KindReminder, Owner: "corp", Scope: notes.ScopeGlobal})
+	require.NoError(t, err)
+	output.Reset()
+	shown, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "startup")
+	require.NoError(t, err)
+	require.Contains(t, shown, "Run the measurement.")
+	require.True(t, strings.HasSuffix(shown, "\n\n1 plan candidate, newest 2026-11-14; /ele:plan-audit groups them, ele context lists them."), shown)
+}
+
 func TestWriteSessionStartWarnsWhenSyncIsStale(t *testing.T) {
 	home := recallFixture(t)
 	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))

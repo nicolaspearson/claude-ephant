@@ -67,6 +67,13 @@ count candidates in one line and give their room back to the questions.
   with candidates as the only notes the header and the line still print
   - rejected: the line before the closing line, because the first line of the
     notes is where it is read
+- The count line also goes into the message the user sees, after the
+  reminders, at every source the block prints: Claude Code shows the user only
+  the `systemMessage`, and a candidate only Claude reads is still never seen
+  by the user who set it aside (asked by the user 2026-11-14, after a startup
+  showed plans and no count line)
+  - rejected: leaving it to a later start-block layout plan, because the
+    plan's why is candidates never seen again
 - `ele context` and `ele status` are unchanged: `ele context` still lists
   every candidate among the open questions, and `ele status` still counts them
   as open questions, so the two counts differ; count-line records the
@@ -117,6 +124,22 @@ count candidates in one line and give their room back to the questions.
   - as of 2026-11-14: claude-ephant holds 16 live candidates, 9 `Plan
     candidate (` and 7 `Plan candidate:`, none with a comma, newest
     2026-11-12; the horizon comma form not checked
+- [ ] count-line-shown: `ele session-start` puts the count line into the
+  `systemMessage` too, after the reminders; the same change updates
+  `.documentation/specs/design.md`'s SessionStart injection section and
+  `docs/notes-and-recall.md`'s "What a session starts with"
+  - done when a `cmd/ele` test asserts the `systemMessage` holds the count
+    line with candidates and holds no count line without them, each seen red
+    under its mutation (the line left out of the message; the line added at a
+    count of 0), and the user, after `task install` and `/clear`, sees the
+    count line in the startup message
+  - as of 2026-11-14: `cmd/ele` test
+    TestWriteSessionStartShowsPlanCandidatesToTheUser went red with the line
+    left out of the message, the line printed at a count of 0, and the line
+    put before the reminders; the clone build's startup systemMessage ends
+    with `17 plan candidates, newest 2026-11-14; ...`
+  - next: the user, after `task install` and `/clear`, sees the count line in
+    the startup message
 - [ ] Fold each Decision through `/ele:plan-audit close
   .documentation/plans/candidates-in-start-block.md`, propose each
   out-of-scope line as a `decision` through `/ele:remember`, run `ele plan
