@@ -94,12 +94,17 @@ block ele prints for its project and owner:
 2. Active plans, with the next item
 3. Reminders that have come due: from their date's local midnight, or from
    their date and time
-4. Every open question, then decisions and facts, newest first. Decisions and
-   facts are held to about 1,500 tokens, oldest cut first; questions are cut
-   only when the whole block grows too long for Claude Code to show
-5. A closing line counting what was not shown and how to search
+4. One line counting the plan candidates, open questions starting `Plan
+   candidate` then `:`, `(` or `,` in any case, with the newest one's date;
+   `/ele:plan-audit` groups them
+5. Every other open question, then decisions and facts, newest first.
+   Decisions and facts are held to about 1,500 tokens, oldest cut first;
+   questions are cut only when the whole block grows too long for Claude Code
+   to show
+6. A closing line counting what was not shown and how to search
 
 `ele context` prints every open question, decision and fact for the project,
+plan candidates included,
 and its pending handoffs, with no budget, for when the block cut some.
 
 ## Recall

@@ -73,6 +73,16 @@ func hookSource(input io.Reader) (source string, session string) {
 	return hook.Source, hook.SessionID
 }
 
+func isPlanCandidate(note notes.Note) bool {
+	const prefix = "plan candidate"
+	body := strings.TrimSpace(note.Body)
+	if len(body) < len(prefix) || !strings.EqualFold(body[:len(prefix)], prefix) {
+		return false
+	}
+	rest := strings.TrimLeft(body[len(prefix):], " ")
+	return rest != "" && strings.ContainsRune(":(,", rune(rest[0]))
+}
+
 func liveNotes(all []notes.Note, project string) (questions []notes.Note, others []notes.Note) {
 	superseded := map[string]bool{}
 	for _, note := range all {
@@ -297,10 +307,21 @@ func writeHookOutput(stdout io.Writer, block string, shown string) error {
 }
 
 func writeNotes(stdout io.Writer, owner string, project string, all []notes.Note, invalid int, sessions int, room int) {
-	questions, others := liveNotes(all, project)
+	live, others := liveNotes(all, project)
+	var candidates, questions []notes.Note
+	for _, note := range live {
+		if isPlanCandidate(note) {
+			candidates = append(candidates, note)
+		} else {
+			questions = append(questions, note)
+		}
+	}
 	header := fmt.Sprintf("Notes from ele for %s:\n", present(owner, project))
-	if len(questions)+len(others) == 0 {
+	if len(live)+len(others) == 0 {
 		header = fmt.Sprintf("ele has no notes for %s.\n", present(owner, project))
+	}
+	if len(candidates) > 0 {
+		header += fmt.Sprintf("%s, newest %s; /ele:plan-audit groups them, ele context lists them.\n", plural(len(candidates), "plan candidate", "plan candidates"), candidates[0].Date)
 	}
 	reserve := trailerRoom + len(sessionHint)
 	written, units := len(header), utf16Units(header)

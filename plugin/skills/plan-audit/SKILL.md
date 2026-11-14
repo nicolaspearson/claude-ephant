@@ -187,8 +187,10 @@ Done when every inbox item has a proposal and each approved one is applied.
 
 ## Plan candidates
 
-From `ele context --project <name>`, every open `question` note starting
-`Plan candidate:`, grouped by theme. For each group, propose: a new plan through
+From `ele context --project <name>`, every open `question` note that is a
+plan candidate, grouped by theme: its text starts `plan candidate` in any case,
+then optional spaces and `:`, `(` or `,`, the set the start block counts. For
+each group, propose: a new plan through
 `/ele:plan new`, an active plan's inbox, or waiting. A group becoming a plan
 or moving into an inbox supersedes its notes.
 

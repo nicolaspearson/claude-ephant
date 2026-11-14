@@ -74,7 +74,7 @@ count candidates in one line and give their room back to the questions.
 
 ## Actions
 
-- [ ] count-line: `cmd/ele` gets `isPlanCandidate`, and `writeNotes` moves
+- [x] count-line: `cmd/ele` gets `isPlanCandidate`, and `writeNotes` moves
   candidates out of the questions into the count line under its header; the
   same change states the match in plan-audit's Plan candidates section and
   updates `.documentation/specs/design.md`'s SessionStart injection and Plans
@@ -97,6 +97,26 @@ count candidates in one line and give their room back to the questions.
   - and, outside the tests, the clone build, `echo '{"source":"resume"}' | go
     run ./cmd/ele session-start --no-sync` in this repository, prints the
     count line and no candidate's text
+  - asserted in the count-line commit: in `cmd/ele` tests,
+    TestWriteNotesCountsPlanCandidates (three forms, case variants, two
+    mentions listed as questions), TestWriteNotesCountsPlanCandidatesAlone and
+    TestWriteNotesKeepsQuestionsOverPlanCandidates went red with
+    `isPlanCandidate` returning false, the first also with it matching on
+    `strings.Contains`, and TestWriteNotesNamesEachNotesSession went red with
+    the line printed at a count of 0; `go run ./cmd/ele session-start
+    --no-sync` in this repository printed `16 plan candidates, newest
+    2026-11-12` under the notes header and no candidate's text
+  - as of 2026-11-14, premise check: `liveNotes` routes as Context says
+    (`cmd/ele` `liveNotes`); `writeNotes` adds questions against the UTF-16
+    room only, never `contextBudget`; before this item its header became "ele
+    has no notes" when questions and others were both empty, so that test had
+    to count candidates too; the header's length seeds `written` and `units`,
+    and `render` always writes it, so a count line written beside it is never
+    cut; `ele context` reads `liveNotes`, `ele status` counts kinds itself;
+    before this item no Go code read the `Plan candidate` text
+  - as of 2026-11-14: claude-ephant holds 16 live candidates, 9 `Plan
+    candidate (` and 7 `Plan candidate:`, none with a comma, newest
+    2026-11-12; the horizon comma form not checked
 - [ ] Fold each Decision through `/ele:plan-audit close
   .documentation/plans/candidates-in-start-block.md`, propose each
   out-of-scope line as a `decision` through `/ele:remember`, run `ele plan

@@ -527,6 +527,34 @@ func TestSessionStartNamesOptionsOffTheirDefaults(t *testing.T) {
 	require.NotContains(t, output, "Config from ele")
 }
 
+func TestWriteNotesCountsPlanCandidates(t *testing.T) {
+	var output bytes.Buffer
+	writeNotes(&output, "corp", "gateway", []notes.Note{
+		{Body: "Plan candidate: colon form.", Date: "2026-11-12", ID: "c1", Kind: notes.KindQuestion, Scope: notes.ScopeGlobal},
+		{Body: "Should the plan candidate prefix change?", Date: "2026-11-11", ID: "q1", Kind: notes.KindQuestion, Scope: notes.ScopeGlobal},
+		{Body: "Plan candidate (stop-check), topic form.", Date: "2026-11-10", ID: "c2", Kind: notes.KindQuestion, Scope: notes.ScopeGlobal},
+		{Body: "Plan candidates are many; group them?", Date: "2026-11-09", ID: "q2", Kind: notes.KindQuestion, Scope: notes.ScopeGlobal},
+		{Body: "Plan candidate, 2026-11-01, comma form.", Date: "2026-11-01", ID: "c3", Kind: notes.KindQuestion, Scope: notes.ScopeGlobal},
+		{Body: "PLAN CANDIDATE: upper case.", Date: "2026-10-20", ID: "c4", Kind: notes.KindQuestion, Scope: notes.ScopeGlobal},
+		{Body: "  plan Candidate  : spaced.", Date: "2026-10-19", ID: "c5", Kind: notes.KindQuestion, Scope: notes.ScopeGlobal},
+	}, 0, 0, blockBudget)
+	require.Equal(t, "Notes from ele for corp · gateway:\n"+
+		"5 plan candidates, newest 2026-11-12; /ele:plan-audit groups them, ele context lists them.\n"+
+		"- 2026-11-11 question q1: Should the plan candidate prefix change?\n"+
+		"- 2026-11-09 question q2: Plan candidates are many; group them?\n"+
+		"search with /ele:recall.\n", output.String())
+}
+
+func TestWriteNotesCountsPlanCandidatesAlone(t *testing.T) {
+	var output bytes.Buffer
+	writeNotes(&output, "corp", "gateway", []notes.Note{
+		{Body: "Plan candidate: the only note.", Date: "2026-11-12", ID: "c1", Kind: notes.KindQuestion, Scope: notes.ScopeGlobal},
+	}, 0, 0, blockBudget)
+	require.Equal(t, "Notes from ele for corp · gateway:\n"+
+		"1 plan candidate, newest 2026-11-12; /ele:plan-audit groups them, ele context lists them.\n"+
+		"search with /ele:recall.\n", output.String())
+}
+
 func TestWriteNotesCutsDecisionsBeforeQuestions(t *testing.T) {
 	var all []notes.Note
 	for i := range 40 {
@@ -608,6 +636,31 @@ func TestWriteNotesHintsOnlyForShownSessions(t *testing.T) {
 	writeNotes(&output, "corp", strings.Repeat("long-project-name-", 3), crowded, 3, 12, blockBudget)
 	require.True(t, strings.HasSuffix(output.String(), sessionHint), output.String())
 	require.LessOrEqual(t, output.Len(), contextBudget)
+}
+
+func TestWriteNotesKeepsQuestionsOverPlanCandidates(t *testing.T) {
+	var all []notes.Note
+	for i := range 30 {
+		all = append(all, notes.Note{Body: "Plan candidate: " + strings.Repeat("later ", 40), Date: "2026-11-12", ID: fmt.Sprintf("c%02d", i), Kind: notes.KindQuestion, Scope: notes.ScopeGlobal})
+	}
+	for i := range 3 {
+		all = append(all, notes.Note{Body: "Open?", Date: "2026-10-01", ID: fmt.Sprintf("q%02d", i), Kind: notes.KindQuestion, Scope: notes.ScopeGlobal})
+	}
+	var output bytes.Buffer
+	writeNotes(&output, "corp", "gateway", all, 0, 0, 2000)
+	require.Len(t, regexp.MustCompile(`(?m)^- \S+ question q\d+:`).FindAllString(output.String(), -1), 3)
+	require.NotContains(t, output.String(), "older question")
+
+	for i := 3; i < 40; i++ {
+		all = append(all, notes.Note{Body: strings.Repeat("open ", 40), Date: "2026-10-01", ID: fmt.Sprintf("q%02d", i), Kind: notes.KindQuestion, Scope: notes.ScopeGlobal})
+	}
+	output.Reset()
+	writeNotes(&output, "corp", "gateway", all, 0, 0, 5000)
+	text := output.String()
+	shown := len(regexp.MustCompile(`(?m)^- \S+ question q\d+:`).FindAllString(text, -1))
+	require.Positive(t, shown)
+	require.Contains(t, text, fmt.Sprintf("\n%d older questions not shown, ele context lists them", 40-shown), text)
+	require.NotContains(t, text, "later")
 }
 
 func TestWriteNotesNamesEachNotesSession(t *testing.T) {
