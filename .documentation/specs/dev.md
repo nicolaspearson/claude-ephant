@@ -84,6 +84,10 @@ tools, since another plugin's names change between versions.
   launching several agents should not start itself, as `/ele:plan` does not
 - The agents are `ele:explorer` and `ele:architect`, their roles in
   `plugin/reference/explorer.md` and `plugin/reference/architect.md`
+- `plugin/evals/dev-size-gate` hands dev a task spanning several sessions and
+  grades its reply for `/ele:plan new` and its trace for no Agent launch and
+  no Write, Edit not being granted there: intake's size check is the one stop
+  an eval can reach, since every later one follows a question round
 - Not doing: calling feature-dev's skill or agents. ele would depend on that
   plugin, and its names change between versions
 - Not doing: an eval of the question rounds. AskUserQuestion does not load in

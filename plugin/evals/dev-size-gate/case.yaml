@@ -1,0 +1,11 @@
+schema_version: "1.1"
+name: dev-size-gate
+description: /ele:dev handed a task spanning several sessions stops at intake and tells the user to run /ele:plan new, launching no explorer and writing nothing
+runs: 3
+execution:
+  max_turns: 15
+  allowed_tools: [Agent, Bash, Glob, Grep, Read, Skill, Write]
+  prompt: |
+    /ele:dev move the service from SQLite to PostgreSQL: write the schema migrations, port every query, backfill the production data in batches over a week, then switch reads region by region and delete the SQLite code once every region has run on PostgreSQL for a month
+context:
+  scaffold_script: scaffold.sh

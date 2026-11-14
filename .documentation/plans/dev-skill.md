@@ -269,11 +269,36 @@ use them where it reads code or weighs designs in the main session.
     - ran `ele:wrap` after the checkpoint
     - had its change reverted at the user's word, and the decision note
       forgotten
-- [ ] dev-size-eval: Add an eval case under `plugin/evals/` in which
+- [x] dev-size-eval: Add an eval case under `plugin/evals/` in which
   `/ele:dev` is handed a task spanning several sessions and tells the user to
   run `/ele:plan new`, with no Edit or Write
   - done when the case exists and the user's `task eval -- ./plugin` run passes
     its graders
+  - as of 2026-11-14: `plan-new-review`, `flag-saves` and `setup-maps` open
+    their prompts with a slash command, and `plan-new-review` passed at
+    985b956 on `/ele:plan`, a `disable-model-invocation` skill as dev is. A
+    tool the trace must not hold is a `tool_used` grader with `max: 0`, as
+    `recipe-asks/graders/no-write.md` is. `task eval` grants Bash and Write
+    but not Edit, so Edit cannot run in a case. Dev's step 1 stops at the
+    size check before step 2 launches an explorer, and needs no
+    AskUserQuestion, which the eval sandbox does not load
+  - asserted in the dev-size-eval commit: the user's
+    `task eval -- ./plugin --case dev-size-gate` passed 3 of 3 runs at every
+    grader. Handed a SQLite-to-PostgreSQL move spanning weeks, `/ele:dev`
+    named `/ele:plan new` in its reply, launched no Agent and called no Write;
+    `task eval` grants no Edit. Each grader went red under a mutated step 1:
+    `names-plan-new` in 3 of 3 runs and `no-write` in 1 of 3 when step 1
+    wrote the task to a file and went on, `no-explore` in 3 of 3 when it
+    launched an `ele:explorer`
+- [ ] dev-size-stop: `/ele:dev` step 3 stops on a proposed done-when that would
+  need two, as it does on an answer that splits the task, and a size stop
+  after the explorers proposes `/ele:handoff` carrying their findings; update
+  `.documentation/specs/dev.md` and `docs/dev.md`
+  - done when `task check FORCE=1` passes and SKILL.md step 3, the spec's Size
+    section and `docs/dev.md` each say both
+  - as of 2026-11-14, from the dev-skill checkpoint: step 3 stops only on an
+    answer that splits the task, and a size stop proposes no handoff, so the
+    explorers' findings are lost across `/clear`
 - [x] plan-grounding-explorers: `/ele:plan` `new` and `convert` launch
   `ele:explorer` agents for the facts each round rests on; update the Plans
   section of design.md and `docs/plans.md`
