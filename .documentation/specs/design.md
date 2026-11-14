@@ -187,8 +187,10 @@ Data never lives in the repo, not even gitignored. `ele backup <dir>` copies `ar
 - `ele` on `PATH` must be at least as new as the plugin: an older binary answers a subcommand it lacks with its usage text, so the start block or the end-of-session sync does nothing, the Stop hook shows a hook error on every reply, and a skill's `ele context` call gets only the usage text and exit 2, which do not say the binary is stale
 - `ele version` prints the tag a release build stamps with `-X main.version`; a binary built otherwise prints the version Go stamped on it, or `devel` where it stamped none
 - Hooks: SessionStart runs `ele session-start` on startup, `/clear` and compaction. Not on resume, whose transcript already holds the block; a resume therefore starts no sync and shows no stale-sync warning, and relies on the previous session's SessionEnd sync. SessionEnd runs `ele sync --background`, so quitting does not wait for the sync. Stop runs `ele stop-check || exit 1`: the Stop check spec's size hint, and its block asking for notes once per stretch of work, counting a subagent's file changes and the session's questions. Stop also runs checkpoint's gate, `ele checkpoint gate`, and UserPromptSubmit its snapshot, `ele checkpoint snapshot`, each turning a failure into exit 1; see the checkpoint and ticket-audit spec
-- Most skills call `ele`, each naming its commands in its own steps; two call it for what they must know before acting:
+- Most skills call `ele` in their own steps; these also call it for what they must know before acting:
   - checkpoint: `ele context --project` and `ele recall` for the brief's settled list
+  - plan: pickup's task card, `ele recall` on the item's rarer words before any work
+  - plan-audit: one `ele recall` per plan, the newest handoff from `ele handoff list` and `ele context`'s open questions, before the corpus is built
   - ticket-audit: `ele context --project` and `ele recall` before fetching anything, `ele recall` before asking the user anything, and `ele remember --project` for answers the user approves. Before each method it checks whether the session has compacted, which the start block's compaction line answers
 
 ## Status and stats

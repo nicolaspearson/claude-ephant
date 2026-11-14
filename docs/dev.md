@@ -31,12 +31,13 @@ and points you at [`/ele:plan new <name>`](plans.md#starting-one).
    the shape easiest to extend, and you pick one. With no real choice it states
    the one design and goes on. Nothing is edited before this point
 5. **Builds** the design you picked, without asking again, and runs what the
-   done-when names
+   done-when names, or tells you what to run where it names a session of yours
 6. **Checkpoints** the change. The checkpoint's spec reviewer checks it against
    your task, the done-when and the design together
 7. **Wraps up**: it proposes the design you picked, and the ones you turned
    down, as one decision note, then runs `/ele:wrap`, which asks before keeping
-   anything
+   anything, except that with `auto_note_writes` on it keeps notes and a
+   handoff unasked
 
 Stopping before the checkpoint, it offers a handoff quoting the task, the
 done-when and the design, so the next session can pick the task up after

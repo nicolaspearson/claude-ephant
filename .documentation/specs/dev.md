@@ -6,7 +6,7 @@ ele's structure: no agreed done-when, no grounding before questions, and no
 reviewer checking the change against what was asked. The shape, explore in
 parallel subagents, ask, compare designs from separate architects, build,
 review, is the feature-dev plugin's `/feature-dev`, put in ele's own words and
-tools, as design.md's Principles say of an idea taken from another plugin.
+tools, since another plugin's names change between versions.
 
 ## Size
 
@@ -32,9 +32,15 @@ tools, as design.md's Principles say of an idea taken from another plugin.
   task's wording, and which tests exist or which page describes the behaviour
   is theirs to find. Intake runs the size check on the task as stated, and an
   answer that fails it stops dev there too
+- The done-when names the outcome, never the mechanism, so it holds whichever
+  design is picked
 - Questions run in rounds as `/ele:plan`'s do: each round asks every question
   whose prerequisites are settled; facts are the explorers' to find, so the
   user is asked for decisions only
+- A question whose answers are alternative designs is never asked in the
+  rounds: it goes to the design step, where the architects design each side.
+  Answered in a round, it leaves the design step nothing to weigh and the
+  architects never run
 - Each question's recommended answer is its first option, labelled
   `(Recommended)`, and each option's description carries its evidence: a file
   and identifier the explorers cited, a recall finding, or a convention. A
@@ -66,8 +72,8 @@ tools, as design.md's Principles say of an idea taken from another plugin.
 - Where dev weighed designs, the chosen one and each rejected, with its reason,
   are proposed as one `decision` note through `/ele:remember`
 - Dev then runs `ele:wrap`. The user typing `/ele:dev` is the ask wrap's own
-  description requires, and wrap still asks before each note, handoff or recipe
-  it writes
+  description requires; wrap still asks before a recipe and, unless
+  `auto_note_writes` is on, before each note and handoff it writes
 - A session stopping before the checkpoint proposes `/ele:handoff`, quoting the
   task, the done-when and the chosen design, since no plan file carries the
   place across `/clear`
@@ -79,7 +85,6 @@ tools, as design.md's Principles say of an idea taken from another plugin.
 - The agents are `ele:explorer` and `ele:architect`, their roles in
   `plugin/reference/explorer.md` and `plugin/reference/architect.md`
 - Not doing: calling feature-dev's skill or agents. ele would depend on that
-  plugin, its names change between versions, and its architect asks for
-  well-documented code, against the user's comment rules
+  plugin, and its names change between versions
 - Not doing: an eval of the question rounds. AskUserQuestion does not load in
   the eval sandbox (as of 2026-10-29), so an eval case cannot answer them

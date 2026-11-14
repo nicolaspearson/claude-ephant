@@ -74,9 +74,17 @@ use them where it reads code or weighs designs in the main session.
   - rejected: proposing the done-when at intake, flagged as resting on the
     task's wording, because the tests and pages that would show it done are
     the explorers' to find
+- The done-when names the outcome, not the mechanism, and the question rounds
+  never ask a question whose answers are alternative designs; it goes to the
+  design step, since a trial run's first round offered a flag against other
+  outputs as options and so picked the design before the architects could
+  (ruled 2026-11-13)
+  - rejected: asking a design question in a round, because answered there it
+    leaves the design step nothing to weigh and no architect runs
 - The user typing `/ele:dev` is the ask wrap's "never start one unasked"
   needs, so dev runs `ele:wrap` once the checkpoint ends; wrap still asks
-  before each note, handoff or recipe it writes (ruled 2026-11-13)
+  before a recipe and, unless `auto_note_writes` is on, before each note and
+  handoff it writes (ruled 2026-11-13)
   - rejected: asking "wrap up now?" after the checkpoint, because the flow the
     user started already ends there
 - A done-when the user confirmed in the session counts for checkpoint as a plan
@@ -95,8 +103,7 @@ use them where it reads code or weighs designs in the main session.
   - rejected: briefing the built-in Explore and Plan agents, because the user's
     conventions would hold only where every brief repeated them
   - rejected: feature-dev's code-explorer and code-architect, because ele
-    would depend on that plugin, its names change between versions, and its
-    architect asks for well-documented code, against the user's comment rules
+    would depend on that plugin, and its names change between versions
 - Each agent file stays thin; its role lives in `plugin/reference/explorer.md`
   and `plugin/reference/architect.md`, since `reference/` holds files several
   skills read
@@ -221,7 +228,7 @@ use them where it reads code or weighs designs in the main session.
     a done-when the user confirmed logged a launch in `ele events --kind agent`
     with `spec` among its reviewers, whose brief, read with `ele show --all`,
     quotes the task, the done-when and the design in the user's words
-- [ ] dev-skill: Write `plugin/skills/dev/SKILL.md`,
+- [x] dev-skill: Write `plugin/skills/dev/SKILL.md`,
   `.documentation/specs/dev.md` and `docs/dev.md`, and add `/ele:dev` to
   design.md's Names table and Integration list, the README's skill list and
   `docs/commands.md`
@@ -233,11 +240,6 @@ use them where it reads code or weighs designs in the main session.
     Edit or Write before the user picks the design, a `decision` note
     proposed, and an `ele:wrap` after the checkpoint; the trial change is
     reverted unless the user keeps it
-  - as of 2026-11-13: none of the three files exists; design.md's Names
-    table Skills row and Integration list also leave out `/ele:review`,
-    `/ele:setup` and `/ele:flag`, and its "Two skills call `ele`" list names
-    only checkpoint and ticket-audit; `docs/commands.md`'s table is complete
-    and alphabetical; the README's "Skills at a glance" is free-form
   - as of 2026-11-13: `internal/skilllint` exempts a
     `disable-model-invocation` skill from "Use when", allows only
     `references/`, `reviewers/`, `scripts/` and `assets/` beside `SKILL.md`,
@@ -246,13 +248,30 @@ use them where it reads code or weighs designs in the main session.
   - as of 2026-11-13: `.documentation/specs/review.md` is the one-skill spec
     to follow, ending in `## In the plugin` with `Not doing:` lines;
     `docs/review.md` the one-skill docs page
-  - as of 2026-11-13: no skill runs `ele:wrap`, whose description says never
-    to start one unasked; `cmd/ele` `proposalNames` counts an `ele:wrap`
-    skill event as a proposal for the Stop check
+  - as of 2026-11-13: `cmd/ele` `proposalNames` counts an `ele:wrap` skill
+    event as a proposal for the Stop check
+  - as of 2026-11-13: two earlier `task dev` runs went wrong. In one, the
+    questions carried no ranked recommendation and the run skipped the design
+    step. In the other, the first round picked the design, so no architect
+    ran; the Decisions above came from them
+  - asserted in the dev-skill commit, with the skill first committed in
+    a71d811: `task check FORCE=1` and `task audit` pass. A third `/ele:dev`
+    run in a `task dev` session, started after SKILL.md's last change, on "let
+    a gate tell from `ele plan check` which plans have warnings":
+    - launched 3 `ele:explorer`, then 2 `ele:architect`, then the
+      checkpoint's spec reviewer, in `ele events --kind agent`
+    - asked the done-when and three scope questions in one round, each first
+      option `(Recommended)` with its evidence
+    - made its first Edit 8 seconds after the user picked between the
+      architects' `--paths` and JSON designs
+    - wrote a `decision` note through `ele remember`, unasked since
+      `auto_note_writes` is on, which writes what remember would propose
+    - ran `ele:wrap` after the checkpoint
+    - had its change reverted at the user's word, and the decision note
+      forgotten
 - [ ] dev-size-eval: Add an eval case under `plugin/evals/` in which
   `/ele:dev` is handed a task spanning several sessions and tells the user to
   run `/ele:plan new`, with no Edit or Write
-  - blocked: dev-skill
   - done when the case exists and the user's `task eval -- ./plugin` run passes
     its graders
 - [x] plan-grounding-explorers: `/ele:plan` `new` and `convert` launch
