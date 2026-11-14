@@ -104,7 +104,9 @@ tools, since another plugin's names change between versions.
   leaves its design on record
 - Dev then runs `ele:wrap`. The user typing `/ele:dev` is the ask wrap's own
   description requires; wrap still asks before a recipe and, unless
-  `auto_note_writes` is on, before each note and handoff it writes
+  `auto_note_writes` is on, before each note and handoff it writes; asking
+  "wrap up now?" after the checkpoint would ask again what typing `/ele:dev`
+  already asked
 - A session stopping before the checkpoint, by the user's word or because the
   task is blocked, proposes `/ele:handoff`, quoting the task, the done-when and
   the chosen design and saying the answers are to be confirmed again: the
