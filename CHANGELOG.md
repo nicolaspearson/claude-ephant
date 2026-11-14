@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.1.0](https://github.com/nicolaspearson/claude-ephant/compare/v1.0.0...v1.1.0) (2026-11-14)
+
+
+### Features
+
+* **dev:** add /ele:dev, a task too small for a plan from agreed done-when to checkpoint (dev-skill) ([baa183f](https://github.com/nicolaspearson/claude-ephant/commit/baa183f03f4783323d55c2c877717ca5934bb72f))
+* **dev:** keep a mini plan of what was agreed, quoted to the checkpoint, its inbox proposed at wrap (dev-card) ([5578baf](https://github.com/nicolaspearson/claude-ephant/commit/5578baf461eb80670c4faa540499811f74616528))
+* **dev:** step 3 stops on a done-when that would need two, and a size stop proposes no handoff (dev-size-stop) ([dc5ec49](https://github.com/nicolaspearson/claude-ephant/commit/dc5ec49a1b3f949791bad4b40624a02d4e46d357))
+* **plan:** ele plan check exits 1 when any plan it checks has a warning ([a71d811](https://github.com/nicolaspearson/claude-ephant/commit/a71d811b8e391afc4c3086a6828a075ea33c10c6))
+* **plan:** ele plan check's no-warnings line names the plan's item count ([1ba4696](https://github.com/nicolaspearson/claude-ephant/commit/1ba4696acbf4f7c29048efd02b0f7ab19ee081b0))
+* **sessionstart:** count plan candidates in one start-block line instead of listing them (count-line) ([a0cb870](https://github.com/nicolaspearson/claude-ephant/commit/a0cb8701cb25522dfd2f18d72b3d16bba746cb23))
+* **sessionstart:** show the plan candidate count line to the user too (count-line-shown) ([1005c02](https://github.com/nicolaspearson/claude-ephant/commit/1005c02f60f185cfc93ed769d314f402663e4974))
+* **skills:** checkpoint quotes a confirmed done-when with the task and chosen design and runs the spec reviewer on it (checkpoint-done-when) ([103b032](https://github.com/nicolaspearson/claude-ephant/commit/103b032a8213bf56bf803148107da1fd3cb25f7a))
+
+
+### Bug Fixes
+
+* **plan:** plan check names a plan it cannot read and checks the next ([3966de5](https://github.com/nicolaspearson/claude-ephant/commit/3966de5c154a800b83fb6fceb2ac868a8a9ae2da))
+
 ## [1.0.0](https://github.com/nicolaspearson/claude-ephant/compare/v0.14.1...v1.0.0) (2026-11-13)
 
 
