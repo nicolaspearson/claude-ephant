@@ -77,6 +77,34 @@ func TestConfigOwnerOverrideAppliesInThatOwnersProjects(t *testing.T) {
 	require.Equal(t, "true\n", output)
 }
 
+func TestConfigReportVoiceRoundTripsPerOwner(t *testing.T) {
+	home := recallFixture(t)
+	t.Setenv("CLAUDECODE", "")
+	writeFile(t, filepath.Join(home, "voice.md"), "# Voice\n")
+
+	output, code := runCommand(t, "config", "list", "--owner", "corp")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "report_voice  \"\"  (default)\n")
+
+	output, code = runCommand(t, "config", "set", "--owner", "corp", "report_voice", "voice.md")
+	require.Equal(t, 1, code, output)
+	require.Contains(t, output, `report_voice takes an absolute or ~/ path, not "voice.md"`)
+	output, code = runCommand(t, "config", "set", "--owner", "corp", "report_voice", filepath.Join(home, "missing.md"))
+	require.Equal(t, 1, code, output)
+	require.Contains(t, output, "report_voice: stat "+filepath.Join(home, "missing.md")+": no such file or directory")
+
+	output, code = runCommand(t, "config", "set", "--owner", "corp", "report_voice", "~/voice.md")
+	require.Equal(t, 0, code, output)
+	output, code = runCommand(t, "config", "get", "--owner", "corp", "report_voice")
+	require.Equal(t, 0, code, output)
+	require.Equal(t, filepath.Join(home, "voice.md")+"\n", output)
+
+	output, code = runCommand(t, "config", "list", "--owner", "corp")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "report_voice  "+filepath.Join(home, "voice.md")+"  (owner corp; default \"\")\n")
+	require.Contains(t, output, "voice file ele:write-report drafts reports from")
+}
+
 func TestConfigReviewVoiceRoundTripsGloballyAndPerOwner(t *testing.T) {
 	home := recallFixture(t)
 	t.Setenv("CLAUDECODE", "")

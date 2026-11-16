@@ -222,6 +222,7 @@ block a session starts with names any option set away from its default.
 | `recipe_dir`       | empty   | An absolute or `~/` path to a folder an approved recipe is written to once, each profile's `skills/<name>` linked to it; empty writes a copy into each profile. `set` refuses a path that is not a folder |
 | `recipes`          | `true`  | Off, `/ele:wrap` offers no recipe; a typed `/ele:recipe` still proposes one |
 | `reminders`        | `true`  | Off, no reminder shows at session start                                                                                     |
+| `report_voice` | empty | An absolute or `~/` path to your own voice file, which `/ele:write-report` drafts reports from in place of the shipped one; set per owner with `--owner`. `set` refuses a path naming no readable file, and `unset` returns to the shipped one |
 | `review_voice`     | empty   | An absolute or `~/` path to your own voice file, which `/ele:review` drafts comments from in place of the shipped one; set per owner with `--owner`. `set` refuses a path naming no readable file, and `unset` returns to the shipped one |
 
 A `config.json` that does not parse reads as all defaults, so the checkpoint gate

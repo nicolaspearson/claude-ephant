@@ -241,6 +241,8 @@ each does.
   linked from each profile
 - **`recipes`**, on: `/ele:wrap` offers a procedure the session ran as a skill
 - **`reminders`**, on: shows due reminders at session start
+- **`report_voice`**, empty: your own voice file for `/ele:write-report`'s
+  reports
 - **`review_voice`**, empty: your own voice file for `/ele:review`'s comments
 
 ## Update

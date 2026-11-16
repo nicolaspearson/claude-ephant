@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -175,17 +176,19 @@ func TestSetRefusesAPathNamingNoReadableFile(t *testing.T) {
 		path string
 		want string
 	}{
-		{name: "directory", path: directory, want: "review_voice: " + directory + " is not a regular file"},
-		{name: "empty", path: "", want: `review_voice takes an absolute or ~/ path, not ""; ele config unset review_voice returns it to its default`},
-		{name: "missing", path: filepath.Join(directory, "voice.md"), want: "review_voice: stat " + filepath.Join(directory, "voice.md") + ": no such file or directory"},
-		{name: "relative", path: "voice.md", want: `review_voice takes an absolute or ~/ path, not "voice.md"; ele config unset review_voice returns it to its default`},
+		{name: "directory", path: directory, want: "%[1]s: " + directory + " is not a regular file"},
+		{name: "empty", path: "", want: `%[1]s takes an absolute or ~/ path, not ""; ele config unset %[1]s returns it to its default`},
+		{name: "missing", path: filepath.Join(directory, "voice.md"), want: "%[1]s: stat " + filepath.Join(directory, "voice.md") + ": no such file or directory"},
+		{name: "relative", path: "voice.md", want: `%[1]s takes an absolute or ~/ path, not "voice.md"; ele config unset %[1]s returns it to its default`},
 	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			config := Defaults()
-			require.EqualError(t, config.Set("review_voice", "", test.path), test.want)
-			require.Empty(t, config.Global)
-		})
+	for _, option := range []string{"report_voice", "review_voice"} {
+		for _, test := range tests {
+			t.Run(option+"/"+test.name, func(t *testing.T) {
+				config := Defaults()
+				require.EqualError(t, config.Set(option, "", test.path), fmt.Sprintf(test.want, option))
+				require.Empty(t, config.Global)
+			})
+		}
 	}
 }
 
@@ -200,17 +203,21 @@ func TestSetStoresAPathAsTypedAndValueExpandsIt(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	require.NoError(t, os.WriteFile(filepath.Join(home, "voice.md"), []byte("# Voice\n"), 0o600))
-	config := Defaults()
 
-	require.NoError(t, config.Set("review_voice", "work", "~/voice.md"))
-	require.JSONEq(t, `"~/voice.md"`, string(config.Owners["work"]["review_voice"]))
-	value, err := config.Value("review_voice", "work")
-	require.NoError(t, err)
-	require.Equal(t, Value{Name: "review_voice", Owner: "work", Source: SourceOwner, Value: filepath.Join(home, "voice.md")}, value)
+	for _, option := range []string{"report_voice", "review_voice"} {
+		t.Run(option, func(t *testing.T) {
+			config := Defaults()
+			require.NoError(t, config.Set(option, "work", "~/voice.md"))
+			require.JSONEq(t, `"~/voice.md"`, string(config.Owners["work"][option]))
+			value, err := config.Value(option, "work")
+			require.NoError(t, err)
+			require.Equal(t, Value{Name: option, Owner: "work", Source: SourceOwner, Value: filepath.Join(home, "voice.md")}, value)
 
-	value, err = config.Value("review_voice", "")
-	require.NoError(t, err)
-	require.Equal(t, Value{Name: "review_voice", Source: SourceDefault, Value: ""}, value)
+			value, err = config.Value(option, "")
+			require.NoError(t, err)
+			require.Equal(t, Value{Name: option, Source: SourceDefault, Value: ""}, value)
+		})
+	}
 }
 
 func TestSetStoresAnIntegerAndRefusesANegativeOrNonWholeOne(t *testing.T) {

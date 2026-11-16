@@ -224,7 +224,7 @@ session's evidence before the user sees it.
     reviewers against the plan; design.md's Skills row lists
     `/ele:write-report`; `task lint-docs`, `task format` and
     `task check FORCE=1` pass
-- [ ] write-report-voice-option: Add `report_voice`, `KindPath`, default empty,
+- [x] write-report-voice-option: Add `report_voice`, `KindPath`, default empty,
   to `internal/config` `Options`, with tests beside `review_voice`'s in both
   `config_test.go` files; add it to design.md's Options bullet,
   `docs/data-and-privacy.md`'s Options table and the README options list
@@ -233,6 +233,24 @@ session's evidence before the user sees it.
     path and a missing file and `get` returning a set file with its owner as
     source; each new test seen red against a mutated `Options` entry; and
     `task check FORCE=1` and `task audit` pass
+  - as of 2026-11-16: premise check. `review_voice` is the last `Options`
+    entry and the only `KindPath` one; `report_voice` sorts before it. No
+    code keys on the name, and no test ranges over `Options` or compares it to
+    the docs, so each behaviour needs a test naming `report_voice`:
+    `internal/config` `TestSetRefusesAPathNamingNoReadableFile` covers the
+    relative and missing refusals and `TestSetStoresAPathAsTypedAndValueExpandsIt`
+    the owner source, both for `review_voice` only; `cmd/ele`
+    `TestConfigReviewVoiceRoundTripsGloballyAndPerOwner` sets `CLAUDECODE`
+    empty, which the session check reads as unset. The three docs places are
+    the only option lists
+  - asserted in the write-report-voice-option commit: `internal/config` tests
+    show `set report_voice` refusing a relative path and a missing file and
+    `Value` returning a set file with owner source; `cmd/ele`
+    `TestConfigReportVoiceRoundTripsPerOwner`, with `CLAUDECODE` empty, shows
+    the same through `ele config set`, `get` and `list`; each new test went
+    red against a renamed `Options` entry, and `KindFolder`, a changed
+    description and a non-empty default each turned the tests reading them
+    red; `task check FORCE=1` and `task audit` pass
 - [ ] write-report-voice-shipped: Ask the user for their client voice file's
   path and the client and project names to grep for, writing neither into
   this plan; read the whole file; write `plugin/reference/report-voice.md`, the
@@ -287,8 +305,7 @@ session's evidence before the user sees it.
     character, arrows and curly quotes over each rendered file and the Slack
     and WhatsApp blocks finds none; and a grep for the user's client and
     project names over `docs/reports.md` and the skill's files finds none
-  - blocked: write-report-voice-option, write-report-voice-shipped,
-    write-report-reviewer
+  - blocked: write-report-voice-shipped, write-report-reviewer
 - [ ] write-report-eval: Add `plugin/evals/write-report-whatsapp/`: a
   `scaffold.sh` giving a repository with one committed change and a clean
   tree, so no checkpoint offer arises, a prompt naming medium, action and
@@ -315,7 +332,6 @@ session's evidence before the user sees it.
     personal` and `--owner bitgorilla` each print that path, and a grep over
     the file for non-ASCII punctuation and for the client's and project's
     names finds none
-  - blocked: write-report-voice-option
 - [ ] Fold each Decision through `/ele:plan-audit close
   .documentation/plans/write-report.md`, then what this plan built and its
   out-of-scope lines as `Not doing:` into the spec, run `ele plan done
