@@ -172,9 +172,11 @@ session's evidence before the user sees it.
 - No chart in v1: none of the user's reports has held one. Content steps down
   table, where the medium has one, then list, then one sentence with the figure
 - The skill writes no ele note, since only the user knows whether a report was
-  sent, but joins stop-check's `proposalNames` as wrap and handoff do, so a
-  finished report is not followed by the notes ask its own ask and file write
-  would raise
+  sent, and is exempt in stop-check as `ele:recipe` is: its own ask and file
+  write raise no notes ask, and work before it stays pending
+  - rejected: joining `proposalNames` as wrap and handoff do, because a
+    proposal clears all work before it, so a session's fix or finding would
+    never be asked about once a report was drafted
 - Requirement 2's "similar to the review voice" is the mechanism, a voice file
   set per owner with a shipped default, not the review voice's style; and its
   one audience holds with the inside or outside ask, which only switches the
@@ -190,13 +192,38 @@ session's evidence before the user sees it.
 
 ## Actions
 
-- [ ] write-report-spec: Write `.documentation/specs/report.md` from the
+- [x] write-report-spec: Write `.documentation/specs/report.md` from the
   Decisions: the core, the profiles, the voice option, the asks, the
   checkpoint relation, the reviewer, delivery and the evidence scope, each
   with its reason; add the skill to `.documentation/specs/design.md`'s Skills
-  row and layout bullet
+  row
   - done when the spec holds every Decision above with its reason, and
     `task lint-docs` and `task format` pass
+  - as of 2026-11-16: premise check. No spec names report.md but this plan,
+    and no spec index exists. `.documentation/specs/review.md` is the model: a
+    flat spec with no Decisions or Why heading, each reason inline after a
+    colon or "since", a `## Voice` section for the option and an
+    `## In the plugin` section ending in `Not doing:` bullets, which this plan's
+    closing action fills. design.md's Skills row, in `## Names`, is
+    alphabetical, so `/ele:write-report` goes after `/ele:wrap`. The layout
+    bullet ("The repo is a marketplace, ...") lists only shipped files, so
+    `skills/write-report` and `agents/report-reviewer.md` are
+    write-report-reviewer's and `reference/report-voice.md`
+    write-report-voice-shipped's. `task lint-docs` fails only a `.go:` or
+    `.html:` line number and a note-id-shaped string. `task lint` (rumdl
+    MD057, MD051) fails a link to a missing file, so the spec does not link
+    `docs/reports.md` until it exists. Context lines on `internal/config`
+    `Options`, review's "7. Draft", `cmd/ele` `proposalNames` and
+    `sessionVariable` re-derived and hold; `sessionVariable` is a deterrent,
+    not a lock, so the spec does not call it a boundary
+  - as of 2026-11-16: the Decision that the plan follows the 1.0 release is
+    left out of the spec, as plan sequencing, not design; 1.0 has shipped
+  - asserted in the write-report-spec commit: report.md holds every Decision
+    with its reason except the 1.0 sequencing one, left out as plan-only, and
+    each rejected option's reason, checked by the spec, bugs and conventions
+    reviewers against the plan; design.md's Skills row lists
+    `/ele:write-report`; `task lint-docs`, `task format` and
+    `task check FORCE=1` pass
 - [ ] write-report-voice-option: Add `report_voice`, `KindPath`, default empty,
   to `internal/config` `Options`, with tests beside `review_voice`'s in both
   `config_test.go` files; add it to design.md's Options bullet,
@@ -206,24 +233,24 @@ session's evidence before the user sees it.
     path and a missing file and `get` returning a set file with its owner as
     source; each new test seen red against a mutated `Options` entry; and
     `task check FORCE=1` and `task audit` pass
-  - blocked: write-report-spec
 - [ ] write-report-voice-shipped: Ask the user for their client voice file's
   path and the client and project names to grep for, writing neither into
   this plan; read the whole file; write `plugin/reference/report-voice.md`, the
   neutral default, from its rules, generalised: no
   person, client or project named, each rule with a Write/Not example as
   `plugin/reference/review-voice.md` has, the typed-punctuation rule among
-  them, and the file itself written in typed punctuation
+  them, and the file itself written in typed punctuation; add
+  `reference/report-voice.md` to design.md's layout bullet
   - done when every client-voice rule is in the file or named in the spec as
     left out with its reason, and a grep for the user's client and project
     names over the file and the spec finds none, and a grep for non-ASCII
     punctuation over the file finds none
-  - blocked: write-report-spec
 - [ ] write-report-reviewer: Write `plugin/agents/report-reviewer.md` and
   `plugin/skills/write-report/reviewers/report.md`: the claim, medium-fit and
   leak checks over the core and evidence files, reporting each finding with
   the claim quoted and its evidence or its absence; add the agent to
-  design.md's Agents row and layout bullet. The skill lint fails a skill
+  design.md's Agents row and layout bullet, and `skills/write-report` to the
+  layout bullet. The skill lint fails a skill
   directory with no `SKILL.md`, so this item also writes its skeleton: front
   matter with `disable-model-invocation: true`, which write-report-skill
   replaces
@@ -236,7 +263,6 @@ session's evidence before the user sees it.
     research claim its saved source does not hold. Each also holds a backed,
     dated claim, and the inside reader's an internal hostname, neither
     reported. And `task check FORCE=1` and `task audit` pass
-  - blocked: write-report-spec
 - [ ] write-report-skill: Write `plugin/skills/write-report/SKILL.md` and its
   profiles `references/{slack,whatsapp,markdown,html,pdf}.md`: checkpoint
   check, evidence, the ask, the core in the voice, the reviewer, the render
@@ -246,10 +272,11 @@ session's evidence before the user sees it.
   profile finding Chrome or weasyprint by `command -v` and the macOS
   application path; add `docs/reports.md`, its row in `docs/commands.md`, a
   README bullet, and a `docs/data-and-privacy.md` paragraph on the evidence
-  files left in the scratch directory and the default output path; add
-  `ele:write-report` to `cmd/ele` `stopcheck.go`'s `proposalNames` with a
-  case in `stopcheck_test.go` seen red without it, and to
-  `.documentation/specs/stop-check.md`'s proposal skills
+  files left in the scratch directory and the default output path; exempt
+  `ele:write-report` in `cmd/ele` `stopcheck.go` as `recipeSkill` is, setting
+  `Proposing` without clearing `Pending`, with a case in `stopcheck_test.go`
+  seen red without it, and say so beside `ele:recipe` in
+  `.documentation/specs/stop-check.md`
   - done when `task check FORCE=1` and `task audit` pass, and in a `task dev`
     session one report on a session holding a change, a research finding with
     its fetched source and a bug found but not fixed is rendered for each of
@@ -279,13 +306,15 @@ session's evidence before the user sees it.
 - [ ] write-report-user-voice: Write `~/.claude/conventions/report-voice.md`, a
   copy of the user's client voice generalised beyond its client, leaving the
   original in place, rewritten in typed punctuation with the typed-punctuation
-  rule added, and print the `ele config set --owner hyve` and
-  `--owner personal` commands for the user to run in a terminal once an `ele`
-  knowing `report_voice` is on `PATH`, from a release or `task install`, which
-  replaces the binary this session's hooks run
-  - done when `ele config get report_voice --owner hyve` and `--owner
-    personal` print that path, and a grep over the file for non-ASCII
-    punctuation and for the client's and project's names finds none
+  rule added, and print the `ele config set --owner hyve`, `--owner personal`
+  and `--owner bitgorilla` commands for the user to run in a terminal once an
+  `ele` knowing `report_voice` is on `PATH`, from a release or `task install`,
+  which replaces the binary this session's hooks run; bitgorilla's horizon
+  sessions are where the client voice is used
+  - done when `ele config get report_voice` with `--owner hyve`, `--owner
+    personal` and `--owner bitgorilla` each print that path, and a grep over
+    the file for non-ASCII punctuation and for the client's and project's
+    names finds none
   - blocked: write-report-voice-option
 - [ ] Fold each Decision through `/ele:plan-audit close
   .documentation/plans/write-report.md`, then what this plan built and its
@@ -293,11 +322,6 @@ session's evidence before the user sees it.
   .documentation/plans/write-report.md`, and delete this plan
 
 ## Inbox
-
-- 2026-11-13, from the plan's wrap: write-report-user-voice sets report_voice
-  for owners hyve and personal only, but the client voice it generalises is
-  used in bitgorilla's horizon sessions; add --owner bitgorilla to the printed
-  commands and the done-when
 
 ## Out of scope
 

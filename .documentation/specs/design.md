@@ -19,7 +19,7 @@ Cross-session memory for Claude Code: ele archives every session's transcript, i
 | Data dir override | `ELE_HOME`                                                                                                                                       |
 | Default data dir  | macOS `~/Library/Application Support/claude-ephant/`; Linux `$XDG_DATA_HOME/claude-ephant/`, else `~/.local/share/claude-ephant/`                 |
 | Plugin            | `ele`                                                                                                                                            |
-| Skills            | `/ele:checkpoint`, `/ele:dev`, `/ele:flag`, `/ele:handoff`, `/ele:mine`, `/ele:plan`, `/ele:plan-audit`, `/ele:recall`, `/ele:recipe`, `/ele:remember`, `/ele:review`, `/ele:setup`, `/ele:ticket-audit`, `/ele:wrap` |
+| Skills            | `/ele:checkpoint`, `/ele:dev`, `/ele:flag`, `/ele:handoff`, `/ele:mine`, `/ele:plan`, `/ele:plan-audit`, `/ele:recall`, `/ele:recipe`, `/ele:remember`, `/ele:review`, `/ele:setup`, `/ele:ticket-audit`, `/ele:wrap`, `/ele:write-report` |
 
 ## Owners
 
