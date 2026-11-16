@@ -61,6 +61,9 @@ threshold, and 0 turns the suggestion off:
 - Mid-task, `/compact`, with the active plan's next item as its focus
 - Otherwise, a handoff with `/ele:handoff`, then `/clear`
 
+The suggestion can come a turn late: Claude Code can run the hook before the
+turn's own size is written to the transcript.
+
 `ele context --size` prints the running session's context in tokens.
 
 ## Reminders

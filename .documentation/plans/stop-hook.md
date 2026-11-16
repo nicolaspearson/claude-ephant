@@ -140,7 +140,7 @@ each in the spec, and fixes the rest without resting a fix on a guess.
 
 ## Actions
 
-- [ ] probe-first-turn-usage: Probe whether a turn's usage lines are on disk
+- [x] probe-first-turn-usage: Probe whether a turn's usage lines are on disk
       when the Stop hook reads the transcript, on the installed Claude Code,
       with a Stop hook whose body records each main-thread assistant usage line
       it can read against those the finished transcript holds, for a turn with
@@ -151,6 +151,11 @@ each in the spec, and fixes the rest without resting a fix on a guess.
     a turn's lines over the threshold is on disk, that its hint comes one stop
     late; a run with no miss is inconclusive, since the write is a race, and
     goes to this plan's Inbox as such
+  - asserted in the probe-first-turn-usage commit: in two interactive sessions
+    on Claude Code 2.1.311, a Stop hook copying the transcript at each of four
+    stops found its turn's usage lines on disk at three and none at the
+    fourth, whose copy ended at the turn's `api-request` line; the stop-check
+    spec's Context size bullet states it and the one-stop-late hint
 - [ ] probe-esc-stop: Find whether Claude Code fires Stop when a turn is
       ended by a user interrupt: archived transcripts mark Esc, Ctrl+C and a
       declined permission alike and can show only that Stop fired, by a
