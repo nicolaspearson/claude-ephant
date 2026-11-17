@@ -214,9 +214,27 @@ describes would then never be asked about.
   its own, as each reviewing skill has, on sonnet, with Glob, Grep and Read
   only. It reads fetched web text, so a page written to steer it could reach
   it; with no tool that runs a command, nothing it is steered to can run, as
-  with `ele:review-reader`. The skill saves the `git show` of each commit a
+  with `ele:review-reader`. Not Bash limited in prose to read-only git and
+  `wc -m`: that limit is a request nothing enforces, and an injected page could
+  run any command through it. The skill saves the `git show` of each commit a
   claim points to beside the evidence, and gives each render's character count
   in the brief. Its instructions are
   `plugin/skills/write-report/reviewers/report.md`
 - `plugin/reference/report-voice.md`, the shipped voice
-- A docs page of its own, as `/ele:review` has
+- A docs page of its own, `docs/reports.md`, as `/ele:review` has
+- The eval case `plugin/evals/write-report-whatsapp`: a WhatsApp report of one
+  committed change, graded on the reviewer's launch and on the reply's `text`
+  block alone, which must hold the change's figure and stay within the medium.
+  The session reads its evidence through git; as of 2026-11-17 (claude
+  2.1.311) the sandbox's macOS `/usr/bin/git` shim fails on its xcrun cache,
+  and the case has passed only where another git is installed
+- Not doing: Microsoft Teams and email as media. Neither was among the media
+  the skill was designed from
+- Not doing: charts in HTML and PDF. No report the skill was designed from held
+  one
+- Not doing: media the user adds from a folder of their own. One profile file
+  in the plugin is enough per medium
+- Not doing: sending a report, or recording that one was sent. The skill
+  drafts, the user sends
+- Not doing: a setting for what the reader already knows. One stand-alone voice
+  covers every reader
