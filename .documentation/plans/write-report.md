@@ -396,7 +396,7 @@ session's evidence before the user sees it.
     `docs/reports.md` or the skill's files; a grep for `write-report` finds
     each docs page named; `task check FORCE=1` and `task audit` pass, with only
     Markdown changed after
-- [ ] write-report-eval: Add `plugin/evals/write-report-whatsapp/`: a
+- [x] write-report-eval: Add `plugin/evals/write-report-whatsapp/`: a
   `scaffold.sh` giving a repository with one committed change and a clean
   tree, so no checkpoint offer arises, a prompt naming medium, action and
   reader so no ask is needed, `allowed_tools` holding `Agent`, `Bash`, `Read`,
@@ -429,8 +429,15 @@ session's evidence before the user sees it.
     own fence, not after a backtick, `states-change` ignores case, and
     `within-cap` counts the newline before the fence, each seen right under
     node
-  - next: the full `task eval -- ./plugin` run the done-when names, on the
-    user's go-ahead
+  - asserted in the write-report-eval commit, over 2034b1f: each regex grader
+    seen failing under node on a reply holding its defect or lacking the
+    change's fact, nested fences and the 4,096 edge included, and the
+    reviewer-launch pattern matching a reviewer launch and not another; one
+    `task eval -- ./plugin` run on the user's go-ahead (claude 2.1.311) passed
+    `write-report-whatsapp` 7 of 7, with 16 other cases; its
+    `plan-new-review` and `wrap-recipe` failed one grader each, unexplained:
+    `wrap-recipe` loads `ele:recipe`, whose Stop-hook exemption this plan moved
+    into `draftNames`, so a link is not ruled out
 - [x] write-report-user-voice: Write `~/.claude/conventions/report-voice.md`, a
   copy of the user's client voice generalised beyond its client, leaving the
   original in place, rewritten in typed punctuation with the typed-punctuation
@@ -461,6 +468,13 @@ session's evidence before the user sees it.
   .documentation/plans/write-report.md`, and delete this plan
 
 ## Inbox
+
+- 2026-11-17, from the five-media `task dev` run: the Slack and WhatsApp
+  report turns ended while `ele:report-reviewer` ran in the background, their
+  blocks reaching the user a turn later, beside another report's; the eval's
+  runs launched it in the foreground. Have step 7 of
+  `plugin/skills/write-report/SKILL.md` launch the reviewer in the foreground
+  and wait for it, so a report's block closes its own turn
 
 ## Out of scope
 
