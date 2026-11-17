@@ -285,7 +285,7 @@ session's evidence before the user sees it.
     source over the file and the spec find none; checked by the spec, bugs and
     conventions reviewers against the source; `task check FORCE=1` and
     `task audit` pass
-- [ ] write-report-reviewer: Write `plugin/agents/report-reviewer.md` and
+- [x] write-report-reviewer: Write `plugin/agents/report-reviewer.md` and
   `plugin/skills/write-report/reviewers/report.md`: the claim, medium-fit and
   leak checks over the core and evidence files, reporting each finding with
   the claim quoted and its evidence or its absence; add the agent to
@@ -319,8 +319,17 @@ session's evidence before the user sees it.
     `general-purpose` reading the agent and reviewer files, found every planted
     defect, and one extra on the inside draft came from a fixture flaw since
     fixed; not re-run on the current files
-  - next: the user runs the two `ele:report-reviewer` launches over the planted
-    fixtures in a `task dev` session, then the tick
+  - asserted in the write-report-reviewer commit, over 0fb66b8 and 10e8957.
+    `ele:report-reviewer`, launched in `task dev` sessions and limited to
+    Glob, Grep and Read, called no other tool. Over the outside fixture, with
+    the reviewer file of 0fb66b8, it reported every planted defect and nothing
+    else; not re-run after 10e8957. Over the inside fixture, re-run after
+    10e8957, it reported every planted defect, the backed claims and both
+    internal hosts unreported; it found the em dash and ellipsis by reading,
+    not the instructed Grep, and listed the ellipsis line under Unbacked while
+    its verdict folded it into typed punctuation. `task check FORCE=1` and
+    `task audit` pass on 0fb66b8; after it only Markdown changed, and
+    `task lint` and the skill lint pass
 - [ ] write-report-skill: Write `plugin/skills/write-report/SKILL.md` and its
   profiles `references/{slack,whatsapp,markdown,html,pdf}.md`: checkpoint
   check, evidence, the ask, the core in the voice, the reviewer, the render
@@ -354,7 +363,6 @@ session's evidence before the user sees it.
     names over `docs/reports.md` and the skill's files finds none; and a grep
     for `write-report` finds each docs page this item names, each checked
     against the skill as built
-  - blocked: write-report-reviewer
 - [ ] write-report-eval: Add `plugin/evals/write-report-whatsapp/`: a
   `scaffold.sh` giving a repository with one committed change and a clean
   tree, so no checkpoint offer arises, a prompt naming medium, action and
