@@ -156,7 +156,7 @@ each in the spec, and fixes the rest without resting a fix on a guess.
     stops found its turn's usage lines on disk at three and none at the
     fourth, whose copy ended at the turn's `api-request` line; the stop-check
     spec's Context size bullet states it and the one-stop-late hint
-- [ ] probe-esc-stop: Find whether Claude Code fires Stop when a turn is
+- [x] probe-esc-stop: Find whether Claude Code fires Stop when a turn is
       ended by a user interrupt: archived transcripts mark Esc, Ctrl+C and a
       declined permission alike and can show only that Stop fired, by a
       `stop_hook_summary` after the interrupt; a skip is settled by a Stop hook
@@ -165,6 +165,12 @@ each in the spec, and fixes the rest without resting a fix on a guess.
       records, for the spec only, a Claude Code fact beside the subagent rule
   - done when the spec states, as of the Claude Code version seen, whether an
     Esc interrupt fires Stop, and how it was seen
+  - asserted in the probe-esc-stop commit: on Claude Code 2.1.311,
+    interactive, a Stop hook appending a marker per firing logged none for a
+    turn interrupted by Esc while its text streamed or while a Bash call ran,
+    and one for each uninterrupted turn; the stop-check spec states it beside
+    the subagent rule, and Replay that an Esc cancelling a stop's hooks leaves
+    no `stop_hook_summary`
 - [ ] cleared-subagent-edit: `subagentEdit` treats a subagent edit stamped
       before `CheckpointStarted` as cleared by that checkpoint when the
       checkpoint is read as over, so it sets no `MidTask`
