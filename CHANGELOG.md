@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.2.0](https://github.com/nicolaspearson/claude-ephant/compare/v1.1.0...v1.2.0) (2026-11-17)
+
+
+### Features
+
+* **config:** report_voice, the voice file ele:write-report drafts from, set per owner (write-report) ([ec4fe78](https://github.com/nicolaspearson/claude-ephant/commit/ec4fe780326f6dbe63ba37c73ac3eb712e282e8c))
+* **plugin:** report-reviewer, the agent and checks ele:write-report's drafts go through (write-report) ([0fb66b8](https://github.com/nicolaspearson/claude-ephant/commit/0fb66b85b533bc58537f3a94f7045f0602cb15c9))
+* **plugin:** report-voice, the shipped default voice ele:write-report drafts from (write-report) ([192e041](https://github.com/nicolaspearson/claude-ephant/commit/192e0414876a5c4a1a8288a20531ef61d956a537))
+* **plugin:** write-report, one report of a session's work for one reader, shaped to its medium and checked against the evidence (write-report) ([9027d74](https://github.com/nicolaspearson/claude-ephant/commit/9027d747e54369a1f55e0f96d355fde14c0b8894))
+* **stop-check:** stretch-time, ask for notes again an hour after the ask when work happened since ([9acbfb5](https://github.com/nicolaspearson/claude-ephant/commit/9acbfb5fac0129d870bc81b457f4131f7f4c6018))
+* **stop-check:** wrap-hint, the size hint names /ele:wrap ([bff4dea](https://github.com/nicolaspearson/claude-ephant/commit/bff4dea6d5b19e8843d0a99453e2d1ee70c1f011))
+
+
+### Bug Fixes
+
+* **plugin:** report-reviewer counts a typographic character once, and a render that drops a qualifier as a new claim (write-report) ([10e8957](https://github.com/nicolaspearson/claude-ephant/commit/10e8957cc4981c73580e347bffdd7d462b2ec0d3))
+* **plugin:** write-report covers every finding in its span, and its reviewer flags a dropped item (write-report) ([2e5492c](https://github.com/nicolaspearson/claude-ephant/commit/2e5492c3710e39622473d45fce2c36ad5b17a984))
+* **plugin:** write-report holds a new report for a running checkpoint as for a report in progress (write-report) ([5c28bed](https://github.com/nicolaspearson/claude-ephant/commit/5c28bedddd98bbd748e5c79795e0581fd277d850))
+* **plugin:** write-report runs a queued report after a file, and names it under a chat block (write-report) ([fba84a3](https://github.com/nicolaspearson/claude-ephant/commit/fba84a3de5d3694782d30b7a278ff763e4f5ed1c))
+* **plugin:** write-report runs one report at a time, letting a stopped one go and a mid-turn one wait (write-report) ([666ebe0](https://github.com/nicolaspearson/claude-ephant/commit/666ebe0c736f646cc62cff79ae5eabc8c39eea2e))
+* **plugin:** write-report says when its review runs on, and a report started meanwhile waits its turn (write-report) ([ccd46ca](https://github.com/nicolaspearson/claude-ephant/commit/ccd46cacf3d5925116fcd4d2d6ed0a8f01499b5f))
+* **stop-check:** cleared-subagent-edit, a subagent edit stamped before the last checkpoint is not mid-task ([753b36b](https://github.com/nicolaspearson/claude-ephant/commit/753b36b95a70cb37adac404642998eb79b02dcdb))
+* **stop-check:** subagent-first-read, read subagent files from the start on a first stop ([ffd3946](https://github.com/nicolaspearson/claude-ephant/commit/ffd39460853ad01415f2c42f46f631aa890ea95f))
+* write report must include all findings ([aff0296](https://github.com/nicolaspearson/claude-ephant/commit/aff0296c60e945ec73914175e46367908c0e22c7))
+
 ## [1.1.0](https://github.com/nicolaspearson/claude-ephant/compare/v1.0.0...v1.1.0) (2026-11-14)
 
 
