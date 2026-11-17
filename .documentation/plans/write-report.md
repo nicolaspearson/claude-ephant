@@ -389,6 +389,10 @@ session's evidence before the user sees it.
     personal` and `--owner bitgorilla` each print that path, and a grep over
     the file for non-ASCII punctuation and for the client's and project's
     names finds none
+  - as of 2026-11-17: premise check. The `ele` on `PATH` is a `task dev`
+    build that knows `report_voice`, unset for all three owners;
+    `~/.claude/conventions/` held `review-voice.md` and `services.md` and no
+    `report-voice.md` before this item
 - [ ] Fold each Decision through `/ele:plan-audit close
   .documentation/plans/write-report.md`, then what this plan built and its
   out-of-scope lines as `Not doing:` into the spec, run `ele plan done
