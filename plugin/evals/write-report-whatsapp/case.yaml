@@ -1,0 +1,12 @@
+schema_version: "1.1"
+name: write-report-whatsapp
+description: /ele:write-report renders a committed change for WhatsApp as a copyable block holding the change's fact, with no heading, table, double asterisk or typographic character, within 4,096 characters
+runs: 1
+execution:
+  max_turns: 60
+  timeout_seconds: 1800
+  allowed_tools: [Agent, Bash, Read, Skill, Write]
+  prompt: |
+    /ele:write-report whatsapp, for a client contact outside the team, they need to know. AskUserQuestion is not available here: where the skill would ask, take your recommended answer and say which you took.
+context:
+  scaffold_script: scaffold.sh

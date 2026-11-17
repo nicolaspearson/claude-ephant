@@ -401,7 +401,9 @@ session's evidence before the user sees it.
   tree, so no checkpoint offer arises, a prompt naming medium, action and
   reader so no ask is needed, `allowed_tools` holding `Agent`, `Bash`, `Read`,
   `Skill` and `Write` as `plugin/evals/plan-new-review/case.yaml` lists its
-  own, and graders: a `tool_used` grader on the skill, and regexes reading the
+  own, and graders: a `tool_used` grader on the `ele:report-reviewer` launch,
+  which only the skill makes, since a typed `disable-model-invocation` skill
+  makes no Skill call, and regexes reading the
   reply's fenced block alone, one for a fact from the scaffold's commit, and
   no `#` heading, no `|` table row,
   no `**`, no em dash, en dash, ellipsis character, arrow or curly quote, at
@@ -409,6 +411,26 @@ session's evidence before the user sees it.
   - done when each grader is seen failing on a reply holding its defect or
     lacking its fact, and one `task eval -- ./plugin` run, on the user's
     go-ahead and running every case as the target does, passes this case
+  - as of 2026-11-17: premise check. A regex grader reads the final reply or
+    a named file, never a block, so each pattern keeps itself inside the
+    reply's `text` fence by a tempered match up to the opener's own fence.
+    The grader engine runs no canned reply, so each pattern was seen failing
+    under node on a reply holding its defect and passing on a good one. As of
+    2026-10-31 (claude 2.1.308) a session in the eval sandbox could not run
+    git, which the skill's evidence needs. The user chose
+    one run of this case alone first, `--case write-report-whatsapp --runs 1`:
+    git working, the item goes on; not working, it is ruled out
+  - as of 2026-11-17: the first run scored 6 of 7, the Skill grader failing
+    since a typed `disable-model-invocation` skill makes no Skill call; it
+    became the reviewer-launch grader. The second, with `--keep-temp`, passed
+    all seven: `/usr/bin/git` still failed on the xcrun cache (claude
+    2.1.311), and the session ran `/opt/homebrew/bin/git` instead; a machine
+    without one is not tried. After review, the regexes close on the opener's
+    own fence, not after a backtick, `states-change` ignores case, and
+    `within-cap` counts the newline before the fence, each seen right under
+    node
+  - next: the full `task eval -- ./plugin` run the done-when names, on the
+    user's go-ahead
 - [x] write-report-user-voice: Write `~/.claude/conventions/report-voice.md`, a
   copy of the user's client voice generalised beyond its client, leaving the
   original in place, rewritten in typed punctuation with the typed-punctuation

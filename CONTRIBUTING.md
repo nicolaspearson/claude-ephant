@@ -92,7 +92,10 @@ model calls, so no gate runs it. The `recipe-audit` case needs Go on `PATH`:
 its `reports-stale-flag` grader wants the audit to report `go build`'s missing
 `-fastlink`, found from Go's help, and its `reports-stale-pin` grader wants the
 scaffold's `go1.21.0` reported as older than the installed Go, which must be
-1.22 or newer.
+1.22 or newer. The `write-report-whatsapp` case needs a git that runs in the
+sandbox: as of 2026-11-17 (claude 2.1.311) `/usr/bin/git` fails on its xcrun
+cache, and the session passed with Homebrew's git; a machine with no such git is
+not tried.
 
 A grader is deterministic wherever the trace or the reply allows: a judge's
 verdict can flip between runs on the same reply, and `task eval`'s default
