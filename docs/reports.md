@@ -58,8 +58,10 @@ the rest in one question.
    follows on its own when the review returns. One report runs at a time: a
    report you start while another is still being drafted or reviewed does
    nothing but ask you to run it again once that one is delivered, and the
-   first carries on. A report that stopped, say for a checkpoint, holds nothing
-   up
+   first carries on. A report that stopped for a checkpoint goes ahead when you
+   run it again once that checkpoint is done; run while any checkpoint over the
+   same changes is still going, it says it waits. Tell it to run anyway and it
+   does
 7. **Delivers** it. Slack and WhatsApp text is the closing reply, in a block to
    copy. A file goes to the path you confirm, by default
    `~/Downloads/<slug>-<date>.<ext>`, and a PDF is opened for you

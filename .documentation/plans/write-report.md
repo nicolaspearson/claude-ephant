@@ -492,8 +492,16 @@ session's evidence before the user sees it.
     the first report going on to delivery and saying in its one line that the
     second waits; one typed in a new turn while the first review runs is
     answered with that one line alone; a report run again after stopping at
-    step 2's checkpoint offer goes ahead; and `task check FORCE=1` and
-    `task audit` pass
+    step 2's checkpoint offer waits for that checkpoint, then goes ahead; and
+    `task check FORCE=1` and `task audit` pass
+  - as of 2026-11-17: a re-test in the same session observed the review-running
+    line, two new-turn commands answered with one line alone, a rerun refused
+    while the offered checkpoint ran and going ahead after it, and the Slack
+    block delivered in the turn its second review's return opened; a command
+    arriving mid-turn was not observed, each typed after the turn ended; the
+    checkpoint wait ran on the skill before its clause was written
+  - next: the user types a second command at a first report's first question,
+    and reruns a report while the checkpoint it offered runs
 - [ ] Fold each Decision through `/ele:plan-audit close
   .documentation/plans/write-report.md`, then what this plan built and its
   out-of-scope lines as `Not doing:` into the spec, run `ele plan done

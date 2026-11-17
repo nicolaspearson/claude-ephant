@@ -179,8 +179,12 @@ returns, so the user starts no second report first: a second command typed
 earlier put two reports' blocks in one reply. One report runs at a time, so no
 two are drafted at once: a report started while an earlier one is in progress,
 its turn still running or its review running, does no work and asks to be run
-again once the earlier one is delivered; a report that stopped holds nothing
-up, or a rerun after step 2's checkpoint offer would be refused. As of
+again once the earlier one is delivered. A report that stopped holds nothing
+up, or a rerun after step 2's checkpoint offer would still be refused once that
+checkpoint is done; a rerun before then waits for it, as for any checkpoint
+the session started over the changes in scope, since its own step 2 would meet
+the same unreviewed changes. The user's word to run anyway overrides either
+hold. As of
 2026-11-17, a command typed while a report's turn waited on a question reached
 the session mid-turn, so the rule covers a report still being drafted, not
 only one in review.

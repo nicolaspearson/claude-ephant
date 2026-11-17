@@ -13,18 +13,22 @@ text is the closing reply, ready to paste; a file is written where the user
 confirms.
 
 One report at a time. An earlier report is in progress while its turn is still
-running or its review still runs in the background; one that stopped, at step
-2's checkpoint offer, an error or the user's word, holds nothing up, its
-reviewer still running or not, and the user's word to run a new one anyway
-overrides the hold. A new report started while one is in progress does no work
-of its own:
+running or its own review still runs in the background; one that stopped, at
+step 2's checkpoint offer, an error or the user's word, holds nothing up, its
+own reviewer still running or not. A checkpoint this session started over the
+changes in scope, offered at step 2 or typed by the user, holds a new report
+too until it has recorded or closed for every repository in scope or the user
+says it stopped, since the new report's step 2 would meet the same unreviewed
+changes. The user's word to run a new one anyway overrides either hold, step 2
+then deciding. A new report held does no work of its own:
 
-- Arriving mid-turn, before the earlier report's turn ends, as a command typed
-  then did as of 2026-11-17: the earlier report carries on, and says that the
-  new one waits, to be run again once the earlier is delivered, as a clause of
-  the one line its turn ends with, or of its next question's text
-- Arriving in a new turn while the earlier review runs: one line saying so is
-  the whole turn
+- Arriving mid-turn, before the turn of what holds it ends, as a command typed
+  then did as of 2026-11-17: that turn carries on, and says that the new one
+  waits, to be run again once the hold ends, as a clause of the one line it
+  ends with, or of its next question's text
+- Arriving in a new turn: one line naming what holds it, the earlier report's
+  review or the checkpoint, and to run it again once that is done, is the
+  whole turn
 
 `<scratch>` below is a new directory in the session scratchpad, outside every
 repository in scope: `mkdir <scratchpad>/write-report-<time>`, `<time>` from
