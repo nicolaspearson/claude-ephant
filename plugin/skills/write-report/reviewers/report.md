@@ -40,6 +40,10 @@ Over the core and every render:
 - **Uncounted.** "All", "every", "none", "nothing", "everything outstanding",
   or a heading's count, where the evidence does not hold both lists to compare,
   or the count is wrong. Count them yourself
+- **Missed.** A commit or diff hunk in the saved evidence that the core never
+  mentions: the core covers every change in its span. A finding or open item
+  the evidence does not show cannot be checked this way; say so under
+  Questions only where the evidence hints at one
 - **Secret.** A token, key or password, whoever the reader: strings shaped like
   `ghp_`, `xoxb-`, `sk-`, `AKIA`, a JWT, a PEM block, or a URL carrying a
   credential: `user:pass@`, a token or signature in its query, or a path that
@@ -48,6 +52,8 @@ Over the core and every render:
 
 Over each render, against its medium:
 
+- **Dropped.** An item the core holds, options and the recommendation
+  included, that no line of the render carries, even shortened
 - **Length.** Over the medium's cap, WhatsApp 4,096 characters, by the count
   the brief gives
 - **Markup.** What the medium cannot show: a heading, a table or `**bold**` in
@@ -78,7 +84,8 @@ One section per kind, in the order of Hunt. Per finding:
 
 - The core or render it is in, with its line number
 - The claim or line, quoted. A secret is never quoted: give its shape and its
-  first four characters
+  first four characters. For Dropped, the core's line and the render that
+  lacks it; for Missed, the commit or hunk
 - The evidence it is held against, quoted with its file path; or, for an
   unbacked claim with none, the files searched
 - What is wrong, in one line

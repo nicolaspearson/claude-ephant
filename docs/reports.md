@@ -39,8 +39,8 @@ the rest in one question.
 
    | Medium   | What it carries                                                                     |
    | -------- | ----------------------------------------------------------------------------------- |
-   | Slack    | One screen; bold lines for headings, lists for tables, bare links                   |
-   | WhatsApp | At most 4,096 characters; bold lines for headings, lists for tables, bare links     |
+   | Slack    | Every item, a line each; bold lines for headings, lists for tables, bare links      |
+   | WhatsApp | At most 4,096 characters, else a Markdown file; bold headings, lists, bare links    |
    | Markdown | The whole core: headings, tables, links                                             |
    | HTML     | The Markdown, in one self-contained file: styles inline, nothing fetched when open |
    | PDF      | The HTML, printed by Chrome or `weasyprint`                                         |

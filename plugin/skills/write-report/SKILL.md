@@ -96,8 +96,8 @@ named for what it holds, a name not already used:
 - Each source a research claim rests on, as the page's own text, since the
   fetch tool is a model answering about a page and its words are not the
   page's. A URL carrying a credential is never downloaded nor given to the
-  fetch tool: its source is unreachable and its claim left out. Download outside the
-  evidence, so the reviewer never reads raw HTML:
+  fetch tool: its source is unreachable and its claim left out. Download
+  outside the evidence, so the reviewer never reads raw HTML:
 
   ```sh
   curl -sSL --fail-with-body --max-time 30 -w '%{content_type}' \
@@ -140,8 +140,9 @@ medium, in this order:
 
 The core covers the whole span: every change, finding and open item the
 evidence holds goes in it, whatever the reader must do. The reader's action
-picks the bottom line and the ask; what it does not need gets a line of its
-own under what changed or what is open, never left out.
+picks the bottom line and the ask; what it does not need gets a line of its own
+under the findings, what changed or what is open, never left out for that
+reason. A claim with no pointer is still left out, as below.
 
 Every claim carries its evidence pointer on the line below it: a commit sha, a
 diff hunk, a file under `<scratch>/evidence/`, the user's words quoted, or a
@@ -164,11 +165,11 @@ Read the medium's profile and follow its Render steps:
 | HTML file | `references/html.md` |
 | PDF | `references/pdf.md` |
 
-A render may shorten or reshape a claim, never add one, and keeps every change,
-finding and open item the core holds, each at least a line. Content steps down from a
-table, where the medium has one, to a list, to one sentence with the figure. No
-chart. The punctuation is what a keyboard types: `-`, `...`, `->` and straight
-quotes, never their typographic forms.
+A render may shorten or reshape a claim, never add one, and keeps every item
+the core holds, options and the recommendation included, each at least a line.
+Content steps down from a table, where the medium has one, to a list, to one
+sentence with the figure. No chart. The punctuation is what a keyboard types:
+`-`, `...`, `->` and straight quotes, never their typographic forms.
 
 Done when the render is written and its character count taken.
 
@@ -203,7 +204,9 @@ Done when the second review has reported, or the first found nothing.
   whose fence is longer than any backtick run inside it, so it pastes whole;
   then any finding left open, anything step 2 marked not yet reviewed, and each
   source saved as quoted by a model, for the user to open before sending. Its
-  text before the block is one line
+  text before the block is one line. A WhatsApp render still over its cap goes
+  as a Markdown file instead: back to step 6 with the Markdown profile, then
+  step 7's reviews afresh, then the file bullet below
 - **A file**: ask in an AskUserQuestion call where to write it, the default
   `~/Downloads/<slug>-<date>.<ext>`, `<slug>` a few words of the bottom line in
   lowercase ASCII letters, digits and `-` only, `<date>` today as `YYYY-MM-DD`,

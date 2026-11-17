@@ -63,9 +63,10 @@ The report is written once, independent of medium, in the voice:
 
 The core covers the whole span: every change, finding and open item the
 evidence holds, whatever the reader must do. The reader's action picks the
-bottom line and the ask; the rest gets a line each under what changed or what
-is open, since a reader deciding one question still needs to know of a bug the
-same work found.
+bottom line and the ask; the rest gets a line each under the findings, what
+changed or what is open, since a reader deciding one question still needs to
+know of a bug the same work found. A claim with no evidence stays out all the
+same.
 
 The core is a file in the session's scratch directory, outside every repository
 in scope, each claim carrying its evidence pointer: a commit, a diff hunk, a
@@ -90,7 +91,11 @@ and the closing reply names its source for the user to open before sending.
 Each medium is one profile under the skill's `references/`, rendering the core:
 its length, the markup it allows, what tables and links become, and how it is
 read. A render may shorten or reshape a claim, never add one, and keeps every
-item the core holds, each at least a line. One core with one
+item the core holds, options and the recommendation included, each at least a
+line. A WhatsApp render still over its cap goes as a Markdown file instead,
+rendered and reviewed afresh. The reviewer reports an item a render dropped,
+and a commit or hunk in the saved evidence the core never mentions. One core
+with one
 profile per medium, not a template per medium, since the same facts written up
 once per medium could disagree.
 

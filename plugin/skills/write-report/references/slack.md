@@ -18,12 +18,12 @@ render uses none of them:
 
 ## Length
 
-No cap this profile checks. Keep it to one screen: the bottom line, the ask with
-its owner, and the findings, each in a line or two. What does not fit goes as a
-file instead, and the reply says so.
+No cap this profile checks. The bottom line and the ask first, then every other
+item the core holds in a line each.
 
 ## Render
 
-1. Write the render to `<scratch>/render-slack.txt` from the core, in the core's
-   order, dropping or reshaping and never adding a claim
+1. Write the render to `<scratch>/render-slack.txt` from the core, in its order,
+   shortening or reshaping and never adding a claim, keeping every item the
+   core holds, each at least a line
 2. Count its characters for the brief: `wc -m < <scratch>/render-slack.txt`

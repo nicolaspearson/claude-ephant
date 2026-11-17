@@ -19,6 +19,7 @@ No cap. The core in full, each finding with its evidence and its `as of` date.
 
 ## Render
 
-1. Write the render to `<scratch>/render.md` from the core, in the core's
-   order, dropping or reshaping and never adding a claim
+1. Write the render to `<scratch>/render.md` from the core, in its order,
+   shortening or reshaping and never adding a claim, keeping every item the
+   core holds, each at least a line
 2. Count its characters for the brief: `wc -m < <scratch>/render.md`
