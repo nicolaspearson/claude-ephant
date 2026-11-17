@@ -438,6 +438,11 @@ session's evidence before the user sees it.
     `plan-new-review` and `wrap-recipe` failed one grader each, unexplained:
     `wrap-recipe` loads `ele:recipe`, whose Stop-hook exemption this plan moved
     into `draftNames`, so a link is not ruled out
+  - as of 2026-11-17: `wrap-recipe` rerun alone with `--keep-temp` passed 6 of
+    6; its trace calls the `ele:wrap` skill only, never `ele:recipe`, so
+    `draftNames` is not on the rerun's path. The full run's `proposes`
+    failure is unexplained, its trace not kept: one passing rerun does not
+    show it was variance. `plan-new-review` was not rerun
 - [x] write-report-user-voice: Write `~/.claude/conventions/report-voice.md`, a
   copy of the user's client voice generalised beyond its client, leaving the
   original in place, rewritten in typed punctuation with the typed-punctuation
@@ -462,19 +467,22 @@ session's evidence before the user sees it.
     find none; the source has no uncommitted change, its last commit dated
     2026-10-26; the file reviewed by the bugs, conventions and spec reviewers
     against the source
+- [ ] write-report-foreground-review: Have step 7 of
+  `plugin/skills/write-report/SKILL.md` launch `ele:report-reviewer` in the
+  foreground and wait for its report, so a report's block closes the turn of
+  its own command; as of 2026-11-17, in the five-media `task dev` run, the
+  Slack and WhatsApp turns ended while the reviewer ran in the background,
+  their blocks reaching the user a turn later, beside another report's, while
+  the eval's runs launched it in the foreground
+  - done when, in a `task dev` session, a Slack report's block is in the
+    closing reply of the turn its `/ele:write-report` command opened, with no
+    later turn needed, and `task check FORCE=1` and `task audit` pass
 - [ ] Fold each Decision through `/ele:plan-audit close
   .documentation/plans/write-report.md`, then what this plan built and its
   out-of-scope lines as `Not doing:` into the spec, run `ele plan done
   .documentation/plans/write-report.md`, and delete this plan
 
 ## Inbox
-
-- 2026-11-17, from the five-media `task dev` run: the Slack and WhatsApp
-  report turns ended while `ele:report-reviewer` ran in the background, their
-  blocks reaching the user a turn later, beside another report's; the eval's
-  runs launched it in the foreground. Have step 7 of
-  `plugin/skills/write-report/SKILL.md` launch the reviewer in the foreground
-  and wait for it, so a report's block closes its own turn
 
 ## Out of scope
 
