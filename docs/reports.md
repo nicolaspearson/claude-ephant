@@ -31,8 +31,10 @@ the rest in one question.
    closing reply names it for you to open before you send
 4. **Writes the core** once, in your report voice: the bottom line, the ask
    with its owner, the findings each with its evidence and date, what changed,
-   the options with a recommendation, and what is open. A claim with no
-   evidence is left out
+   the options with a recommendation, and what is open. It covers everything
+   the session found, whatever the reader must do: their action picks the
+   opening and the ask, and the rest gets a line each. A claim with no evidence
+   is left out
 5. **Renders** it for the medium:
 
    | Medium   | What it carries                                                                     |

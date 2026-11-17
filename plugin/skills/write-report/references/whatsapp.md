@@ -18,9 +18,10 @@ headings, no tables and no `[text](url)` links:
 ## Length
 
 At most 4,096 characters, the cap WhatsApp's API puts on a message; the app's
-own cap is not checked. Over it, cut to the bottom line, the ask and the
-findings, and offer the rest as a file; never split one report into several
-messages without the user asking.
+own cap is not checked. Over it, shorten each item outside the bottom line and
+the ask to one line; still over, offer the report as a file instead, never
+dropping an item. Never split one report into several messages without the
+user asking.
 
 ## Render
 

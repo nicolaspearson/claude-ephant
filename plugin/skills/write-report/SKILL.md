@@ -138,6 +138,11 @@ medium, in this order:
 5. Options and a recommendation, what won't work included
 6. What is open
 
+The core covers the whole span: every change, finding and open item the
+evidence holds goes in it, whatever the reader must do. The reader's action
+picks the bottom line and the ask; what it does not need gets a line of its
+own under what changed or what is open, never left out.
+
 Every claim carries its evidence pointer on the line below it: a commit sha, a
 diff hunk, a file under `<scratch>/evidence/`, the user's words quoted, or a
 fetched source's URL. A claim with none is left out. Changes step 2 marked are
@@ -159,7 +164,8 @@ Read the medium's profile and follow its Render steps:
 | HTML file | `references/html.md` |
 | PDF | `references/pdf.md` |
 
-A render may drop or reshape a claim, never add one. Content steps down from a
+A render may shorten or reshape a claim, never add one, and keeps every change,
+finding and open item the core holds, each at least a line. Content steps down from a
 table, where the medium has one, to a list, to one sentence with the figure. No
 chart. The punctuation is what a keyboard types: `-`, `...`, `->` and straight
 quotes, never their typographic forms.
