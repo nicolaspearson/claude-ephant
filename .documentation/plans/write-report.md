@@ -467,13 +467,12 @@ session's evidence before the user sees it.
     find none; the source has no uncommitted change, its last commit dated
     2026-10-26; the file reviewed by the bugs, conventions and spec reviewers
     against the source
-- [ ] write-report-foreground-review: Have step 7 of
+- [x] write-report-foreground-review: Have step 7 of
   `plugin/skills/write-report/SKILL.md` end a turn the review is still running
   in with one line saying the block follows when the review reports, so the
   user waits before the next report; and one report at a time, a report started
-  while an earlier one is in progress, its turn running or its review running,
-  doing no work but asking to be run again once the earlier one is delivered,
-  a stopped report holding nothing up. As of 2026-11-17,
+  while an earlier one is in progress doing no work until the earlier one is
+  delivered, a stopped report holding nothing up. As of 2026-11-17,
   in the five-media `task dev` run, Claude Code backgrounded all eight reviewer
   launches, its Agent tool offering no flag to keep one in the foreground, and
   the Slack and WhatsApp blocks reached the user beside another report's, a
@@ -488,9 +487,9 @@ session's evidence before the user sees it.
   - done when, in a `task dev` session, a report turn that ends during its
     review ends with that one line, and the block arrives in the turn the
     review's return opens, before any other report's; a second
-    `/ele:write-report` typed while the first report's turn runs does no work,
-    the first report going on to delivery and saying in its one line that the
-    second waits; one typed in a new turn while the first review runs is
+    `/ele:write-report` typed while the first report's turn runs does no work
+    until the first is delivered, then runs after a file report or is named
+    under a Slack or WhatsApp block; one typed in a new turn while the first review runs is
     answered with that one line alone; a report run again after stopping at
     step 2's checkpoint offer waits for that checkpoint, then goes ahead; and
     `task check FORCE=1` and `task audit` pass
@@ -500,8 +499,18 @@ session's evidence before the user sees it.
     block delivered in the turn its second review's return opened; a command
     arriving mid-turn was not observed, each typed after the turn ended; the
     checkpoint wait ran on the skill before its clause was written
-  - next: the user types a second command at a first report's first question,
-    and reruns a report while the checkpoint it offered runs
+  - asserted in the write-report-foreground-review commit: in the same
+    `task dev` session, a WhatsApp command typed as the answer to a Markdown
+    report's save question did no work, the session asking again with "The
+    WhatsApp report for the client will start once this file is written",
+    writing the Markdown file identical to its reviewed render, then starting
+    WhatsApp; the earlier re-test's review-running line, new-turn one-line
+    answers and Slack block in its own woken turn stand; the checkpoint hold
+    under the clause naming it was not observed, its wait seen only on the
+    skill before the clause; the mid-turn run used the skill text before this
+    change, whose text said to run the new one again, and the session started
+    it itself, the rule since rewritten to that and not yet run as written;
+    `task check FORCE=1` and `task audit` pass on this change
 - [ ] Fold each Decision through `/ele:plan-audit close
   .documentation/plans/write-report.md`, then what this plan built and its
   out-of-scope lines as `Not doing:` into the spec, run `ele plan done

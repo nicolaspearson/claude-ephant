@@ -179,7 +179,10 @@ returns, so the user starts no second report first: a second command typed
 earlier put two reports' blocks in one reply. One report runs at a time, so no
 two are drafted at once: a report started while an earlier one is in progress,
 its turn still running or its review running, does no work and asks to be run
-again once the earlier one is delivered. A report that stopped holds nothing
+again once the earlier one is delivered, or, arriving mid-turn as the user's
+own queued request, runs once a file report is delivered, in the same turn;
+after a Slack or WhatsApp block, which must close its turn, it is named for the
+user to run next. A report that stopped holds nothing
 up, or a rerun after step 2's checkpoint offer would still be refused once that
 checkpoint is done; a rerun before then waits for it, as for any checkpoint
 the session started over the changes in scope, since its own step 2 would meet

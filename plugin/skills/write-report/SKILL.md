@@ -23,9 +23,11 @@ changes. The user's word to run a new one anyway overrides either hold, step 2
 then deciding. A new report held does no work of its own:
 
 - Arriving mid-turn, before the turn of what holds it ends, as a command typed
-  then did as of 2026-11-17: that turn carries on, and says that the new one
-  waits, to be run again once the hold ends, as a clause of the one line it
-  ends with, or of its next question's text
+  then did as of 2026-11-17, or typed as the answer to its question, which is
+  then asked again since the answer chose nothing: that turn carries on. After
+  a file delivery the new one runs in the same turn, from step 1. A Slack or
+  WhatsApp block must close its turn, so after one the line under the block
+  names the new one for the user to run next
 - Arriving in a new turn: one line naming what holds it, the earlier report's
   review or the checkpoint, and to run it again once that is done, is the
   whole turn
