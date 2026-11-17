@@ -169,6 +169,17 @@ fixed in the core, which is reviewed once more. An unbacked claim is dropped,
 never softened. A finding still open after the second review is shown to the
 user beside the draft.
 
+As of 2026-11-17, an interactive Claude Code session ran every reviewer launch
+in the background, its report waking the session a turn later, while a
+headless one waited for it; the interactive Agent tool offered no flag to keep
+a launch in the foreground, though one other agent type ran there, so whether
+a plugin agent can ask for it is not checked. A turn that ends while its
+review runs says so in one line, and that the block follows when the review
+returns, so the user starts no second report first: a second command typed
+earlier put two reports' blocks in one reply. A report started anyway does no
+work and asks to be run again once the earlier one is delivered, so two
+reports never share a turn.
+
 ## Delivery
 
 The skill never sends. Slack and WhatsApp text is the turn's closing reply in a

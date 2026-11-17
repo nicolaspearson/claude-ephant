@@ -53,7 +53,10 @@ the rest in one question.
    for an outside reader that no internal host, path, ticket or other client's
    name gets through. A secret is cut whoever the reader. Findings are fixed and
    the draft reviewed once more; an unbacked claim is dropped, never softened,
-   and one still open is shown to you beside the draft
+   and one still open is shown to you beside the draft. The review may run in
+   the background: a turn that ends while it runs says so, and the block
+   follows on its own when the review returns. A report you start before then
+   does nothing but ask you to run it again once the first is delivered
 7. **Delivers** it. Slack and WhatsApp text is the closing reply, in a block to
    copy. A file goes to the path you confirm, by default
    `~/Downloads/<slug>-<date>.<ext>`, and a PDF is opened for you

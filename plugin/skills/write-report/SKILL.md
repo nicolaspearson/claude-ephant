@@ -196,6 +196,17 @@ Then:
 - A finding still open after the second review is shown to the user beside the
   draft, in step 8
 
+Claude Code may run the reviewer in the background, its report waking the
+session in a later turn. A turn that ends while a review runs ends with one
+line: the review is running, the block follows when it returns, and a second
+report waits until then. The turn the review's report wakes goes on with this
+step: its findings fixed, or step 8 once the second review is in.
+
+A report started while an earlier report's review still runs does no work: its
+turn is one line saying the earlier report is still in review, and to run this
+one again once that report is delivered. The earlier review's return is
+handled by this step and step 8 in whatever turn it wakes.
+
 Done when the second review has reported, or the first found nothing.
 
 ## 8. Deliver

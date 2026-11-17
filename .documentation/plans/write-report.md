@@ -468,15 +468,19 @@ session's evidence before the user sees it.
     2026-10-26; the file reviewed by the bugs, conventions and spec reviewers
     against the source
 - [ ] write-report-foreground-review: Have step 7 of
-  `plugin/skills/write-report/SKILL.md` launch `ele:report-reviewer` in the
-  foreground and wait for its report, so a report's block closes the turn of
-  its own command; as of 2026-11-17, in the five-media `task dev` run, the
-  Slack and WhatsApp turns ended while the reviewer ran in the background,
-  their blocks reaching the user a turn later, beside another report's, while
-  the eval's runs launched it in the foreground
-  - done when, in a `task dev` session, a Slack report's block is in the
-    closing reply of the turn its `/ele:write-report` command opened, with no
-    later turn needed, and `task check FORCE=1` and `task audit` pass
+  `plugin/skills/write-report/SKILL.md` end a turn the review is still running
+  in with one line saying the block follows when the review reports, so the
+  user waits before the next report, and a report started anyway does no work
+  but asks to be run again once the earlier one is delivered. As of 2026-11-17, in the five-media `task dev` run, Claude
+  Code backgrounded all eight reviewer launches, its Agent tool offering no
+  flag to keep one in the foreground, and the Slack and WhatsApp blocks
+  reached the user beside another report's, a second command typed before the
+  first review returned; a headless eval session waited for its reviewer
+  - done when, in a `task dev` session, a report turn that ends during its
+    review ends with that one line, and the block arrives in the turn the
+    review's return opens, before any other report's; a second
+    `/ele:write-report` typed while the first review runs answers with one
+    line and does no work; and `task check FORCE=1` and `task audit` pass
 - [ ] Fold each Decision through `/ele:plan-audit close
   .documentation/plans/write-report.md`, then what this plan built and its
   out-of-scope lines as `Not doing:` into the spec, run `ele plan done
