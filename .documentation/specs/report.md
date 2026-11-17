@@ -106,7 +106,11 @@ The media are a fixed set in the plugin; a new one is a new profile file.
   named, since the plugin is public. Each rule carries a Write and a Not example,
   as the review voice does. The client voice it comes from stays where it is,
   unchanged; the voice a report is written in is this file or the user's own
-  `report_voice` file
+  `report_voice` file. Left out of it: the source's list of the documents it
+  governs and who reads them, its name for the client, and its account of the
+  project's own decisions file, since all three are one project's; its
+  "em-dashes sparingly", since the typed-punctuation rule below bans them. Its
+  lowercase `id` rule is folded into one spelling per term
 - Option `report_voice`, an absolute or `~`-prefixed path, default empty,
   meaning the shipped file. Set per owner, as `review_voice` is, so work and
   personal reports can sound different. The report voice is like the review

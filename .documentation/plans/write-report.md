@@ -251,7 +251,7 @@ session's evidence before the user sees it.
     red against a renamed `Options` entry, and `KindFolder`, a changed
     description and a non-empty default each turned the tests reading them
     red; `task check FORCE=1` and `task audit` pass
-- [ ] write-report-voice-shipped: Ask the user for their client voice file's
+- [x] write-report-voice-shipped: Ask the user for their client voice file's
   path and the client and project names to grep for, writing neither into
   this plan; read the whole file; write `plugin/reference/report-voice.md`, the
   neutral default, from its rules, generalised: no
@@ -263,6 +263,22 @@ session's evidence before the user sees it.
     left out with its reason, and a grep for the user's client and project
     names over the file and the spec finds none, and a grep for non-ASCII
     punctuation over the file finds none
+  - as of 2026-11-16: premise check. `plugin/reference/review-voice.md` is the
+    model: a `#` title, an intro saying the option replaces the file, then one
+    `##` heading per rule with `- Write:` and `- Not:` bullets; its own Not
+    example shows em dashes, so this file names the typographic characters in
+    words instead. No lint reads `plugin/reference/` but rumdl, and none
+    checks non-ASCII, so `LC_ALL=C grep -nP '[^\x00-\x7F]'` is run by hand.
+    report.md's `## Voice` named no left-out rule before this item
+  - asserted in the write-report-voice-shipped commit:
+    `plugin/reference/report-voice.md` carries each rule of the user's client
+    voice, generalised with new examples, each with a Write and a Not;
+    report.md's `## Voice` names the three project-specific parts and the
+    em-dash rule as left out with reasons; a grep for non-ASCII over the file
+    and one for the client's, project's and every other proper name in the
+    source over the file and the spec find none; checked by the spec, bugs and
+    conventions reviewers against the source; `task check FORCE=1` and
+    `task audit` pass
 - [ ] write-report-reviewer: Write `plugin/agents/report-reviewer.md` and
   `plugin/skills/write-report/reviewers/report.md`: the claim, medium-fit and
   leak checks over the core and evidence files, reporting each finding with
@@ -305,7 +321,7 @@ session's evidence before the user sees it.
     character, arrows and curly quotes over each rendered file and the Slack
     and WhatsApp blocks finds none; and a grep for the user's client and
     project names over `docs/reports.md` and the skill's files finds none
-  - blocked: write-report-voice-shipped, write-report-reviewer
+  - blocked: write-report-reviewer
 - [ ] write-report-eval: Add `plugin/evals/write-report-whatsapp/`: a
   `scaffold.sh` giving a repository with one committed change and a clean
   tree, so no checkpoint offer arises, a prompt naming medium, action and
