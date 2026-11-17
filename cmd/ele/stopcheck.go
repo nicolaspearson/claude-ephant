@@ -478,15 +478,16 @@ func subagentDirectory(transcriptPath string) string {
 	return filepath.Join(strings.TrimSuffix(transcriptPath, filepath.Ext(transcriptPath)), "subagents")
 }
 
-// An edit stamped before the last proposal was cleared by it. Else, while a checkpoint runs, one stamped after it started
-// is a reviewer's. An unstamped one is work: a doubtful edit costs an ask, not lost work.
+// An edit stamped before the last proposal was cleared by it, and one stamped before the last checkpoint's start is not
+// mid-task. Else, while a checkpoint runs, one stamped after it started is a reviewer's. An unstamped one is work: a doubtful edit costs an ask, not lost work.
 func subagentEdit(state stopState, timestamp string) stopState {
 	stamped := timestamp != ""
+	cleared := stamped && timestamp < state.CheckpointStarted
 	switch {
 	case stamped && timestamp < state.NotesProposed:
-		state.MidTask = state.MidTask || !state.InCheckpoint
+		state.MidTask = state.MidTask || !state.InCheckpoint && !cleared
 	case !state.InCheckpoint:
-		state.MidTask, state.Pending = true, true
+		state.MidTask, state.Pending = state.MidTask || !cleared, true
 	case !stamped || timestamp <= state.CheckpointStarted:
 		state.Pending = true
 	}

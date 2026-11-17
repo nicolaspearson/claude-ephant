@@ -171,7 +171,7 @@ each in the spec, and fixes the rest without resting a fix on a guess.
     and one for each uninterrupted turn; the stop-check spec states it beside
     the subagent rule, and Replay that an Esc cancelling a stop's hooks leaves
     no `stop_hook_summary`
-- [ ] cleared-subagent-edit: `subagentEdit` treats a subagent edit stamped
+- [x] cleared-subagent-edit: `subagentEdit` treats a subagent edit stamped
       before `CheckpointStarted` as cleared by that checkpoint when the
       checkpoint is read as over, so it sets no `MidTask`
   - done when stop-check tests with a subagent edit stamped before
@@ -183,6 +183,14 @@ each in the spec, and fixes the rest without resting a fix on a guess.
     the band is not spent first; an unstamped edit and one stamped exactly at
     `CheckpointStarted`, read late, still set `MidTask`; and the spec's
     subagent bullet says so
+  - asserted in the cleared-subagent-edit commit:
+    `TestRunStopCheckLetsACheckpointClearASubagentsEarlierEdit` runs a
+    subagent edit stamped before `CheckpointStarted` through `stopCheck`, read
+    after the next prompt with no stop between and by a behind stop catching
+    up past it, and gets the handoff hint, with the notes ask kept and none
+    after a proposal; an edit stamped at the start or unstamped still gets
+    `/compact`; red before the fix and under four mutations of `subagentEdit`;
+    the spec's subagent bullet says so
 - [ ] subagent-first-read: Read subagent files from offset 0 on a first stop
       that is not behind, ending the unread skip in `scanSubagents` and
       `replayer.stop`

@@ -643,6 +643,69 @@ func TestRunStopCheckKeepsASubagentsEditBeforeACheckpoint(t *testing.T) {
 	require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason)}, output, "a delegated edit made before the checkpoint, read only once it began, is kept")
 }
 
+func TestRunStopCheckLetsACheckpointClearASubagentsEarlierEdit(t *testing.T) {
+	stamped := func(id string, timestamp string, content string) string {
+		return `{"type":"assistant","sessionId":"` + stopCheckSession + `","timestamp":"` + timestamp + `","message":{"id":"` + id + `","content":[` + content + `]}}`
+	}
+	asked := stopOutput{HookSpecificOutput: continueWith(rememberReason), SystemMessage: "Context 150k. Write a handoff (/ele:handoff), then /clear"}
+	compact := stopOutput{HookSpecificOutput: continueWith(rememberReason), SystemMessage: "Context 150k. At a pause: /compact"}
+	for _, test := range []struct {
+		edit     string
+		name     string
+		proposal bool
+		want     stopOutput
+	}{
+		{edit: `"timestamp":"2026-10-20T10:00:05.000Z",`, name: "stamped at its start", want: compact},
+		{edit: `"timestamp":"2026-10-20T10:00:00.000Z",`, name: "stamped before it", want: asked},
+		{edit: `"timestamp":"2026-10-20T10:00:00.000Z",`, name: "stamped before it and a proposal", proposal: true, want: stopOutput{SystemMessage: asked.SystemMessage}},
+		{name: "unstamped", want: compact},
+	} {
+		writeCheckpoint := func(run *stopCheckRun) int {
+			run.respond(1000, `{"type":"tool_use","name":"Agent","input":{"description":"build it"}}`)
+			run.write(stamped("c1", "2026-10-20T10:00:05.000Z", `{"type":"tool_use","name":"Skill","input":{"skill":"ele:checkpoint"}}`))
+			if test.proposal {
+				run.write(stamped("n1", "2026-10-20T10:00:10.000Z", `{"type":"tool_use","name":"Bash","input":{"command":"ele remember --kind fact \"Kept\""}}`))
+				return 3
+			}
+			return 2
+		}
+		subagent := func(run *stopCheckRun) {
+			writeFile(t, filepath.Join(subagentDirectory(run.transcriptPath), "agent-a1.jsonl"), `{"type":"assistant","isSidechain":true,`+test.edit+`"message":{"id":"s1","content":[`+stopCheckEdit+`]}}`+"\n")
+		}
+		t.Run(test.name+", read after the next prompt", func(t *testing.T) {
+			run := newStopCheckRun(t)
+			run.respond(1000, stopCheckText)
+			raw, _ := run.stop(run.gateway, false)
+			require.Empty(t, raw, "no subagents yet")
+
+			writeCheckpoint(run)
+			run.prompt()
+			subagent(run)
+			run.respond(150000, stopCheckText)
+			_, output := run.stop(run.gateway, false)
+			require.Equal(t, test.want, output)
+		})
+		t.Run(test.name+", read by a behind stop catching up past the next prompt", func(t *testing.T) {
+			run := newStopCheckRun(t)
+			budget := scanBudget
+			scanBudget = 0
+			t.Cleanup(func() { scanBudget = budget })
+			subagent(run)
+			behind := writeCheckpoint(run)
+			run.prompt()
+			for range behind {
+				raw, _ := run.stop(run.gateway, false)
+				require.Empty(t, raw, "no output while the scan is behind")
+			}
+
+			scanBudget = budget
+			run.respond(150000, stopCheckText)
+			_, output := run.stop(run.gateway, false)
+			require.Equal(t, test.want, output)
+		})
+	}
+}
+
 func TestRunStopCheckLetsAProposalClearASubagentsEarlierEdit(t *testing.T) {
 	stamped := func(id string, timestamp string, content string) string {
 		return `{"type":"assistant","sessionId":"` + stopCheckSession + `","timestamp":"` + timestamp + `","message":{"id":"` + id + `","content":[` + content + `]}}`
