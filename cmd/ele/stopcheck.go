@@ -259,10 +259,9 @@ func removeStaleStopState(dataDirectory string, now time.Time) error {
 	return nil
 }
 
-// Read after the transcript. With no saved state, existing files are skipped unread: a long session's scan cost.
+// Read after the transcript.
 func scanSubagents(directory string, state stopState) (stopState, error) {
-	unread := state.Subagents == nil
-	if unread {
+	if state.Subagents == nil {
 		state.Subagents = map[string]int64{}
 	}
 	listing, err := os.ReadDir(directory)
@@ -286,7 +285,7 @@ func scanSubagents(directory string, state stopState) (stopState, error) {
 			return state, statErr
 		}
 		offset := state.Subagents[name]
-		if unread || info.Size() == offset {
+		if info.Size() == offset {
 			state.Subagents[name] = info.Size()
 			continue
 		}
@@ -424,10 +423,8 @@ func stopCheck(ctx context.Context, args []string, stdin io.Reader, stdout io.Wr
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return 1
 	}
-	// Edits are placed against the parent's state, partial while behind; an empty map has the caught-up stop read every file from its start.
-	if behind && state.Subagents == nil {
-		state.Subagents = map[string]int64{}
-	} else if !behind {
+	// Edits are placed against the parent's state, partial while behind.
+	if !behind {
 		if state, err = scanSubagents(subagentDirectory(hook.TranscriptPath), state); err != nil {
 			fmt.Fprintf(stderr, "ele: %v\n", err)
 			return 1

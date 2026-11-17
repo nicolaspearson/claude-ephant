@@ -355,6 +355,14 @@ func TestRunStopCheckCountsAQuestionForNotesOnly(t *testing.T) {
 	require.Equal(t, continueWith(rememberReason), output.HookSpecificOutput, "after the next prompt, a question is work again")
 }
 
+func TestRunStopCheckCountsASubagentsEditBeforeTheFirstStop(t *testing.T) {
+	run := newStopCheckRun(t)
+	writeFile(t, filepath.Join(subagentDirectory(run.transcriptPath), "agent-a1.jsonl"), `{"type":"assistant","isSidechain":true,"message":{"id":"s","content":[`+stopCheckEdit+`]}}`+"\n")
+	run.respond(1000, `{"type":"tool_use","name":"Agent","input":{"description":"build it"}}`)
+	_, output := run.stop(run.gateway, false)
+	require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason)}, output)
+}
+
 func TestRunStopCheckCountsASubagentsEdits(t *testing.T) {
 	run := newStopCheckRun(t)
 	subagent := filepath.Join(subagentDirectory(run.transcriptPath), "agent-a1.jsonl")
@@ -849,7 +857,7 @@ func TestRunStopCheckResumesAScanCutByItsBudget(t *testing.T) {
 		state, readErr := readStopState(statePath)
 		require.NoError(t, readErr)
 		require.Equal(t, int64(offset), state.Offset, "one line a stop at a zero budget")
-		require.Equal(t, map[string]int64{}, state.Subagents, "subagent files wait for the scan to catch up")
+		require.Nil(t, state.Subagents, "subagent files wait for the scan to catch up")
 	}
 	_, output := run.stop(run.gateway, false)
 	require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason)}, output, "caught up, the subagent's edit is asked about")
@@ -880,7 +888,7 @@ func TestScanSubagentsCountsFileChangesOnly(t *testing.T) {
 	writeFile(t, path, edit)
 	state, err := scanSubagents(directory, stopState{})
 	require.NoError(t, err)
-	require.Equal(t, stopState{Subagents: map[string]int64{"agent-a1.jsonl": int64(len(edit))}}, state, "with no saved state, existing history is skipped unread")
+	require.Equal(t, stopState{MidTask: true, Pending: true, Subagents: map[string]int64{"agent-a1.jsonl": int64(len(edit))}}, state, "with no saved state, every file is read from its start")
 
 	state, err = scanSubagents(filepath.Join(t.TempDir(), "subagents"), stopState{})
 	require.NoError(t, err)

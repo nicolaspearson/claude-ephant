@@ -191,7 +191,7 @@ each in the spec, and fixes the rest without resting a fix on a guess.
     after a proposal; an edit stamped at the start or unstamped still gets
     `/compact`; red before the fix and under four mutations of `subagentEdit`;
     the spec's subagent bullet says so
-- [ ] subagent-first-read: Read subagent files from offset 0 on a first stop
+- [x] subagent-first-read: Read subagent files from offset 0 on a first stop
       that is not behind, ending the unread skip in `scanSubagents` and
       `replayer.stop`
   - done when a stop-check test and a stopreplay test each count a subagent
@@ -201,6 +201,20 @@ each in the spec, and fixes the rest without resting a fix on a guess.
     the read keeps no deadline; and the change in asks per session from
     `ele stop-check --replay` over a recent window, before and after, is written
     under this item
+  - asserted in the subagent-first-read commit:
+    `TestRunStopCheckCountsASubagentsEditBeforeTheFirstStop` asks for notes at
+    a session's first stop for a subagent edit made before it,
+    `TestScanSubagentsCountsFileChangesOnly` reads every file from its start
+    with no saved state, and
+    `TestReplayTranscriptAppliesSubagentEditsAtTheFirstStopAfterThem` counts an
+    unstamped edit at the first replayed stop; each red before the fix and
+    under a mutation restoring the skip; the spec's What it reads, State and
+    Replay sections state one read rule with no deadline.
+    `ele stop-check --replay` over 2026-11-03 to 2026-11-17, before and after:
+    134 sessions, 4488 stops, 235 asks, 1.754 asks per session both, no
+    session's asks changed; one stop that already asked gained
+    `subagent-edit` in its trigger, its session's first four stops having run
+    inside a checkpoint
 - [ ] stretch-time: End a notes stretch 60 minutes after its ask when work
       happened since, so the ask comes again, the ask's time kept in
       `stopState` in the transcript's timestamp form so it compares with an

@@ -62,7 +62,6 @@ type replayer struct {
 	blockStop bool // the last placed stop was a hook block's
 	edits     []string
 	grouped   bool // the current block group's stop was judged here, not skipped as copied
-	judged    bool
 	lastBlock time.Time
 	output    bool
 	prompted  bool
@@ -309,8 +308,7 @@ func (r *replayer) step(next stopState) {
 }
 
 // A stop copied into a resumed transcript ran in the session it was copied from, so the hook did nothing there. The
-// hook reads subagent files after the transcript, so an edit counts at the first stop at or after its stamp; at a
-// transcript's first judged stop it has no saved state and records the files' sizes unread.
+// hook reads subagent files after the transcript, so an edit counts at the first stop at or after its stamp.
 func (r *replayer) stop(timestamp string, uuid string, kind string, asked bool) bool {
 	key := cmp.Or(uuid, "@"+timestamp)
 	r.output, r.prompted = false, false
@@ -318,14 +316,12 @@ func (r *replayer) stop(timestamp string, uuid string, kind string, asked bool) 
 		return false
 	}
 	for len(r.edits) > 0 && r.edits[0] <= timestamp {
-		if r.judged {
-			probe := r.state
-			probe.Pending = false
-			if subagentEdit(probe, r.edits[0]).Pending {
-				r.mark("subagent-edit")
-			}
-			r.step(subagentEdit(r.state, r.edits[0]))
+		probe := r.state
+		probe.Pending = false
+		if subagentEdit(probe, r.edits[0]).Pending {
+			r.mark("subagent-edit")
 		}
+		r.step(subagentEdit(r.state, r.edits[0]))
 		r.edits = r.edits[1:]
 	}
 	stop := replayStop{Asked: asked, Stop: kind, Timestamp: timestamp, key: key}
@@ -336,7 +332,7 @@ func (r *replayer) stop(timestamp string, uuid string, kind string, asked bool) 
 	} else {
 		stop.WhyNot = r.whyNot()
 	}
-	r.judged, r.proposed, r.state = true, false, next
+	r.proposed, r.state = false, next
 	r.stops = append(r.stops, stop)
 	return true
 }

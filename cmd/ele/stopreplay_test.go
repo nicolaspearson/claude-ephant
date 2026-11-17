@@ -89,12 +89,15 @@ func TestReplayTimeReadsADateAsLocalMidnightAndATimeAsWritten(t *testing.T) {
 func TestReplayTranscriptAppliesSubagentEditsAtTheFirstStopAfterThem(t *testing.T) {
 	lines := &replayLines{}
 	lines.prompt().tool("Agent", `{"description":"build"}`).stop()
-	first := lines.stamp()
 	lines.prompt().tool("Agent", `{"description":"build more"}`).stop()
 	second := lines.stamp()
 	lines.prompt().tool("Bash", `{"command":"git status"}`).stop()
-	stops := replayed(t, lines, "", first, second)
-	require.Equal(t, "nothing-pending", stops[0].WhyNot, "at its first stop the hook has no state and reads no subagent file, unstamped edits included")
+	stops := replayed(t, lines, "")
+	require.Equal(t, []string{"subagent-edit"}, stops[0].Trigger, "at its first stop the hook reads every subagent file from its start, an unstamped edit included")
+	require.True(t, stops[0].Asks)
+
+	stops = replayed(t, lines, second)
+	require.Equal(t, "nothing-pending", stops[0].WhyNot)
 	require.Equal(t, []string{"subagent-edit"}, stops[1].Trigger, "an edit at a later stop's stamp counts there")
 	require.True(t, stops[1].Asks)
 	require.Equal(t, "nothing-pending", stops[2].WhyNot, "each edit counts once")
