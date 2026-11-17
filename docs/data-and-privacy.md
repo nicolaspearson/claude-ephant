@@ -258,7 +258,7 @@ block a session starts with names any option set away from its default.
 | `auto_note_writes` | `false` | On, notes ele proposes are written without asking, each reported with its id                                                 |
 | `checkpoint_gate`  | `true`  | Off, a turn that changed files and claims done is not held for `/ele:checkpoint`                                          |
 | `colour`           | `true`  | Off, the messages ele shows you are plain text, for a client that does not render ANSI colour. `NO_COLOR` turns it off too |
-| `compact_hint_at`  | `150000` | Context tokens from which the Stop hook suggests `/compact` or a handoff, again every 100k past it; `0` turns the suggestion off |
+| `compact_hint_at`  | `150000` | Context tokens from which the Stop hook suggests `/compact` or `/ele:wrap`, again every 100k past it; `0` turns the suggestion off |
 | `lone_handoff_pending` | `false` | On, a lone handoff stays pending until you pick or drop it, as several do, instead of showing once |
 | `notes_ask`        | `true`  | Off, the Stop hook never asks for notes; `/ele:remember` and `/ele:wrap` still propose them |
 | `recipe_dir`       | empty   | An absolute or `~/` path to a folder an approved recipe is written to once, each profile's `skills/<name>` linked to it; empty writes a copy into each profile. `set` refuses a path that is not a folder |

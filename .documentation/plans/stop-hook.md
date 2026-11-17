@@ -245,7 +245,7 @@ each in the spec, and fixes the rest without resting a fix on a guess.
     1.754 to 4.104 per session, 66 sessions up and none down, most by 1 to 4,
     the most by 22 in sessions resumed over days; an upper bound, since replay
     never answers its extra asks
-- [ ] wrap-hint: The size hint says `Wrap up (/ele:wrap), then /clear` when not
+- [x] wrap-hint: The size hint says `Wrap up (/ele:wrap), then /clear` when not
       mid-task
   - done when `sizeHint`'s tests and `highlight_test.go`'s stop-check hint case
     assert the new text; the spec, `.documentation/specs/design.md`,
@@ -253,6 +253,15 @@ each in the spec, and fixes the rest without resting a fix on a guess.
     `cmd/ele` `help.go`, `plugin/hooks/hooks.json` and the `compact_hint_at`
     description name `/ele:wrap`; and a grep for `Write a handoff
     (/ele:handoff)` outside `.documentation/plans/` finds none
+  - asserted in the wrap-hint commit: `sizeHint` says
+    `Wrap up (/ele:wrap), then /clear` when not mid-task, asserted by
+    `TestSizeHint` and every stop-check test that reads the hint, red on the
+    old text before the change and under a mutation restoring it, and by
+    `highlight_test.go`'s stop-check hint case; the spec, `design.md`,
+    `docs/handoffs-and-reminders.md`, `docs/data-and-privacy.md`, `README.md`,
+    `help.go`, `hooks.json` and the `compact_hint_at` description name
+    `/ele:wrap`; a grep for `Write a handoff (/ele:handoff)` outside
+    `.documentation/plans/` finds none
 - [ ] Fold each Decision through
       `/ele:plan-audit close .documentation/plans/stop-hook.md`, then what this
       plan built and its out-of-scope lines as `Not doing:` into the spec, run

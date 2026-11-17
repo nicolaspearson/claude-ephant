@@ -59,7 +59,8 @@ fresh start, once per further 100k; the `compact_hint_at` option moves that
 threshold, and 0 turns the suggestion off:
 
 - Mid-task, `/compact`, with the active plan's next item as its focus
-- Otherwise, a handoff with `/ele:handoff`, then `/clear`
+- Otherwise, `/ele:wrap`, which offers notes, a handoff and due reminders to
+  close, then `/clear`
 
 The suggestion can come a turn late: Claude Code can run the hook before the
 turn's own size is written to the transcript.

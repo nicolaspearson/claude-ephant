@@ -32,7 +32,7 @@ before it is called done.
 - **Reminders that find you.** "Remind me on Friday" shows at every session
   start from Friday until you close it; a nudge comes back on its interval
 - **It watches your context.** By default, past 150k tokens it suggests
-  `/compact` or a handoff, before a long context costs you on every turn
+  `/compact` or `/ele:wrap`, before a long context costs you on every turn
 - **Clients and your own work kept apart.** A client's sessions never surface in
   your personal recall, and their notes never reach your sessions
 - **Procedures become skills.** `/ele:recipe` keeps a procedure a session
@@ -233,7 +233,7 @@ each does.
 - **`colour`**, on: highlights the messages ele shows you; `NO_COLOR` turns it
   off
 - **`compact_hint_at`**, 150000: context tokens from which ele suggests
-  `/compact` or a handoff; 0 turns it off
+  `/compact` or `/ele:wrap`; 0 turns it off
 - **`lone_handoff_pending`**, off: keeps a lone handoff pending until you pick
   or drop it, instead of showing it once
 - **`notes_ask`**, on: asks for notes once per stretch of work, and again an

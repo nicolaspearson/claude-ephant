@@ -369,7 +369,7 @@ func sizeHint(tokens int, threshold int, hinted int, midTask bool, focus string)
 	}
 	size := fmt.Sprintf("Context %dk.", tokens/1000)
 	if !midTask {
-		return size + " Write a handoff (/ele:handoff), then /clear", band
+		return size + " Wrap up (/ele:wrap), then /clear", band
 	}
 	if focus == "" {
 		return size + " At a pause: /compact", band

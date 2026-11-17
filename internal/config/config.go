@@ -70,7 +70,7 @@ var Options = []Option{
 	},
 	{
 		Default:     150000,
-		Description: "Context tokens from which the Stop hook suggests /compact or a handoff, again every 100k past it; 0 turns the hint off.",
+		Description: "Context tokens from which the Stop hook suggests /compact or /ele:wrap, again every 100k past it; 0 turns the hint off.",
 		Kind:        KindInteger,
 		Name:        "compact_hint_at",
 	},

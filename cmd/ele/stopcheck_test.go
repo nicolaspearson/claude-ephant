@@ -350,8 +350,8 @@ func TestRunStopCheckAsksForNotesOnlyWithNotesAsk(t *testing.T) {
 }
 
 func TestRunStopCheckColoursTheHint(t *testing.T) {
-	coloured := "\033[1mContext 150k.\033[22m Write a handoff (\033[36m/ele:handoff\033[39m), then \033[36m/clear\033[39m"
-	plain := "Context 150k. Write a handoff (/ele:handoff), then /clear"
+	coloured := "\033[1mContext 150k.\033[22m Wrap up (\033[36m/ele:wrap\033[39m), then \033[36m/clear\033[39m"
+	plain := "Context 150k. Wrap up (/ele:wrap), then /clear"
 	tests := []struct {
 		config  string
 		name    string
@@ -389,7 +389,7 @@ func TestRunStopCheckCountsAQuestionForNotesOnly(t *testing.T) {
 
 	run.respond(150000, question)
 	_, output := run.stop(run.gateway, false)
-	require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason), SystemMessage: "Context 150k. Write a handoff (/ele:handoff), then /clear"}, output, "a question asks for notes but is not mid-task")
+	require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason), SystemMessage: "Context 150k. Wrap up (/ele:wrap), then /clear"}, output, "a question asks for notes but is not mid-task")
 
 	run.respond(1000, question)
 	run.command("checkpoint")
@@ -462,7 +462,7 @@ func TestRunStopCheckDecidesEveryCombination(t *testing.T) {
 		name    string
 		project string
 	}{
-		{advice: "Write a handoff (/ele:handoff), then /clear", name: "between tasks with a lone plan", project: "lone"},
+		{advice: "Wrap up (/ele:wrap), then /clear", name: "between tasks with a lone plan", project: "lone"},
 		{advice: "At a pause: /compact Next item", midTask: true, name: "mid-task with a lone plan", project: "lone"},
 		{advice: "At a pause: /compact", midTask: true, name: "mid-task with no plan", project: "none"},
 		{advice: "At a pause: /compact", midTask: true, name: "mid-task with several plans", project: "several"},
@@ -566,7 +566,7 @@ func TestRunStopCheckHintsAgainAfterCompactHintAtWasOff(t *testing.T) {
 	configPath := filepath.Join(run.home, "data", "config.json")
 	run.respond(260000, stopCheckText)
 	_, output := run.stop(run.gateway, false)
-	require.Equal(t, "Context 260k. Write a handoff (/ele:handoff), then /clear", output.SystemMessage, "band 1 hinted")
+	require.Equal(t, "Context 260k. Wrap up (/ele:wrap), then /clear", output.SystemMessage, "band 1 hinted")
 
 	writeFile(t, configPath, `{"compact_hint_at": 0}`)
 	run.prompt()
@@ -578,7 +578,7 @@ func TestRunStopCheckHintsAgainAfterCompactHintAtWasOff(t *testing.T) {
 	run.prompt()
 	run.respond(160000, stopCheckText)
 	_, output = run.stop(run.gateway, false)
-	require.Equal(t, "Context 160k. Write a handoff (/ele:handoff), then /clear", output.SystemMessage, "band 0 hinted again once on")
+	require.Equal(t, "Context 160k. Wrap up (/ele:wrap), then /clear", output.SystemMessage, "band 0 hinted again once on")
 }
 
 func TestRunStopCheckHintsFromCompactHintAt(t *testing.T) {
@@ -589,12 +589,12 @@ func TestRunStopCheckHintsFromCompactHintAt(t *testing.T) {
 		want   string
 	}{
 		{config: `{"compact_hint_at": 0}`, name: "0 turns it off", tokens: 900000},
-		{config: `{"compact_hint_at": 1`, name: "broken file reads as the default", tokens: 150000, want: "Context 150k. Write a handoff (/ele:handoff), then /clear"},
-		{name: "default, at", tokens: 150000, want: "Context 150k. Write a handoff (/ele:handoff), then /clear"},
+		{config: `{"compact_hint_at": 1`, name: "broken file reads as the default", tokens: 150000, want: "Context 150k. Wrap up (/ele:wrap), then /clear"},
+		{name: "default, at", tokens: 150000, want: "Context 150k. Wrap up (/ele:wrap), then /clear"},
 		{name: "default, below", tokens: 149999},
-		{config: `{"owners": {"personal": {"compact_hint_at": 400000}}}`, name: "raised for another owner", tokens: 150000, want: "Context 150k. Write a handoff (/ele:handoff), then /clear"},
+		{config: `{"owners": {"personal": {"compact_hint_at": 400000}}}`, name: "raised for another owner", tokens: 150000, want: "Context 150k. Wrap up (/ele:wrap), then /clear"},
 		{config: `{"owners": {"corp": {"compact_hint_at": 400000}}}`, name: "raised for this owner", tokens: 150000},
-		{config: `{"compact_hint_at": 400000}`, name: "raised, at", tokens: 400000, want: "Context 400k. Write a handoff (/ele:handoff), then /clear"},
+		{config: `{"compact_hint_at": 400000}`, name: "raised, at", tokens: 400000, want: "Context 400k. Wrap up (/ele:wrap), then /clear"},
 		{config: `{"compact_hint_at": 400000}`, name: "raised, below", tokens: 399999},
 	}
 	for _, test := range tests {
@@ -629,7 +629,7 @@ func TestRunStopCheckHintsOncePerBandAndNamesTheLonePlan(t *testing.T) {
 
 	run.respond(150000, `{"type":"tool_use","name":"Read","input":{"file_path":"main.go"}}`)
 	_, output := stop()
-	require.Equal(t, stopOutput{SystemMessage: "Context 150k. Write a handoff (/ele:handoff), then /clear"}, output, "a read is not work")
+	require.Equal(t, stopOutput{SystemMessage: "Context 150k. Wrap up (/ele:wrap), then /clear"}, output, "a read is not work")
 	run.respond(249999, stopCheckText)
 	raw, _ = stop()
 	require.Empty(t, raw, "the band is hinted once")
@@ -657,7 +657,7 @@ func TestRunStopCheckHintsOncePerBandAndNamesTheLonePlan(t *testing.T) {
 	run.command("checkpoint")
 	run.respond(550000, stopCheckGate)
 	_, output = stop()
-	require.Equal(t, stopOutput{SystemMessage: "Context 550k. Write a handoff (/ele:handoff), then /clear"}, output, "a typed checkpoint ends the task, its own gate run included")
+	require.Equal(t, stopOutput{SystemMessage: "Context 550k. Wrap up (/ele:wrap), then /clear"}, output, "a typed checkpoint ends the task, its own gate run included")
 
 	run.prompt()
 	run.respond(650000, stopCheckEdit)
@@ -665,7 +665,7 @@ func TestRunStopCheckHintsOncePerBandAndNamesTheLonePlan(t *testing.T) {
 	run.respond(650000, stopCheckGate)
 	run.respond(650000, stopCheckEdit)
 	_, output = stop()
-	require.Equal(t, stopOutput{SystemMessage: "Context 650k. Write a handoff (/ele:handoff), then /clear"}, output, "a checkpoint skill call ends the task, its gate run and fixes included")
+	require.Equal(t, stopOutput{SystemMessage: "Context 650k. Wrap up (/ele:wrap), then /clear"}, output, "a checkpoint skill call ends the task, its gate run and fixes included")
 
 	run.prompt()
 	run.respond(40000, stopCheckGate)
@@ -710,7 +710,7 @@ func TestRunStopCheckLetsACheckpointClearASubagentsEarlierEdit(t *testing.T) {
 	stamped := func(id string, timestamp string, content string) string {
 		return `{"type":"assistant","sessionId":"` + stopCheckSession + `","timestamp":"` + timestamp + `","message":{"id":"` + id + `","content":[` + content + `]}}`
 	}
-	asked := stopOutput{HookSpecificOutput: continueWith(rememberReason), SystemMessage: "Context 150k. Write a handoff (/ele:handoff), then /clear"}
+	asked := stopOutput{HookSpecificOutput: continueWith(rememberReason), SystemMessage: "Context 150k. Wrap up (/ele:wrap), then /clear"}
 	compact := stopOutput{HookSpecificOutput: continueWith(rememberReason), SystemMessage: "Context 150k. At a pause: /compact"}
 	for _, test := range []struct {
 		edit     string
@@ -1073,12 +1073,12 @@ func TestSizeHint(t *testing.T) {
 		tokens  int
 	}{
 		{band: 0, hinted: 0, midTask: true, name: "at, band hinted", tokens: 249999},
-		{band: 0, hinted: noBand, message: "Context 150k. Write a handoff (/ele:handoff), then /clear", name: "at, between tasks", tokens: 150000},
+		{band: 0, hinted: noBand, message: "Context 150k. Wrap up (/ele:wrap), then /clear", name: "at, between tasks", tokens: 150000},
 		{band: 0, focus: "Size hint", hinted: noBand, message: "Context 150k. At a pause: /compact Size hint", midTask: true, name: "at, mid-task with a lone plan", tokens: 150000},
 		{band: 0, hinted: noBand, message: "Context 150k. At a pause: /compact", midTask: true, name: "at, mid-task with no lone plan", tokens: 150000},
 		{band: 3, hinted: 3, name: "over, band hinted", tokens: 480000},
-		{band: 3, hinted: 0, message: "Context 480k. Write a handoff (/ele:handoff), then /clear", name: "over, bands skipped", tokens: 480000},
-		{band: 1, hinted: 0, message: "Context 250k. Write a handoff (/ele:handoff), then /clear", name: "over, next band", tokens: 250000},
+		{band: 3, hinted: 0, message: "Context 480k. Wrap up (/ele:wrap), then /clear", name: "over, bands skipped", tokens: 480000},
+		{band: 1, hinted: 0, message: "Context 250k. Wrap up (/ele:wrap), then /clear", name: "over, next band", tokens: 250000},
 		{band: noBand, hinted: 2, name: "under resets the band", tokens: 40000},
 		{band: noBand, hinted: noBand, name: "under, nothing hinted", tokens: 149999},
 	}
