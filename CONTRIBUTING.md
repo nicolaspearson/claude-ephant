@@ -139,6 +139,21 @@ hold no history; git keeps it.
 The plans under `.documentation/plans/` are ele plans, worked one item a
 session with `/ele:plan`; [Plans](docs/plans.md) describes the format.
 
+### Agent models
+
+Each agent under `plugin/agents/` names its model in its front matter's
+`model:`, unless a skill passes one on launch, as `/ele:review` does in its
+reviewer table. Use `sonnet`, `opus` or `inherit`, never a full model ID:
+`sonnet` and `opus` move to the newest model of their family with Claude Code
+and resolve to what each provider offers, where a pinned ID ages and fails on
+providers that name models differently.
+
+Changing a model is a change to cost and to what the agent catches. Change the
+`model:` line or the skill's reviewer table, every sentence in the specs and
+skills that names the agent's model (`grep -rn '<old model>' .documentation
+plugin`), and the table under [Models](docs/data-and-privacy.md#models), in
+one commit.
+
 ## Commits
 
 Commit subjects are [Conventional Commits](https://www.conventionalcommits.org),

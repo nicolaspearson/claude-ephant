@@ -28,6 +28,48 @@ reads through `gh` or `glab`. The only model calls come from skills you or
 Claude invoke, such as `/ele:remember` wording a note or `/ele:checkpoint`'s
 reviewers, and they run inside the session already open, on its account.
 
+## Models
+
+Skills that launch subagents run each on the model its job needs: reading and
+rule-checking on Sonnet, a design or a plan's review on Opus, and the bugs
+review on the model your session uses.
+
+| Skill               | Subagent                                                 | Model          |
+| ------------------- | -------------------------------------------------------- | -------------- |
+| `/ele:checkpoint`   | Bugs reviewer, and the single reviewer in small mode     | your session's |
+| `/ele:checkpoint`   | Conventions and prose, spec, and the re-review           | Sonnet         |
+| `/ele:dev`          | Architects, two per real design choice                   | Opus           |
+| `/ele:dev`          | Explorers                                                | Sonnet         |
+| `/ele:mine`         | Classifiers                                              | your session's |
+| `/ele:plan`         | Architects, and the draft's reviewer                     | Opus           |
+| `/ele:plan`         | Explorers                                                | Sonnet         |
+| `/ele:plan-audit`   | Method runs, when the audit splits or after a compaction | your session's |
+| `/ele:review`       | Bugs reviewer                                            | your session's |
+| `/ele:review`       | Conventions and spec reviewers                           | Sonnet         |
+| `/ele:ticket-audit` | Method runs, when the audit splits or after a compaction | your session's |
+
+Every other skill runs in your session, on its model. Sonnet and Opus are
+Claude Code's `sonnet` and `opus` aliases, so a Claude Code update that moves
+an alias to a newer model moves ele with it. Off the Anthropic API, on Bedrock, Google
+Cloud or Foundry, the aliases resolve to the models that provider offers,
+which can be older ones.
+
+To run them on other models without changing the plugin:
+
+- `ANTHROPIC_DEFAULT_SONNET_MODEL` and `ANTHROPIC_DEFAULT_OPUS_MODEL` set the
+  model each alias resolves to, for every agent that names it
+- `CLAUDE_CODE_SUBAGENT_MODEL` with `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` runs
+  every subagent on one model, ignoring the model an agent names or a skill
+  passes. Without `FORCE`, it reaches only the subagents that name none, the
+  `your session's` rows above except `/ele:review`'s bugs reviewer, whose
+  agent names `inherit`
+
+Set either in your shell or in the `env` block of Claude Code's
+`settings.json`. `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` needs Claude Code 2.1.257
+or later; see Claude Code's
+[model configuration](https://code.claude.com/docs/en/model-config) and
+[subagent](https://code.claude.com/docs/en/sub-agents) docs.
+
 ## Storage
 
 Everything lives in one data directory: by default

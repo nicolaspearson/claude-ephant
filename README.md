@@ -215,7 +215,7 @@ Claude starts most of these when what you say calls for one. `/ele:plan`,
   before done, and tickets checked against the code
 - [Review](docs/review.md): merge requests and pull requests, experimental
 - [Data and privacy](docs/data-and-privacy.md): what is stored, where, what is
-  redacted, and what leaves your machine
+  redacted, what leaves your machine, and which models the subagents run on
 - [Improving ele](docs/improving-ele.md): measuring the skills on your own data,
   and sharing it if you choose
 - [Command reference](docs/commands.md): every command and flag
