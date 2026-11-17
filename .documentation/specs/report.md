@@ -65,7 +65,9 @@ The core is a file in the session's scratch directory, outside every repository
 in scope, each claim carrying its evidence pointer: a commit, a diff hunk, a
 command's output, a note, the user's words quoted, or a fetched source's URL.
 The diff, log and recall output and each fetched source's text it drew on are
-saved beside it. The reviewer sees no conversation, so what it checks against
+saved beside it, with the `git show` of each commit and the text of each
+command output and note a claim points to. The reviewer sees no conversation
+and runs no command, so what it checks against
 has to be on disk.
 
 ## Media
@@ -91,7 +93,8 @@ The Slack and WhatsApp markup below is as of 2026-11-13, from vendor docs:
   `--` and straight quotes typographic
 - PDF, printed from the HTML by headless Chrome, else weasyprint, each found by
   `command -v` and the macOS application path. With neither, the HTML is
-  delivered and the reply says so
+  delivered and the reply says so. The reviewer reads a PDF through the HTML
+  it was printed from, since its Grep skips a binary file
 
 No chart: no report the skill was designed from held one. Content steps down
 from a table, where the medium has one, to a list, to one sentence with the
@@ -164,7 +167,12 @@ describes would then never be asked about.
 
 - `plugin/skills/write-report/SKILL.md` and its profiles under `references/`
 - `plugin/agents/report-reviewer.md`, `ele:report-reviewer`: a thin agent of
-  its own, as each reviewing skill has, with Glob, Grep, Read, and Bash for
-  read-only git
+  its own, as each reviewing skill has, on sonnet, with Glob, Grep and Read
+  only. It reads fetched web text, so a page written to steer it could reach
+  it; with no tool that runs a command, nothing it is steered to can run, as
+  with `ele:review-reader`. The skill saves the `git show` of each commit a
+  claim points to beside the evidence, and gives each render's character count
+  in the brief. Its instructions are
+  `plugin/skills/write-report/reviewers/report.md`
 - `plugin/reference/report-voice.md`, the shipped voice
 - A docs page of its own, as `/ele:review` has

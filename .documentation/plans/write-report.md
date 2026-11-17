@@ -146,7 +146,13 @@ session's evidence before the user sees it.
   counted; fit to the medium's length and markup; no secret for any reader;
   and for an outside reader, no internal host, file path, ticket id the reader
   cannot open or other client's name. A thin agent of its own, as each
-  reviewing skill has, with Glob, Grep, Read and Bash for read-only git
+  reviewing skill has, with Glob, Grep and Read only: it reads fetched web
+  text, so nothing a page steers it to can run. The skill saves the `git show`
+  of each commit a claim points to beside the evidence, and gives each render's
+  character count in the brief
+  - rejected: Bash limited in prose to read-only git and `wc -m`, because the
+    limit is a request nothing enforces, and an injected page could run any
+    command through it
 - The reviewer sees no conversation, so the skill writes the evidence down: the
   core as a file in the session's scratch directory, outside every repository
   in scope, each claim with its evidence pointer (a commit, a diff hunk, a
@@ -297,16 +303,41 @@ session's evidence before the user sees it.
     research claim its saved source does not hold. Each also holds a backed,
     dated claim, and the inside reader's an internal hostname, neither
     reported. And `task check FORCE=1` and `task audit` pass
+  - as of 2026-11-17: premise check. Thin agents put `description`, `model`,
+    `name` and `tools` in front matter and their limits in prose; none limits
+    Bash to read-only git in `tools`, which led to the no-Bash Decision. The
+    skill lint passes a `SKILL.md` of front matter alone with
+    `disable-model-invocation: true`, and fails a code span naming a missing
+    `references/` file. `task dev` is interactive and runs `task install`
+    first; CONTRIBUTING.md says it loads the clone's plugin for that session
+    only, so a session running the cached plugin has no `ele:report-reviewer`
+    (not checked live), and the two launches are run by the user in a
+    `task dev` session
+  - as of 2026-11-17: the agent (Glob, Grep, Read, sonnet), the reviewer file,
+    the skeleton `SKILL.md` and design.md's rows are written; `task check
+    FORCE=1` and `task audit` pass; dry runs of an earlier version, with
+    `general-purpose` reading the agent and reviewer files, found every planted
+    defect, and one extra on the inside draft came from a fixture flaw since
+    fixed; not re-run on the current files
+  - next: the user runs the two `ele:report-reviewer` launches over the planted
+    fixtures in a `task dev` session, then the tick
 - [ ] write-report-skill: Write `plugin/skills/write-report/SKILL.md` and its
   profiles `references/{slack,whatsapp,markdown,html,pdf}.md`: checkpoint
   check, evidence, the ask, the core in the voice, the reviewer, the render
-  and delivery; the html profile self-contained (CSS inline, no external font
-  or local asset) and, where pandoc makes it, run without its `smart`
-  extension, which turns `...`, `--` and straight quotes typographic; the pdf
-  profile finding Chrome or weasyprint by `command -v` and the macOS
-  application path; add `docs/reports.md`, its row in `docs/commands.md`, a
-  README bullet, and a `docs/data-and-privacy.md` paragraph on the evidence
-  files left in the scratch directory and the default output path; exempt
+  and delivery; the evidence holding the `git show` of each commit, and the
+  text of each command output and note, a claim points to, and the reviewer's
+  brief giving each render's character count and, for a PDF, the HTML it was
+  printed from, since the reviewer runs no command and Grep skips a binary; the
+  html
+  profile self-contained (CSS inline, no external font or local asset) and,
+  where pandoc makes it, run without its `smart` extension, which turns `...`,
+  `--` and straight quotes typographic; the pdf profile finding Chrome or
+  weasyprint by `command -v` and the macOS application path; replace the
+  skeleton's "not built yet" body; add `docs/reports.md`, its row in
+  `docs/commands.md`, a README bullet, a `docs/data-and-privacy.md` paragraph
+  on the evidence files left in the scratch directory and the default output
+  path, and a line in `docs/notes-and-recall.md` that a report raises no notes
+  ask while work before it stays pending; exempt
   `ele:write-report` in `cmd/ele` `stopcheck.go` as `recipeSkill` is, setting
   `Proposing` without clearing `Pending`, with a case in `stopcheck_test.go`
   seen red without it, and say so beside `ele:recipe` in
@@ -319,8 +350,10 @@ session's evidence before the user sees it.
     the path the user confirmed and the PDF opened, with no report turn blocked
     by the checkpoint gate; a grep for em and en dashes, the ellipsis
     character, arrows and curly quotes over each rendered file and the Slack
-    and WhatsApp blocks finds none; and a grep for the user's client and
-    project names over `docs/reports.md` and the skill's files finds none
+    and WhatsApp blocks finds none; a grep for the user's client and project
+    names over `docs/reports.md` and the skill's files finds none; and a grep
+    for `write-report` finds each docs page this item names, each checked
+    against the skill as built
   - blocked: write-report-reviewer
 - [ ] write-report-eval: Add `plugin/evals/write-report-whatsapp/`: a
   `scaffold.sh` giving a repository with one committed change and a clean
