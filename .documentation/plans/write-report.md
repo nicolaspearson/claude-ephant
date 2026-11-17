@@ -330,7 +330,7 @@ session's evidence before the user sees it.
     its verdict folded it into typed punctuation. `task check FORCE=1` and
     `task audit` pass on 0fb66b8; after it only Markdown changed, and
     `task lint` and the skill lint pass
-- [ ] write-report-skill: Write `plugin/skills/write-report/SKILL.md` and its
+- [x] write-report-skill: Write `plugin/skills/write-report/SKILL.md` and its
   profiles `references/{slack,whatsapp,markdown,html,pdf}.md`: checkpoint
   check, evidence, the ask, the core in the voice, the reviewer, the render
   and delivery; the evidence holding the `git show` of each commit, and the
@@ -383,7 +383,19 @@ session's evidence before the user sees it.
     `docs/notes-and-recall.md`) are written and reviewed; `task check FORCE=1`
     and `task audit` pass; a pandoc probe gave one title and nothing external,
     and Chrome printed a PDF
-  - next: the user's `task dev` run of one report in each of the five media
+  - asserted in the write-report-skill commit, over 9027d74, aff0296 and
+    2e5492c: in one `task dev` session over a scratch repository holding a
+    commit, a fetched RFC 9110 and an unfixed off-by-one, `/ele:write-report`
+    rendered WhatsApp, Markdown and HTML under the full-coverage fix, and Slack
+    and PDF before it, not re-rendered since; each carrying all three with its
+    evidence,
+    reviewed by `ele:report-reviewer` and seen by the user as fit to send; the
+    files at the confirmed path and the PDF opened; no Stop hook block or notes
+    ask on any report turn; no typographic character in any render, the Slack
+    and WhatsApp blocks included; no client or project name in
+    `docs/reports.md` or the skill's files; a grep for `write-report` finds
+    each docs page named; `task check FORCE=1` and `task audit` pass, with only
+    Markdown changed after
 - [ ] write-report-eval: Add `plugin/evals/write-report-whatsapp/`: a
   `scaffold.sh` giving a repository with one committed change and a clean
   tree, so no checkpoint offer arises, a prompt naming medium, action and
@@ -397,7 +409,6 @@ session's evidence before the user sees it.
   - done when each grader is seen failing on a reply holding its defect or
     lacking its fact, and one `task eval -- ./plugin` run, on the user's
     go-ahead and running every case as the target does, passes this case
-  - blocked: write-report-skill
 - [x] write-report-user-voice: Write `~/.claude/conventions/report-voice.md`, a
   copy of the user's client voice generalised beyond its client, leaving the
   original in place, rewritten in typed punctuation with the typed-punctuation
