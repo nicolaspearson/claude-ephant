@@ -377,7 +377,7 @@ session's evidence before the user sees it.
     lacking its fact, and one `task eval -- ./plugin` run, on the user's
     go-ahead and running every case as the target does, passes this case
   - blocked: write-report-skill
-- [ ] write-report-user-voice: Write `~/.claude/conventions/report-voice.md`, a
+- [x] write-report-user-voice: Write `~/.claude/conventions/report-voice.md`, a
   copy of the user's client voice generalised beyond its client, leaving the
   original in place, rewritten in typed punctuation with the typed-punctuation
   rule added, and print the `ele config set --owner hyve`, `--owner personal`
@@ -393,6 +393,14 @@ session's evidence before the user sees it.
     build that knows `report_voice`, unset for all three owners;
     `~/.claude/conventions/` held `review-voice.md` and `services.md` and no
     `report-voice.md` before this item
+  - asserted in the write-report-user-voice commit: `ele config get
+    report_voice` prints `~/.claude/conventions/report-voice.md`, expanded,
+    for owners hyve, personal and bitgorilla (owner as source), set by the user
+    in a terminal on a build knowing the option; a non-ASCII grep and a grep
+    for the source's client, project and every other proper name over the file
+    find none; the source has no uncommitted change, its last commit dated
+    2026-10-26; the file reviewed by the bugs, conventions and spec reviewers
+    against the source
 - [ ] Fold each Decision through `/ele:plan-audit close
   .documentation/plans/write-report.md`, then what this plan built and its
   out-of-scope lines as `Not doing:` into the spec, run `ele plan done
