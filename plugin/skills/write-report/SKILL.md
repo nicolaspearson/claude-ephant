@@ -12,6 +12,20 @@ note, since only the user knows whether a report went out. Slack and WhatsApp
 text is the closing reply, ready to paste; a file is written where the user
 confirms.
 
+One report at a time. An earlier report is in progress while its turn is still
+running or its review still runs in the background; one that stopped, at step
+2's checkpoint offer, an error or the user's word, holds nothing up, its
+reviewer still running or not, and the user's word to run a new one anyway
+overrides the hold. A new report started while one is in progress does no work
+of its own:
+
+- Arriving mid-turn, before the earlier report's turn ends, as a command typed
+  then did as of 2026-11-17: the earlier report carries on, and says that the
+  new one waits, to be run again once the earlier is delivered, as a clause of
+  the one line its turn ends with, or of its next question's text
+- Arriving in a new turn while the earlier review runs: one line saying so is
+  the whole turn
+
 `<scratch>` below is a new directory in the session scratchpad, outside every
 repository in scope: `mkdir <scratchpad>/write-report-<time>`, `<time>` from
 `date +%Y%m%d-%H%M%S`, its path written out in each later command, since Claude
@@ -201,11 +215,6 @@ session in a later turn. A turn that ends while a review runs ends with one
 line: the review is running, the block follows when it returns, and a second
 report waits until then. The turn the review's report wakes goes on with this
 step: its findings fixed, or step 8 once the second review is in.
-
-A report started while an earlier report's review still runs does no work: its
-turn is one line saying the earlier report is still in review, and to run this
-one again once that report is delivered. The earlier review's return is
-handled by this step and step 8 in whatever turn it wakes.
 
 Done when the second review has reported, or the first found nothing.
 

@@ -55,8 +55,11 @@ the rest in one question.
    the draft reviewed once more; an unbacked claim is dropped, never softened,
    and one still open is shown to you beside the draft. The review may run in
    the background: a turn that ends while it runs says so, and the block
-   follows on its own when the review returns. A report you start before then
-   does nothing but ask you to run it again once the first is delivered
+   follows on its own when the review returns. One report runs at a time: a
+   report you start while another is still being drafted or reviewed does
+   nothing but ask you to run it again once that one is delivered, and the
+   first carries on. A report that stopped, say for a checkpoint, holds nothing
+   up
 7. **Delivers** it. Slack and WhatsApp text is the closing reply, in a block to
    copy. A file goes to the path you confirm, by default
    `~/Downloads/<slug>-<date>.<ext>`, and a PDF is opened for you

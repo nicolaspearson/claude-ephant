@@ -176,9 +176,14 @@ a launch in the foreground, though one other agent type ran there, so whether
 a plugin agent can ask for it is not checked. A turn that ends while its
 review runs says so in one line, and that the block follows when the review
 returns, so the user starts no second report first: a second command typed
-earlier put two reports' blocks in one reply. A report started anyway does no
-work and asks to be run again once the earlier one is delivered, so two
-reports never share a turn.
+earlier put two reports' blocks in one reply. One report runs at a time, so no
+two are drafted at once: a report started while an earlier one is in progress,
+its turn still running or its review running, does no work and asks to be run
+again once the earlier one is delivered; a report that stopped holds nothing
+up, or a rerun after step 2's checkpoint offer would be refused. As of
+2026-11-17, a command typed while a report's turn waited on a question reached
+the session mid-turn, so the rule covers a report still being drafted, not
+only one in review.
 
 ## Delivery
 
