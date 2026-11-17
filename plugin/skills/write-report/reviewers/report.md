@@ -29,7 +29,10 @@ Over the core and every render:
 
 - **Unbacked.** A claim its pointer does not hold: no pointer, a pointer to
   nothing in the evidence files, or evidence saying something else. A render
-  holding a claim the core does not is unbacked too
+  holding a claim the core does not is unbacked too. A render that leaves part
+  of a claim out is not, unless what remains says something the core does not:
+  a dropped "not", "only" or scope word makes a new claim, and a dropped date is
+  undated
 - **Undated.** A figure or a state with no `as of` date
 - **Uncounted.** "All", "every", "none", "nothing", "everything outstanding",
   or a heading's count, where the evidence does not hold both lists to compare,
@@ -50,7 +53,9 @@ Over each render, against its medium:
   character, a curly quote or any other typographic character. Grep each render
   and the core for `[^\x00-\x7F]` and judge each hit; a name's accented letter
   is not one. In an HTML render an entity that shows as one, such as `&mdash;`,
-  `&hellip;`, `&rarr;` or a numeric one, is one too
+  `&hellip;`, `&rarr;` or a numeric one, is one too. A typographic character is
+  a typed-punctuation finding alone, never also a cut-off claim; judge the
+  claim from its words, the character read as its typed form
 
 A PDF is reviewed through the HTML it was printed from, which the brief names
 as its render: Grep skips a binary file.
