@@ -19,7 +19,10 @@ Each by the absolute path the brief gives:
 - The brief's reader: inside the team or outside it
 
 A research claim is checked against the saved source text, never the live
-page, which may have changed since the session read it. A claim resting on the
+page, which may have changed since the session read it. A source file whose
+first line starts `QUOTED BY A MODEL, NOT THE PAGE` holds a model's quotes,
+not the page: a claim resting on one is checked against them and also listed
+under Questions, naming the URL for the user to open. A claim resting on the
 user's words carries them quoted in the core, and that quote is its evidence;
 one with no quote is unbacked. Nothing outside the brief's files is evidence.
 

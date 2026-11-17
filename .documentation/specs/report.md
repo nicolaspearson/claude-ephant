@@ -67,8 +67,17 @@ command's output, a note, the user's words quoted, or a fetched source's URL.
 The diff, log and recall output and each fetched source's text it drew on are
 saved beside it, with the `git show` of each commit and the text of each
 command output and note a claim points to. The reviewer sees no conversation
-and runs no command, so what it checks against
-has to be on disk.
+and runs no command, so what it checks against has to be on disk.
+
+A web source is saved as the page's own text, downloaded with `curl` and made
+text with pandoc, never the fetch tool's words: the fetch tool is a model
+answering about a page, and its quotes can be wrong. The download stays outside
+the evidence, so the reviewer reads text, not raw HTML. Where the download
+fails, is not text, has no pandoc to make it text, is a sign-in or bot check,
+or lacks the claim's passage,
+the fetch tool's word-for-word quote is saved instead, marked on its first line
+as quoted by a model; the reviewer lists a claim resting on one as a question,
+and the closing reply names its source for the user to open before sending.
 
 ## Media
 

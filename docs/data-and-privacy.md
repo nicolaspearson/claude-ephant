@@ -47,6 +47,7 @@ review on the model your session uses.
 | `/ele:review`       | Bugs reviewer                                            | your session's |
 | `/ele:review`       | Conventions and spec reviewers                           | Sonnet         |
 | `/ele:ticket-audit` | Method runs, when the audit splits or after a compaction | your session's |
+| `/ele:write-report` | Report reviewer                                          | Sonnet         |
 
 Every other skill runs in your session, on its model. Sonnet and Opus are
 Claude Code's `sonnet` and `opus` aliases, so a Claude Code update that moves
@@ -227,6 +228,19 @@ overwriting them, until the scratchpad goes.
 
 Redaction is pattern matching, so a secret in an unknown format gets through,
 notes included. Keep secrets out of notes.
+
+`/ele:write-report` writes its evidence into a new directory in the session
+scratchpad: each commit a claim points to as `git show` prints it, the diff with
+new files included, the text of each command output and note it rests on, and
+the text of each web page it cites, with the core and the renders beside them.
+It downloads those pages with `curl` from your machine, so an internal URL is
+fetched with your network's access; a page it cannot download as text is saved
+as the fetch tool's quotes instead, marked as a model's. It cuts a token, key or password before
+saving, naming it only by its shape, but it does not run the redaction above,
+so a secret in an unknown format can reach those files. They stay until the
+scratchpad goes. A file report is written where you confirm, by default
+`~/Downloads/<slug>-<date>.<ext>`, outside the data directory and outside
+`ele backup`.
 
 ## Backup
 

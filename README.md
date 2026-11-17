@@ -57,6 +57,10 @@ before it is called done.
 - **Merge requests reviewed in your voice.** `/ele:review`, experimental, runs
   the same reviewers over someone else's MR or PR, major findings first, and
   posts only what you pick
+- **Reports shaped to where they go.** `/ele:write-report` drafts one report of
+  a session's work for one reader, in your voice, for Slack, WhatsApp or a
+  Markdown, HTML or PDF file, every claim checked against the session's
+  evidence first; it never sends
 - **Tickets checked against the code.** `/ele:ticket-audit` finds the tickets
   whose premises the code no longer holds, before you pick one up
 
@@ -122,6 +126,12 @@ As of 2026-11-14, on the author's own work across two Claude Code accounts:
 | `/ele:ticket-audit`  | Check a tracker's tickets against the code                                         | [Ticket-audit](docs/checkpoint-and-ticket-audit.md#ticket-audit)   |
 | `/ele:ticket-claims` | Find open GitHub tickets mistyped as a task                                        | [Ticket claims](docs/checkpoint-and-ticket-audit.md#ticket-claims) |
 
+### Reporting
+
+| Skill               | What it does                                                                    | Guide                      |
+| ------------------- | ------------------------------------------------------------------------------- | -------------------------- |
+| `/ele:write-report` | Draft one report of a session's work for one reader, shaped to where it is sent | [Reports](docs/reports.md) |
+
 ### Improving ele
 
 | Skill                   | What it does                                           | Guide                                                                                |
@@ -130,8 +140,8 @@ As of 2026-11-14, on the author's own work across two Claude Code accounts:
 | `/ele:mine`             | Judge past checkpoint runs and review cycles           | [Mining](docs/improving-ele.md#mining)                                               |
 
 Claude starts most of these when what you say calls for one. `/ele:plan`,
-`/ele:dev`, `/ele:review`, `/ele:ticket-claims`, `/ele:checkpoint-stats` and
-`/ele:mine` run only when you type them.
+`/ele:dev`, `/ele:review`, `/ele:ticket-claims`, `/ele:write-report`,
+`/ele:checkpoint-stats` and `/ele:mine` run only when you type them.
 
 ## Prerequisites
 
@@ -143,7 +153,12 @@ Claude starts most of these when what you say calls for one. `/ele:plan`,
 - `git`
 - Go, at the version in `go.mod`, only to install with `go install`
 - `jq`, for `/ele:ticket-audit` against GitLab
-- `curl`, `tar` and `sha256sum` or `shasum`, for the install script
+- `pandoc`, and Chrome or `weasyprint`, for `/ele:write-report`'s HTML and PDF
+  files and the text of the web pages it cites. Without pandoc it writes the
+  HTML by hand and keeps a page's HTML as downloaded; without either printer it
+  delivers the HTML in place of a PDF
+- `curl`, `tar` and `sha256sum` or `shasum`, for the install script; `curl`
+  also for the web pages `/ele:write-report` cites
 
 ## Install
 
@@ -214,6 +229,8 @@ Claude starts most of these when what you say calls for one. `/ele:plan`,
 - [Checkpoint and ticket-audit](docs/checkpoint-and-ticket-audit.md): review
   before done, and tickets checked against the code
 - [Review](docs/review.md): merge requests and pull requests, experimental
+- [Reports](docs/reports.md): one report of a session's work for one reader,
+  shaped to where it is sent
 - [Data and privacy](docs/data-and-privacy.md): what is stored, where, what is
   redacted, what leaves your machine, and which models the subagents run on
 - [Improving ele](docs/improving-ele.md): measuring the skills on your own data,

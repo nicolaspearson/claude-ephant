@@ -30,8 +30,6 @@ import (
 const (
 	hintBand = 100000
 	noBand   = -1
-	// Proposes a skill, not notes: work before it stays pending.
-	recipeSkill = "ele:recipe"
 	// Facts, not orders: context worded as a system command can read as a prompt injection.
 	rememberReason      = "This stretch's work has not been proposed as notes; /ele:remember's Propose section covers it: one Write/Skip question per note, at most four per AskUserQuestion call and as many calls as it takes, then each approved note written with ele remember, the command never printed for the user to run. With nothing worth keeping, one line says so."
 	rememberWriteReason = "This stretch's work has not been proposed as notes; /ele:remember's Propose section covers it: auto_note_writes is on, so each note is written with ele remember without asking and reported by id with its words, the command never printed for the user to run. With nothing worth keeping, one line says so."
@@ -43,7 +41,9 @@ const (
 
 var (
 	checkpointNames = []string{"checkpoint", "ele:checkpoint"}
-	proposalNames   = []string{"ele:handoff", "ele:remember", "ele:wrap"}
+	// Drafts for the user, not notes: work before one stays pending.
+	draftNames    = []string{"ele:recipe", "ele:write-report"}
+	proposalNames = []string{"ele:handoff", "ele:remember", "ele:wrap"}
 	// A third of the Stop hook's 30s timeout: a scan killed by the timeout saves no offset, so every later stop would start it over.
 	scanBudget = 10 * time.Second
 	// Tests fix it.
@@ -122,7 +122,7 @@ func advance(state stopState, entries []transcript.Entry, events []dto.Transcrip
 			state.CheckpointStarted, state.InCheckpoint, state.InReview, state.MidTask, state.StretchBlocked = event.Timestamp, true, false, false, false
 		case slices.Contains(proposalNames, event.Name):
 			state.NotesProposed, state.Pending, state.Proposing = max(state.NotesProposed, event.Timestamp), false, true
-		case event.Name == recipeSkill:
+		case slices.Contains(draftNames, event.Name):
 			state.Proposing = true
 		}
 	}

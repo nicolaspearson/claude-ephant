@@ -43,6 +43,7 @@ handoffs, flags and plans listed newest first are ordered by `time`.
 | `/ele:ticket-audit`     | Audit a tracker's ticket map against the code; see [Ticket-audit](checkpoint-and-ticket-audit.md#ticket-audit) |
 | `/ele:ticket-claims`    | Flag open GitHub tickets mistyped as a task or granting themselves execution; see [Ticket claims](checkpoint-and-ticket-audit.md#ticket-claims) |
 | `/ele:wrap`             | At a session's end, ask what to keep, a recipe included, which reminders to close and whether to hand off; see [Wrapping up](handoffs-and-reminders.md#wrapping-up) |
+| `/ele:write-report`     | Draft one report of a session's work for one reader, shaped to Slack, WhatsApp or a Markdown, HTML or PDF file, each claim checked against the evidence; see [Reports](reports.md) |
 
 ## Notes
 

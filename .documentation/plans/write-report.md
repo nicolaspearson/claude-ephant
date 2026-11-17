@@ -363,6 +363,27 @@ session's evidence before the user sees it.
     names over `docs/reports.md` and the skill's files finds none; and a grep
     for `write-report` finds each docs page this item names, each checked
     against the skill as built
+  - as of 2026-11-17: premise check. `cmd/ele` `recipeSkill` is one constant
+    whose `advance` case sets only `Proposing`; a Skill call and a typed
+    command both record `ele:write-report`, so a second constant beside it
+    covers both, tested as `stopcheck_test.go`'s "a recipe keeps earlier work
+    pending" is. `plugin/skills/review/SKILL.md` is the model: numbered steps
+    each ending "Done when", output in AskUserQuestion calls and the closing
+    reply, reviewer files by absolute path under the plugin root, an Errors
+    table. The skill lint caps `SKILL.md` under 500 lines and fails a code span
+    naming a missing `references/` file. No `ele` command lists the repositories
+    a session touched, so the skill names them from the conversation, as
+    `/ele:wrap` does. The README holds skill tables, feature bullets, a
+    typed-only sentence and a Guides list, and `docs/data-and-privacy.md` a
+    Models table, each needing the skill too. pandoc 3.13, weasyprint 70 and
+    Chrome are installed
+  - as of 2026-11-17: the skill, its five profiles, the Stop-hook exemption
+    with two tests seen red, the stop-check spec line and the docs
+    (`docs/reports.md`, `docs/commands.md`, README, `docs/data-and-privacy.md`,
+    `docs/notes-and-recall.md`) are written and reviewed; `task check FORCE=1`
+    and `task audit` pass; a pandoc probe gave one title and nothing external,
+    and Chrome printed a PDF
+  - next: the user's `task dev` run of one report in each of the five media
 - [ ] write-report-eval: Add `plugin/evals/write-report-whatsapp/`: a
   `scaffold.sh` giving a repository with one committed change and a clean
   tree, so no checkpoint offer arises, a prompt naming medium, action and
