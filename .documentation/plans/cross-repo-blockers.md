@@ -62,9 +62,10 @@ other item is ticked.
   since v1-release closed; the new form must keep resolving one, which
   `cmd/ele`'s `TestRunPlanShowFreesAnItemOnceAnotherPlansBlockerIsTicked`
   carries through the real lookup, not a live plan line
-- Not checked: whether the test fixtures can run a sync over a second
-  checkout's transcript, or need to seed the `directories` table through
-  `internal/index`
+- As of 2026-11-17: a `cmd/ele` fixture syncs transcripts whose `cwd` sits in
+  a repository under each of two owners, as
+  `TestRunContextRefusesAsRememberDoes` does, so `ele sync` fills the
+  `directories` table
 
 ## Decisions
 
@@ -114,9 +115,9 @@ other item is ticked.
       as `<project>/<plan>/<item>`, resolved, held and flagged as the
       Decisions say, in `plan show`, `plan check` and both hooks; the Plans,
       Owners and Principles sections of `.documentation/specs/design.md`,
-      `docs/plans.md`, and the `plan` and `plan-audit` skills describe it in
-      the same change. Where a fixture cannot sync a second checkout's
-      transcript, it seeds the `directories` table through `internal/index`
+      `docs/plans.md`, `docs/owners.md`'s Crossing owners,
+      `ele plan check --help`, and the `plan` and `plan-audit` skills describe
+      it in the same change
   - done when, in a fixture of two repositories under two owners, `ele plan
     show` in one holds an item blocked on an open item of the other, frees it
     once that item is ticked in the other checkout while its plan is active,
@@ -128,9 +129,9 @@ other item is ticked.
     `show`, and the stop hook's next item skips the held item; a three-part
     blocker naming its own project resolves as `<plan>/<item>`; the
     same-project `BlockerNoPlan` flag names the three-part form; and
-    `.documentation/specs/design.md`, `docs/plans.md`,
-    `plugin/skills/plan/SKILL.md` and `plugin/skills/plan-audit/SKILL.md`
-    describe it
+    `.documentation/specs/design.md`, `docs/plans.md`, `docs/owners.md`,
+    `ele plan check --help`, `plugin/skills/plan/SKILL.md` and
+    `plugin/skills/plan-audit/SKILL.md` describe it
 - [ ] Fold each Decision through
       `/ele:plan-audit close .documentation/plans/cross-repo-blockers.md`,
       then what this plan built and its out-of-scope lines as `Not doing:`
