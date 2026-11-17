@@ -236,7 +236,8 @@ each does.
   `/compact` or a handoff; 0 turns it off
 - **`lone_handoff_pending`**, off: keeps a lone handoff pending until you pick
   or drop it, instead of showing it once
-- **`notes_ask`**, on: asks for notes once per stretch of work
+- **`notes_ask`**, on: asks for notes once per stretch of work, and again an
+  hour after asking if work has happened since
 - **`recipe_dir`**, empty: a folder an approved recipe is written to once,
   linked from each profile
 - **`recipes`**, on: `/ele:wrap` offers a procedure the session ran as a skill

@@ -28,7 +28,8 @@ because the binary must have no server". The `/ele:remember` skill words the
 note, saves it and reports its id.
 
 ele also asks. When a turn ends after work, its Stop hook asks Claude to
-propose what is worth keeping, once per stretch of work between checkpoints.
+propose what is worth keeping, once per stretch of work between checkpoints,
+and again an hour after it asked if work has happened since.
 Your terminal shows the ask as `Stop hook feedback:` under Claude Code's
 `Ran <n> stop hooks` line, not as a hook error, and the turn carries on.
 It never asks during a checkpoint, or a `/ele:review` once its reviewers start,

@@ -82,7 +82,7 @@ var Options = []Option{
 	},
 	{
 		Default:     true,
-		Description: "Asks for notes in the Stop hook once per stretch of work; off, /ele:remember still works.",
+		Description: "Asks for notes in the Stop hook once per stretch of work, and again an hour after the ask with work since; off, /ele:remember still works.",
 		Kind:        KindBoolean,
 		Name:        "notes_ask",
 	},

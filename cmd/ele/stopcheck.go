@@ -37,6 +37,7 @@ const (
 	rememberWriteReason = "This stretch's work has not been proposed as notes; /ele:remember's Propose section covers it: auto_note_writes is on, so each note is written with ele remember without asking and reported by id with its words, the command never printed for the user to run. With nothing worth keeping, one line says so."
 	reviewReader        = "ele:review-reader"
 	stopStateMaxAge     = 7 * 24 * time.Hour
+	stretchAskAgain     = time.Hour
 	tailWindow          = 1 << 20
 )
 
@@ -45,6 +46,8 @@ var (
 	proposalNames   = []string{"ele:handoff", "ele:remember", "ele:wrap"}
 	// A third of the Stop hook's 30s timeout: a scan killed by the timeout saves no offset, so every later stop would start it over.
 	scanBudget = 10 * time.Second
+	// Tests fix it.
+	stopClock = time.Now
 	// Not Bash: research and review subagents run it to read.
 	subagentWorkTools = []string{"Edit", "NotebookEdit", "Write"}
 	// Bash unless it is a read: a command can change files, and /clear mid-task loses more than /compact between tasks.
@@ -52,6 +55,7 @@ var (
 )
 
 type stopState struct {
+	AskedAt           string           `json:"askedAt,omitempty"`
 	Band              int              `json:"band"`
 	CheckpointStarted string           `json:"checkpointStarted,omitempty"`
 	InCheckpoint      bool             `json:"inCheckpoint"`
@@ -225,12 +229,24 @@ func readStopState(path string) (stopState, error) {
 }
 
 // Not mid-checkpoint or mid-review: either's turn can end while reviewers run.
-func rememberBlock(state stopState, held bool) (bool, stopState) {
+func rememberBlock(state stopState, held bool, now time.Time) (bool, stopState) {
+	if asked, err := time.Parse(time.RFC3339Nano, state.AskedAt); err == nil && !now.Before(asked.Add(stretchAskAgain)) {
+		state.StretchBlocked = false
+	}
 	if !state.Pending || state.InCheckpoint || state.InReview || state.StretchBlocked || held {
 		return false, state
 	}
-	state.Pending, state.Proposing, state.StretchBlocked = false, true, true
+	state.AskedAt, state.Pending, state.Proposing, state.StretchBlocked = transcriptStamp(now), false, true, true
 	return true, state
+}
+
+// The transcript's own timestamp form, so an ask's time compares with a subagent edit's stamp as a string; "" for the
+// zero time.
+func transcriptStamp(at time.Time) string {
+	if at.IsZero() {
+		return ""
+	}
+	return at.UTC().Format("2006-01-02T15:04:05.000Z")
 }
 
 func removeStaleStopState(dataDirectory string, now time.Time) error {
@@ -430,6 +446,11 @@ func stopCheck(ctx context.Context, args []string, stdin io.Reader, stdout io.Wr
 			return 1
 		}
 	}
+	now := stopClock()
+	// State from before AskedAt: its hour starts here, after the scans, so no edit they read counts as asked about.
+	if state.StretchBlocked && state.AskedAt == "" {
+		state.AskedAt = transcriptStamp(now)
+	}
 	settings := loadConfig(dataDirectory, stderr)
 	var output stopOutput
 	if hintAt := compactHintAt(settings, owner); hintAt > 0 {
@@ -447,7 +468,7 @@ func stopCheck(ctx context.Context, args []string, stdin io.Reader, stdout io.Wr
 	}
 	var block bool
 	// Behind, a proposal not yet read may have cleared the pending work.
-	if block, state = rememberBlock(state, hook.StopHookActive || behind); block {
+	if block, state = rememberBlock(state, hook.StopHookActive || behind, now); block {
 		output.HookSpecificOutput = continueWith(rememberReason)
 		if value, valueErr := settings.Value("auto_note_writes", owner); valueErr == nil && value.Value == true {
 			output.HookSpecificOutput = continueWith(rememberWriteReason)
@@ -475,13 +496,14 @@ func subagentDirectory(transcriptPath string) string {
 	return filepath.Join(strings.TrimSuffix(transcriptPath, filepath.Ext(transcriptPath)), "subagents")
 }
 
-// An edit stamped before the last proposal was cleared by it, and one stamped before the last checkpoint's start is not
-// mid-task. Else, while a checkpoint runs, one stamped after it started is a reviewer's. An unstamped one is work: a doubtful edit costs an ask, not lost work.
+// An edit stamped before the last proposal or notes ask was cleared by it, and one stamped before the last checkpoint's
+// start is not mid-task. Else, while a checkpoint runs, one stamped after it started is a reviewer's. An unstamped one is
+// work: a doubtful edit costs an ask, not lost work.
 func subagentEdit(state stopState, timestamp string) stopState {
 	stamped := timestamp != ""
 	cleared := stamped && timestamp < state.CheckpointStarted
 	switch {
-	case stamped && timestamp < state.NotesProposed:
+	case stamped && (timestamp < state.NotesProposed || timestamp < state.AskedAt):
 		state.MidTask = state.MidTask || !state.InCheckpoint && !cleared
 	case !state.InCheckpoint:
 		state.MidTask, state.Pending = state.MidTask || !cleared, true

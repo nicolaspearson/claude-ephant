@@ -20,8 +20,7 @@ type replayLines struct {
 
 func (l *replayLines) add(format string, arguments ...any) *replayLines {
 	l.second++
-	stamp := fmt.Sprintf("2026-10-20T10:%02d:%02d.000Z", l.second/60, l.second%60)
-	l.lines = append(l.lines, fmt.Sprintf(`{"timestamp":"%s","uuid":"u%d",`, stamp, l.second)+fmt.Sprintf(format, arguments...)+"}")
+	l.lines = append(l.lines, fmt.Sprintf(`{"timestamp":"%s","uuid":"u%d",`, l.stamp(), l.second)+fmt.Sprintf(format, arguments...)+"}")
 	return l
 }
 
@@ -42,7 +41,7 @@ func (l *replayLines) prompt() *replayLines {
 }
 
 func (l *replayLines) stamp() string {
-	return fmt.Sprintf("2026-10-20T10:%02d:%02d.000Z", l.second/60, l.second%60)
+	return transcriptStamp(time.Date(2026, 10, 20, 10, 0, l.second, 0, time.UTC))
 }
 
 func (l *replayLines) stop() *replayLines {
@@ -51,6 +50,11 @@ func (l *replayLines) stop() *replayLines {
 
 func (l *replayLines) tool(name string, input string) *replayLines {
 	return l.add(`"type":"assistant","message":{"id":"m%d","content":[{"type":"tool_use","name":%q,"input":%s}]}`, l.second+1, name, input)
+}
+
+func (l *replayLines) wait(minutes int) *replayLines {
+	l.second += minutes * 60
+	return l
 }
 
 func replayed(t *testing.T, lines *replayLines, edits ...string) []replayStop {
@@ -106,6 +110,19 @@ func TestReplayTranscriptAppliesSubagentEditsAtTheFirstStopAfterThem(t *testing.
 	lines.prompt().stop()
 	lines.prompt().tool("Agent", `{"description":"build"}`).tool("Bash", `{"command":"ele remember --kind fact x"}`).stop()
 	require.Equal(t, "proposal", replayed(t, lines, "2026-10-20T10:00:03.500Z")[1].WhyNot, "an edit stamped before a proposal is cleared by it, though read after")
+}
+
+func TestReplayTranscriptEndsAStretchAnHourAfterItsAsk(t *testing.T) {
+	lines := &replayLines{}
+	lines.prompt().tool("Edit", `{"file_path":"a.go"}`).stop()
+	lines.prompt().tool("Edit", `{"file_path":"b.go"}`).stop()
+	lines.wait(58).prompt().tool("Edit", `{"file_path":"c.go"}`).stop()
+	lines.wait(2).prompt().tool("Bash", `{"command":"git status"}`).stop()
+	stops := replayed(t, lines)
+	require.True(t, stops[0].Asks)
+	require.Equal(t, "stretch", stops[1].WhyNot)
+	require.Equal(t, "stretch", stops[2].WhyNot, "under an hour after the ask, by the transcript's own times")
+	require.True(t, stops[3].Asks, "an hour after the ask, with work since")
 }
 
 func TestReplayTranscriptJudgesEachRecordedStop(t *testing.T) {

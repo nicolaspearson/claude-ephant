@@ -215,7 +215,7 @@ each in the spec, and fixes the rest without resting a fix on a guess.
     session's asks changed; one stop that already asked gained
     `subagent-edit` in its trigger, its session's first four stops having run
     inside a checkpoint
-- [ ] stretch-time: End a notes stretch 60 minutes after its ask when work
+- [x] stretch-time: End a notes stretch 60 minutes after its ask when work
       happened since, so the ask comes again, the ask's time kept in
       `stopState` in the transcript's timestamp form so it compares with an
       edit's stamp, the hook's clock behind a package variable, and replay
@@ -231,6 +231,20 @@ each in the spec, and fixes the rest without resting a fix on a guess.
     written under this item; and the spec's stretch rule, State and Replay
     sections, `docs/notes-and-recall.md`, `README.md`, `cmd/ele` `help.go` and
     `plugin/hooks/hooks.json` say so
+  - asserted in the stretch-time commit:
+    `TestRunStopCheckAsksForNotesAgainAnHourAfterTheAsk` asks again at 60
+    minutes with an edit or a question alone since, and not at 59, with nothing
+    since, or with only a subagent edit stamped before the ask;
+    `TestRunStopCheckStartsAnOldStatesHourAtTheFirstStopThatLoadsIt` starts a
+    saved `StretchBlocked` state's hour at its first stop;
+    `TestReplayTranscriptEndsAStretchAnHourAfterItsAsk` judges the hour by the
+    transcript's own times; each red under a mutation; the spec, `design.md`,
+    `docs/notes-and-recall.md`, `README.md`, `help.go`, `hooks.json` and the
+    `notes_ask` description say so. `ele stop-check --replay` over 2026-11-03
+    to 2026-11-17, before and after: 134 sessions, 4488 stops, asks 235 to 550,
+    1.754 to 4.104 per session, 66 sessions up and none down, most by 1 to 4,
+    the most by 22 in sessions resumed over days; an upper bound, since replay
+    never answers its extra asks
 - [ ] wrap-hint: The size hint says `Wrap up (/ele:wrap), then /clear` when not
       mid-task
   - done when `sizeHint`'s tests and `highlight_test.go`'s stop-check hint case

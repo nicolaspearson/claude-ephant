@@ -76,6 +76,15 @@ func (run *stopCheckRun) write(line string) {
 	writeFile(run.t, run.transcriptPath, run.lines.String())
 }
 
+// Returns a setter putting the hook's clock that many minutes after start.
+func fixStopClock(t *testing.T, start time.Time) func(minutes int) {
+	clock := stopClock
+	t.Cleanup(func() { stopClock = clock })
+	return func(minutes int) {
+		stopClock = func() time.Time { return start.Add(time.Duration(minutes) * time.Minute) }
+	}
+}
+
 func TestAdvance(t *testing.T) {
 	tool := func(texts ...string) []transcript.Entry {
 		var entries []transcript.Entry
@@ -171,6 +180,11 @@ func TestLastContextTokensReadsBackPastALongLine(t *testing.T) {
 }
 
 func TestRememberBlock(t *testing.T) {
+	const (
+		hourAgo      = "2026-10-20T10:00:00.000Z"
+		now          = "2026-10-20T11:00:00.000Z"
+		underHourAgo = "2026-10-20T10:00:00.001Z"
+	)
 	tests := []struct {
 		block          bool
 		from           stopState
@@ -179,16 +193,21 @@ func TestRememberBlock(t *testing.T) {
 		want           stopState
 	}{
 		{from: stopState{}, name: "no work"},
+		{from: stopState{AskedAt: hourAgo, StretchBlocked: true}, name: "no work, blocked an hour ago", want: stopState{AskedAt: hourAgo}},
 		{from: stopState{StretchBlocked: true}, name: "no work, blocked this stretch", want: stopState{StretchBlocked: true}},
-		{block: true, from: stopState{MidTask: true, Pending: true}, name: "work pending", want: stopState{MidTask: true, Proposing: true, StretchBlocked: true}},
+		{block: true, from: stopState{MidTask: true, Pending: true}, name: "work pending", want: stopState{AskedAt: now, MidTask: true, Proposing: true, StretchBlocked: true}},
 		{from: stopState{Pending: true}, name: "work pending, Stop hook already continuing", stopHookActive: true, want: stopState{Pending: true}},
+		{block: true, from: stopState{AskedAt: hourAgo, Pending: true, StretchBlocked: true}, name: "work pending, blocked an hour ago", want: stopState{AskedAt: now, Proposing: true, StretchBlocked: true}},
 		{from: stopState{Pending: true, StretchBlocked: true}, name: "work pending, blocked this stretch", want: stopState{Pending: true, StretchBlocked: true}},
+		{from: stopState{AskedAt: underHourAgo, Pending: true, StretchBlocked: true}, name: "work pending, blocked under an hour ago", want: stopState{AskedAt: underHourAgo, Pending: true, StretchBlocked: true}},
 		{from: stopState{InCheckpoint: true, Pending: true}, name: "work pending, mid-checkpoint", want: stopState{InCheckpoint: true, Pending: true}},
 		{from: stopState{InReview: true, Pending: true}, name: "work pending, mid-review", want: stopState{InReview: true, Pending: true}},
 	}
+	at, err := time.Parse(time.RFC3339Nano, now)
+	require.NoError(t, err)
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			block, state := rememberBlock(test.from, test.stopHookActive)
+			block, state := rememberBlock(test.from, test.stopHookActive, at)
 			require.Equal(t, test.block, block)
 			require.Equal(t, test.want, state)
 		})
@@ -208,6 +227,42 @@ func TestRemoveStaleStopStateKeepsAWeek(t *testing.T) {
 	require.FileExists(t, filepath.Join(dataDirectory, "stop-check", "fresh.json"))
 	require.NoFileExists(t, filepath.Join(dataDirectory, "stop-check", "stale.json"))
 	require.NoError(t, removeStaleStopState(t.TempDir(), now), "no state directory yet")
+}
+
+func TestRunStopCheckAsksForNotesAgainAnHourAfterTheAsk(t *testing.T) {
+	block := stopOutput{HookSpecificOutput: continueWith(rememberReason)}
+	at := fixStopClock(t, time.Date(2026, 10, 20, 10, 0, 0, 0, time.UTC))
+	for _, test := range []struct {
+		minutes int
+		name    string
+		want    stopOutput
+		work    func(run *stopCheckRun)
+	}{
+		{minutes: 60, name: "a question since, an hour on", want: block, work: func(run *stopCheckRun) {
+			run.respond(1000, `{"type":"tool_use","name":"AskUserQuestion","input":{"questions":[]}}`)
+		}},
+		{minutes: 60, name: "an edit since, an hour on", want: block, work: func(run *stopCheckRun) { run.respond(1000, stopCheckEdit) }},
+		{minutes: 59, name: "an edit since, under an hour on", work: func(run *stopCheckRun) { run.respond(1000, stopCheckEdit) }},
+		{minutes: 60, name: "nothing since, an hour on", work: func(run *stopCheckRun) { run.respond(1000, stopCheckText) }},
+		{minutes: 60, name: "only a subagent edit stamped before the ask, an hour on", work: func(run *stopCheckRun) {
+			writeFile(t, filepath.Join(subagentDirectory(run.transcriptPath), "agent-a1.jsonl"), `{"type":"assistant","isSidechain":true,"timestamp":"2026-10-20T09:59:00.000Z","message":{"id":"s","content":[`+stopCheckEdit+`]}}`+"\n")
+			run.respond(1000, stopCheckText)
+		}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			run := newStopCheckRun(t)
+			at(0)
+			run.respond(1000, stopCheckEdit)
+			_, output := run.stop(run.gateway, false)
+			require.Equal(t, block, output, "the first ask")
+
+			run.prompt()
+			test.work(run)
+			at(test.minutes)
+			_, output = run.stop(run.gateway, false)
+			require.Equal(t, test.want, output)
+		})
+	}
 }
 
 func TestRunStopCheckAsksForNotesOncePerStretch(t *testing.T) {
@@ -864,6 +919,36 @@ func TestRunStopCheckResumesAScanCutByItsBudget(t *testing.T) {
 	state, err := readStopState(statePath)
 	require.NoError(t, err)
 	require.Equal(t, map[string]int64{"agent-a1.jsonl": int64(len(subagent))}, state.Subagents)
+}
+
+func TestRunStopCheckStartsAnOldStatesHourAtTheFirstStopThatLoadsIt(t *testing.T) {
+	run := newStopCheckRun(t)
+	at := fixStopClock(t, time.Date(2026, 10, 20, 10, 0, 0, 0, time.UTC))
+	dataDirectory, err := datadir.Path()
+	require.NoError(t, err)
+	statePath := filepath.Join(dataDirectory, "stop-check", run.session+".json")
+
+	at(0)
+	run.respond(1000, stopCheckEdit)
+	_, output := run.stop(run.gateway, false)
+	require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason)}, output, "the first ask")
+	state, err := readStopState(statePath)
+	require.NoError(t, err)
+	state.AskedAt = ""
+	require.NoError(t, writeStopState(statePath, state))
+
+	at(30)
+	run.prompt()
+	run.respond(1000, stopCheckText)
+	writeFile(t, filepath.Join(subagentDirectory(run.transcriptPath), "agent-a1.jsonl"), `{"type":"assistant","isSidechain":true,"timestamp":"2026-10-20T10:20:00.000Z","message":{"id":"s","content":[`+stopCheckEdit+`]}}`+"\n")
+	raw, _ := run.stop(run.gateway, false)
+	require.Empty(t, raw, "loaded blocked with no ask time, read as asked now, after the subagent edit it reads")
+	at(89)
+	raw, _ = run.stop(run.gateway, false)
+	require.Empty(t, raw, "under an hour since it loaded")
+	at(90)
+	_, output = run.stop(run.gateway, false)
+	require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason)}, output, "an hour since it loaded, with work since")
 }
 
 func TestRunSyncReportsStopCheckStateItCannotRemove(t *testing.T) {

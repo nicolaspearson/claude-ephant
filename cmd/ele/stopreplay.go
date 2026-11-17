@@ -326,7 +326,9 @@ func (r *replayer) stop(timestamp string, uuid string, kind string, asked bool) 
 	}
 	stop := replayStop{Asked: asked, Stop: kind, Timestamp: timestamp, key: key}
 	var next stopState
-	stop.Asks, next = rememberBlock(r.state, r.active)
+	// A stop with no parseable time neither starts a stretch's hour nor ends one.
+	at, _ := time.Parse(time.RFC3339Nano, timestamp)
+	stop.Asks, next = rememberBlock(r.state, r.active, at)
 	if stop.Asks {
 		stop.Trigger, r.trigger = r.trigger, nil
 	} else {
