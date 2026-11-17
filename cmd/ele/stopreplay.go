@@ -24,7 +24,7 @@ import (
 const (
 	stopPlaced   = "placed"
 	stopRecorded = "recorded"
-	// As of 2026-11-13, Claude Code 2.1.311 writes one stop_hook_summary per Stop.
+	// As of 2026-11-16, Claude Code 2.1.311 writes one stop_hook_summary per Stop, none for a Stop whose hooks Esc cancels.
 	stopSummaryType = "stop_hook_summary"
 )
 
