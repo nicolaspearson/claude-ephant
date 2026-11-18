@@ -44,10 +44,9 @@ List any rename by both its old and new path.
 
 Nothing uncommitted and nothing untracked: say so and stop, this is not a
 checkpoint — unless commits sit unpushed, in which case offer a branch review
-(below), or the caller named a branch-scope base. A clean tree alone is not
-that — files outside git, in a symlinked or unversioned directory, hold work git
-will never report, reviewed against a saved copy of what they replaced, or
-against the file itself where there is none.
+(below), or the caller named a branch-scope base. **Outside git**: a change
+editing a file in a symlinked or unversioned directory, which git never reports,
+is a checkpoint on a clean tree too; read `references/OUTSIDE-GIT.md` first.
 
 **Branch scope**, when the user asks for a review of the branch or accepts the
 offer, or `/ele:plan` pickup runs it over work already committed with a base it
@@ -55,17 +54,16 @@ names: read `references/BRANCH.md` first; it changes what the sections
 below mean.
 
 Build the change list: every tracked file in the diff, every untracked file from
-that status, every changed file outside git. `git diff HEAD` does not show
-untracked files, and a review given only the diff reviews none of them — the
-files a change adds usually carry its logic. Without `--untracked-files=all` a
-new directory is one `?? dir/` line, which the freeze refuses. Uncommitted work unrelated to this
-change stays off the list.
+that status, every changed file outside git (`references/OUTSIDE-GIT.md`).
+`git diff HEAD` does not show untracked files, and a review given only the diff
+reviews none of them — the files a change adds usually carry its logic. Without
+`--untracked-files=all` a new directory is one `?? dir/` line, which the freeze
+refuses. Uncommitted work unrelated to this change stays off the list.
 
 Run the repository's formatter over the paths on the change list, so work off
 the list keeps its bytes. Run its linter over the packages (or directories)
-holding them — a Go linter given single files cannot see their siblings and
-reports names it cannot resolve — with no fix flag, since a fixing run over a
-package rewrites siblings off the list (golangci-lint: `--new-from-rev=HEAD`).
+holding them, with no fix flag, since a fixing run over a package rewrites
+siblings off the list; in a Go repository, read `references/GO-LINT.md` first.
 Fix by hand what it reports on lines the change touched; anything else is
 pre-existing, left, and named in §10. What these catch never reaches a reviewer
 as a finding. Then re-read `git status --porcelain` for those paths: a staged
@@ -153,7 +151,7 @@ One brief, shared by every reviewer, every path absolute:
 
 - Each repository root and its frozen diff.
 - The scope. Delta: as `references/DELTA.md` says.
-- The change list, untracked and outside-git files marked as such.
+- The change list, untracked files marked as such.
 - The paths §1 found staged differently from the working tree.
 - The convention file paths.
 - What was asked — the ticket, or the user's request in their words. An item
@@ -188,9 +186,10 @@ absolute, and Attack surfaces names at least one specific input, state or path.
 ## 4. Review
 
 **Mode.** The freeze prints the mode each root alone implies. A second
-repository or any file outside git makes the change full, whatever each freeze
-printed. Small runs one fresh `general-purpose` reviewer that reads the reviewer
-files and reports under each of their labels; full runs one reviewer per file.
+repository or any file outside git (`references/OUTSIDE-GIT.md`) makes the
+change full, whatever each freeze printed. Small runs one fresh
+`general-purpose` reviewer that reads the reviewer files and reports under each
+of their labels; full runs one reviewer per file.
 
 **Spec.** The spec reviewer runs only when the brief quotes a plan item, a
 fetched ticket, a confirmed done-when or `/ele:dev`'s mini plan: in full mode as a third reviewer,
@@ -337,9 +336,10 @@ S=<scratchpad>; ele checkpoint hash <root> | cmp -s - "$S/checkpoint-<repo>.hash
 
 `0` in every repository, no file outside git touched since §1, and no held tick
 from §7: skip to §9. Anything else runs this step — a different fingerprint
-whatever moved it, a missing saved one, an edit to a file outside git, which the
-fingerprint cannot see, or a held tick, which no fix moves. With no fix made,
-the second freeze below repeats the first and only the Spec bullet applies.
+whatever moved it, a missing saved one, an edit to a file outside git
+(`references/OUTSIDE-GIT.md`), or a held tick, which no fix moves. With no fix
+made, the second freeze below repeats the first and only the Spec bullet
+applies.
 
 Freeze again, into a second directory so the first freeze survives; git cannot
 diff the fixes alone without a stash or commit. Create the directory first. Name

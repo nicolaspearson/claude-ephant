@@ -8,7 +8,7 @@ name: recipe
 
 Turn a procedure the user will run again into a skill a later session lists, so it is not re-derived. Always ask before writing one, whatever `auto_note_writes` says, unless the user handed its exact words, per Ask: a skill loads into every session of every profile, heavier than a note.
 
-With `audit` as the argument, run Audit below instead of steps 1 to 4.
+With `audit` as the argument, alone or followed by `SKILL.md` paths, read `references/AUDIT.md` and follow it instead of steps 1 to 4. A procedure that starts with the word, such as `audit log rotation`, is a recipe for step 1.
 
 ## 1. Find
 
@@ -59,37 +59,3 @@ for target in <target> ...; do if [ "$target" = "<folder>" ] || [ -e "$target/<n
 ```
 
 Done when each path written or linked is reported, with any that failed and why, and, without the folder, the first line saying `recipe_dir` was unset or unknown and how to set it, or the recipe is reported skipped.
-
-## Audit
-
-Check the user's skills for commands, subcommands, flags and versions that no longer exist here, so a skill is fixed before a session follows it into a failure. Nothing is run but `command -v`, a help, a version command or `man`, each with none of the skill's arguments and stdin closed. A tool that ignores its flags still runs the step the skill describes, so Check runs nothing for a function, an alias or a relative path that is no `#!` script, and reads a script rather than running it; a compiled tool on `PATH` or named by an absolute path that ignores its flags is the one case it cannot rule out.
-
-### Which skills
-
-Only when the argument is `audit` alone or followed by `SKILL.md` paths; a procedure that starts with the word, such as `audit log rotation`, is a recipe for step 1. With paths, those files, each by `realpath`. With none, every `<name>/SKILL.md` one level down in the folders Draft's listing prints and the folder `ele config get recipe_dir` prints when set, once per real file, as a profile's skill folder or the file itself may link elsewhere: `{ <Draft's listing command>; ele config get recipe_dir; }`, piped into
-
-```sh
-while read -r folder; do [ -d "$folder" ] && find -L "$folder" -mindepth 2 -maxdepth 2 -name SKILL.md; done | while read -r file; do realpath "$file"; done | sort -u
-```
-
-Plugin skills are left out: their plugins ship and update them. Done when every skill in scope is listed by its real path.
-
-### Claims
-
-Per skill, every command it tells a session to run, in a code span or block: the command, each subcommand and each flag. And every version it pins for a tool installed here, such as `go 1.23`, `node:20` or `GOTOOLCHAIN=go1.23.0`. Leave out a placeholder in `<angle brackets>`, a version stated as history rather than one to use, and a shell builtin. Done when each skill's claims are listed with their lines.
-
-### Check
-
-- Command: `command -v <cmd>`; a command printing nothing is not found, a finding. One printing an absolute path is a file, checked as Script or by Subcommand and flag. One printing a relative path, such as `./bin/tool`, is a file checked as Script when it starts with `#!`; any other is found and nothing is run for it, as a project's own tool is likelier to ignore `--help` and run its step: its subcommands, flags and version are not checked. One printing anything else, a function, alias or builtin, is found and nothing more is run for it: its subcommands, flags and version are not checked. A path to a script the skill ships is checked for the file in the skill's folder instead, whatever `command -v` prints
-- Package runner: a command that takes a package and runs it, such as `npx`, `npm exec`, `bunx` or `bun x`, `pnpm dlx`, `yarn dlx`, `pipx run`, and `uvx` or `uv tool run`: after the runner's own `command -v` its package, subcommands and flags are not checked, and nothing is run with the package, a help included: the runner would fetch and run it
-- Script: a command whose file starts with `#!` is read, never run; its subcommands and flags are checked against its source. Where the file defines none of them and loads another by a path relative to itself (`require`, `source`, `exec`), as npm's and corepack's do, search the folder holding that loaded file for the name in quotes, leaving out `node_modules`, `vendor`, tests and docs, as a dependency or changelog may quote any name: found, it holds by that search; not found, it is not checked and never a finding, even where a file there lists the command's other names in a table or a usage line, as a loaded file may add names from plugins or config it reads at run time. A loaded path that is absolute, such as `exec /opt/homebrew/bin/foo`, or built at run time leaves its claims not checked, as its folder may be a whole prefix
-- Subcommand and flag: run `<cmd> --help </dev/null`, never with the skill's arguments; where `--help` opens a pager, as git's does, `-h` only once the tool's help names `-h` as help. Output that is not a usage or flag list means the tool ignored the flag: stop running it, and mark its remaining claims not checked. Pass a help flag after a subcommand only when the top-level help names the flag or a `help` command, preferring `<cmd> help <subcommand>`; otherwise the subcommand's flags are not checked. One the help does not name is looked up in a help it points to, such as `go help test`'s `see 'go help build'`, then in the man page, `LC_ALL=C man <cmd>-<subcommand> </dev/null | col -b` for a subcommand and then `LC_ALL=C man <cmd>`, empty output meaning no page, the C locale keeping a flag's hyphens ASCII where a UTF-8 one may render them `‐` or `−`; a short help may list only some flags, as `git log -h` does. Named in any of them, it holds; otherwise, a finding. A command not found leaves its subcommands and flags not checked
-- Version: the installed tool's `--version`, or its `version` subcommand only when its help names one. A pin older than the installed version, by major or minor, is stale; a tool not installed leaves its pin not checked
-
-Done when each claim is marked holds, a finding with what was read, or not checked with why.
-
-### Report and fix
-
-Per skill, headed by its real path, absolute as `realpath` prints it, never relative, then sections headed `Findings`, `Holds`, `Not checked` and `Proposed fixes`, those words exactly, so every report reads the same: under `Findings`, each finding with its line, the claim, and what the check printed, a command not found being a finding, or "no findings" with how many claims were checked; under `Holds`, the claims that hold, each with where it was named (the help, a help it points to, the man page, or a file the script loads); under `Not checked`, the claims not checked and why, a missing command's subcommands and flags among them. Under `Proposed fixes`, for each finding with a clear replacement, such as the flag the help now names or the installed version, propose the exact line before and after, and apply the ones the user approves with the edit tool to the real path. A skill whose real path is in a git repository is left changed in its working tree for the user to commit.
-
-Done when every skill in scope is reported and each proposed fix is applied, declined or open.

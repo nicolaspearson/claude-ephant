@@ -127,6 +127,12 @@ loads what its run needs and each rule changes in one place.
     - every SKILL.md is under 500 lines, the specs and `docs/` pages
       describing the moved text match it, and `task format`, `task check
       FORCE=1` and `task audit` pass
+  - as of 2026-11-18: every section moved to its reference, pointers named
+    and resolved by `internal/skilllint` (moving `references/STRIP.md` away
+    fails it), the spec's reference list updated, checkpoint at 499 lines, and
+    `task format`, `task check FORCE=1` and `task audit` pass
+  - next: run the `recipe-audit` and `plan-new-review` evals to observe the
+    added Reads within their turn budgets
 - [ ] freeze-cap: Checkpoint handles a freeze reporting dirty paths past 200
   left unfingerprinted as a change with a file outside git: full mode, and §8
   always re-reviews
