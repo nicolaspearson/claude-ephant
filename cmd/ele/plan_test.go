@@ -136,7 +136,7 @@ func TestRunPlanCheckReportsAPlanItCannotReadAndChecksTheNext(t *testing.T) {
 	require.Equal(t, "ele: directory.md: is a directory\n", output)
 }
 
-func TestRunPlanCheckSaysAPlanInAnotherRepositoryCannotBlockAndTakesItsWaitAsProse(t *testing.T) {
+func TestRunPlanCheckSaysAPlanThisProjectLacksMayBeAnotherRepositorysAndTakesProseAsAWait(t *testing.T) {
 	home := recallFixture(t)
 	gateway := filepath.Join(home, "w", "corp", "gateway")
 	platform := filepath.Join(home, "w", "corp", "platform")
@@ -163,7 +163,7 @@ func TestRunPlanCheckSaysAPlanInAnotherRepositoryCannotBlockAndTakesItsWaitAsPro
 	output, code = runCommand(t, "plan", "check", "reporting.md")
 	require.Equal(t, 1, code, output)
 	require.Contains(t, output, "Plan reporting.md: 3 warnings.\n"+
-		"- line 5: report: blocker ordinal/fallback names no started or closed plan of this project; start that plan, or write a wait on another repository's plan as prose, with no comma before its semicolon\n"+
+		"- line 5: report: blocker ordinal/fallback names no started or closed plan of this project; start that plan, or name a plan in another repository as <project>/<plan>/<item>\n"+
 		"- line 8: unloaded: blocker gone/gone does not exist\n"+
 		"- line 11: lacking: blocker closed/nope does not exist\n", output)
 }
@@ -353,6 +353,93 @@ func TestRunPlanShowNamesEachActivePlanOrAMissingFile(t *testing.T) {
 	output, code = runCommand(t, "plan", "show")
 	require.Equal(t, 1, code)
 	require.Equal(t, "ele: plan first.md is not in this checkout; switch to its branch, or ele plan done first.md closes it\n", output)
+}
+
+func TestRunPlanShowResolvesABlockerInAnotherRepositoryUnderAnotherOwner(t *testing.T) {
+	home := recallFixture(t)
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	notesRepository := filepath.Join(home, "w", "personal", "notes")
+	twin := filepath.Join(home, "w", "personal", "gateway")
+	require.NoError(t, os.MkdirAll(filepath.Join(twin, ".git"), 0o700))
+	startIn := func(directory string, path string, content string) {
+		t.Helper()
+		writeFile(t, filepath.Join(directory, path), content)
+		t.Chdir(directory)
+		output, code := runCommand(t, "plan", "start", path)
+		require.Equal(t, 0, code, output)
+	}
+	startIn(gateway, "build.md", "---\nkind: plan\n---\n## Actions\n- [ ] wire: Wire\n")
+	startIn(gateway, "live.md", "---\nkind: plan\n---\n## Actions\n- [ ] step: Step\n")
+	startIn(gateway, "twin.md", "---\nkind: plan\n---\n## Actions\n- [ ] pair: Pair\n")
+	startIn(twin, "twin.md", "---\nkind: plan\n---\n## Actions\n- [ ] pair: Pair\n")
+	writeFile(t, filepath.Join(gateway, "draft.md"), "---\nkind: plan\n---\n## Actions\n- [ ] sketch: Sketch\n")
+	startIn(notesRepository, "mine.md", "---\nkind: plan\n---\n## Actions\n- [ ] use: Use\n  blocked: gateway/build/wire\n- [ ] mirror: Mirror\n  blocked: notes/mine/free\n- [ ] free: Free\n- [ ] Close\n")
+	focus := func() string {
+		return lonePlanFocus(context.Background(), filepath.Join(home, "data"), notesRepository, "personal", "notes")
+	}
+
+	require.NoError(t, os.Remove(filepath.Join(home, "data", "ele.db")))
+	output, code := runCommand(t, "plan", "check", "mine.md")
+	require.Equal(t, 1, code, output)
+	require.Contains(t, output, "use: blocker gateway/build/wire cannot be reached: no sync has completed; run ele sync, then retry\n")
+	require.NotContains(t, output, "notes/mine/free", "a three-part name for this project resolves here, without the index")
+
+	// The project entry lets the checkout's path through a symlink pass the owner check too.
+	alias := filepath.Join(home, "alias")
+	require.NoError(t, os.Symlink(filepath.Join(home, "w", "corp"), alias))
+	writeFile(t, filepath.Join(home, ".claude", "projects", "-alias-gateway", "lnk3.jsonl"),
+		`{"type":"user","cwd":"`+filepath.Join(alias, "gateway")+`","sessionId":"lnk3","timestamp":"2026-10-15T11:00:00Z","uuid":"u-lnk3","message":{"content":"through the alias"}}`+"\n")
+	writeFile(t, filepath.Join(home, "data", "owner-map.json"),
+		`{"owners": ["corp", "personal"], "paths": {"`+filepath.Join(home, "w", "corp")+`": "corp", "`+filepath.Join(home, "w", "personal")+`": "personal"}, "projects": {"gateway": "corp"}}`)
+	worktree := filepath.Join(home, "w", "corp", "gateway-feature")
+	worktreeGit := filepath.Join(gateway, ".git", "worktrees", "feature")
+	writeFile(t, filepath.Join(worktreeGit, "commondir"), "../..\n")
+	writeFile(t, filepath.Join(worktree, ".git"), "gitdir: "+worktreeGit+"\n")
+	writeFile(t, filepath.Join(worktree, "build.md"), "---\nkind: plan\n---\n## Actions\n- [x] wire: Wire\n")
+	writeFile(t, filepath.Join(home, ".claude", "projects", "-gateway-feature", "wt4.jsonl"),
+		`{"type":"user","cwd":"`+worktree+`","sessionId":"wt4","timestamp":"2026-10-15T12:00:00Z","uuid":"u-wt4","message":{"content":"in the worktree"}}`+"\n")
+	output, code = runCommand(t, "sync")
+	require.Equal(t, 0, code, output)
+	output, code = runCommand(t, "plan", "show", "mine.md")
+	require.Equal(t, 0, code, output)
+	require.Equal(t, "Plan mine.md: 2 open, 2 blocked, 0 done, 0 in the inbox.\n3 warnings; ele plan check mine.md lists them.\nBlocked:\n- use: Use\n  blocked: gateway/build/wire\n- mirror: Mirror\n  blocked: notes/mine/free\nNext, line 9:\n- [ ] free: Free\n", output, "the open blocker in the other repository's main checkout holds its item, its worktree's tick aside, and one naming this project resolves as <plan>/<item>")
+	var stdout bytes.Buffer
+	require.Equal(t, 0, sessionStart(context.Background(), []string{"--no-sync"}, strings.NewReader(`{"session_id":"s","source":"startup"}`), &stdout, &stdout), stdout.String())
+	_, message := hookOutput(t, stdout.String())
+	require.Contains(t, message, "Plan mine.md: 2 open, 2 blocked, 0 done, 0 in the inbox.\n", "the start block counts as show does")
+	require.Equal(t, "free: Free", focus(), "the stop hook's next item skips the held one")
+
+	writeFile(t, filepath.Join(gateway, "build.md"), "---\nkind: plan\n---\n## Actions\n- [x] wire: Wire\n")
+	output, code = runCommand(t, "plan", "show", "mine.md")
+	require.Equal(t, 0, code, output)
+	require.Equal(t, "Plan mine.md: 3 open, 1 blocked, 0 done, 0 in the inbox.\n4 warnings; ele plan check mine.md lists them.\nBlocked:\n- mirror: Mirror\n  blocked: notes/mine/free\nFlagged:\n- use: Use\n  flag: blocker gateway/build/wire is done; drop it from blocked:\nNext, line 5:\n- [ ] use: Use\n  blocked: gateway/build/wire\n", output, "ticked in the other checkout while its plan is active")
+	require.Equal(t, "use: Use", focus(), "the stop hook frees it too")
+
+	t.Chdir(gateway)
+	output, code = runCommand(t, "plan", "done", "build.md")
+	require.Equal(t, 0, code, output)
+	require.NoError(t, os.Remove(filepath.Join(gateway, "build.md")))
+	t.Chdir(notesRepository)
+	output, code = runCommand(t, "plan", "show", "mine.md")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "Flagged:\n- use: Use\n  flag: blocker gateway/build/wire is done; drop it from blocked:\nNext, line 5:\n- [ ] use: Use\n", "a closed plan answers from its stored record")
+	startIn(gateway, "build.md", "---\nkind: plan\n---\n## Actions\n- [ ] rewire: Rewire\n")
+	t.Chdir(notesRepository)
+	output, code = runCommand(t, "plan", "show", "mine.md")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "Next, line 5:\n- [ ] use: Use\n", "an item a plan restarted at its path no longer holds answers from its closed run")
+
+	writeFile(t, filepath.Join(notesRepository, "mine.md"), "---\nkind: plan\n---\n## Actions\n- [ ] use: Use\n  blocked: gateway/draft/sketch\n- [ ] pairs: Pairs\n  blocked: gateway/twin/pair\n- [ ] steps: Steps\n  blocked: gateway/live/step\n- [ ] free: Free\n- [ ] Close\n")
+	require.NoError(t, os.RemoveAll(gateway))
+	require.NoError(t, os.RemoveAll(worktree))
+	// A deleted checkout's git root must not walk up to an ancestor repository.
+	require.NoError(t, os.MkdirAll(filepath.Join(home, ".git"), 0o700))
+	for _, command := range []string{"show", "check"} {
+		output, _ = runCommand(t, "plan", command, "mine.md")
+		require.Contains(t, output, "blocker gateway/draft/sketch cannot be reached: gateway has no plan named draft started\n", command)
+		require.Contains(t, output, "blocker gateway/twin/pair cannot be reached: a plan named twin is started in gateway under owners corp, personal, and ele cannot tell which\n", command)
+		require.Contains(t, output, "blocker gateway/live/step cannot be reached: no checkout of gateway the index lists is still there; a session there syncs it\n", command)
+	}
 }
 
 func TestRunPlanStartNamesThePlansItCouldNotCheckAndDoneStoresAClosedPlansRecord(t *testing.T) {

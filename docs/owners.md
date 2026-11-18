@@ -113,5 +113,11 @@ Nothing crosses owners unless you ask:
   several have, the working directory's owner if it is one of them, else pass
   `--owner <name>`
 - The block a session starts with never shows another owner's notes
+- A plan's `blocked:` line naming another repository's plan,
+  `<project>/<plan>/<name>`, reads that plan under whichever owner started
+  it. `ele plan show`, `ele plan check` and the start block print only that
+  item's state: done, open, never done in a closed plan, missing, or out of
+  reach. Out of reach comes with its reason, which can name a checkout's path
+  or the owners a plan is started under
 - `ele config set --owner <name>` overrides an option for one owner's projects;
   see [Data and privacy](data-and-privacy.md#options)

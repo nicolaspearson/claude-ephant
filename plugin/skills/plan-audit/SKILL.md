@@ -128,7 +128,9 @@ each, and each approved fold is written.
   Two plans of one file name, drafts in two repositories, are refused: audit
   each repository's plans in a run of its own
 - Frontier: per plan, the open actions `ele plan show <path>` does not list as
-  blocked. Each item a `blocked:` line names is an edge to it. A prose
+  blocked. Each item a `blocked:` line names is an edge to it; one named
+  `<project>/<plan>/<item>` sits in another repository's plan, outside the
+  corpus, and its state is the one `ele plan show` prints. A prose
   `blocked:` line, and an `after:` line until its date, hold the item off the
   frontier with no edge. `plan/SKILL.md`'s format, in the skills directory
   holding this skill's base directory, has both lines' syntax
@@ -137,7 +139,8 @@ each, and each approved fold is written.
 - §3 runs over the frontier of every plan in scope
 - §4 and §5 always run, and across plans: a producer in one plan and its
   consumer in another is what a single-plan audit misses
-- §6: the edges above. `ele plan check` already flags a blocker done or missing;
+- §6: the edges above. `ele plan check` already flags a blocker done, missing,
+  or in another repository and out of reach;
   check that file order builds, an item reading what a later item produces being
   out of order
 - §7: a decision lives once, in a plan's Decisions or its spec; an item or

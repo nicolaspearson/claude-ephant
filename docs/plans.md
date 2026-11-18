@@ -114,13 +114,22 @@ created: 2026-10-23
 - **Items** are `- [ ]` lines with an indented body. Each but the last leads
   with a short kebab-case name, written once and never changed, and carries a
   `done when` line saying what will be observable once it is done
-- **`blocked:`** names the items an item waits on, in this plan or
-  `<plan>/<name>` in another of the same project, `<plan>` being that plan's
-  file name without `.md`; a reason may follow a `;`. ele reads only the plans
-  this project has started or closed, so `ele plan check` flags a `<plan>` it
-  has neither of: start a draft it names, and write a wait on a plan in another
-  repository as prose, with no comma before its `;`, deleting the line once the
-  wait is over. **`after: <date>`** holds an item until then: `YYYY-MM-DD` is
+- **`blocked:`** names the items an item waits on, in this plan,
+  `<plan>/<name>` in another of the same project, or `<project>/<plan>/<name>`
+  in another repository's plan, `<plan>` being that plan's file name without
+  `.md` and `<project>` that repository's folder name; a reason may follow a
+  `;`. `ele plan check` flags a `<plan>/<name>` naming a plan this project has
+  neither started nor closed: start a draft it names, or give the repository
+  holding it. A plan in another repository counts once this machine's ele has
+  started it there, under any owner, and a session in that checkout has
+  synced; ele reads its file in that checkout, so a tick there frees the item
+  once saved, and a closed plan from what `ele plan done` stored. Where ele
+  cannot reach it, such as a checkout moved or deleted, or a plan never
+  started there, the item stays held and `ele plan show` and `ele plan check`
+  say why. A repository whose folder name holds a character other than
+  letters, digits, `.`, `_` or `-` cannot be named: write its wait as prose,
+  with no comma before its `;`, deleting the line once the wait is over.
+  **`after: <date>`** holds an item until then: `YYYY-MM-DD` is
   local midnight, and `YYYY-MM-DD HH:MMZ` a UTC time. An `after:` in neither
   form holds its item
   and draws an `ele plan check` warning until fixed. Either matches in any

@@ -184,7 +184,7 @@ func lastContextTokens(path string) (int, error) {
 	}
 }
 
-func lonePlanFocus(dataDirectory string, directory string, owner string, project string) string {
+func lonePlanFocus(ctx context.Context, dataDirectory string, directory string, owner string, project string) string {
 	all, _, err := notes.ReadOwner(filepath.Join(dataDirectory, "notes"), owner)
 	if err != nil {
 		return ""
@@ -205,7 +205,7 @@ func lonePlanFocus(dataDirectory string, directory string, owner string, project
 	if err != nil {
 		return ""
 	}
-	next, ok := loadPlanSet(root, all, project, filepath.Join(dataDirectory, "notes")).resolve(parsed).Next()
+	next, ok := loadPlanSet(root, all, project, filepath.Join(dataDirectory, "notes")).resolve(ctx, parsed).Next()
 	if !ok {
 		return ""
 	}
@@ -456,7 +456,7 @@ func stopCheck(ctx context.Context, args []string, stdin io.Reader, stdout io.Wr
 	if hintAt := compactHintAt(settings, owner); hintAt > 0 {
 		output.SystemMessage, state.Band = sizeHint(tokens, hintAt, state.Band, state.MidTask, "")
 		if output.SystemMessage != "" && state.MidTask {
-			output.SystemMessage, _ = sizeHint(tokens, hintAt, noBand, true, lonePlanFocus(dataDirectory, hook.Directory, owner, project))
+			output.SystemMessage, _ = sizeHint(tokens, hintAt, noBand, true, lonePlanFocus(ctx, dataDirectory, hook.Directory, owner, project))
 		}
 	} else {
 		// Band reset while off, so one hinted before does not hold back the hint once on.

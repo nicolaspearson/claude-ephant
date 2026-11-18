@@ -342,11 +342,15 @@ func TestParseReadsBlockedAndAfterInAnyCaseAndAWrappedList(t *testing.T) {
 func TestParseReadsEdgesOnlyFromALeadingListOfNames(t *testing.T) {
 	plan, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n- [ ] a: A\n" +
 		"  blocked: judge-blocks, mining-reports/report-figures; once the week ends\n" +
+		"  blocked: Claude_ephant.v2/cross-repo/foreign-blockers\n" +
 		"  - blocked: the parser first\n" +
-		"  blocked: waits on the judging; and more\n"))
+		"  blocked: waits on the judging; and more\n" +
+		"  blocked: a/b/c/d\n" +
+		"  blocked: gateway/Build/wire\n"))
 	require.NoError(t, err)
-	require.Equal(t, []Edge{{Name: "judge-blocks"}, {Name: "report-figures", Plan: "mining-reports"}}, plan.Actions[0].Edges)
-	require.Equal(t, []string{"the parser first", "waits on the judging; and more"}, plan.Actions[0].Prose)
+	require.Equal(t, []Edge{{Name: "judge-blocks"}, {Name: "report-figures", Plan: "mining-reports"}, {Name: "foreign-blockers", Plan: "cross-repo", Project: "Claude_ephant.v2"}}, plan.Actions[0].Edges)
+	require.Equal(t, []string{"the parser first", "waits on the judging; and more", "a/b/c/d", "gateway/Build/wire"}, plan.Actions[0].Prose)
+	require.Equal(t, "Claude_ephant.v2/cross-repo/foreign-blockers", plan.Actions[0].Edges[2].String())
 }
 
 func TestParseReadsTheKebabNameAnItemLeadsWith(t *testing.T) {
@@ -534,11 +538,11 @@ func TestResolveFreesABlockedItemOnceItsBlockerIsTicked(t *testing.T) {
 	content := "---\nkind: plan\n---\n## Actions\n- [ ] first: First\n- [ ] second: Second\n  blocked: first, other/item; reason\n"
 	now := time.Date(2026, 10, 21, 12, 0, 0, 0, time.UTC)
 	other := BlockerOpen
-	lookup := func(edge Edge) Blocker {
+	lookup := func(edge Edge) (Blocker, string) {
 		if edge != (Edge{Name: "item", Plan: "other"}) {
-			return BlockerMissing
+			return BlockerMissing, ""
 		}
-		return other
+		return other, ""
 	}
 
 	held, err := Parse([]byte(content))
@@ -562,15 +566,15 @@ func TestResolveFreesABlockedItemOnceItsBlockerIsTicked(t *testing.T) {
 func TestResolveHoldsAnItemOnABlockerInAPlanThisProjectLacksAndSaysWhereItsWaitGoes(t *testing.T) {
 	plan, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n- [ ] a: A\n  blocked: elsewhere/item\n"))
 	require.NoError(t, err)
-	resolved := plan.Resolve(time.Now(), func(Edge) Blocker { return BlockerNoPlan })
+	resolved := plan.Resolve(time.Now(), func(Edge) (Blocker, string) { return BlockerNoPlan, "" })
 	require.True(t, resolved.Actions[0].Held)
-	require.Equal(t, []string{"blocker elsewhere/item names no started or closed plan of this project; start that plan, or write a wait on another repository's plan as prose, with no comma before its semicolon"}, resolved.Actions[0].Flags)
+	require.Equal(t, []string{"blocker elsewhere/item names no started or closed plan of this project; start that plan, or name a plan in another repository as <project>/<plan>/<item>"}, resolved.Actions[0].Flags)
 }
 
 func TestResolveHoldsAnItemOnAClosedPlansUntickedItemAndFlagsIt(t *testing.T) {
 	plan, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n- [ ] a: A\n  blocked: closed/item\n"))
 	require.NoError(t, err)
-	resolved := plan.Resolve(time.Now(), func(Edge) Blocker { return BlockerAbandoned })
+	resolved := plan.Resolve(time.Now(), func(Edge) (Blocker, string) { return BlockerAbandoned, "" })
 	require.True(t, resolved.Actions[0].Held)
 	require.Equal(t, []string{"blocker closed/item is in a closed plan and was never done"}, resolved.Actions[0].Flags)
 }
@@ -578,9 +582,19 @@ func TestResolveHoldsAnItemOnAClosedPlansUntickedItemAndFlagsIt(t *testing.T) {
 func TestResolveHoldsAnItemOnAMissingBlockerAndFlagsIt(t *testing.T) {
 	plan, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n- [ ] a: A\n  blocked: typo, gone/item\n"))
 	require.NoError(t, err)
-	resolved := plan.Resolve(time.Now(), func(Edge) Blocker { return BlockerMissing })
+	resolved := plan.Resolve(time.Now(), func(Edge) (Blocker, string) { return BlockerMissing, "" })
 	require.True(t, resolved.Actions[0].Held)
 	require.Equal(t, []string{"blocker typo does not exist", "blocker gone/item does not exist"}, resolved.Actions[0].Flags)
+}
+
+func TestResolveHoldsAnItemOnAnUnreachableBlockerAndNamesTheReason(t *testing.T) {
+	plan, err := Parse([]byte("---\nkind: plan\n---\n## Actions\n- [ ] a: A\n  blocked: gateway/build/wire\n"))
+	require.NoError(t, err)
+	resolved := plan.Resolve(time.Now(), func(Edge) (Blocker, string) {
+		return BlockerUnreachable, "no checkout of gateway the index lists is still there"
+	})
+	require.True(t, resolved.Actions[0].Held)
+	require.Equal(t, []string{"blocker gateway/build/wire cannot be reached: no checkout of gateway the index lists is still there"}, resolved.Actions[0].Flags)
 }
 
 func TestResolveHoldsAnItemUntilItsAfterDate(t *testing.T) {

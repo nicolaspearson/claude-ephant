@@ -95,6 +95,15 @@ other item is ticked.
     read commands write to the data directory and run extra git calls, and it
     would give ele a second project identity beside the folder name its notes
     use
+- A linked worktree of the other repository reads its main checkout, as the
+  index files a worktree under its main repository's project: a worktree open
+  beside the main checkout is no second checkout, and a tick saved only in a
+  worktree's branch counts once it reaches the main checkout (ruled
+  2026-11-18, during the foreign-blockers build)
+  - rejected: a worktree as a second checkout, because ordinary worktree use
+    would hold the item as checked out in two places
+  - rejected: a worktree winning over the main checkout, because several
+    worktrees would still leave ele unable to tell which
 - A three-part blocker naming the current project resolves as
   `<plan>/<item>` does, so writing the full form for one's own project works
 - A `blocked:` line naming another project is the ask that lets ele cross
@@ -111,7 +120,7 @@ other item is ticked.
 
 ## Actions
 
-- [ ] foreign-blockers: `blocked:` names an item of another repository's plan
+- [x] foreign-blockers: `blocked:` names an item of another repository's plan
       as `<project>/<plan>/<item>`, resolved, held and flagged as the
       Decisions say, in `plan show`, `plan check` and both hooks; the Plans,
       Owners and Principles sections of `.documentation/specs/design.md`,
@@ -132,6 +141,16 @@ other item is ticked.
     `.documentation/specs/design.md`, `docs/plans.md`, `docs/owners.md`,
     `ele plan check --help`, `plugin/skills/plan/SKILL.md` and
     `plugin/skills/plan-audit/SKILL.md` describe it
+  - asserted in the foreign-blockers commit: cmd/ele's fixture of two
+    repositories under owners corp and personal, synced by `ele sync`, holds
+    an item on `gateway/build/wire` while it is open, frees it on a saved tick
+    in the other checkout, after `ele plan done` and the file's deletion, and
+    after that plan restarts at its path, its worktree's own tick aside;
+    `plan show` and `plan check` name the reason for a removed checkout, a plan
+    never started and one started under two owners, and `plan check` for no
+    sync; the start block's blocked count matches `show`,
+    and the stop hook's next item skips the held item, then takes it once
+    freed; `task check FORCE=1` and `task audit` green
 - [ ] Fold each Decision through
       `/ele:plan-audit close .documentation/plans/cross-repo-blockers.md`,
       then what this plan built and its out-of-scope lines as `Not doing:`

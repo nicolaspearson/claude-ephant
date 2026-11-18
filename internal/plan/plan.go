@@ -25,7 +25,8 @@ var (
 
 	asOf     = regexp.MustCompile(`(?i)\bas of (\d{4}-\d{2}-\d{2})`)
 	checkbox = regexp.MustCompile(`^- \[([ xX])\] (.*)$`)
-	edgeName = regexp.MustCompile(`^(?:([a-z0-9]+(?:-[a-z0-9]+)*)/)?([a-z0-9]+(?:-[a-z0-9]+)*)$`)
+	// A project is a folder name; it comes only with a plan, so a/b stays plan/item.
+	edgeName = regexp.MustCompile(`^(?:(?:([A-Za-z0-9._-]+)/)?([a-z0-9]+(?:-[a-z0-9]+)*)/)?([a-z0-9]+(?:-[a-z0-9]+)*)$`)
 	// Eight hex digits for a session prefix, so prose such as "ele show added" passes.
 	eleShow    = regexp.MustCompile(`\bele show(?: --(?:around|at|context) (?:"[^"]*"|'[^']*'|\S+))* (?:--note (\d{8}-[0-9a-f]{6}|[0-9a-f]{8,})|([0-9a-f]{8,}))\b`)
 	heading    = regexp.MustCompile(`^(#{1,6})\s+(.*?)\s*#*\s*$`)
@@ -51,6 +52,7 @@ const (
 	BlockerAbandoned
 	BlockerDone
 	BlockerOpen
+	BlockerUnreachable
 )
 
 type Citation struct {
@@ -72,8 +74,9 @@ type Dated struct {
 }
 
 type Edge struct {
-	Name string
-	Plan string
+	Name    string
+	Plan    string
+	Project string
 }
 
 type Item struct {
@@ -93,7 +96,8 @@ type Item struct {
 	Title        string
 }
 
-type Lookup func(edge Edge) Blocker
+// Lookup gives a reason read only for BlockerUnreachable.
+type Lookup func(edge Edge) (state Blocker, reason string)
 
 type Plan struct {
 	Actions   []Item
@@ -348,10 +352,13 @@ func Parse(content []byte) (Plan, error) {
 }
 
 func (e Edge) String() string {
-	if e.Plan == "" {
+	switch {
+	case e.Plan == "":
 		return e.Name
+	case e.Project == "":
+		return e.Plan + "/" + e.Name
 	}
-	return e.Plan + "/" + e.Name
+	return e.Project + "/" + e.Plan + "/" + e.Name
 }
 
 // Fenced marks each line Parse reads as a fence or inside one.
@@ -483,12 +490,12 @@ func (p Plan) Resolve(now time.Time, lookup Lookup) Plan {
 			local[action.Name] = BlockerOpen
 		}
 	}
-	state := func(edge Edge) Blocker {
+	state := func(edge Edge) (Blocker, string) {
 		switch {
 		case edge.Plan == "":
-			return local[edge.Name]
+			return local[edge.Name], ""
 		case lookup == nil:
-			return BlockerMissing
+			return BlockerMissing, ""
 		}
 		return lookup(edge)
 	}
@@ -506,7 +513,7 @@ func (p Plan) Resolve(now time.Time, lookup Lookup) Plan {
 		action.Flags, action.Held = nil, false
 		if action.Done {
 			for _, edge := range action.Edges {
-				if state(edge) == BlockerOpen {
+				if blocker, _ := state(edge); blocker == BlockerOpen {
 					action.Flags = append(action.Flags, fmt.Sprintf("ticked while blocker %s is open", edge))
 				}
 			}
@@ -527,13 +534,17 @@ func (p Plan) Resolve(now time.Time, lookup Lookup) Plan {
 			action.Flags = append(action.Flags, fmt.Sprintf("after: %s has passed; drop it", action.After.Local().Format("2006-01-02 15:04 -07:00")))
 		}
 		for _, edge := range action.Edges {
-			switch state(edge) {
+			blocker, reason := state(edge)
+			switch blocker {
 			case BlockerMissing:
 				action.Held = true
 				action.Flags = append(action.Flags, fmt.Sprintf("blocker %s does not exist", edge))
 			case BlockerNoPlan:
 				action.Held = true
-				action.Flags = append(action.Flags, fmt.Sprintf("blocker %s names no started or closed plan of this project; start that plan, or write a wait on another repository's plan as prose, with no comma before its semicolon", edge))
+				action.Flags = append(action.Flags, fmt.Sprintf("blocker %s names no started or closed plan of this project; start that plan, or name a plan in another repository as <project>/<plan>/<item>", edge))
+			case BlockerUnreachable:
+				action.Held = true
+				action.Flags = append(action.Flags, fmt.Sprintf("blocker %s cannot be reached: %s", edge, reason))
 			case BlockerAbandoned:
 				action.Held = true
 				action.Flags = append(action.Flags, fmt.Sprintf("blocker %s is in a closed plan and was never done", edge))
@@ -648,7 +659,7 @@ func edges(reason string) []Edge {
 		if match == nil {
 			return nil
 		}
-		found = append(found, Edge{Name: match[2], Plan: match[1]})
+		found = append(found, Edge{Name: match[3], Plan: match[2], Project: match[1]})
 	}
 	return found
 }

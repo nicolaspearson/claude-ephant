@@ -312,7 +312,7 @@ func (p *Projects) Resolve(directory string) (project string, owner string) {
 	}
 	root, ok := p.roots[directory]
 	if !ok {
-		root = repositoryRoot(directory)
+		root = RepositoryRoot(directory)
 		p.roots[directory] = root
 	}
 	project = filepath.Base(root)
@@ -332,8 +332,8 @@ func GitRoot(directory string) string {
 	}
 }
 
-// A linked worktree is its main repository's project; a submodule, with no commondir, and a bare repository keep their own.
-func repositoryRoot(directory string) string {
+// RepositoryRoot takes a linked worktree to its main repository; a submodule, with no commondir, and a bare repository keep their own.
+func RepositoryRoot(directory string) string {
 	root := GitRoot(directory)
 	pointer, err := os.ReadFile(filepath.Join(root, ".git"))
 	if err != nil {
