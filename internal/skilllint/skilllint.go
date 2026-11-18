@@ -11,7 +11,11 @@ import (
 	"strings"
 )
 
-const maxSkillLines = 500
+const (
+	commandsHeading = "## Skills and slash commands"
+	maxSkillLines   = 500
+	readmeHeading   = "## Skills at a glance"
+)
 
 // SKILL.md and the directories a skill may keep beside it; reviewers/ is allowed by name.
 var allowedEntries = []string{"SKILL.md", "assets", "references", "reviewers", "scripts"}
@@ -40,6 +44,37 @@ func Check(root string) ([]string, error) {
 			return nil, err
 		}
 		problems = append(problems, found...)
+	}
+	return problems, nil
+}
+
+// CheckDocs returns a problem for each skill under skillsRoot with no row in a doc's skills section; a missing section is an error.
+func CheckDocs(skillsRoot string, commands string, readme string) ([]string, error) {
+	commandRows, err := sectionRows(commands, commandsHeading)
+	if err != nil {
+		return nil, err
+	}
+	readmeRows, err := sectionRows(readme, readmeHeading)
+	if err != nil {
+		return nil, err
+	}
+	entries, err := os.ReadDir(skillsRoot)
+	if err != nil {
+		return nil, err
+	}
+	var problems []string
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		dir := filepath.Join(skillsRoot, entry.Name())
+		cell := "`/ele:" + entry.Name() + "`"
+		if !commandRows[cell] {
+			problems = append(problems, fmt.Sprintf("%s: no row under %s in %s", dir, commandsHeading, filepath.Base(commands)))
+		}
+		if !readmeRows[cell] {
+			problems = append(problems, fmt.Sprintf("%s: no row under %s in %s", dir, readmeHeading, filepath.Base(readme)))
+		}
 	}
 	return problems, nil
 }
@@ -159,4 +194,26 @@ func frontMatter(content string) (map[string]string, bool) {
 		}
 	}
 	return fields, true
+}
+
+func sectionRows(path string, heading string) (map[string]bool, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	lines := strings.Split(strings.ReplaceAll(string(raw), "\r\n", "\n"), "\n")
+	start := slices.Index(lines, heading)
+	if start < 0 {
+		return nil, fmt.Errorf("%s has no %s section", path, heading)
+	}
+	rows := map[string]bool{}
+	for _, line := range lines[start+1:] {
+		if strings.HasPrefix(line, "## ") {
+			break
+		}
+		if cells := strings.Split(line, "|"); strings.HasPrefix(line, "|") && len(cells) > 2 {
+			rows[strings.TrimSpace(cells[1])] = true
+		}
+	}
+	return rows, nil
 }

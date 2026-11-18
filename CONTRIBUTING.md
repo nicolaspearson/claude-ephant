@@ -73,8 +73,10 @@ as new as the plugin.
 - `test` includes the skill lint, `internal/skilllint`, over
   `plugin/skills/`: a skill the model can invoke has `Use when` in its
   description, each relative link resolves, each `SKILL.md` stays under 500
-  lines, and a skill keeps nothing beside `SKILL.md` but `references/`,
-  `scripts/`, `assets/` and `reviewers/`; it also holds `plugin.json`'s
+  lines, a skill keeps nothing beside `SKILL.md` but `references/`,
+  `scripts/`, `assets/` and `reviewers/`, and each skill has a `/ele:<name>`
+  row under `docs/commands.md`'s Skills and slash commands and under
+  `README.md`'s Skills at a glance; it also holds `plugin.json`'s
   description equal to `marketplace.json`'s entry for `ele`
 - CI runs `task check FORCE=1` and `task audit` on every pull request, every
   push to `main` and weekly

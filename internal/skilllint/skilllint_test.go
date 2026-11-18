@@ -63,6 +63,68 @@ func TestCheck(t *testing.T) {
 	}
 }
 
+func TestCheckDocs(t *testing.T) {
+	const commandsRow = "| `/ele:good` | Do a thing |\n"
+	const readmeRow = "| `/ele:good` | Do a thing | [Good](docs/good.md) |\n"
+	tests := []struct {
+		commands string
+		name     string
+		problems []string
+		readme   string
+	}{
+		{name: "README prose line holding pipes", commands: commandsRow, readme: "Type | `/ele:good` | to start\n", problems: []string{"good: no row under ## Skills at a glance in README.md"}},
+		{name: "README prose mention only", commands: commandsRow, readme: "Type `/ele:good` to start.\n", problems: []string{"good: no row under ## Skills at a glance in README.md"}},
+		{name: "row for a longer name only", commands: "| `/ele:good-audit` | Audit |\n", readme: "| `/ele:good-audit` | Audit | [Audit](docs/audit.md) |\n", problems: []string{"good: no row under ## Skills and slash commands in commands.md", "good: no row under ## Skills at a glance in README.md"}},
+		{name: "row in README.md only", readme: readmeRow, problems: []string{"good: no row under ## Skills and slash commands in commands.md"}},
+		{name: "row in another section only", commands: "\n## Used by the skills and hooks\n\n" + commandsRow, readme: readmeRow, problems: []string{"good: no row under ## Skills and slash commands in commands.md"}},
+		{name: "row in both", commands: commandsRow, readme: readmeRow},
+		{name: "row in commands.md only", commands: commandsRow, problems: []string{"good: no row under ## Skills at a glance in README.md"}},
+		{name: "row in neither", problems: []string{"good: no row under ## Skills and slash commands in commands.md", "good: no row under ## Skills at a glance in README.md"}},
+		{name: "rows under subheadings of the section", commands: commandsRow, readme: "### Memory\n\n" + readmeRow},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			require.NoError(t, os.MkdirAll(filepath.Join(root, "skills", "good"), 0o755))
+			require.NoError(t, os.WriteFile(filepath.Join(root, "skills", "good", "SKILL.md"), []byte(goodSkill), 0o600))
+			commands := filepath.Join(root, "commands.md")
+			readme := filepath.Join(root, "README.md")
+			require.NoError(t, os.WriteFile(commands, []byte("# Commands\n\n## Skills and slash commands\n\n| Command | What it does |\n| --- | --- |\n"+test.commands+"\n## Notes\n"), 0o600))
+			require.NoError(t, os.WriteFile(readme, []byte("# ele\n\n## Skills at a glance\n\n"+test.readme+"\n## Prerequisites\n"), 0o600))
+			problems, err := CheckDocs(filepath.Join(root, "skills"), commands, readme)
+			require.NoError(t, err)
+			require.Len(t, problems, len(test.problems))
+			for index, problem := range test.problems {
+				require.Contains(t, problems[index], problem)
+			}
+		})
+	}
+}
+
+func TestCheckDocsMissingSection(t *testing.T) {
+	tests := []struct {
+		commands string
+		err      string
+		name     string
+		readme   string
+	}{
+		{name: "README.md", commands: "## Skills and slash commands\n", readme: "# ele\n", err: "README.md has no ## Skills at a glance section"},
+		{name: "commands.md", commands: "# Commands\n", readme: "## Skills at a glance\n", err: "commands.md has no ## Skills and slash commands section"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			require.NoError(t, os.MkdirAll(filepath.Join(root, "skills", "good"), 0o755))
+			commands := filepath.Join(root, "commands.md")
+			readme := filepath.Join(root, "README.md")
+			require.NoError(t, os.WriteFile(commands, []byte(test.commands), 0o600))
+			require.NoError(t, os.WriteFile(readme, []byte(test.readme), 0o600))
+			_, err := CheckDocs(filepath.Join(root, "skills"), commands, readme)
+			require.ErrorContains(t, err, test.err)
+		})
+	}
+}
+
 func TestCheckMissingSkill(t *testing.T) {
 	root := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(root, "empty"), 0o755))
@@ -107,6 +169,12 @@ func TestPluginDescriptionMatchesTheMarketplaceEntry(t *testing.T) {
 
 func TestPluginSkills(t *testing.T) {
 	problems, err := Check(filepath.Join("..", "..", "plugin", "skills"))
+	require.NoError(t, err)
+	require.Empty(t, problems)
+}
+
+func TestPluginSkillsDocumented(t *testing.T) {
+	problems, err := CheckDocs(filepath.Join("..", "..", "plugin", "skills"), filepath.Join("..", "..", "docs", "commands.md"), filepath.Join("..", "..", "README.md"))
 	require.NoError(t, err)
 	require.Empty(t, problems)
 }
