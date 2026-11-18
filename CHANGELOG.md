@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.0](https://github.com/nicolaspearson/claude-ephant/compare/v1.2.0...v1.3.0) (2026-11-18)
+
+
+### Features
+
+* **lint:** skill lint fails a skill with no row in docs/commands.md or README.md ([9a26a7c](https://github.com/nicolaspearson/claude-ephant/commit/9a26a7cf03287d02024165b396e37540d8205bae))
+* **plan:** blocked: names an item of another repository's plan as &lt;project&gt;/&lt;plan&gt;/&lt;item&gt; (foreign-blockers) ([2325d59](https://github.com/nicolaspearson/claude-ephant/commit/2325d597a41725ce2304d76f9db4bed272149a7c))
+
 ## [1.2.0](https://github.com/nicolaspearson/claude-ephant/compare/v1.1.0...v1.2.0) (2026-11-17)
 
 
