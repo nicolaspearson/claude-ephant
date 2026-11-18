@@ -133,9 +133,15 @@ loads what its run needs and each rule changes in one place.
     `task format`, `task check FORCE=1` and `task audit` pass
   - next: run the `recipe-audit` and `plan-new-review` evals to observe the
     added Reads within their turn budgets
-- [ ] freeze-cap: Checkpoint handles a freeze reporting dirty paths past 200
+- [x] freeze-cap: Checkpoint handles a freeze reporting dirty paths past 200
   left unfingerprinted as a change with a file outside git: full mode, and §8
   always re-reviews
+  - asserted in the freeze-cap commit: checkpoint §1 names a freeze printing
+    `unfingerprinted` as capped and points at `references/OUTSIDE-GIT.md`,
+    whose Capped freeze section, §4 and §8 make it full mode with the
+    re-review always run; the spec and the docs mode rule say so;
+    `checkpoint/SKILL.md` under 500 lines; `task format`, `task check
+    FORCE=1` and `task audit` pass
   - done when §1's pointer to the outside-git reference names a capped freeze
     as a trigger, the reference and §4 and §8 cover it,
     `.documentation/specs/checkpoint-and-ticket-audit.md` says how a capped

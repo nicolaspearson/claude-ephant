@@ -81,7 +81,8 @@ ele checkpoint freeze <root> <scratchpad> [--base <base>] --start -- <path> <pat
 The command writes `checkpoint-<repo>.diff` and the fingerprint
 `checkpoint-<repo>.hash` for §8, `<repo>` being the basename of git's root for
 it. It refuses a path with no change and prints the line count and the mode this
-root alone implies.
+root alone implies. A freeze printing `unfingerprinted` is capped: read
+`references/OUTSIDE-GIT.md`.
 
 **The run.** This freeze opens the run, and the Stop hook treats this session's
 checkpoint as in progress while it is open. Only this freeze passes `--start`:
@@ -186,8 +187,8 @@ absolute, and Attack surfaces names at least one specific input, state or path.
 ## 4. Review
 
 **Mode.** The freeze prints the mode each root alone implies. A second
-repository or any file outside git (`references/OUTSIDE-GIT.md`) makes the
-change full, whatever each freeze printed. Small runs one fresh
+repository, a capped freeze or a file outside git (`references/OUTSIDE-GIT.md`)
+makes the change full, whatever each freeze printed. Small runs one fresh
 `general-purpose` reviewer that reads the reviewer files and reports under each
 of their labels; full runs one reviewer per file.
 
@@ -334,12 +335,12 @@ saved:
 S=<scratchpad>; ele checkpoint hash <root> | cmp -s - "$S/checkpoint-<repo>.hash"; echo $?
 ```
 
-`0` in every repository, no file outside git touched since §1, and no held tick
-from §7: skip to §9. Anything else runs this step — a different fingerprint
-whatever moved it, a missing saved one, an edit to a file outside git
-(`references/OUTSIDE-GIT.md`), or a held tick, which no fix moves. With no fix
-made, the second freeze below repeats the first and only the Spec bullet
-applies.
+`0` in every repository, no capped freeze, no file outside git touched since §1,
+and no held tick from §7: skip to §9. Anything else runs this step — a different
+fingerprint whatever moved it, a missing saved one, a capped freeze or an edit to
+a file outside git (`references/OUTSIDE-GIT.md`), or a held tick, which no fix
+moves. With no fix made, the second freeze below repeats the first and only the
+Spec bullet applies.
 
 Freeze again, into a second directory so the first freeze survives; git cannot
 diff the fixes alone without a stash or commit. Create the directory first. Name
@@ -365,7 +366,7 @@ what the fixes changed:
 
 One round: anything it finds is verified and then fixed or reported.
 
-§8 is done when every fingerprint matched with no held tick, or the re-reviewer
+§8 is done when its skip rule above held, or the re-reviewer
 reported on each reviewer file that applied and each finding has a verdict, and
 a gate run since the last fix to a file a §2 check reads ends as §6 requires.
 
@@ -377,10 +378,9 @@ change splits cleanly, and say why it splits.
 Print the exact commands for the user to run. Per commit: an `add` of that
 commit's untracked paths, each file by name as §1's status lists it, unquoted,
 then a `commit` naming that commit's paths after `--`, a rename by both its old
-and new path. A commit given paths takes their
-working-tree copies and leaves anything else staged where it is, so the
-staged-differently paths from §1 ship as reviewed and work the user staged for
-another commit stays out.
+and new path. A commit given paths takes their working-tree copies and leaves
+anything else staged where it is, so the staged-differently paths from §1 ship
+as reviewed and work the user staged for another commit stays out.
 
 §9 is done when every path on the change list appears in exactly one printed
 commit: both sides of each rename, and each untracked path also in an `add`.
@@ -418,9 +418,8 @@ brief quotes carries one from the spec reviewer when it ran, and every entry on
 
 ## 11. Record
 
-Once every check passes or counts as green under §6, §8 has run or found the
-fingerprint unmoved with no held tick, and every finding is fixed or reported,
-per repository:
+Once every check passes or counts as green under §6, §8 has run or its skip
+rule held, and every finding is fixed or reported, per repository:
 
 ```sh
 ele checkpoint record <root>
