@@ -8,8 +8,8 @@ meant to do, so it reads the diff as confirmation and finds what it intended
 rather than what is there. Reviews run in subagents that have seen only the
 brief.
 
-Every review runs fresh: no pass is credited from earlier in the session, except
-for a tree §1 finds covered or a delta of `0 changed`.
+Every review runs fresh: no pass is credited from earlier in the session but as
+§1 says.
 
 ## 1. Scope
 
@@ -171,7 +171,7 @@ One brief, shared by every reviewer, every path absolute:
   The parent runs the gate; its log is at `<path>`, finished once it ends in
   `gate exit`.
 - **Errors**: `<absolute path of the plugin root's reference/errors.md>`, read
-  when a call fails.
+  when a call fails; report an error it does not clear under Questions.
 - **Attack surfaces**: what the author is least sure of. State combinations that
   were never enumerated, paths never exercised, what a user sees when the new
   error fires, a trap the codebase documents. Specific beats thorough — "every
@@ -295,10 +295,9 @@ done, unless nothing changed since it started. Say so if skipped.
 
 A red check is pre-existing only once it fails the same way at HEAD: read
 `references/HEAD-EXPORT.md` for the export and for when such a check
-counts as green. A test this change turns red is fixed in the code, as §5 says;
-its assertions change only if this change sets out to change what it covers.
-Any check that neither passes nor counts as green, and is not being fixed in
-this run: see Stopping early.
+counts as green. A test this change turns red: §5, **A red test is fixed in the
+code**. Any check that neither passes nor counts as green, and is not being
+fixed in this run: see Stopping early.
 
 §6 is done when the latest gate log ends in `gate exit` and every §2 check is
 passing, counted green per `references/HEAD-EXPORT.md`, unverified, or handed to
@@ -315,10 +314,8 @@ plan, or none the change worked on: say so and go on. A plan in a repository the
 change does not touch is out of scope: name it, write nothing.
 
 When the change worked on an active plan's item: read `references/PLAN.md`;
-it proposes the item's tick or progress line, writes it on approval, and
-makes the write a fix §8 re-reviews. An item already ticked gets no proposal;
-where this change holds its tick line, that is a held tick, and §8 re-reviews
-it the same way.
+it proposes the item's tick or progress line, writes it on approval, makes the
+write a fix §8 re-reviews, and says what a held tick is.
 
 §7 is done when each touched repository's plan state is reported — no active
 plan, no item worked on, the item with a proposed tick or progress line, or the

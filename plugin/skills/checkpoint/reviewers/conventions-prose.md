@@ -135,11 +135,6 @@ order, delete on the first yes:
 What survives is what the code cannot carry: a constraint, a bug being prevented,
 an ordering that looks wrong but is not.
 
-## Errors
-
-When a call fails, follow the file the brief's Errors field names; report an
-error it does not clear under Questions.
-
 ## Output
 
 No confidence threshold: a rule is broken or it is not, and deleting a comment
@@ -160,5 +155,5 @@ Then:
 - **Density** — the density output, and which marked files were swept.
 - **Pre-existing** — one line each.
 - **Questions** — settled items a rule or a claim check contradicts, with the
-  evidence, and tool errors the Errors section could not clear.
+  evidence, and tool errors the brief's Errors field did not clear.
 - **Verdicts** — every file on the change list: findings, or "none".

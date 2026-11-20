@@ -5,13 +5,6 @@ name: ticket-audit
 
 Tracker writes are the user's to run; §9 says how.
 
-## What this is for
-
-The audit's subject is what tickets say and how they link.
-
-A premise counts as checked only with §3's `file:line`. `/ele:ticket-claims`
-output is a label check on wayfinder tickets, not that.
-
 ## 0. What is already known
 
 Before fetching anything, load what is known per the `ele:recall` skill's
@@ -56,12 +49,12 @@ ticket in the project still holding a template's `Part of #MAP` or `Part of
 nothing`. One "not in this corpus" is a child no search finds: ask whether it
 belongs and re-run with it in `--tickets`. One "in this corpus" is reported.
 Read the list it prints: a tracker using another convention still comes back
-short, and `--tickets` takes an explicit set. It refuses a directory that
-already holds a corpus unless given `--clean`, because two maps in one directory
-read as one map contradicting itself; and one holding any other `.md`, which
-`--clean` keeps and still refuses. Exit 2 with `FAILED to fetch` means the
-corpus is partial and no method can run on it yet; exit 2 with an `ele:` line is
-a usage error; exit 1 is a refusal, such as a used directory.
+short, and `--tickets` takes an explicit set. A used directory is refused, its
+error naming `--clean`, which `ele ticket corpus --help` says still refuses any
+other `.md`: two maps in one directory read as one map contradicting itself.
+Exit 2 with `FAILED to fetch` means the corpus is partial and no method can run
+on it yet; exit 2 with an `ele:` line is a usage error; exit 1 is a refusal,
+such as a used directory.
 
 Grep the corpus, never the tracker: wrapped prose hides a phrase from a tracker
 search, and the audit reports clean on the thing it was run to find.
@@ -188,7 +181,8 @@ Read adversarially: for what the ticket did not ask.
 Every claim gets a `file:line` or "not checked". "Premises hold" without them is
 a claim nobody opened — as of 2026-10-15, all but one premise the audits passed
 that a build later found wrong was one not opened, opened too shallowly, or
-sitting in a repository not read. Where the data is in hand — a dump, a query
+sitting in a repository not read. `/ele:ticket-claims` output is a label check
+on wayfinder tickets, not a premise checked. Where the data is in hand — a dump, a query
 result — run the ticket's query or backfill against it.
 
 - **Claims of absence.** "There is no X", "nothing reads Y", "the row has no

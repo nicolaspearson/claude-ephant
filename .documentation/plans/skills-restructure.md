@@ -148,7 +148,7 @@ loads what its run needs and each rule changes in one place.
     freeze is handled, `docs/checkpoint-and-ticket-audit.md`'s mode rule says
     a capped freeze gets full review, `checkpoint/SKILL.md` is under 500
     lines, and `task format`, `task check FORCE=1` and `task audit` pass
-- [ ] skill-single-source: Keep each copy Context lists once: checkpoint's
+- [x] skill-single-source: Keep each copy Context lists once: checkpoint's
   held tick in `references/PLAN.md`, §7, §8, §10 and §11 naming it; the
   red-test rule in §5, §6 citing it; the reviewers' Errors line in both
   briefs, cut from `bugs.md` and `conventions-prose.md`, and
@@ -165,6 +165,16 @@ loads what its run needs and each rule changes in one place.
     pointers grepped present, each pointer names a heading that exists, every
     SKILL.md is under 500 lines, the specs and `docs/` pages quoting the text
     match it, and `task format`, `task check FORCE=1` and `task audit` pass
+  - asserted in the skill-single-source commit: each listed copy grepped
+    absent and its kept rule and pointers present (held tick in
+    `references/PLAN.md`, red-test rule in §5, the Errors line in both briefs,
+    the run-fresh exceptions in §1 and `DELTA.md`, ticket-audit §1 for the
+    corpus directory, plan's format for ele data, review's Asking for four per
+    call), each pointer naming a heading that exists; the specs quoting the
+    text (review's four per call, checkpoint's Errors through the brief) still
+    match it; `reference/explorer.md`'s tool rules kept, ruled out of scope;
+    every SKILL.md under 500 lines; `task format`, `task check FORCE=1` and `task
+    audit` pass
 - [ ] skill-wording: Fix each wording finding Context lists: checkpoint's,
   flag's, setup's, recipe's and wrap's descriptions, one trigger per branch,
   recipe and wrap ending on "Use only when the user asks"; a done-when for
@@ -204,6 +214,10 @@ loads what its run needs and each rule changes in one place.
 
 ## Out of scope
 
+- Cutting `reference/explorer.md`'s tool rules as copies of
+  `agents/explorer.md`'s: plan and dev launch `general-purpose` with the same
+  brief where `ele:explorer` is not listed, and that agent reads only the
+  reference (ruled 2026-11-20, from skill-single-source's premise check)
 - Moving plan's Asking in rounds, Grounding, Designs and Review loop to a
   reference: about 24 of 87 lines, and Pickup uses Grounding (ruled
   2026-11-13, from this plan's premise check)

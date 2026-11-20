@@ -44,15 +44,9 @@ Done when every plan in scope is listed with its path and its check warnings, or
   recall matches only an entry holding every word. Also read the newest
   handoff, `ele handoff list --all --project <name>`, and keep `ele context`'s
   open question notes for Open questions below
-- §1: one corpus for every plan in scope:
-
-  ```sh
-  mktemp -d
-  ele ticket corpus --plan <path> --plan <path> ... --out <audit>
-  ```
-
-  run as two calls, `<audit>` being the path `mktemp -d` prints, written into
-  each later command as ticket-audit §1 says
+- §1: one corpus for every plan in scope, in a directory made as ticket-audit
+  §1 makes one: `ele ticket corpus --plan <path> --plan <path> ... --out
+  <audit>`
 
   Each Actions and Inbox item lands as `<plan>-<nn>.md` and `raw/<plan>-<nn>.md`,
   `<plan>` being the file name without `.md`, `<nn>` its position in the file.
@@ -119,10 +113,7 @@ propose one:
   plan's `## Out of scope`, adding it as the plan's last section if it has none
 - **Leave**: not sharp enough to be an action yet
 
-A line moved into a plan cites no ele data, which resolves only in its author's
-data directory: delete a note id or session that records where it came from,
-describe what was observed in place of one cited as evidence, and move a note it
-depends on into the plan, superseding the note.
+A line moved into a plan cites no ele data, as `plan/SKILL.md`'s format says.
 
 Done when every inbox item has a proposal and each approved one is applied.
 

@@ -25,13 +25,15 @@ Keep a list of **notices** as the run goes, each a line step 8 shows above its
 table: uncommitted work left out, no spec found, hidden markup stripped, a
 pending review the user holds on GitHub.
 
+## Asking
+
 From step 8 on, everything shown to the user goes **inside an AskUserQuestion
 call**, in a question's text or an option's `preview`, never as text between
 calls. As of 2026-10-26, text meant to print before a further call in the same
 turn does not reliably reach the user, while a call's text does and stays in the
 scrollback once answered. Each such question's options name the next step, so
-the user clicks on rather than types. Only step 9's Print it and the run's last
-reply, after step 13's log, are plain text.
+the user clicks on rather than types. A call holds at most four questions. Only
+step 9's Print it and the run's last reply, after step 13's log, are plain text.
 
 ## 1. Target
 
@@ -134,7 +136,8 @@ Checkpoint's brief, every path absolute, its fields filled from the change:
 - **Report only**, with no probe or reproduction: the tree is the author's code.
   No gate log; the pipeline is in Observed
 - **Errors**: `reference/errors.md` in the plugin root, the directory holding
-  `skills/`
+  `skills/`, read when a call fails; report an error it does not clear under
+  Questions
 
 Done when every field has a value or is stated empty.
 
@@ -236,8 +239,8 @@ left, and its counts are in that question, asked before any finding.
 
 ## 9. Findings
 
-The findings in severity order, one question each, its body verbatim in it, up
-to four questions per AskUserQuestion call:
+The findings in severity order, one question each, its body verbatim in it, as
+many to a call as Asking allows:
 
 - **Add**, MR runs only: hold the body for the review at its line
 - **Raw Markdown**: show it in the one shape below
@@ -259,7 +262,7 @@ its finding:
 - Learn more: the trace in the question's text, options **Next** and **Stop
   here**. Its finding is then asked again
 
-Every call holds at most four questions, in this order: answers to show, in the
+Every call fills, up to Asking's limit, in this order: answers to show, in the
 order answered, then Learn more findings asked again, then findings not yet
 asked; what does not fit goes in the next call, in the same order. Every answer
 in a returning call is acted on before anything else: Add held, Skip dropped,
@@ -297,16 +300,14 @@ with `file:line`, its severity and why it was set aside, and every lead, with
 its `file:line` where it has one and the reviewer that raised it. Options:
 **None**, **All minor**, **All leads**, or numbers under Other. Nothing on the
 list: skip to step 11. When the call showing step 9's last answers asks no
-finding again and holds fewer than four questions, this question goes last in
+finding again and has room under Asking's limit, this question goes last in
 it, saving the user a click. A lead taken further is classified as step 6
 classifies, then verified; a minor finding is verified. One that holds is
 drafted at its severity, or as a question where it can only be asked. The next
 call opens with a question holding step 8's table for the items that hold and
 each refuted one with why, options **Next** and **Stop here**, to step 11, then
-asks each that holds as step 9 asks, Add included on an MR run, within step 9's
-four per call.
-Then ask again with the list less what was taken, until the answer is None or
-nothing is left.
+asks each that holds as step 9 asks, Add included on an MR run. Then ask again
+with the list less what was taken, until the answer is None or nothing is left.
 
 Done when the answer is None or the list is empty, every item taken further was
 shown refuted or in a table, and each shown is answered as step 9's done-when

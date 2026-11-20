@@ -76,11 +76,6 @@ Rate each candidate 0–100 for how sure you are it is real and will be hit:
 Re-read the code behind every candidate before scoring it. Report only 80 and
 above.
 
-## Errors
-
-When a call fails, follow the file the brief's Errors field names; report an
-error it does not clear under Questions.
-
 ## Output
 
 Per finding:
