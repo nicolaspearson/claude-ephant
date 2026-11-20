@@ -1,5 +1,5 @@
 ---
-description: Set up ele after installing it, or in a directory no owner covers, by proposing the ele owner commands that map it and running them once the user approves. Use when the user asks to set up or configure ele, when the start block says no owner covers the directory, or when ele status names no owner here.
+description: Set up ele after installing it, or in a directory no owner covers, by proposing the ele owner commands that map it and running them once the user approves. Use when the user asks to set up or configure ele, or when the start block says no owner covers the directory.
 name: setup
 ---
 

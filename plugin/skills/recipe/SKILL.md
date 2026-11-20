@@ -1,6 +1,6 @@
 ---
 argument-hint: "[the procedure to keep] | audit [skill paths]"
-description: Propose a reusable multi-step procedure this session ran as a user skill, and write it once the user approves; with audit, check the user's skills for commands, flags and versions that no longer exist. Use when the user asks to save a procedure as a recipe or skill, or to audit their skills for stale commands; /ele:wrap offers a recipe too; never start one unasked.
+description: Propose a reusable multi-step procedure this session ran as a user skill, and write it once the user approves; with audit, check the user's skills for commands, flags and versions that no longer exist. /ele:wrap offers a recipe too. Use when, and only when, the user asks to save a procedure as a recipe or skill, or to audit their skills.
 name: recipe
 ---
 

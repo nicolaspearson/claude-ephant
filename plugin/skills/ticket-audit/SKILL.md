@@ -178,11 +178,12 @@ The one that finds what would have shipped. For every claim each ticket in the
 premises scope (§2) makes about the codebase, open the code and re-derive it.
 Read adversarially: for what the ticket did not ask.
 
-Every claim gets a `file:line` or "not checked". "Premises hold" without them is
-a claim nobody opened — as of 2026-10-15, all but one premise the audits passed
-that a build later found wrong was one not opened, opened too shallowly, or
-sitting in a repository not read. `/ele:ticket-claims` output is a label check
-on wayfinder tickets, not a premise checked. Where the data is in hand — a dump, a query
+A claim is **opened** once it carries the `file:line` it was re-derived from;
+any other is "not checked". "Premises hold" over any claim not opened is a claim
+nobody opened — as of 2026-10-15, all but one premise the audits passed that a
+build later found wrong was one not opened, re-derived too shallowly, or sitting
+in a repository not read. `/ele:ticket-claims` output is a label check on wayfinder
+tickets, not a premise opened. Where the data is in hand — a dump, a query
 result — run the ticket's query or backfill against it.
 
 - **Claims of absence.** "There is no X", "nothing reads Y", "the row has no
@@ -204,7 +205,7 @@ Report each as: the claim, where it is written, what the code says, and what tha
 changes about the work.
 
 Done when every claim of every ticket in the premises scope, body and notes, is
-listed with its `file:line`, or "not checked" and why.
+opened, or "not checked" and why.
 
 ## 4. Method — contradiction between tickets
 
@@ -294,7 +295,7 @@ Before handing the drafts over, audit them as you audited the tickets — they a
 claims written in a hurry by the party least able to see their errors:
 
 - §3's premises method over every premise a draft adds or changes, and every
-  decision taken while grilling the user, with the same `file:line` rule.
+  decision taken while grilling the user, each opened or "not checked".
 - §6's graph method over the graph as the drafts leave it: cycles, a blocker on
   a closed ticket, a descendant blocking its ancestor.
 - A `Blocked by` line leads with its refs; a blocker named only in prose after

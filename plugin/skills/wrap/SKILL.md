@@ -1,6 +1,6 @@
 ---
 argument-hint: "[what the next session is for]"
-description: Wrap up a session by asking what to keep as notes, plan inbox items, progress lines or a recipe, which due reminders to close, and whether to hand off. Use when the user asks to wrap up or end a session, or asks "anything to remember or hand off?"; never start one unasked.
+description: Wrap up a session by asking what to keep as notes, plan inbox items, progress lines or a recipe, which due reminders to close, and whether to hand off. Use when, and only when, the user asks to wrap up or end a session, or asks "anything to remember or hand off?".
 name: wrap
 ---
 
@@ -25,7 +25,14 @@ Leave out what the next session can already see: the code, commits, plan ticks a
 - **Notes**: what `/ele:remember`'s Propose section looks for
 - **Recipe**: when `ele config get recipes` prints `true`, a procedure `/ele:recipe`'s Find step keeps, drafted per its Draft step; where either step stops, drop the recipe and go on with the wrap. Otherwise leave recipes out of the wrap and its report, naming neither the option nor `/ele:recipe`: off means no offer
 - **Due reminders**: `ele reminder list`, not the start block, which a compaction may have dropped. Propose closing only one whose subject this session finished; say when it is a nudge, which closing re-arms
-- **Handoff**: propose one unless the start block alone sends the next session to the right place, meaning either the session has no next step, or it worked no issue or merge request and its next step is the next item of the only active plan, and nothing else is left: no change other than a plan file uncommitted in a repository the session touched, no printed command to run, no failed approach or unverified guess, and no next task the user named as an argument. Worded by `/ele:handoff`'s Write section, naming a progress line, inbox item or note proposed here rather than restating it. An argument names the task, not approval: the handoff still goes through step 3
+- **Handoff**: propose one unless the start block alone sends the next session to the right place, which takes all of:
+  - The session has no next step, or it worked no issue or merge request and its next step is the next item of the only active plan
+  - Nothing but a plan file is uncommitted in a repository the session touched
+  - No printed command is left to run
+  - No failed approach or unverified guess is left
+  - The user named no next task as an argument
+
+  Worded by `/ele:handoff`'s Write section, naming a progress line, inbox item or note proposed here rather than restating it. An argument names the task, not approval: the handoff still goes through step 3
 
 Nothing left: say so in one line and skip to step 4. Done when every proposal is drafted with its exact words.
 

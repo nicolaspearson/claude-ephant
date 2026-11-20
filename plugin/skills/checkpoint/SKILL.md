@@ -1,5 +1,5 @@
 ---
-description: Review work in subagents before it is reported done or ready to commit. Use when about to say work is done or ready to commit, or when the user asks for a checkpoint or pre-commit review.
+description: Review work in subagents before it is reported finished. Use when about to say work is done or ready to commit, or when the user asks for a checkpoint or pre-commit review.
 name: checkpoint
 ---
 
@@ -344,13 +344,16 @@ diff the fixes alone without a stash or commit. Create the directory first. Name
 the change list plus every file a fix created, less any path a fix returned to
 HEAD and any untracked file it deleted — the freeze refuses a path with nothing
 to diff. Launch one fresh `ele:checkpoint-reviewer`, Bugs included on purpose,
-or `general-purpose` where that type is not listed, with both frozen diffs, the
-files the fixes touched, the findings they fixed, the brief's Settled, Report
-only and Errors fields and, when the spec reviewer ran, §7 wrote a line or held
-a tick, the item quoted whole as the brief quotes it, with what the change sets
-out to deliver and the brief's Observed field; for a held tick, also the commits
-holding its work, where any are committed. It reads the reviewer files that apply, scoped to
-what the fixes changed:
+or `general-purpose` where that type is not listed, with:
+
+- Both frozen diffs, the files the fixes touched and the findings they fixed
+- The brief's Settled, Report only and Errors fields
+- When the spec reviewer ran, §7 wrote a line or held a tick: the item quoted
+  whole as the brief quotes it, what the change sets out to deliver and the
+  brief's Observed field; for a held tick, also the commits holding its work
+  where any are committed
+
+It reads the reviewer files that apply, scoped to what the fixes changed:
 
 - **Bugs**, if any code changed: what did the fixes break or fail to close?
 - **Conventions**, if anything was renamed, moved or reordered, or a fix closed
@@ -492,4 +495,5 @@ over half the repository's paths:
 ele checkpoint optout <root> "<glob>" ...
 ```
 
-Stopping early is done when `close` prints `closed: <root>` per repository.
+Stopping early is done when `close` prints `closed: <root>` per repository, or,
+for an opt-out, `optout` prints `opted out for this session:` with every glob.

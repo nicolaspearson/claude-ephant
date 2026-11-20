@@ -1,6 +1,6 @@
 ---
 argument-hint: "[good|bad <why> | list]"
-description: Flag a moment of this session as good or bad, with why, so a later study of sessions can find it; or, given list, show the project's flags. Use when the user says "flag this", "flag that as bad", "mark this as good", or asks what has been flagged.
+description: Flag a moment of this session as good or bad, with why, so a later study of sessions can find it; or, given list, show the project's flags. Use when the user says "flag this", as good or bad, or asks what has been flagged.
 name: flag
 ---
 

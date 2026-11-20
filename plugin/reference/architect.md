@@ -9,10 +9,10 @@ edits nothing.
 
 These hold in every repository, whatever its convention files say:
 
-- No comment that restates the code. A comment carries only what the code
-  cannot: a non-obvious constraint, a bug it prevents, an order that looks wrong
-  and is not. Where the files beside the change carry none, the design adds none
-- No file in a language the repository does not already use. Before naming a
+- A comment carries only what the code cannot: a non-obvious constraint, a bug
+  it prevents, an order that looks wrong and is not; none restates the code.
+  Where the files beside the change carry none, the design adds none
+- Every new file is in a language the repository already uses. Before naming a
   new file, search for its extension with Glob; where Glob is missing, with
   Grep's glob filter; where both are missing and the launch has Bash, with
   `find` in Bash, by absolute paths and for searching only. With no match

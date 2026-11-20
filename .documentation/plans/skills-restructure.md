@@ -175,7 +175,7 @@ loads what its run needs and each rule changes in one place.
     match it; `reference/explorer.md`'s tool rules kept, ruled out of scope;
     every SKILL.md under 500 lines; `task format`, `task check FORCE=1` and `task
     audit` pass
-- [ ] skill-wording: Fix each wording finding Context lists: checkpoint's,
+- [x] skill-wording: Fix each wording finding Context lists: checkpoint's,
   flag's, setup's, recipe's and wrap's descriptions, one trigger per branch,
   recipe and wrap ending on "Use only when the user asks"; a done-when for
   recall and for checkpoint's optout; checkpoint §8's re-reviewer brief and
@@ -188,6 +188,15 @@ loads what its run needs and each rule changes in one place.
     checkpoint's optout, every SKILL.md is under 500 lines, the specs and
     `docs/` pages quoting the text match it, and `task format`, `task check
     FORCE=1` and `task audit` pass
+  - asserted in the skill-wording commit: each finding's old wording grepped
+    absent and new text present: one trigger per branch in the five
+    descriptions, flag's quoting "flag this" and wrap's keeping "anything to
+    remember or hand off?" on the user's ruling, recipe and wrap ending "Use
+    when, and only when, the user asks", since the skill lint needs "Use
+    when"; done-whens in recall and under checkpoint's optout; §8's brief and
+    wrap's handoff condition as lists; red, frontier and opened; architect's
+    Rules positive first; the design spec matches; every SKILL.md under 500
+    lines; `task format`, `task check FORCE=1` and `task audit` pass
 - [ ] Fold each Decision through `/ele:plan-audit close
   .documentation/plans/skills-restructure.md`, offer the user a `task eval`
   run of `recipe-audit` and `plan-new-review`, propose each out-of-scope line

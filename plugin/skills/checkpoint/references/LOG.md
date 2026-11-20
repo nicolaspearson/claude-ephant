@@ -6,9 +6,9 @@ The values each field of `ele checkpoint log`'s record takes.
   this one, so the severity table still credits each.
 - `change`: files on the change list, and lines added plus removed.
 - `mode`: `full`, `small`.
-- `mutations`: `run`; `failed` for the reason stated; `inconclusive`, a mutation
-  that did not compile or did not land. One that landed and did not bite is a
-  finding, stage `mutation`, not a count.
+- `mutations`: `run`; `failed`, those that went red for the stated reason;
+  `inconclusive`, a mutation that did not compile or did not land. One that
+  landed and stayed green is a finding, stage `mutation`, not a count.
 - `origin`: `change`, `earlier` (code older than the change), `fix` (introduced
   by a fix in this run).
 - `rereview`: `ran`, `skipped` (§8 found the fingerprint unmoved).

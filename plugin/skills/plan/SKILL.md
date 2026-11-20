@@ -29,7 +29,7 @@ The format:
 
 ## Asking in rounds
 
-`new` and `convert` settle questions in rounds. A round asks every question whose prerequisites are settled, numbered, each with your recommended answer, worded so that yes accepts it; a question that hangs on one still open waits for a later round, since asked early it is asked again. Facts are yours to find, as Grounding says: ask the user for decisions, and for a fact neither settles. A decision goes in `## Decisions`, with its reason, of each plan that relies on it; a fact about an item goes under that item as a dated line. The rounds end when no question is open and the user confirms the whole; only then does the step that asked them go on. A question `convert` step 1 leaves as a note is not asked
+`new` and `convert` settle questions in rounds. A round asks the frontier, every open question that hangs on none still open, numbered, each with your recommended answer, worded so that yes accepts it; one asked before what it hangs on is settled is asked again. Facts are yours to find, as Grounding says: ask the user for decisions, and for a fact neither settles. A decision goes in `## Decisions`, with its reason, of each plan that relies on it; a fact about an item goes under that item as a dated line. The rounds end when no question is open and the user confirms the whole; only then does the step that asked them go on. A question `convert` step 1 leaves as a note is not asked
 
 ## Grounding
 

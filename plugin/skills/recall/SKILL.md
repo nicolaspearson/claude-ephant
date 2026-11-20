@@ -51,3 +51,5 @@ ele show --note <id>
 - A note result shows its id just before its text; `ele remember --supersedes <id>` replaces it. One marked `(superseded by <id>)` was replaced: search the topic again with `--kind note` and rely on the newer note
 - Secrets are redacted in the index; `[redacted:<kind>]` is not the real value
 - Nothing found means no entry indexed in the searched scope and filters contains all those words; when another sync is running, the latest session may not be indexed yet. Try fewer or different words, or ask whether to search other owners, before concluding it was never discussed
+
+Done when each result the answer relies on is cited with its date and its session or note id, and any claim about the code in it re-checked, or the answer says nothing was found, with the words and scope searched.
