@@ -99,12 +99,16 @@ block ele prints for its project and owner:
    their date and time
 4. One line counting the plan candidates, open questions starting `Plan
    candidate` then `:`, `(` or `,` in any case, with the newest one's date;
-   `/ele:plan-audit` groups them. You see this line too, after any reminders
+   `/ele:plan-audit` groups them
 5. Every other open question, then decisions and facts, newest first.
    Decisions and facts are held to about 1,500 tokens, oldest cut first;
    questions are cut only when the whole block grows too long for Claude Code
    to show
 6. A closing line counting what was not shown and how to search
+
+You see items 1 to 4 too, when they apply, after a notice if ele has moved its
+data directory. The candidate line sits under `Notes from ele:`, and a `----`
+line separates each part from the next. Claude's copy has no separators.
 
 `ele context` prints every open question, decision and fact for the project,
 plan candidates included,

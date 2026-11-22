@@ -175,6 +175,52 @@ func TestRunSessionStartSaysWhenTheSessionCompacted(t *testing.T) {
 	}
 }
 
+func TestRunSessionStartSeparatesTheUsersSectionsOnly(t *testing.T) {
+	home := recallFixture(t)
+	t.Setenv("NO_COLOR", "1")
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	t.Chdir(gateway)
+	writeFile(t, filepath.Join(gateway, "build.md"), "---\nkind: plan\n---\n\n## Actions\n\n- [x] Parser\n- [ ] Start block\n\n## Inbox\n")
+	output, code := runCommand(t, "plan", "start", "build.md")
+	require.Equal(t, 0, code, output)
+	output, code = runCommand(t, "remember", "--kind", "handoff", "--session", "abcdef0123", "Next: wire the reviewer agent type.")
+	require.Equal(t, 0, code, output)
+	handoff := readRemembered(t, output)
+	noteDirectory := filepath.Join(home, "data", "notes")
+	today := time.Now().Format(time.DateOnly)
+	_, err := notes.Write(noteDirectory, notes.Note{Body: "Run the measurement.", Date: "2026-10-01", Due: today, ID: "20261001-rrrrrr", Kind: notes.KindReminder, Owner: "corp", Scope: notes.ScopeGlobal})
+	require.NoError(t, err)
+	_, err = notes.Write(noteDirectory, notes.Note{Body: "Plan candidate: start-block layout.", Date: "2026-11-14", ID: "20261114-cccccc", Kind: notes.KindQuestion, Owner: "corp", Scope: notes.ScopeGlobal})
+	require.NoError(t, err)
+	writeFile(t, filepath.Join(home, "data", "move-notice"), "ele moved its data directory from /old to /new.\n")
+
+	var raw bytes.Buffer
+	require.Equal(t, 0, sessionStart(context.Background(), []string{"--no-sync"}, strings.NewReader(`{"session_id":"s","source":"startup"}`), &raw, &raw), raw.String())
+	block, message := hookOutput(t, raw.String())
+	written, err := time.Parse(time.RFC3339, handoff.Time)
+	require.NoError(t, err)
+	handoffSection := "Handoff from ele, note " + handoff.ID + " of " + written.UTC().Format("2006-01-02 15:04") + "Z, session abcdef01, shown once:\nNext: wire the reviewer agent type.\n"
+	planSection := "Active plan from ele:\nPlan build.md: 1 open, 0 blocked, 1 done, 0 in the inbox.\n1 warning; ele plan check build.md lists it.\nNext, line 8:\n- [ ] Start block\n"
+	reminderSection := "Reminders from ele, due:\n- due " + today + ", reminder 20261001-rrrrrr: Run the measurement.\n"
+	candidateLine := "1 plan candidate, newest 2026-11-14; /ele:plan-audit groups them, ele context lists them.\n"
+	require.Equal(t, "ele moved its data directory from /old to /new.\n----\n"+handoffSection+"----\n"+planSection+"----\n"+reminderSection+"----\nNotes from ele:\n"+candidateLine[:len(candidateLine)-1], message)
+
+	require.NotContains(t, block, "----")
+	require.Contains(t, block, "ele moved its data directory from /old to /new.\n")
+	require.Contains(t, block, handoffSection+"\n")
+	require.Contains(t, block, planSection)
+	require.Contains(t, block, reminderSection)
+	require.Contains(t, block, "Notes from ele for corp · gateway:\n"+candidateLine, "the session's copy keeps its own notes header")
+
+	t.Setenv("NO_COLOR", "")
+	writeFile(t, filepath.Join(home, "data", "move-notice"), "ele moved its data directory from /old to /new.\n")
+	raw.Reset()
+	require.Equal(t, 0, sessionStart(context.Background(), []string{"--no-sync"}, strings.NewReader(`{"session_id":"s","source":"startup"}`), &raw, &raw), raw.String())
+	_, message = hookOutput(t, raw.String())
+	require.True(t, strings.HasPrefix(message, "ele moved its data directory from /old to /new.\n\033[2m----\033[22m\n\033[1mActive plan from ele:\033[22m\n"), message)
+	require.Contains(t, message, "\n\033[2m----\033[22m\n\033[1mNotes from ele:\033[22m\n")
+}
+
 func TestRunSessionStartShowsAHandoffOnce(t *testing.T) {
 	home := recallFixture(t)
 	t.Chdir(filepath.Join(home, "w", "corp", "gateway"))
@@ -341,7 +387,7 @@ func TestRunSessionStartShowsAReminderDueAtATimeOnlyFromThatTime(t *testing.T) {
 
 	start := func(now time.Time) string {
 		var output bytes.Buffer
-		_, err := writeSessionStart(context.Background(), &output, dataDirectory, now, "startup")
+		_, _, err := writeSessionStart(context.Background(), &output, dataDirectory, now, "startup")
 		require.NoError(t, err)
 		return output.String()
 	}
@@ -372,7 +418,7 @@ func TestRunSessionStartShowsActivePlansEveryTime(t *testing.T) {
 	section := "Active plan from ele:\nPlan build.md: 1 open, 0 blocked, 1 done, 0 in the inbox.\n1 warning; ele plan check build.md lists it.\nNext, line 8:\n- [ ] Start block\n  token=[redacted:assignment]\n"
 	shown, message := hookOutput(t, start("startup"))
 	require.True(t, strings.HasPrefix(message, "Handoff from ele, note "+handoff.ID), message)
-	require.Contains(t, message, "Next: the start block.\n\n"+section)
+	require.Contains(t, message, "Next: the start block.\n----\n"+section)
 	require.Equal(t, 19, strings.Count(message, "as of 2026-10-17"), "the body is cut at about 2,000 bytes")
 	require.True(t, strings.HasSuffix(message, "\n  [11 lines of the body not shown; ele plan show prints it whole]"), message)
 	require.Contains(t, shown, "[11 lines of the body not shown; ele plan show prints it whole]\nAsk the user whether to work this plan before starting anything; /ele:plan, which the user runs, picks it up.\n\nele has no notes", "the instruction is the session's, not the user's")
@@ -728,7 +774,7 @@ func TestWriteSessionStartFitsHookOutputCap(t *testing.T) {
 	}
 
 	var output bytes.Buffer
-	_, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "startup")
+	_, _, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "startup")
 	require.NoError(t, err)
 	require.LessOrEqual(t, len(utf16.Encode([]rune(output.String()))), blockBudget)
 	require.Regexp(t, `\d+ older questions not shown, ele context lists them`, output.String())
@@ -745,7 +791,7 @@ func TestWriteSessionStartKeepsNotesWhenTheIndexFails(t *testing.T) {
 	require.NoError(t, os.Mkdir(database, 0o700))
 
 	var output bytes.Buffer
-	_, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "startup")
+	_, _, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "startup")
 	require.NoError(t, err)
 	require.True(t, strings.HasPrefix(output.String(), "ele could not count past sessions: "), output.String())
 	require.True(t, strings.HasSuffix(output.String(), "\n- 2026-10-14 decision 20261014-dddddd: Pin pydantic.\nsearch with /ele:recall.\n"), output.String())
@@ -759,24 +805,24 @@ func TestWriteSessionStartShowsPlanCandidatesToTheUser(t *testing.T) {
 	_, err := notes.Write(noteDirectory, notes.Note{Body: "Should ele index tool output?", Date: "2026-10-10", ID: "20261010-qqqqqq", Kind: notes.KindQuestion, Owner: "corp", Scope: notes.ScopeGlobal})
 	require.NoError(t, err)
 	var output bytes.Buffer
-	shown, err := writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "resume")
+	shown, _, err := writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "resume")
 	require.NoError(t, err)
 	require.Empty(t, shown)
 
 	_, err = notes.Write(noteDirectory, notes.Note{Body: "Plan candidate: start-block layout.", Date: "2026-11-14", ID: "20261114-cccccc", Kind: notes.KindQuestion, Owner: "corp", Scope: notes.ScopeGlobal})
 	require.NoError(t, err)
 	output.Reset()
-	shown, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "resume")
+	shown, _, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "resume")
 	require.NoError(t, err)
-	require.Equal(t, "1 plan candidate, newest 2026-11-14; /ele:plan-audit groups them, ele context lists them.", shown)
+	require.Equal(t, "Notes from ele:\n1 plan candidate, newest 2026-11-14; /ele:plan-audit groups them, ele context lists them.", shown)
 
 	_, err = notes.Write(noteDirectory, notes.Note{Body: "Run the measurement.", Date: "2026-10-01", Due: "2026-10-01", ID: "20261001-rrrrrr", Kind: notes.KindReminder, Owner: "corp", Scope: notes.ScopeGlobal})
 	require.NoError(t, err)
 	output.Reset()
-	shown, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "startup")
+	shown, _, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "startup")
 	require.NoError(t, err)
 	require.Contains(t, shown, "Run the measurement.")
-	require.True(t, strings.HasSuffix(shown, "\n\n1 plan candidate, newest 2026-11-14; /ele:plan-audit groups them, ele context lists them."), shown)
+	require.True(t, strings.HasSuffix(shown, "\n----\nNotes from ele:\n1 plan candidate, newest 2026-11-14; /ele:plan-audit groups them, ele context lists them."), shown)
 }
 
 func TestWriteSessionStartWarnsWhenSyncIsStale(t *testing.T) {
@@ -787,24 +833,24 @@ func TestWriteSessionStartWarnsWhenSyncIsStale(t *testing.T) {
 	tail := "; " + filepath.Join(dataDirectory, "sync.log") + " holds the background syncs' output, newest last.\n"
 
 	var output bytes.Buffer
-	_, err := writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "startup")
+	_, _, err := writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "startup")
 	require.NoError(t, err)
 	require.NotContains(t, output.String(), "sync")
 
 	output.Reset()
-	_, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now().Add(25*time.Hour), "startup")
+	_, _, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now().Add(25*time.Hour), "startup")
 	require.NoError(t, err)
 	require.Regexp(t, `^ele last synced \d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ`+regexp.QuoteMeta(tail), output.String())
 
 	writeFile(t, stamp, "garbage\n")
 	output.Reset()
-	_, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "startup")
+	_, _, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "startup")
 	require.NoError(t, err)
 	require.True(t, strings.HasPrefix(output.String(), "ele's sync stamp is malformed"+tail), output.String())
 
 	require.NoError(t, os.Remove(stamp))
 	output.Reset()
-	_, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "startup")
+	_, _, err = writeSessionStart(context.Background(), &output, dataDirectory, time.Now(), "startup")
 	require.NoError(t, err)
 	require.True(t, strings.HasPrefix(output.String(), "ele has no record of a successful sync"+tail), output.String())
 }

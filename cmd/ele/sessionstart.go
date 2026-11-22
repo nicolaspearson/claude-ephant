@@ -39,6 +39,7 @@ const (
 	blockBudget    = 9500
 	hookInputLimit = 1 << 20
 	planBodyBudget = 2000
+	sectionBreak   = "----\n"
 	sessionHint    = "A note's discussion: ele show --note <id>.\n"
 	sessionPrefix  = 8
 	staleAfter     = 24 * time.Hour
@@ -222,13 +223,16 @@ func sessionStart(ctx context.Context, args []string, stdin io.Reader, stdout io
 		fmt.Fprintln(&block, notice)
 	}
 	code := 0
-	shown, err := writeSessionStart(ctx, &block, dataDirectory, now, source)
+	shown, coloured, err := writeSessionStart(ctx, &block, dataDirectory, now, source)
 	if err != nil {
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		code = 1
 	}
-	if notice != "" {
-		shown = strings.TrimSuffix(highlight.Message(notice, false)+"\n"+shown, "\n")
+	switch {
+	case notice != "" && shown != "":
+		shown = highlight.Message(notice, false) + "\n" + highlight.Message(sectionBreak, coloured) + shown
+	case notice != "":
+		shown = highlight.Message(notice, false)
 	}
 	if !*noSync {
 		if err = startSync(dataDirectory); err != nil {
@@ -385,7 +389,7 @@ func writeNotes(stdout io.Writer, owner string, project string, all []notes.Note
 	return candidateLine
 }
 
-func writeSessionStart(ctx context.Context, stdout io.Writer, dataDirectory string, now time.Time, source string) (string, error) {
+func writeSessionStart(ctx context.Context, stdout io.Writer, dataDirectory string, now time.Time, source string) (string, bool, error) {
 	written := &unitCounter{writer: stdout}
 	stdout = written
 	syncLog := filepath.Join(dataDirectory, "sync.log")
@@ -407,12 +411,12 @@ func writeSessionStart(ctx context.Context, stdout io.Writer, dataDirectory stri
 
 	ownerMap, err := ownermap.Load(filepath.Join(dataDirectory, "owner-map.json"))
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 	// As of 2026-10-15 Claude Code runs a hook in the session's working directory.
 	directory, err := os.Getwd()
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 	project, owner := index.NewProjects(ownerMap).Resolve(directory)
 	settings, err := config.Load(configPath(dataDirectory))
@@ -433,12 +437,12 @@ func writeSessionStart(ctx context.Context, stdout io.Writer, dataDirectory stri
 	}
 	all, invalid, err := notes.ReadFor(filepath.Join(dataDirectory, "notes"), owner)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 	switch {
 	case owner == "" && len(all)+invalid == 0:
 		fmt.Fprintf(stdout, "ele shows no notes here: no owner in owner-map.json covers %s. /ele:setup maps it; /ele:recall needs --owner <name> or --all.\n", directory)
-		return "", nil
+		return "", false, nil
 	case owner == "":
 		fmt.Fprintf(stdout, "ele shows only everywhere notes here: no owner in owner-map.json covers %s. /ele:setup maps it; /ele:recall needs --owner <name> or --all.\n", directory)
 	}
@@ -477,9 +481,9 @@ func writeSessionStart(ctx context.Context, stdout io.Writer, dataDirectory stri
 		}
 	}
 	if candidateLine := writeNotes(stdout, owner, project, all, invalid, sessions, blockBudget-written.units); candidateLine != "" {
-		shown = append(shown, candidateLine)
+		shown = append(shown, "Notes from ele:\n"+candidateLine)
 	}
-	return highlight.Message(strings.TrimSuffix(strings.Join(shown, "\n"), "\n"), coloured), nil
+	return highlight.Message(strings.TrimSuffix(strings.Join(shown, sectionBreak), "\n"), coloured), coloured, nil
 }
 
 type unitCounter struct {

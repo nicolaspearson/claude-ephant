@@ -158,7 +158,7 @@ func TestRunReminderCloseReArmsASubDayNudgeToTheMinute(t *testing.T) {
 
 	start := func(now time.Time) string {
 		var output bytes.Buffer
-		_, err := writeSessionStart(context.Background(), &output, dataDirectory, now, "startup")
+		_, _, err := writeSessionStart(context.Background(), &output, dataDirectory, now, "startup")
 		require.NoError(t, err)
 		return output.String()
 	}
