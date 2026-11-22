@@ -7,7 +7,7 @@ body:
       value: |
         Thanks for sharing. ele never sends this itself: what you paste here is all the maintainers see, and this issue is public.
 
-        Read both reports before pasting, and cut what [What a report holds](https://github.com/nicolaspearson/claude-ephant/blob/main/docs/improving-ele.md#what-a-report-holds) names: the lines under `User reported a problem after …` in `ele mine --report` carry a session id prefix and a summary written from your conversation.
+        Leave the `ele mine --report` field empty if you have not run `/ele:mine`. Read each report before pasting it, and cut what [What a report holds](https://github.com/nicolaspearson/claude-ephant/blob/main/docs/improving-ele.md#what-a-report-holds) names: the lines under `User reported a problem after …` in `ele mine --report` carry a session id prefix and a summary written from your conversation.
   - type: input
     id: version
     attributes:
@@ -39,5 +39,5 @@ body:
     attributes:
       label: Before submitting
       options:
-        - label: I have read both reports and removed anything I would rather keep, knowing this issue is public
+        - label: I have read each report I pasted and removed anything I would rather keep, knowing this issue is public
           required: true
