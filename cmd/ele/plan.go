@@ -82,7 +82,7 @@ func checkPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.W
 	}
 	code := 0
 	for _, relative := range paths {
-		content, readErr := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
+		content, readErr := readPlan(root, relative)
 		switch {
 		case errors.Is(readErr, fs.ErrNotExist) && len(arguments) == 0:
 			fmt.Fprintf(stdout, activePlanMissing+".\n", relative)
@@ -91,12 +91,7 @@ func checkPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.W
 			fmt.Fprintf(stderr, "ele: %s is not in this checkout\n", relative)
 			return 1
 		case readErr != nil:
-			reason := readErr
-			var pathErr *fs.PathError
-			if errors.As(readErr, &pathErr) {
-				reason = pathErr.Err
-			}
-			fmt.Fprintf(stderr, "%s\n", redact.Redact(fmt.Sprintf("ele: %s: %v", relative, reason)))
+			fmt.Fprintf(stderr, "%s\n", redact.Redact("ele: "+readErr.Error()))
 			code = 1
 			continue
 		}
@@ -292,7 +287,6 @@ func planPath(root string, argument string) (string, error) {
 		missing = filepath.Join(filepath.Base(absolute), missing)
 		absolute = parent
 	}
-	// ele prints plan paths from the checkout root.
 	relative, err := filepath.Rel(root, absolute)
 	if _, statErr := os.Stat(absolute); statErr != nil && filepath.IsLocal(argument) {
 		if resolved, rootErr := filepath.EvalSymlinks(filepath.Join(root, argument)); rootErr == nil {
@@ -306,7 +300,7 @@ func planPath(root string, argument string) (string, error) {
 }
 
 func planSummary(ctx context.Context, root string, relative string, plans planSet) string {
-	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
+	content, err := readPlan(root, relative)
 	if errors.Is(err, fs.ErrNotExist) {
 		return fmt.Sprintf(activePlanMissing, relative)
 	}
@@ -334,7 +328,7 @@ func planSummary(ctx context.Context, root string, relative string, plans planSe
 
 // bodyLimit is in bytes; 0 means no cap.
 func planView(ctx context.Context, root string, relative string, bodyLimit int, plans planSet) (string, error) {
-	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
+	content, err := readPlan(root, relative)
 	if err != nil {
 		return "", err
 	}
@@ -358,6 +352,15 @@ func pronoun(count int) string {
 		return "it"
 	}
 	return "them"
+}
+
+func readPlan(root string, relative string) ([]byte, error) {
+	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
+	var pathErr *fs.PathError
+	if err != nil && !errors.Is(err, fs.ErrNotExist) && errors.As(err, &pathErr) {
+		return nil, fmt.Errorf("%s: %w", relative, pathErr.Err)
+	}
+	return content, err
 }
 
 func showPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer) int {
@@ -444,7 +447,7 @@ func startPlan(ctx context.Context, args []string, stdout io.Writer, stderr io.W
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return 1
 	}
-	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
+	content, err := readPlan(root, relative)
 	if errors.Is(err, fs.ErrNotExist) {
 		fmt.Fprintf(stderr, "ele: %s does not exist; name a plan file inside the project\n", relative)
 		return 1
@@ -514,7 +517,7 @@ func storePlanItems(ctx context.Context, root string, noteDirectory string, note
 	if root == "" {
 		return nil, errors.New("its checkout is not the working directory's")
 	}
-	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(note.Body)))
+	content, err := readPlan(root, note.Body)
 	committed := errors.Is(err, fs.ErrNotExist)
 	if committed {
 		content, err = plan.Committed(ctx, root, note.Body)

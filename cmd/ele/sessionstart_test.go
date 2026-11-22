@@ -96,6 +96,34 @@ func TestRunSessionStartKeepsALoneHandoffPendingWithTheOption(t *testing.T) {
 	require.NotContains(t, shown, "20261017-aaaaaa", "off, a lone handoff is marked shown")
 }
 
+func TestRunSessionStartNamesAPlanItCannotReadByItsCheckoutPath(t *testing.T) {
+	home := recallFixture(t)
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	writeFile(t, filepath.Join(gateway, "directory.md"), planFile)
+	writeFile(t, filepath.Join(gateway, "second.md"), planFile)
+	t.Chdir(gateway)
+	output, code := runCommand(t, "plan", "start", "directory.md")
+	require.Equal(t, 0, code, output)
+	require.NoError(t, os.Remove(filepath.Join(gateway, "directory.md")))
+	require.NoError(t, os.Mkdir(filepath.Join(gateway, "directory.md"), 0o755))
+	start := func() string {
+		var hook bytes.Buffer
+		exit := sessionStart(context.Background(), []string{"--no-sync"}, strings.NewReader(`{"session_id":"s","source":"startup"}`), &hook, &hook)
+		require.Equal(t, 0, exit, hook.String())
+		return hook.String()
+	}
+
+	shown, message := hookOutput(t, start())
+	require.Equal(t, "ele: directory.md: is a directory", message)
+	require.NotContains(t, shown, gateway)
+
+	output, code = runCommand(t, "plan", "start", "second.md")
+	require.Equal(t, 0, code, output)
+	shown, message = hookOutput(t, start())
+	require.Contains(t, message, "\n- directory.md: is a directory")
+	require.NotContains(t, shown, gateway)
+}
+
 func TestRunSessionStartOutsideAnyOwner(t *testing.T) {
 	home := recallFixture(t)
 	elsewhere := filepath.Join(home, "elsewhere")

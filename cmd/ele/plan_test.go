@@ -37,6 +37,15 @@ created: 2026-10-17
 - 2026-10-17: rename a flag
 `
 
+func TestPlanSummaryNamesAPlanItCannotReadByItsCheckoutPath(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(root, "directory.md"), 0o755))
+
+	summary := planSummary(context.Background(), root, "directory.md", planSet{})
+	require.Equal(t, "directory.md: is a directory", summary)
+	require.NotContains(t, summary, root)
+}
+
 func TestPlanSummaryRedactsTheNextTitleAndOmitsANextThatIsNone(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "secret.md"), "---\nkind: plan\n---\n\n## Actions\n\n- [ ] Rotate token=abc123secret\n")
@@ -203,6 +212,22 @@ func TestRunPlanCheckWarnsOnlyOnEleDataEleResolves(t *testing.T) {
 	require.Equal(t, "Plan cites.md: 7 warnings.\n- line 6: "+warning+"- line 7: "+warning+"- line 8: "+warning+"- line 9: "+warning+"- line 10: "+warning+"- line 11: "+warning+"- line 12: "+warning, output, "an unreadable index never silences the check")
 }
 
+func TestRunPlanDoneNamesAPlanItCannotReadByItsCheckoutPath(t *testing.T) {
+	home := recallFixture(t)
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	writeFile(t, filepath.Join(gateway, "directory.md"), planFile)
+	t.Chdir(gateway)
+	output, code := runCommand(t, "plan", "start", "directory.md")
+	require.Equal(t, 0, code, output)
+	require.NoError(t, os.Remove(filepath.Join(gateway, "directory.md")))
+	require.NoError(t, os.Mkdir(filepath.Join(gateway, "directory.md"), 0o755))
+
+	output, code = runCommand(t, "plan", "done", "directory.md")
+	require.Equal(t, 0, code, output)
+	require.Contains(t, output, "Item names of directory.md not stored, so an edge into it reads as missing and its names stay free: directory.md: is a directory\n")
+	require.NotContains(t, output, gateway)
+}
+
 func TestRunPlanDonePrefersThePathFromTheWorkingDirectory(t *testing.T) {
 	home := recallFixture(t)
 	gateway := filepath.Join(home, "w", "corp", "gateway")
@@ -318,6 +343,29 @@ func TestRunPlanShowNamesAMalformedAfterAsTheReason(t *testing.T) {
 	output, code := runCommand(t, "plan", "show", "build.md")
 	require.Equal(t, 0, code, output)
 	require.Equal(t, "Plan build.md: 1 open, 1 blocked, 0 done, 0 in the inbox.\n1 warning; ele plan check build.md lists it.\nBlocked:\n- wire: Wire\n  after: soon, not a date; ele plan check names the line\nNext: none; every open item is blocked.\n", output)
+}
+
+func TestRunPlanShowNamesAPlanItCannotReadByItsCheckoutPath(t *testing.T) {
+	home := recallFixture(t)
+	gateway := filepath.Join(home, "w", "corp", "gateway")
+	writeFile(t, filepath.Join(gateway, "first.md"), planFile)
+	writeFile(t, filepath.Join(gateway, "directory.md"), planFile)
+	t.Chdir(gateway)
+	for _, path := range []string{"first.md", "directory.md"} {
+		output, code := runCommand(t, "plan", "start", path)
+		require.Equal(t, 0, code, output)
+	}
+	require.NoError(t, os.Remove(filepath.Join(gateway, "directory.md")))
+	require.NoError(t, os.Mkdir(filepath.Join(gateway, "directory.md"), 0o755))
+
+	output, code := runCommand(t, "plan", "show")
+	require.Equal(t, 0, code, output)
+	require.Regexp(t, `\n- \S+: directory\.md: is a directory\n`, output)
+	require.NotContains(t, output, gateway)
+
+	output, code = runCommand(t, "plan", "show", "directory.md")
+	require.Equal(t, 1, code)
+	require.Equal(t, "ele: directory.md: is a directory\n", output)
 }
 
 func TestRunPlanShowNamesEachActivePlanOrAMissingFile(t *testing.T) {
@@ -546,6 +594,7 @@ func TestRunPlanStartRefusesWhatIsNotAPlan(t *testing.T) {
 	writeFile(t, filepath.Join(gateway, "spec.md"), "---\nkind: spec\n---\n## Actions\n- [ ] x\n")
 	writeFile(t, filepath.Join(gateway, "empty.md"), "---\nkind: plan\n---\n## Actions\n\n## Inbox\n")
 	writeFile(t, filepath.Join(home, "w", "corp", "outside.md"), planFile)
+	require.NoError(t, os.Mkdir(filepath.Join(gateway, "directory.md"), 0o755))
 	t.Chdir(gateway)
 
 	tests := []struct {
@@ -553,6 +602,7 @@ func TestRunPlanStartRefusesWhatIsNotAPlan(t *testing.T) {
 		name    string
 		path    string
 	}{
+		{message: "ele: directory.md: is a directory\n", name: "a directory", path: "directory.md"},
 		{message: "ele: missing.md does not exist; name a plan file inside the project\n", name: "missing file", path: "missing.md"},
 		{message: "ele: empty.md has no checkbox under ## Actions\n", name: "no checkbox", path: "empty.md"},
 		{message: "ele: spec.md: invalid plan: kind \"spec\" is not plan\n", name: "not a plan", path: "spec.md"},
