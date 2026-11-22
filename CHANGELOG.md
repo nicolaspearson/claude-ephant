@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.3.0](https://github.com/nicolaspearson/claude-ephant/compare/v1.2.0...v1.3.0) (2026-11-22)
+
+
+### Features
+
+* **lint:** skill lint fails a skill with no row in docs/commands.md or README.md ([9a26a7c](https://github.com/nicolaspearson/claude-ephant/commit/9a26a7cf03287d02024165b396e37540d8205bae))
+* **mine:** ele mine --report --share leaves out each user-reported problem's session, date and summary ([51c1f2a](https://github.com/nicolaspearson/claude-ephant/commit/51c1f2a5e322c55f51309081c22d3eda4f5b6b14))
+* **plan:** blocked: names an item of another repository's plan as &lt;project&gt;/&lt;plan&gt;/&lt;item&gt; (foreign-blockers) ([2325d59](https://github.com/nicolaspearson/claude-ephant/commit/2325d597a41725ce2304d76f9db4bed272149a7c))
+* **plugin:** checkpoint reviews a capped freeze in full and always re-reviews it (freeze-cap) ([67d0cd9](https://github.com/nicolaspearson/claude-ephant/commit/67d0cd9fbb0379958e81c9e2ce87a4f3da0fc234))
+* **session-start:** separate the user's start-block sections with a dim ---- line, candidate line titled Notes from ele ([b162c2e](https://github.com/nicolaspearson/claude-ephant/commit/b162c2e09455ea2a5e0b7f492107aa0429a07c76))
+
+
+### Bug Fixes
+
+* **plan:** an unreadable plan is named by its checkout path and reason everywhere ele reads one ([1d9dc8b](https://github.com/nicolaspearson/claude-ephant/commit/1d9dc8be7ced9a733274f3f9ce0e6c1cc5e9497a))
+
 ## [1.2.0](https://github.com/nicolaspearson/claude-ephant/compare/v1.1.0...v1.2.0) (2026-11-17)
 
 
