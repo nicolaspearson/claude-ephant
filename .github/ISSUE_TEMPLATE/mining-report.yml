@@ -7,7 +7,7 @@ body:
       value: |
         Thanks for sharing. ele never sends this itself: what you paste here is all the maintainers see, and this issue is public.
 
-        Leave the `ele mine --report` field empty if you have not run `/ele:mine`. Read each report before pasting it, and cut what [What a report holds](https://github.com/nicolaspearson/claude-ephant/blob/main/docs/improving-ele.md#what-a-report-holds) names: the lines under `User reported a problem after …` in `ele mine --report` carry a session id prefix and a summary written from your conversation.
+        Leave the `ele mine --report --share` field empty if you have not run `/ele:mine`. Read each report before pasting it, and cut what [What a report holds](https://github.com/nicolaspearson/claude-ephant/blob/main/docs/improving-ele.md#what-a-report-holds) names: a category in either report, or a check name in `ele checkpoint stats`, can carry a term from your project. `--share` already leaves out the session id prefix, date and summary written from your conversation under `User reported a problem after …`, and keeps the labels.
   - type: input
     id: version
     attributes:
@@ -25,8 +25,8 @@ body:
   - type: textarea
     id: mine-report
     attributes:
-      label: ele mine --report
-      description: After `/ele:mine`, with the lines under `User reported a problem after …` removed
+      label: ele mine --report --share
+      description: After `/ele:mine`
       render: text
   - type: textarea
     id: checkpoint-stats

@@ -26,16 +26,16 @@ func TestReportKeepsTheNotesTheMinedRunsProposed(t *testing.T) {
 	}
 	var report bytes.Buffer
 
-	require.NoError(t, Report(&report, runs, nil, nil))
+	require.NoError(t, Report(&report, runs, nil, nil, false))
 
 	require.Contains(t, report.String(), "\nNotes: 3 proposed, 1 approved\n")
 
 	report.Reset()
-	require.NoError(t, Report(&report, []Judgment{judgment("subagent", "s1", "2026-10-21T10:00:00Z", `{"mode":"full","findings":[],"notes":{"approved":0,"proposed":0}}`)}, nil, nil))
+	require.NoError(t, Report(&report, []Judgment{judgment("subagent", "s1", "2026-10-21T10:00:00Z", `{"mode":"full","findings":[],"notes":{"approved":0,"proposed":0}}`)}, nil, nil, false))
 	require.Contains(t, report.String(), "\nNotes: 0 proposed, 0 approved\n", "a mined zero is a figure")
 
 	report.Reset()
-	require.NoError(t, Report(&report, []Judgment{judgment("subagent", "s1", "2026-10-21T10:00:00Z", `{"mode":"full","findings":[]}`)}, nil, nil))
+	require.NoError(t, Report(&report, []Judgment{judgment("subagent", "s1", "2026-10-21T10:00:00Z", `{"mode":"full","findings":[]}`)}, nil, nil, false))
 	require.NotContains(t, report.String(), "Notes:")
 }
 
@@ -47,7 +47,7 @@ func TestReportLeavesInlineEraCyclesOutOfTheSubagentEra(t *testing.T) {
 	}
 	var report bytes.Buffer
 
-	require.NoError(t, Report(&report, nil, cycles, nil))
+	require.NoError(t, Report(&report, nil, cycles, nil, false))
 
 	require.Contains(t, report.String(), "review-cycle judgments 1,")
 	require.Contains(t, report.String(), "Review cycles started by after 1.")
@@ -63,7 +63,7 @@ func TestReportLeavesOutACycleInsideAJudgedRunsWindow(t *testing.T) {
 	}
 	var report bytes.Buffer
 
-	require.NoError(t, Report(&report, runs, cycles, nil))
+	require.NoError(t, Report(&report, runs, cycles, nil, false))
 
 	require.Contains(t, report.String(), "run judgments 1, review-cycle judgments 2, cycles inside a judged run's window left out 1, checkpoints 3.")
 	require.Contains(t, report.String(), "Review cycles started by after 1, elsewhere 1.")
@@ -77,7 +77,7 @@ func TestReportLeavesOutAnInlineRunJudgedWithoutPerPassCounts(t *testing.T) {
 	}
 	var report bytes.Buffer
 
-	require.NoError(t, Report(&report, runs, nil, nil))
+	require.NoError(t, Report(&report, runs, nil, nil, false))
 
 	require.Contains(t, report.String(), "Inline era: run judgments 2, checkpoints 1.")
 	require.Contains(t, report.String(), "Inline-era runs judged under the subagent-era prompt, with no per-pass counts, left out: 1.")
@@ -96,7 +96,7 @@ func TestReportLeavesOutAndCountsAJudgmentItCannotRead(t *testing.T) {
 	cycles := []Judgment{judgment("", "s3", "2026-10-08T10:10:00Z", `{"started_by":"after"}`)}
 	var report bytes.Buffer
 
-	require.NoError(t, Report(&report, runs, cycles, nil))
+	require.NoError(t, Report(&report, runs, cycles, nil, false))
 
 	require.Contains(t, report.String(), "run judgments 2, review-cycle judgments 1, cycles inside a judged run's window left out 0")
 	require.Contains(t, report.String(), "Judgments whose result the report cannot read, left out: 2; a report_ts it cannot read, so covering no cycle: 1.")
@@ -109,11 +109,33 @@ func TestReportReadsTheLastStoredJudgmentPerUnit(t *testing.T) {
 	}
 	var report bytes.Buffer
 
-	require.NoError(t, Report(&report, runs, nil, nil))
+	require.NoError(t, Report(&report, runs, nil, nil, false))
 
 	require.Contains(t, report.String(), "Subagent era: run judgments 1, review-cycle judgments 0")
 	require.Contains(t, report.String(), "Mode: full 0, small 1.")
 	require.Contains(t, report.String(), "Refuted: 0 of 0 findings")
+}
+
+func TestReportShareableLeavesOutEachReportedProblemsSessionDateAndSummary(t *testing.T) {
+	runs := []Judgment{
+		judgment("subagent", "subagent-session", "2026-10-08T10:00:00Z", `{"after":{"user_reported_problem":true,"category":"routing","should_have_been_caught_by":"bugs","what":"Acme checkout screen broke"}}`),
+		judgment("inline", "inline-session", "2026-09-10T10:00:00Z", `{"findings":{},"after":{"user_reported_problem":true,"category":"layout","should_have_been_caught_by":"spec","what":"Globex invoice page broke"}}`),
+	}
+	var report bytes.Buffer
+
+	require.NoError(t, Report(&report, runs, nil, nil, false))
+
+	require.Contains(t, report.String(), "  - subagent 2026-10-08 [routing/bugs] Acme checkout screen broke\n")
+	require.Contains(t, report.String(), "  - inline-s 2026-09-10 [layout/spec] Globex invoice page broke\n")
+
+	report.Reset()
+	require.NoError(t, Report(&report, runs, nil, nil, true))
+
+	require.Contains(t, report.String(), "\nUser reported a problem after 1 of 1 checkpoints; should have been caught by bugs 1\nUser disputed")
+	require.Contains(t, report.String(), "\nUser reported a problem after 1 of 1 checkpoints; should have been caught by spec 1\nUser disputed")
+	for _, leaked := range []string{"subagent ", "inline-s", "2026-10-08", "2026-09-10", "Acme", "Globex"} {
+		require.NotContains(t, report.String(), leaked)
+	}
 }
 
 func TestReportTimesTheUnitsItHasATimingFor(t *testing.T) {
@@ -127,7 +149,7 @@ func TestReportTimesTheUnitsItHasATimingFor(t *testing.T) {
 	}}
 	var report bytes.Buffer
 
-	require.NoError(t, Report(&report, runs, nil, timings))
+	require.NoError(t, Report(&report, runs, nil, timings, false))
 
 	require.Contains(t, report.String(), "units timed 1 of 2.")
 	require.Contains(t, report.String(), "Window, opening to last line: median 10.0m")

@@ -27,15 +27,16 @@ func mine(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer
 	noSync := flags.Bool("no-sync", false, "read without syncing first")
 	promptFile := flags.String("prompt", "", "the classifier prompt the judgments were made with")
 	report := flags.Bool("report", false, "report figures from the last stored judgment per unit, both analyses together, with each subagent-era unit's timing read from its archived transcript")
+	share := flags.Bool("share", false, "with --report, leave out each user-reported problem's session, date and summary, which are written from your conversation, keeping its counts")
 	unitsFile := flags.String("units", "", "list the units this JSON Lines file names by session and timestamp, judged or not")
 	err := flags.Parse(args)
 	if err == nil && *report {
 		if flags.NArg() != 0 || *digests != "" || *judgmentsFile != "" || *promptFile != "" || *unitsFile != "" {
 			return rejectCall(flags, nil, stdout, stderr)
 		}
-		return reportJudgments(ctx, *noSync, stdout, stderr)
+		return reportJudgments(ctx, *noSync, *share, stdout, stderr)
 	}
-	if err != nil || flags.NArg() != 1 || (*judgmentsFile == "") != (*promptFile == "") || (*judgmentsFile != "" && (*digests == "" || *unitsFile != "")) {
+	if err != nil || *share || flags.NArg() != 1 || (*judgmentsFile == "") != (*promptFile == "") || (*judgmentsFile != "" && (*digests == "" || *unitsFile != "")) {
 		return rejectCall(flags, err, stdout, stderr)
 	}
 	analysis := flags.Arg(0)
@@ -165,7 +166,7 @@ func pendingUnits(cache string, analysis string, units []dto.MiningUnit) ([]dto.
 	return pending, backlog, watermark, err
 }
 
-func reportJudgments(ctx context.Context, noSync bool, stdout io.Writer, stderr io.Writer) int {
+func reportJudgments(ctx context.Context, noSync bool, share bool, stdout io.Writer, stderr io.Writer) int {
 	dataDirectory, err := datadir.Path()
 	if err != nil {
 		fmt.Fprintf(stderr, "ele: %v\n", err)
@@ -187,7 +188,7 @@ func reportJudgments(ctx context.Context, noSync bool, stdout io.Writer, stderr 
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return 1
 	}
-	if err = mining.Report(stdout, runs, cycles, timings); err != nil {
+	if err = mining.Report(stdout, runs, cycles, timings, share); err != nil {
 		fmt.Fprintf(stderr, "ele: %v\n", err)
 		return 1
 	}

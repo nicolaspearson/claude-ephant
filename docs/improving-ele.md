@@ -73,11 +73,14 @@ digest. Under each `User reported a problem after …` line, it lists every such
 checkpoint with the first 8 characters of its session id, its date, and up to
 160 characters of the classifier's summary of what you reported. That summary
 is written from your conversation, and can name a client, a screen, a file or
-a person.
+a person. `ele mine --report --share` leaves those lines out and keeps the
+counts on the line itself.
 
-Read a report before you share it. Delete the lines under `User reported a
-problem`, keeping the counts on the line itself, and cut anything else you
-would rather keep.
+`--share` keeps every label the counts are sorted by: categories, finding
+sources, re-review kinds and the reviewer a problem should have been caught by.
+Only the category is free-form and can carry a term from your project, so read
+a report before you share it, and cut any category or check name you would
+rather keep.
 
 ## Sharing a report
 
@@ -90,7 +93,7 @@ To help tune the shipped reviewers and checkpoint stages:
 2. Save the reports in a terminal, the first only if you ran `/ele:mine`:
 
    ```sh
-   ele mine --report > mine-report.txt
+   ele mine --report --share > mine-report.txt
    ele checkpoint stats --since 30d > checkpoint-stats.txt
    ```
 

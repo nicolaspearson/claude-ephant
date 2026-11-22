@@ -186,6 +186,7 @@ func TestRunMineRefusesBadInput(t *testing.T) {
 		{args: []string{"mine", "--judgments", "j.jsonl", "--prompt", "p.md", "checkpoint-runs"}, message: "ele mine [--digests"},
 		{args: []string{"mine", "--judgments", "j.jsonl", "checkpoint-runs"}, message: "ele mine [--digests"},
 		{args: []string{"mine", "--prompt", "p.md", "checkpoint-runs"}, message: "ele mine [--digests"},
+		{args: []string{"mine", "--share", "checkpoint-runs"}, message: "ele mine [--digests"},
 		{args: []string{"mine", "--units", "u.jsonl", "--digests", "d", "--judgments", "j.jsonl", "--prompt", "p.md", "checkpoint-runs"}, message: "ele mine [--digests"},
 		{args: []string{"mine", "checkpoint-runs", "review-cycles"}, message: "ele mine [--digests"},
 		{args: []string{"mine", "hook-blocks"}, message: `ele: unknown analysis "hook-blocks"; use checkpoint-runs, review-cycles`},
@@ -198,7 +199,7 @@ func TestRunMineRefusesBadInput(t *testing.T) {
 
 func TestRunMineReportReadsBothAnalysesAndTakesNothingElse(t *testing.T) {
 	cache := filepath.Join(recallFixture(t), "data", "mining", "cache")
-	_, err := mining.Store(cache, "checkpoint-runs", []mining.Judgment{{Classifier: "c", Era: "subagent", Result: json.RawMessage(`{"mode":"small"}`), Session: "s1", Timestamp: "2026-10-08T10:00:00Z"}})
+	_, err := mining.Store(cache, "checkpoint-runs", []mining.Judgment{{Classifier: "c", Era: "subagent", Result: json.RawMessage(`{"mode":"small","after":{"user_reported_problem":true,"what":"Acme checkout broke"}}`), Session: "s1", Timestamp: "2026-10-08T10:00:00Z"}})
 	require.NoError(t, err)
 	_, err = mining.Store(cache, "review-cycles", []mining.Judgment{{Classifier: "c", Result: json.RawMessage(`{"mode":"full"}`), Session: "s1", Timestamp: "2026-10-08T11:00:00Z"}})
 	require.NoError(t, err)
@@ -208,6 +209,12 @@ func TestRunMineReportReadsBothAnalysesAndTakesNothingElse(t *testing.T) {
 	require.Contains(t, stdout.String(), "Subagent era: run judgments 1, review-cycle judgments 1")
 	require.Contains(t, stdout.String(), "Mode: full 1, small 1.")
 	require.Contains(t, stdout.String(), "units timed 0 of 2.", "no archived unit carries these judgments' times")
+	require.Contains(t, stdout.String(), "Acme checkout broke")
+
+	stdout.Reset()
+	require.Equal(t, 0, run(context.Background(), []string{"mine", "--report", "--share"}, &stdout, &stderr), stderr.String())
+	require.Contains(t, stdout.String(), "User reported a problem after 1 of 2 checkpoints")
+	require.NotContains(t, stdout.String(), "Acme")
 
 	for _, args := range [][]string{{"mine", "--report", "checkpoint-runs"}, {"mine", "--report", "--units", "units.jsonl"}} {
 		stdout.Reset()

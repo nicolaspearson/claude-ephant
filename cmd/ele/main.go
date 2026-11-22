@@ -51,7 +51,7 @@ const usage = `usage:
   ele handoff reopen [--owner <name>] [--project <name>] <id>...
   ele mine [--digests <dir>] [--units <file>] [--no-sync] checkpoint-runs|review-cycles
   ele mine --judgments <file> --prompt <file> --digests <dir> [--no-sync] checkpoint-runs|review-cycles
-  ele mine --report [--no-sync]
+  ele mine --report [--no-sync] [--share]
   ele owner add [--move] [--move-to <owner>] [--no-sync] <name>
   ele owner add-path [--move] [--move-to <owner>] [--no-sync] <dir> <owner>
   ele owner add-project [--move] [--move-to <owner>] [--no-sync] <name> <owner>

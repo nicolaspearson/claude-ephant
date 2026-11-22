@@ -96,7 +96,7 @@ func (u unread) add(other unread) unread {
 }
 
 // Report reads the last stored judgment per unit, and leaves out a review cycle starting inside a subagent-era run's window, which that run's judgment already covers.
-func Report(w io.Writer, runs []Judgment, cycles []Judgment, timings map[UnitKey]Timing) error {
+func Report(w io.Writer, runs []Judgment, cycles []Judgment, timings map[UnitKey]Timing, shareable bool) error {
 	runUnits, runsUnread := lastPerUnit(runs, "checkpoint-runs")
 	cycleUnits, cyclesUnread := lastPerUnit(cycles, "review-cycles")
 	var inline, subagent []judged
@@ -117,8 +117,8 @@ func Report(w io.Writer, runs []Judgment, cycles []Judgment, timings map[UnitKey
 		}
 	}
 	kept := uncovered(subagent, subagentCycles)
-	writeSubagentEra(w, subagent, kept, len(subagentCycles)-len(kept), timings)
-	writeInlineEra(w, inline)
+	writeSubagentEra(w, subagent, kept, len(subagentCycles)-len(kept), timings, shareable)
+	writeInlineEra(w, inline, shareable)
 	if inlineCycles > 0 {
 		fmt.Fprintf(w, "Inline-era review cycles, not reported: %d.\n", inlineCycles)
 	}
@@ -246,7 +246,7 @@ func upperQuartile(values []float64) (float64, bool) {
 	return min((sorted[position-1]*(4-delta)+sorted[position]*delta)/4, sorted[len(sorted)-1]), true
 }
 
-func writeInlineEra(w io.Writer, units []judged) {
+func writeInlineEra(w io.Writer, units []judged, shareable bool) {
 	var read, checkpoints []judged
 	var passes []map[string]passCounts
 	confidence := map[string]int{}
@@ -298,11 +298,11 @@ func writeInlineEra(w io.Writer, units []judged) {
 	fmt.Fprintln(w, "\nFindings by category")
 	checkpoint.WriteMostCommon(w, categories, func(category string) string { return fmt.Sprintf("%-32s", category) })
 	fmt.Fprintf(w, "\nMutations: %.0f run, %.0f failed as meant\n", mutations["run"], mutations["failed"])
-	writeOutcomes(w, checkpoints, read)
+	writeOutcomes(w, checkpoints, read, shareable)
 }
 
 // writeOutcomes counts unwanted and a saved note's help over every unit: a unit judged no checkpoint can carry either.
-func writeOutcomes(w io.Writer, checkpoints []judged, units []judged) {
+func writeOutcomes(w io.Writer, checkpoints []judged, units []judged, shareable bool) {
 	var reported []judged
 	caughtBy := map[string]int{}
 	disputed, failedGate, repeated := 0, 0, 0
@@ -331,15 +331,17 @@ func writeOutcomes(w io.Writer, checkpoints []judged, units []judged) {
 		}
 	}
 	fmt.Fprintf(w, "\nUser reported a problem after %d of %d checkpoints; should have been caught by %s\n", len(reported), len(checkpoints), joinCounts(caughtBy))
-	for _, unit := range reported {
-		fmt.Fprintf(w, "  - %s %s [%s/%s] %s\n", shortSession(unit.session), unit.date, unit.result.After.Category, unit.result.After.ShouldHaveBeenCaughtBy, cut(unit.result.After.What, 160))
+	if !shareable {
+		for _, unit := range reported {
+			fmt.Fprintf(w, "  - %s %s [%s/%s] %s\n", shortSession(unit.session), unit.date, unit.result.After.Category, unit.result.After.ShouldHaveBeenCaughtBy, cut(unit.result.After.What, 160))
+		}
 	}
 	fmt.Fprintf(w, "User disputed a finding or fix: checkpoints %d. Said a checkpoint was unwanted: units %d.\n", disputed, unwanted)
 	fmt.Fprintf(w, "Gate failed after review: checkpoints %d.\n", failedGate)
 	fmt.Fprintf(w, "Repeated work noted: checkpoints %d. A saved note would have helped: units %d.\n", repeated, memory)
 }
 
-func writeSubagentEra(w io.Writer, runs []judged, cycles []judged, coveredCycles int, timings map[UnitKey]Timing) {
+func writeSubagentEra(w io.Writer, runs []judged, cycles []judged, coveredCycles int, timings map[UnitKey]Timing, shareable bool) {
 	units := append(slices.Clone(runs), cycles...)
 	var checkpoints []judged
 	confidence := map[string]int{}
@@ -470,7 +472,7 @@ func writeSubagentEra(w io.Writer, runs []judged, cycles []judged, coveredCycles
 	checkpoint.WriteMostCommon(w, refutedCategories, func(category string) string { return fmt.Sprintf("%-32s", category) })
 	fmt.Fprintf(w, "Re-raised a decision the user had made: findings %d, checkpoints %d.\n", reraised, reraisedIn)
 
-	writeOutcomes(w, checkpoints, units)
+	writeOutcomes(w, checkpoints, units, shareable)
 	writeTiming(w, units, timings)
 }
 

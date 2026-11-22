@@ -304,7 +304,7 @@ ele ticket ledger record --manifest <file> --records <file> [--ledger <file>]
 ele ticket ledger rulings --manifest <file> [--ledger <file>]
 ele mine [--digests <dir>] [--units <file>] [--no-sync] checkpoint-runs|review-cycles
 ele mine --judgments <file> --prompt <file> --digests <dir> [--no-sync] checkpoint-runs|review-cycles
-ele mine --report [--no-sync]
+ele mine --report [--no-sync] [--share]
 ```
 
 `session-start` prints the block a session opens with and starts a background
@@ -377,4 +377,7 @@ digest into `--digests`. With `--judgments`, a file of classifications, and
 the digests back from `--digests`. A unit whose session wrote in the last hour
 is held until it goes quiet, as its judgment would be final. `--report`
 reports figures from the last judgment stored per unit, both analyses
-together. `--no-sync` reads without syncing first.
+together. `--share` leaves out each user-reported problem's session, date and
+summary, which are written from your conversation, keeping its counts and
+labels; see [Improving ele](improving-ele.md#what-a-report-holds). `--no-sync`
+reads without syncing first.
