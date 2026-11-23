@@ -66,8 +66,15 @@ what it can now and holds the submission until then.
   `brew info ele` exits 1 with "Refusing to load formula nicolaspearson/tap/ele
   from untrusted tap nicolaspearson/tap. Run
   `brew trust --formula nicolaspearson/tap/ele` or
-  `brew trust nicolaspearson/tap` to trust it."; a fresh
-  `brew install nicolaspearson/tap/ele`: not checked
+  `brew trust nicolaspearson/tap` to trust it."; `~/.homebrew/trust.json`
+  there does not list the formula
+- As of 2026-11-23 (Homebrew 7.0.15): `brew install`, `reinstall` and
+  `upgrade` record a formula named in full as trusted
+  (`Homebrew::Trust.trust_fully_qualified_items!`); a bare `brew upgrade ele`
+  or `brew info ele` on an install whose formula was never named in full is
+  refused, the upgrade refusal read from the code, not run; README.md's Update
+  says `brew upgrade nicolaspearson/tap/ele` for that reason, and that upgrade
+  on such an install: not checked
 
 ## Decisions
 
@@ -92,11 +99,14 @@ what it can now and holds the submission until then.
 
 ## Actions
 
-- [ ] licence-readme: add a Licence section to README.md stating
+- [x] licence-readme: add a Licence section to README.md stating
       GPL-3.0-or-later, as `plugin/.claude-plugin/plugin.json` does
   - done when README.md's Licence section names GPL-3.0-or-later and links
     `LICENSE`, and `task format`, `task check FORCE=1` and `task audit` pass
-- [ ] tap-trust: on a machine where the tap was never tapped, run
+  - asserted in the homebrew-licence-trust commit: README.md ends with a Licence
+    section naming GPL-3.0-or-later and linking `LICENSE`; `task format`,
+    `task check FORCE=1` and `task audit` passed over the working tree
+- [x] tap-trust: on a machine where the tap was never tapped, run
       `brew install nicolaspearson/tap/ele` from a clean Homebrew, as
       CONTRIBUTING.md's Installing from clean does, and see whether Homebrew
       refuses the untrusted tap; if it does, add the `brew trust` step to
@@ -107,6 +117,13 @@ what it can now and holds the submission until then.
     and its output recorded under this item; a Tap run the maintainer
     dispatches with the latest tag passes its Homebrew step; and
     `task format`, `task check FORCE=1` and `task audit` pass
+  - asserted in the homebrew-licence-trust commit: the v1.3.0 Release run's
+    Tap job on a never-tapped macos-latest, standing in for a dispatched run,
+    ran `brew install nicolaspearson/tap/ele`, which printed "Trusted formula
+    nicolaspearson/tap/ele"; `brew test ele`, asserting `ele version` equals
+    `v1.3.0`, the latest tag, and the step's own `ele version` check passed
+    silently, so no `brew trust` step is added; `task format`,
+    `task check FORCE=1` and `task audit` passed over the working tree
 - [ ] core-submit: write the build-from-source formula for `ele` at the latest
       release's tag: `depends_on "go" => :build`, `go build` through
       `std_go_args` with `-s -w -X main.version=v#{version}` on `./cmd/ele`,
@@ -167,6 +184,12 @@ what it can now and holds the submission until then.
       this plan
 
 ## Inbox
+
+- 2026-11-23, from tap-trust's check of Homebrew's trust code: on a Mac whose
+  `ele` was installed from the tap but never trusted, run README.md's Update
+  `brew upgrade nicolaspearson/tap/ele` and see whether it prints "Trusted
+  formula nicolaspearson/tap/ele" and then upgrades, and `brew info ele` then
+  loads
 
 ## Out of scope
 

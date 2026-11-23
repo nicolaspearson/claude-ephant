@@ -266,9 +266,9 @@ each does.
 ## Update
 
 An `ele` older than the plugin answers the subcommands it lacks with its usage
-text, so update the binary first, the way it was installed: `brew upgrade ele`,
-the install script again, or `go install …/cmd/ele@<tag>` with the latest
-release's tag. Then:
+text, so update the binary first, the way it was installed:
+`brew upgrade nicolaspearson/tap/ele`, the install script again, or
+`go install …/cmd/ele@<tag>` with the latest release's tag. Then:
 
 ```text
 /plugin marketplace update claude-ephant
@@ -304,3 +304,7 @@ Code: see [CONTRIBUTING.md](CONTRIBUTING.md). Without writing any, a report of
 how the checkpoint reviewers did on your own work helps tune them for
 everyone; [Improving ele](docs/improving-ele.md) says how to make one, what it
 holds, and how to share it.
+
+## Licence
+
+GPL-3.0-or-later: see [LICENSE](LICENSE).
