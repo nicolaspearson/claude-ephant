@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.0](https://github.com/nicolaspearson/claude-ephant/compare/v1.3.0...v1.4.0) (2026-11-23)
+
+
+### Features
+
+* **lint:** skill lint requires a row per slash command and fails stale /ele: rows (skill-rows) ([d6ba6bf](https://github.com/nicolaspearson/claude-ephant/commit/d6ba6bfdcd8bf9ae4f92436e861d21e044e5d394))
+
+
+### Bug Fixes
+
+* **stop-check:** stop-check-leftovers, an old state's ask hour starts at the first stop not behind, and the spec's subagent and Esc bullets match the code ([8bbdae9](https://github.com/nicolaspearson/claude-ephant/commit/8bbdae953c07c4e27310b194388d9f4145157b6e))
+
 ## [1.3.0](https://github.com/nicolaspearson/claude-ephant/compare/v1.2.0...v1.3.0) (2026-11-22)
 
 
