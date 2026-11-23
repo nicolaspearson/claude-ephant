@@ -953,6 +953,47 @@ func TestRunStopCheckStartsAnOldStatesHourAtTheFirstStopThatLoadsIt(t *testing.T
 	require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason)}, output, "an hour since it loaded, with work since")
 }
 
+func TestRunStopCheckStartsAnOldStatesHourAtTheStopThatCatchesUp(t *testing.T) {
+	run := newStopCheckRun(t)
+	at := fixStopClock(t, time.Date(2026, 10, 20, 10, 0, 0, 0, time.UTC))
+	dataDirectory, err := datadir.Path()
+	require.NoError(t, err)
+	statePath := filepath.Join(dataDirectory, "stop-check", run.session+".json")
+
+	at(0)
+	run.respond(1000, stopCheckEdit)
+	_, output := run.stop(run.gateway, false)
+	require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason)}, output, "the first ask")
+	state, err := readStopState(statePath)
+	require.NoError(t, err)
+	state.AskedAt = ""
+	require.NoError(t, writeStopState(statePath, state))
+
+	at(30)
+	run.prompt()
+	run.respond(1000, stopCheckText)
+	writeFile(t, filepath.Join(subagentDirectory(run.transcriptPath), "agent-a1.jsonl"), `{"type":"assistant","isSidechain":true,"timestamp":"2026-10-20T10:20:00.000Z","message":{"id":"s","content":[`+stopCheckEdit+`]}}`+"\n")
+	budget := scanBudget
+	scanBudget = 0
+	t.Cleanup(func() { scanBudget = budget })
+	raw, _ := run.stop(run.gateway, false)
+	require.Empty(t, raw, "behind")
+	state, err = readStopState(statePath)
+	require.NoError(t, err)
+	require.Empty(t, state.AskedAt, "behind, the subagent edit is unread, so the hour waits")
+
+	scanBudget = budget
+	at(40)
+	raw, _ = run.stop(run.gateway, false)
+	require.Empty(t, raw, "caught up, read as asked now, after the subagent edit it reads")
+	at(99)
+	raw, _ = run.stop(run.gateway, false)
+	require.Empty(t, raw, "under an hour since it caught up")
+	at(100)
+	_, output = run.stop(run.gateway, false)
+	require.Equal(t, stopOutput{HookSpecificOutput: continueWith(rememberReason)}, output, "an hour since it caught up, the subagent's edit still work")
+}
+
 func TestRunSyncReportsStopCheckStateItCannotRemove(t *testing.T) {
 	home := recallFixture(t)
 	writeFile(t, filepath.Join(home, "data", "stop-check"), "not a directory")

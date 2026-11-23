@@ -447,8 +447,9 @@ func stopCheck(ctx context.Context, args []string, stdin io.Reader, stdout io.Wr
 		}
 	}
 	now := stopClock()
-	// State from before AskedAt: its hour starts here, after the scans, so no edit they read counts as asked about.
-	if state.StretchBlocked && state.AskedAt == "" {
+	// State from before AskedAt: its hour starts at the first stop not behind, after the scans, so no edit they read
+	// counts as asked about.
+	if state.StretchBlocked && state.AskedAt == "" && !behind {
 		state.AskedAt = transcriptStamp(now)
 	}
 	settings := loadConfig(dataDirectory, stderr)
