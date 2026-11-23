@@ -190,6 +190,11 @@ what it can now and holds the submission until then.
   `brew upgrade nicolaspearson/tap/ele` and see whether it prints "Trusted
   formula nicolaspearson/tap/ele" and then upgrades, and `brew info ele` then
   loads
+  - as of 2026-11-23: on the maintainer's Mac, tapped with `ele` from
+    `install.sh` and never brew-installed, the upgrade printed "Trusted formula
+    nicolaspearson/tap/ele", then "Error: nicolaspearson/tap/ele not
+    installed", and `brew info ele` then loaded; the upgrade of an installed
+    untrusted formula needs a Mac with `ele` installed from the tap
 
 ## Out of scope
 
