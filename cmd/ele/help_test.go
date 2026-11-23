@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -18,23 +20,72 @@ func runSplit(t *testing.T, args ...string) (string, string, int) {
 	return stdout.String(), stderr.String(), code
 }
 
-func TestRunAnswersHelpForEveryCommand(t *testing.T) {
-	invocations := [][]string{{"checkpoint", "base"}, {"checkpoint", "check"}, {"checkpoint", "close"}, {"checkpoint", "density"}, {"checkpoint", "freeze"}, {"checkpoint", "gate"}, {"checkpoint", "hash"}, {"checkpoint", "log"}, {"checkpoint", "optout"}, {"checkpoint", "record"}, {"checkpoint", "snapshot"}, {"checkpoint", "stats"}, {"config", "get"}, {"config", "list"}, {"config", "set"}, {"config", "unset"}, {"flag", "bad"}, {"flag", "good"}, {"flag", "list"}, {"handoff", "close"}, {"handoff", "list"}, {"handoff", "reopen"}, {"owner", "add"}, {"owner", "add-path"}, {"owner", "add-project"}, {"owner", "remove-path"}, {"owner", "remove-project"}, {"plan", "done"}, {"plan", "list"}, {"plan", "show"}, {"plan", "start"}, {"reminder", "close"}, {"reminder", "list"}, {"reminder", "reopen"}, {"ticket", "claims"}, {"ticket", "corpus"}, {"ticket", "ledger"}}
-	for name := range commands {
-		if !slices.Contains([]string{"checkpoint", "config", "flag", "handoff", "owner", "plan", "reminder", "ticket"}, name) {
-			invocations = append(invocations, []string{name})
+func usageLines() []string {
+	var lines []string
+	for _, line := range strings.Split(usage, "\n")[1:] {
+		lines = append(lines, strings.TrimSpace(line))
+	}
+	return lines
+}
+
+func usagePaths() [][]string {
+	word := regexp.MustCompile(`^[a-z][a-z-]*$`)
+	var paths [][]string
+	for _, line := range usageLines() {
+		var path []string
+		for _, field := range strings.Fields(line)[1:] {
+			if !word.MatchString(field) {
+				break
+			}
+			path = append(path, field)
+		}
+		if !slices.ContainsFunc(paths, func(seen []string) bool { return slices.Equal(seen, path) }) {
+			paths = append(paths, path)
 		}
 	}
-	for _, invocation := range invocations {
+	return paths
+}
+
+func TestCommandsDocHoldsEveryUsageLine(t *testing.T) {
+	content, err := os.ReadFile(filepath.Join("..", "..", "docs", "commands.md"))
+	require.NoError(t, err)
+	lines := strings.Split(strings.ReplaceAll(string(content), "\r\n", "\n"), "\n")
+	synopses := usageLines()
+	for _, synopsis := range synopses {
+		require.True(t, slices.Contains(lines, synopsis), "%q is in usage but not a line of docs/commands.md", synopsis)
+	}
+	fenced := false
+	for _, line := range lines {
+		if strings.HasPrefix(line, "```") {
+			fenced = !fenced
+			continue
+		}
+		if fenced && strings.HasPrefix(line, "ele ") {
+			require.True(t, slices.Contains(synopses, line), "%q is in docs/commands.md's code fences but not in usage", line)
+		}
+	}
+}
+
+func TestRunAnswersHelpForEveryCommand(t *testing.T) {
+	paths := usagePaths()
+	for name := range commands {
+		require.True(t, slices.ContainsFunc(paths, func(path []string) bool { return len(path) > 0 && path[0] == name }), "%s has no usage line", name)
+	}
+	for _, invocation := range paths {
 		full := strings.Join(invocation, " ")
+		// A path with no purposes entry, such as ticket ledger record, answers under its nearest parent's name.
+		name := full
+		for depth := len(invocation); depth > 0; depth-- {
+			if prefix := strings.Join(invocation[:depth], " "); purposes[prefix] != "" {
+				name = prefix
+				break
+			}
+		}
 		stdout, stderr, code := runSplit(t, append(invocation, "--help")...)
 		require.Equal(t, 0, code, full)
 		require.Empty(t, stderr, full)
-		require.Regexp(t, `^(ele `+regexp.QuoteMeta(full)+`( .*)?\n)+[A-Z][^\n]*\.\n(  --\S.*\n)*$`, stdout, full)
-		synopsis, _, _ := strings.Cut(stdout, "\n"+purposes[full])
-		if purposes[full] == "" {
-			synopsis, _, _ = strings.Cut(stdout, "\n"+purposes[invocation[0]])
-		}
+		require.Regexp(t, `^(ele `+regexp.QuoteMeta(name)+`( .*)?\n)+[A-Z][^\n]*\.\n(  --\S.*\n)*$`, stdout, full)
+		synopsis, _, _ := strings.Cut(stdout, "\n"+purposes[name])
 		for _, row := range regexp.MustCompile(`(?m)^  (--\S+ \S+) {2,}`).FindAllStringSubmatch(stdout, -1) {
 			require.Regexp(t, regexp.QuoteMeta(row[1])+`(\]|\s|$)`, synopsis, "%s: a flag's placeholder is its synopsis's, whole", full)
 			require.Equal(t, strings.Count(row[1], "["), strings.Count(row[1], "]"), "%s: %s cut inside its brackets", full, row[1])

@@ -81,6 +81,12 @@ as new as the plugin.
   `docs/commands.md`'s Used by the skills and hooks table, naming no present
   skill or command fails too; it also holds `plugin.json`'s description equal
   to `marketplace.json`'s entry for `ele`
+- `test` also includes the help check, in `cmd/ele`: every synopsis line of
+  ele's help, cmd/ele's `usage`, is a whole line of `docs/commands.md`, and
+  every `ele` line in that file's code fences is one of them, so a changed
+  flag or command fails until both match; and `--help` is run for every
+  command path `usage` names, so a new command or subcommand needs no other
+  test edit
 - CI runs `task check FORCE=1` and `task audit` on every pull request, every
   push to `main` and weekly
 

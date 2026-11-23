@@ -47,8 +47,8 @@ compares `docs/commands.md` with ele's help. This plan makes that drift fail
   `sectionRows`' split on `|` breaks into an extra cell
 - As of 2026-11-22: cmd/ele's `usage` const holds every synopsis line ele's
   help prints, 64 of them, each a whole line of `docs/commands.md`, and every
-  `ele` line in its code fences is a `usage` line. The hooks section repeats
-  some synopses, so the reverse check is by set, not by count
+  `ele` line in its code fences is a `usage` line. Doc order differs from
+  `usage` order, so both checks are by set, not by position
 - As of 2026-11-22: of 30 flag descriptions sampled from cmd/ele, one appears
   in `docs/commands.md`; the docs paraphrase them
 - As of 2026-11-22: cmd/ele `TestRunAnswersHelpForEveryCommand` runs `--help`
@@ -98,7 +98,7 @@ compares `docs/commands.md` with ele's help. This plan makes that drift fail
     `TestPluginSkillsDocumented` passed on the repository; CONTRIBUTING.md's
     Checks and CLAUDE.md's Docs bullet name commands and stale rows;
     `task format`, `task check FORCE=1` and `task audit` exited 0
-- [ ] help-docs: add a cmd/ele test that every `usage` line is a whole line of
+- [x] help-docs: add a cmd/ele test that every `usage` line is a whole line of
       `docs/commands.md` and every `ele` synopsis line in its code fences is a
       `usage` line, and derive `TestRunAnswersHelpForEveryCommand`'s groups
       and subcommands from `usage`; update CONTRIBUTING.md's Checks section
@@ -108,6 +108,22 @@ compares `docs/commands.md` with ele's help. This plan makes that drift fail
     `ticket ledger record` and `ticket ledger rulings`, CONTRIBUTING.md's
     Checks section names the help check, and `task format`,
     `task check FORCE=1` and `task audit` pass
+  - as of 2026-11-23: premises re-derived. `usage` has 64 synopsis lines and
+    `docs/commands.md`'s `text` fences the same 64, no duplicates, so the
+    hooks section no longer repeats a synopsis. Groups dispatch through local
+    maps in their own files, so `usage` is the only uniform source; a usage
+    line's path is its leading lowercase words. `ele ticket ledger record
+    --help` prints both ledger synopses under the name `ticket ledger`, and
+    `purposes` has no key for either, so the help test's assertions take the
+    longest command name with a `purposes` entry, not the full path
+  - asserted in the help-docs commit: `TestCommandsDocHoldsEveryUsageLine`
+    went red on `ele version` dropped from `docs/commands.md` and on a stray
+    fenced `ele bogus`; `TestRunAnswersHelpForEveryCommand` ran and failed on
+    `ele plan zzz` and `ele zzz thing` added to `usage` alone, and went red on
+    `ticket ledger record` asserted under its full path; a probe of the
+    derived paths listed both `ticket ledger record` and `rulings`;
+    CONTRIBUTING.md's Checks names the help check; `task format`,
+    `task check FORCE=1` and `task audit` exited 0
 - [ ] Fold each Decision through
       `/ele:plan-audit close .documentation/plans/docs-lint.md`, then propose
       each out-of-scope line as a `decision` through `/ele:remember`, run
