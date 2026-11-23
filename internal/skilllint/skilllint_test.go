@@ -66,32 +66,48 @@ func TestCheck(t *testing.T) {
 func TestCheckDocs(t *testing.T) {
 	const commandsRow = "| `/ele:good` | Do a thing |\n"
 	const readmeRow = "| `/ele:good` | Do a thing | [Good](docs/good.md) |\n"
+	const statsCommandsRow = "| `/ele:stats` | Stats |\n"
+	const statsReadmeRow = "| `/ele:stats` | Stats | [Stats](docs/stats.md) |\n"
 	tests := []struct {
-		commands string
-		name     string
-		problems []string
-		readme   string
+		commandFiles []string
+		commands     string
+		hooks        string
+		name         string
+		problems     []string
+		readme       string
 	}{
 		{name: "README prose line holding pipes", commands: commandsRow, readme: "Type | `/ele:good` | to start\n", problems: []string{"good: no row under ## Skills at a glance in README.md"}},
 		{name: "README prose mention only", commands: commandsRow, readme: "Type `/ele:good` to start.\n", problems: []string{"good: no row under ## Skills at a glance in README.md"}},
-		{name: "row for a longer name only", commands: "| `/ele:good-audit` | Audit |\n", readme: "| `/ele:good-audit` | Audit | [Audit](docs/audit.md) |\n", problems: []string{"good: no row under ## Skills and slash commands in commands.md", "good: no row under ## Skills at a glance in README.md"}},
+		{name: "command with no row", commandFiles: []string{"stats.md"}, commands: commandsRow, readme: readmeRow, problems: []string{"stats.md: no row under ## Skills and slash commands in commands.md", "stats.md: no row under ## Skills at a glance in README.md"}},
+		{name: "command with rows", commandFiles: []string{"stats.md"}, commands: commandsRow + statsCommandsRow, readme: readmeRow + statsReadmeRow},
+		{name: "file beside the commands that is not Markdown", commandFiles: []string{"notes.txt"}, commands: commandsRow, readme: readmeRow},
+		{name: "hooks name with arguments", commands: commandsRow, hooks: "| `ele x` | `/ele:good <words>` |\n", readme: readmeRow},
+		{name: "hooks row escaping a pipe, naming present names", commandFiles: []string{"stats.md"}, commands: commandsRow + statsCommandsRow, hooks: "| `ele stats [a\\|b]` | `/ele:good` and `/ele:stats` |\n", readme: readmeRow + statsReadmeRow},
+		{name: "row for a longer name only", commands: "| `/ele:good-audit` | Audit |\n", readme: "| `/ele:good-audit` | Audit | [Audit](docs/audit.md) |\n", problems: []string{"good: no row under ## Skills and slash commands in commands.md", "good: no row under ## Skills at a glance in README.md", "commands.md: `/ele:good-audit` under ## Skills and slash commands names no skill or command", "README.md: `/ele:good-audit` under ## Skills at a glance names no skill or command"}},
 		{name: "row in README.md only", readme: readmeRow, problems: []string{"good: no row under ## Skills and slash commands in commands.md"}},
-		{name: "row in another section only", commands: "\n## Used by the skills and hooks\n\n" + commandsRow, readme: readmeRow, problems: []string{"good: no row under ## Skills and slash commands in commands.md"}},
+		{name: "row in another section only", hooks: commandsRow, readme: readmeRow, problems: []string{"good: no row under ## Skills and slash commands in commands.md"}},
 		{name: "row in both", commands: commandsRow, readme: readmeRow},
 		{name: "row in commands.md only", commands: commandsRow, problems: []string{"good: no row under ## Skills at a glance in README.md"}},
 		{name: "row in neither", problems: []string{"good: no row under ## Skills and slash commands in commands.md", "good: no row under ## Skills at a glance in README.md"}},
 		{name: "rows under subheadings of the section", commands: commandsRow, readme: "### Memory\n\n" + readmeRow},
+		{name: "stale name second in a two-name hooks cell", commands: commandsRow, hooks: "| `ele x` | `/ele:good` and `/ele:gone` |\n", readme: readmeRow, problems: []string{"commands.md: `/ele:gone` under ## Used by the skills and hooks names no skill or command"}},
+		{name: "stale row in README.md", commands: commandsRow, readme: readmeRow + "| `/ele:gone` | Gone | [Gone](docs/gone.md) |\n", problems: []string{"README.md: `/ele:gone` under ## Skills at a glance names no skill or command"}},
+		{name: "stale row in commands.md", commands: commandsRow + "| `/ele:gone` | Gone |\n", readme: readmeRow, problems: []string{"commands.md: `/ele:gone` under ## Skills and slash commands names no skill or command"}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			root := t.TempDir()
 			require.NoError(t, os.MkdirAll(filepath.Join(root, "skills", "good"), 0o755))
 			require.NoError(t, os.WriteFile(filepath.Join(root, "skills", "good", "SKILL.md"), []byte(goodSkill), 0o600))
+			for _, file := range test.commandFiles {
+				require.NoError(t, os.MkdirAll(filepath.Join(root, "commands"), 0o755))
+				require.NoError(t, os.WriteFile(filepath.Join(root, "commands", file), []byte("---\ndescription: Do a thing.\n---\n"), 0o600))
+			}
 			commands := filepath.Join(root, "commands.md")
 			readme := filepath.Join(root, "README.md")
-			require.NoError(t, os.WriteFile(commands, []byte("# Commands\n\n## Skills and slash commands\n\n| Command | What it does |\n| --- | --- |\n"+test.commands+"\n## Notes\n"), 0o600))
+			require.NoError(t, os.WriteFile(commands, []byte("# Commands\n\n## Skills and slash commands\n\n| Command | What it does |\n| --- | --- |\n"+test.commands+"\n## Used by the skills and hooks\n\n| Command | Called by |\n| --- | --- |\n"+test.hooks+"\n## Notes\n"), 0o600))
 			require.NoError(t, os.WriteFile(readme, []byte("# ele\n\n## Skills at a glance\n\n"+test.readme+"\n## Prerequisites\n"), 0o600))
-			problems, err := CheckDocs(filepath.Join(root, "skills"), commands, readme)
+			problems, err := CheckDocs(root, commands, readme)
 			require.NoError(t, err)
 			require.Len(t, problems, len(test.problems))
 			for index, problem := range test.problems {
@@ -108,8 +124,9 @@ func TestCheckDocsMissingSection(t *testing.T) {
 		name     string
 		readme   string
 	}{
-		{name: "README.md", commands: "## Skills and slash commands\n", readme: "# ele\n", err: "README.md has no ## Skills at a glance section"},
+		{name: "README.md", commands: "## Skills and slash commands\n## Used by the skills and hooks\n", readme: "# ele\n", err: "README.md has no ## Skills at a glance section"},
 		{name: "commands.md", commands: "# Commands\n", readme: "## Skills at a glance\n", err: "commands.md has no ## Skills and slash commands section"},
+		{name: "hooks table", commands: "## Skills and slash commands\n", readme: "## Skills at a glance\n", err: "commands.md has no ## Used by the skills and hooks section"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -119,7 +136,7 @@ func TestCheckDocsMissingSection(t *testing.T) {
 			readme := filepath.Join(root, "README.md")
 			require.NoError(t, os.WriteFile(commands, []byte(test.commands), 0o600))
 			require.NoError(t, os.WriteFile(readme, []byte(test.readme), 0o600))
-			_, err := CheckDocs(filepath.Join(root, "skills"), commands, readme)
+			_, err := CheckDocs(root, commands, readme)
 			require.ErrorContains(t, err, test.err)
 		})
 	}
@@ -174,7 +191,7 @@ func TestPluginSkills(t *testing.T) {
 }
 
 func TestPluginSkillsDocumented(t *testing.T) {
-	problems, err := CheckDocs(filepath.Join("..", "..", "plugin", "skills"), filepath.Join("..", "..", "docs", "commands.md"), filepath.Join("..", "..", "README.md"))
+	problems, err := CheckDocs(filepath.Join("..", "..", "plugin"), filepath.Join("..", "..", "docs", "commands.md"), filepath.Join("..", "..", "README.md"))
 	require.NoError(t, err)
 	require.Empty(t, problems)
 }

@@ -27,9 +27,12 @@ breaks the running session's hooks; `task upgrade` puts the release back.
   Code's behaviour that a decision rests on
 - A change to behaviour updates the spec and `docs/` page that describe it in
   the same change, each command or flag checked against `ele <command> --help`
-- Every skill under `plugin/skills/` has a `/ele:<name>` row in
-  `docs/commands.md`'s Skills and slash commands and `README.md`'s Skills at a
-  glance: the skill lint fails a skill missing either
+- Every skill under `plugin/skills/` and slash command under
+  `plugin/commands/` has a `/ele:<name>` row in `docs/commands.md`'s Skills
+  and slash commands and `README.md`'s Skills at a glance: the skill lint
+  fails one missing either, and fails a row in either, or a `/ele:<name>` in
+  the Used by the skills and hooks table, that names no present skill or
+  command
 - Cite a package and an identifier, never a `.go` or `.html` line number:
   `task lint-docs` fails one under `docs/` or `.documentation/`
 

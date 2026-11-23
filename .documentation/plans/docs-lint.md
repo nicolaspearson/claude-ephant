@@ -78,7 +78,7 @@ compares `docs/commands.md` with ele's help. This plan makes that drift fail
 
 ## Actions
 
-- [ ] skill-rows: make `internal/skilllint` `CheckDocs` require a row for each
+- [x] skill-rows: make `internal/skilllint` `CheckDocs` require a row for each
       `plugin/commands/*.md` as for each skill, and fail a row naming no
       present skill or command in either section and in `docs/commands.md`'s
       Used by the skills and hooks table; update CONTRIBUTING.md's Checks
@@ -89,6 +89,15 @@ compares `docs/commands.md` with ele's help. This plan makes that drift fail
     `TestPluginSkillsDocumented` passes on the repository, CONTRIBUTING.md's
     Checks section and CLAUDE.md's Docs bullet name commands and stale rows,
     and `task format`, `task check FORCE=1` and `task audit` pass
+  - as of 2026-11-23: premises re-derived, all hold; `TestCheckDocs` is a
+    table over a one-skill temp tree, so the new command path changes every
+    `CheckDocs` call site
+  - asserted in the skill-rows commit: `TestCheckDocs` cases for a missing
+    command row, a stale row in each section and a stale name second in a
+    two-name hooks cell each went red under a mutation of `CheckDocs`;
+    `TestPluginSkillsDocumented` passed on the repository; CONTRIBUTING.md's
+    Checks and CLAUDE.md's Docs bullet name commands and stale rows;
+    `task format`, `task check FORCE=1` and `task audit` exited 0
 - [ ] help-docs: add a cmd/ele test that every `usage` line is a whole line of
       `docs/commands.md` and every `ele` synopsis line in its code fences is a
       `usage` line, and derive `TestRunAnswersHelpForEveryCommand`'s groups

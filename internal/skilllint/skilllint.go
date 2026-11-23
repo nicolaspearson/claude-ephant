@@ -13,6 +13,7 @@ import (
 
 const (
 	commandsHeading = "## Skills and slash commands"
+	hooksHeading    = "## Used by the skills and hooks"
 	maxSkillLines   = 500
 	readmeHeading   = "## Skills at a glance"
 )
@@ -22,11 +23,17 @@ var allowedEntries = []string{"SKILL.md", "assets", "references", "reviewers", "
 
 var (
 	codeSpan = regexp.MustCompile("`([^`]*)`")
+	eleName  = regexp.MustCompile("`/ele:([a-z0-9-]+)`")
 	fence    = regexp.MustCompile("^ {0,3}(`{3,}|~{3,})")
 	link     = regexp.MustCompile(`\]\(([^)\s]+)\)`)
 	// Skills point at their own files in code spans, not links.
 	skillPath = regexp.MustCompile(`^(?:assets|references|reviewers|scripts)/[^\s*<>:#]+\.md$`)
 )
+
+type invocable struct {
+	name string
+	path string
+}
 
 // Check returns one problem per broken rule across the skill directories under root.
 func Check(root string) ([]string, error) {
@@ -48,9 +55,13 @@ func Check(root string) ([]string, error) {
 	return problems, nil
 }
 
-// CheckDocs returns a problem for each skill under skillsRoot with no row in a doc's skills section; a missing section is an error.
-func CheckDocs(skillsRoot string, commands string, readme string) ([]string, error) {
+// CheckDocs returns a problem for each skill or slash command under pluginRoot with no row in a doc's skills section, and for each row there, or /ele: span in the hooks table, naming neither; a missing section is an error.
+func CheckDocs(pluginRoot string, commands string, readme string) ([]string, error) {
 	commandRows, err := sectionRows(commands, commandsHeading)
+	if err != nil {
+		return nil, err
+	}
+	hookRows, err := sectionRows(commands, hooksHeading)
 	if err != nil {
 		return nil, err
 	}
@@ -58,22 +69,44 @@ func CheckDocs(skillsRoot string, commands string, readme string) ([]string, err
 	if err != nil {
 		return nil, err
 	}
-	entries, err := os.ReadDir(skillsRoot)
+	invocables, err := pluginInvocables(pluginRoot)
 	if err != nil {
 		return nil, err
 	}
+	hasRow := func(rows []string, cell string) bool {
+		return slices.ContainsFunc(rows, func(row string) bool { return firstCell(row) == cell })
+	}
 	var problems []string
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
+	for _, invocable := range invocables {
+		cell := "`/ele:" + invocable.name + "`"
+		if !hasRow(commandRows, cell) {
+			problems = append(problems, fmt.Sprintf("%s: no row under %s in %s", invocable.path, commandsHeading, filepath.Base(commands)))
 		}
-		dir := filepath.Join(skillsRoot, entry.Name())
-		cell := "`/ele:" + entry.Name() + "`"
-		if !commandRows[cell] {
-			problems = append(problems, fmt.Sprintf("%s: no row under %s in %s", dir, commandsHeading, filepath.Base(commands)))
+		if !hasRow(readmeRows, cell) {
+			problems = append(problems, fmt.Sprintf("%s: no row under %s in %s", invocable.path, readmeHeading, filepath.Base(readme)))
 		}
-		if !readmeRows[cell] {
-			problems = append(problems, fmt.Sprintf("%s: no row under %s in %s", dir, readmeHeading, filepath.Base(readme)))
+	}
+	present := func(name string) bool {
+		return slices.ContainsFunc(invocables, func(invocable invocable) bool { return invocable.name == name })
+	}
+	for _, section := range []struct {
+		heading string
+		path    string
+		rows    []string
+	}{{commandsHeading, commands, commandRows}, {readmeHeading, readme, readmeRows}} {
+		for _, row := range section.rows {
+			cell := firstCell(row)
+			if match := eleName.FindStringSubmatch(cell); match != nil && match[0] == cell && !present(match[1]) {
+				problems = append(problems, fmt.Sprintf("%s: %s under %s names no skill or command", section.path, cell, section.heading))
+			}
+		}
+	}
+	// Every span in the row: a cell names one or two, and an escaped \| shifts the columns.
+	for _, row := range hookRows {
+		for _, match := range eleName.FindAllStringSubmatch(row, -1) {
+			if !present(match[1]) {
+				problems = append(problems, fmt.Sprintf("%s: %s under %s names no skill or command", commands, match[0], hooksHeading))
+			}
 		}
 	}
 	return problems, nil
@@ -178,6 +211,11 @@ func checkSkill(dir string) ([]string, error) {
 	return problems, err
 }
 
+func firstCell(row string) string {
+	cells := strings.Split(row, "|")
+	return strings.TrimSpace(cells[1])
+}
+
 func frontMatter(content string) (map[string]string, bool) {
 	rest, ok := strings.CutPrefix(content, "---\n")
 	if !ok {
@@ -196,7 +234,30 @@ func frontMatter(content string) (map[string]string, bool) {
 	return fields, true
 }
 
-func sectionRows(path string, heading string) (map[string]bool, error) {
+func pluginInvocables(pluginRoot string) ([]invocable, error) {
+	skills, err := os.ReadDir(filepath.Join(pluginRoot, "skills"))
+	if err != nil {
+		return nil, err
+	}
+	var invocables []invocable
+	for _, entry := range skills {
+		if entry.IsDir() {
+			invocables = append(invocables, invocable{name: entry.Name(), path: filepath.Join(pluginRoot, "skills", entry.Name())})
+		}
+	}
+	commands, err := os.ReadDir(filepath.Join(pluginRoot, "commands"))
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, err
+	}
+	for _, entry := range commands {
+		if name, ok := strings.CutSuffix(entry.Name(), ".md"); ok && !entry.IsDir() {
+			invocables = append(invocables, invocable{name: name, path: filepath.Join(pluginRoot, "commands", entry.Name())})
+		}
+	}
+	return invocables, nil
+}
+
+func sectionRows(path string, heading string) ([]string, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -206,13 +267,13 @@ func sectionRows(path string, heading string) (map[string]bool, error) {
 	if start < 0 {
 		return nil, fmt.Errorf("%s has no %s section", path, heading)
 	}
-	rows := map[string]bool{}
+	var rows []string
 	for _, line := range lines[start+1:] {
 		if strings.HasPrefix(line, "## ") {
 			break
 		}
-		if cells := strings.Split(line, "|"); strings.HasPrefix(line, "|") && len(cells) > 2 {
-			rows[strings.TrimSpace(cells[1])] = true
+		if strings.HasPrefix(line, "|") && strings.Count(line, "|") > 1 {
+			rows = append(rows, line)
 		}
 	}
 	return rows, nil

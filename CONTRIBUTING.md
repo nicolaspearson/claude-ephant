@@ -74,10 +74,13 @@ as new as the plugin.
   `plugin/skills/`: a skill the model can invoke has `Use when` in its
   description, each relative link resolves, each `SKILL.md` stays under 500
   lines, a skill keeps nothing beside `SKILL.md` but `references/`,
-  `scripts/`, `assets/` and `reviewers/`, and each skill has a `/ele:<name>`
-  row under `docs/commands.md`'s Skills and slash commands and under
-  `README.md`'s Skills at a glance; it also holds `plugin.json`'s
-  description equal to `marketplace.json`'s entry for `ele`
+  `scripts/`, `assets/` and `reviewers/`, and each skill and each
+  `plugin/commands/` slash command has a `/ele:<name>` row under
+  `docs/commands.md`'s Skills and slash commands and under `README.md`'s
+  Skills at a glance; a row in either, and a `/ele:<name>` in
+  `docs/commands.md`'s Used by the skills and hooks table, naming no present
+  skill or command fails too; it also holds `plugin.json`'s description equal
+  to `marketplace.json`'s entry for `ele`
 - CI runs `task check FORCE=1` and `task audit` on every pull request, every
   push to `main` and weekly
 
