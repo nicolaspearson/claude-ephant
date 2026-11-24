@@ -129,23 +129,23 @@ test runs, checked by a reviewer before it reaches the user.
       stopcheck's `draftNames` with test rows like write-report's and the
       spec line saying the Stop hook exempts it. Steps:
       - scope: `<base>`, else `ele checkpoint base`; uncommitted changes
-        (`git status --porcelain` lists something) run
-        `ele checkpoint check`, exit 1 offering `/ele:checkpoint`, declined
-        writing those changes in Evidence as "changed, not yet reviewed";
-        committed work is not gated, Evidence calling a commit reviewed
-        only where a plan tick line or the session shows a review of it
+      (`git status --porcelain` lists something) run
+      `ele checkpoint check`, exit 1 offering `/ele:checkpoint`, declined
+      writing those changes in Evidence as "changed, not yet reviewed";
+      committed work is not gated, Evidence calling a commit reviewed
+      only where a plan tick line or the session shows a review of it
       - evidence files into a scratch directory: the range's diff and log,
-        plan tick lines from the range's diff of `.documentation/plans/`,
-        the session's test and gate runs; the Gate line from the gate run
-        this session holds, else "Gate: not run in this session"; the "Not
-        run in CI" line from what the CI config (`.github/workflows/`,
-        `.gitlab-ci.yml`) leaves out of the gate the session ran
+      plan tick lines from the range's diff of `.documentation/plans/`,
+      the session's test and gate runs; the Gate line from the gate run
+      this session holds, else "Gate: not run in this session"; the "Not
+      run in CI" line from what the CI config (`.github/workflows/`,
+      `.gitlab-ci.yml`) leaves out of the gate the session ran
       - domain language from the repository's `GLOSSARY.md` where one exists
       - voice, draft, deliver: the body fenced by a tilde run longer than
-        any inside it, the body file holding the body unfenced, and
-        `gh pr create --body-file <file>` or
-        `glab mr create --description-file <file>` by the forge of
-        `remote.origin.url`
+      any inside it, the body file holding the body unfenced, and
+      `gh pr create --body-file <file>` or
+      `glab mr create --description-file <file>` by the forge of
+      `remote.origin.url`
   - done when a real run on this repository with a `<base>` a few commits
     back on `main` prints a `~~~` fenced body with Summary, Evidence
     holding Before, After and a `Gate:` line, and Merge Danger holding Door
