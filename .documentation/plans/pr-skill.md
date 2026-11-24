@@ -1,0 +1,211 @@
+---
+kind: plan
+created: 2026-11-24
+spec: .documentation/specs/pr.md
+---
+
+# PR skill
+
+## Why
+
+ele drafts no PR or MR body. Matt Pocock's mattpocock-skills `pr` skill gives
+a body shape that reads fast in review (Summary, Evidence, Merge Danger) but
+gathers nothing: no diff, no gate, no evidence of its own. `/ele:pr` keeps
+that shape and fills it from what ele already holds: the branch diff from
+`ele checkpoint base`, the checkpoint gate, plan tick lines and the session's
+test runs, checked by a reviewer before it reaches the user.
+
+## Requirements
+
+1. A new `/ele:pr` skill adapted from mattpocock-skills' `pr`
+2. `/ele:pr`, model-invocable, for writing a PR or MR body
+3. The body is raw Markdown inside a `~~~` fence, so inner code blocks survive
+   copying, without the "Generated with Claude Code" footer
+4. Draft only: the body saved to a scratch file and the `gh pr create
+   --body-file …` or `glab mr create …` command printed for the user; never
+   posts or edits a PR or MR
+5. Sections Summary (smallest visual that makes the point, guidance the
+   skill follows, not a reviewer check), Evidence (before and after, a Gate
+   line, a "Not run in CI" line where something was not run) and Merge
+   Danger (Door, Blast Radius)
+6. Uncommitted work not checkpointed: offer `/ele:checkpoint`; declined,
+   Evidence says "changed, not yet reviewed"
+7. Voice from `report_voice`, else `reference/report-voice.md`; no new option
+8. Every claim in the body is checked against the evidence files by a
+   reviewer before the draft is shown
+9. Adapted in ele's own words, Matt Pocock's MIT notice carried in
+   `plugin/skills/pr/references/CREDITS.md`; the Summary visuals menu
+   rewritten, not copied
+10. The repository's `GLOSSARY.md` for domain language where one exists
+11. Spec `.documentation/specs/pr.md`, `docs/pr.md`, rows in
+    `docs/commands.md` and `README.md`, the `design.md` skill lists, and one
+    eval case with deterministic graders, written but run only when asked
+
+## Context
+
+- As of 2026-11-24: the source is
+  `skills/engineering/pr/SKILL.md` of mattpocock-skills 1.3.1, 170 lines: a
+  template with `## Summary`, `## Evidence` (Before/After) and
+  `## Merge Danger` (Door, Blast Radius), a menu of Summary visuals
+  (pseudocode, call tree, component tree, file tree, Mermaid, diff, whole
+  block) and a rule to use `GLOSSARY.md`'s language. It runs no git, reads no
+  issue, posts nothing and loads no other file
+- As of 2026-11-24: mattpocock-skills is MIT, "Copyright (c) 2026 Matt
+  Pocock"; the notice must travel with a substantial copy
+- As of 2026-11-24: the source's `CREDITS.md` says its Summary visuals menu
+  is copied almost word for word from Dex Horthy's `show-me` skill
+  (humanlayer); that skill's licence not checked
+- As of 2026-11-24: no skill registry in Go; a skill is found by its
+  directory under `plugin/skills/`, and internal/skilllint requires a
+  `/ele:<name>` row in `docs/commands.md` and `README.md`, `Use when` in a
+  model-invocable skill's description, under 500 lines, and only
+  `references/`, `scripts/`, `assets/` and `reviewers/` beside `SKILL.md`
+  (read from CONTRIBUTING.md; internal/skilllint source not checked)
+- As of 2026-11-24: `/ele:write-report` is draft only, gathers evidence files
+  into a scratch directory, gates uncommitted work with
+  `ele checkpoint check`, reads `report_voice`, and reviews through
+  `ele:report-reviewer` with `reviewers/report.md`
+- As of 2026-11-24: `ele checkpoint base <root>` prints the merge-base with
+  the upstream, else `origin/HEAD`; a plan tick line records what was
+  asserted, at which boundary and at which commit
+- As of 2026-11-24: `ele checkpoint check` exits 1 alike for unreviewed
+  changes and for none (cmd/ele help `checkpoint check`), so
+  `/ele:write-report` runs it only where `git status --porcelain` lists
+  something; no ele command says whether a branch's commits were
+  checkpointed, `ele checkpoint stats` only aggregating the log
+- As of 2026-11-24: on `main` of this repository `ele checkpoint base` prints
+  HEAD itself, so a branch with no commits ahead has nothing to describe
+- As of 2026-11-24: `gh pr create` takes `--body-file`; `glab mr create`
+  (1.131.0) takes `--description-file`
+- As of 2026-11-24: `/ele:review`'s references detect the forge from
+  `remote.origin.url`; its Publish step is ele's only tracker write, asked
+  first
+- As of 2026-11-24: `plugin/agents/report-reviewer.md` and
+  `.documentation/specs/report.md` describe `ele:report-reviewer` as
+  write-report's own agent, launched only by it
+- As of 2026-11-24: README's Licence section names only GPL-3.0-or-later
+- As of 2026-11-24: the only vendored third-party text is
+  internal/ticket's difflib, under `LICENSE-PSF` beside it; the repository
+  is GPL-3.0-or-later
+
+## Decisions
+
+- Draft only, printing the create command: every tracker write is the user's
+  to authorise, and `/ele:write-report` already never sends
+- Reuse `report_voice` over a `pr_voice` option: a PR body is a report to a
+  reviewer, and a new option costs config, tests and docs rows
+- Reuse `ele:report-reviewer` with a new `reviewers/pr.md` over a new agent:
+  its brief already takes a reviewer file, core and evidence
+- Attribution in `references/CREDITS.md`: the skill lint allows nothing else
+  beside `SKILL.md`, and difflib sets the precedent of the notice beside the
+  adapted text
+- Rewrite the Summary visuals menu: the `show-me` licence it came from is
+  unverified
+- No footer, overriding Claude Code's PR attribution line: the user's
+  requirement
+- Committed work is not gated: the user's rules checkpoint before every
+  commit, no ele command says whether a commit was checkpointed, and
+  offering a branch checkpoint each run would nag; `/ele:write-report`
+  treats committed work the same way
+  - rejected: offering a branch-scope `/ele:checkpoint` when the session
+    holds no review of the commits, because it fires on nearly every run
+    in a session after the work's own
+
+## Actions
+
+- [ ] pr-draft: write `plugin/skills/pr/SKILL.md`, model-invocable (no
+      `disable-model-invocation`, a `Use when` description), taking an
+      optional `<base>` ref, and `plugin/skills/pr/references/CREDITS.md`
+      holding Matt Pocock's MIT copyright and permission notice; with the
+      spec `.documentation/specs/pr.md`, `docs/pr.md`, the `/ele:pr` rows in
+      `docs/commands.md` and `README.md`, `/ele:pr` added to the "Used by"
+      rows of `ele checkpoint base` (split from the row it shares with
+      `close`, `density` and the rest) and `ele checkpoint check`, README's docs
+      list and Licence section (the MIT-licensed skill text), the
+      `design.md` skill lists, `report_voice` described as both skills'
+      voice (internal/config's option Description and cmd/ele's config test,
+      `docs/data-and-privacy.md`, README, `docs/reports.md`,
+      `.documentation/specs/report.md`), and `ele:pr` added to cmd/ele
+      stopcheck's `draftNames` with test rows like write-report's and the
+      spec line saying the Stop hook exempts it. Steps:
+      - scope: `<base>`, else `ele checkpoint base`; uncommitted changes
+        (`git status --porcelain` lists something) run
+        `ele checkpoint check`, exit 1 offering `/ele:checkpoint`, declined
+        writing those changes in Evidence as "changed, not yet reviewed";
+        committed work is not gated, Evidence calling a commit reviewed
+        only where a plan tick line or the session shows a review of it
+      - evidence files into a scratch directory: the range's diff and log,
+        plan tick lines from the range's diff of `.documentation/plans/`,
+        the session's test and gate runs; the Gate line from the gate run
+        this session holds, else "Gate: not run in this session"; the "Not
+        run in CI" line from what the CI config (`.github/workflows/`,
+        `.gitlab-ci.yml`) leaves out of the gate the session ran
+      - domain language from the repository's `GLOSSARY.md` where one exists
+      - voice, draft, deliver: the body fenced by a tilde run longer than
+        any inside it, the body file holding the body unfenced, and
+        `gh pr create --body-file <file>` or
+        `glab mr create --description-file <file>` by the forge of
+        `remote.origin.url`
+  - done when a real run on this repository with a `<base>` a few commits
+    back on `main` prints a `~~~` fenced body with Summary, Evidence
+    holding Before, After and a `Gate:` line, and Merge Danger holding Door
+    and Blast Radius, no "Generated with Claude Code" line, a body file not
+    starting with `~~~` and a `gh pr create --body-file` command, having
+    run `ele config get report_voice`, and runs no `gh` or `glab` write;
+    `references/CREDITS.md` holds the MIT notice and the Summary visuals
+    menu shares no sentence with the source's; a stopcheck test row shows
+    an `ele:pr` run exempt, seen red with `ele:pr` removed from
+    `draftNames`; and `task format`, `task check FORCE=1` and `task audit`
+    pass
+- [ ] pr-scenarios: run `/ele:pr` through the paths the real run on `main`
+      does not reach, fixing the skill where one fails
+  - done when a run in a scratch repository whose origin is a GitLab URL
+    prints `glab mr create --description-file`; a run with an uncommitted
+    change no checkpoint covers offers `/ele:checkpoint`, and declined,
+    Evidence reads "changed, not yet reviewed"; a run in a scratch
+    repository holding a `GLOSSARY.md` uses a term it defines; a run in a
+    scratch repository whose CI config runs a step the session's gate did
+    not prints a "Not run in CI" line naming it; and, where the skill
+    changed, `task format`, `task check FORCE=1` and `task audit` pass
+- [ ] pr-review: add `plugin/skills/pr/reviewers/pr.md` and the step that
+      launches `ele:report-reviewer` with it over the body and the evidence
+      files before delivery, an unbacked claim dropped, never softened, a
+      finding still open shown to the user beside the draft, and an Errors
+      row for the agent not found, as in `/ele:write-report`; a turn ending
+      while the review runs says in one line that the draft follows it, the
+      draft delivered only once the review returns, and a second `/ele:pr`
+      or `/ele:write-report` held until then, as report.md's one report at a
+      time; update the pr spec, `docs/pr.md`,
+      `plugin/agents/report-reviewer.md`'s description and
+      `.documentation/specs/report.md`'s agent lines to name both skills,
+      rewriting its "a thin agent of its own, as each reviewing skill has"
+      to say the two drafting skills share one, its no-Bash reason holding
+      for diff evidence too, read as data
+  - done when a run whose body file has a claim no evidence file holds,
+    added by editing the file before the review step, delivers a body
+    without that claim or shows it as open, the same run without the edit
+    passes, and
+    `task check FORCE=1` and `task audit` pass
+- [ ] pr-eval: an eval case under `plugin/evals/` whose `scaffold.sh` makes a
+      repository with an origin and a branch commits ahead of it, its prompt
+      asking for a PR description in plain words, not the slash command,
+      and to take the recommended answer to any ask, since AskUserQuestion
+      does not load in the sandbox; CONTRIBUTING.md's sandbox-git note
+      extended to the case; deterministic graders: a `~~~` fenced body, the
+      three section headings, a `Gate:` line, Door and Blast Radius, no
+      "Generated with Claude Code", a `tool_used` Skill call of `ele:pr`, a
+      `tool_used` launch of `ele:report-reviewer`, and a `max: 0`
+      `tool_used` on `gh pr create` and `glab mr create` however invoked
+  - done when each grader is shown red by hand against a reply or trace it
+    must reject; the case run with `task eval` and passing if the user asks
+    for the run, else the tick line saying it was not run
+- [ ] Fold each Decision through `/ele:plan-audit close .documentation/plans/pr-skill.md`, then what this plan built and its out-of-scope lines as `Not doing:` into the spec, run `ele plan done .documentation/plans/pr-skill.md`, and delete this plan
+
+## Inbox
+
+## Out of scope
+
+- Updating the body of an already open PR or MR: drafting the first body is
+  the need shown (ruled 2026-11-24, from `/ele:plan new pr-skill`)
+- Commit messages: checkpoint step 9 already prints a subject (ruled
+  2026-11-24, from `/ele:plan new pr-skill`)
