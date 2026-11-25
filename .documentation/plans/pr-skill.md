@@ -241,12 +241,41 @@ test runs, checked by a reviewer before it reaches the user.
       `.documentation/specs/report.md`'s agent lines to name both skills,
       rewriting its "a thin agent of its own, as each reviewing skill has"
       to say the two drafting skills share one, its no-Bash reason holding
-      for diff evidence too, read as data
+      for diff evidence too, read as data; and the Evidence step writes
+      `ci.txt` wherever a CI config is present, before Draft writes a
+      "Left to CI" line from it (folded from the inbox, 2026-11-25: the
+      pr-scenarios run wrote none, so its `Left to CI: lint` had no file)
   - done when a run whose body file has a claim no evidence file holds,
     added by editing the file before the review step, delivers a body
     without that claim or shows it as open, the same run without the edit
-    passes, and
+    passes, a run in a repository with a CI config leaves `ci.txt` under
+    its evidence directory, and
     `task check FORCE=1` and `task audit` pass
+  - as of 2026-11-25, premise check: `/ele:write-report`'s step 7 launches
+    `ele:report-reviewer` with a brief of reviewer file, reader, core,
+    renders and evidence files, fixes, reviews once more, and shows a
+    finding still open beside the draft; its Errors table holds the
+    `report-reviewer' not found` row; its "one report at a time" is prose in
+    the skill's preamble and `.documentation/specs/report.md`, enforced by no
+    code (cmd/ele `draftNames` only exempts the notes ask)
+  - as of 2026-11-25: `reviewers/report.md`'s Unbacked, Uncounted, Missed
+    and Secret checks and its Output carry over; its medium checks, core
+    against render, fetched sources and reader-dependent Leak do not;
+    `plugin/agents/report-reviewer.md` has Glob, Grep and Read only and a
+    description naming write-report alone
+  - as of 2026-11-25: no Go code, test or grader names the agent's launching
+    skill; `plugin/evals/write-report-whatsapp`'s `launches-reviewer` grader
+    matches the agent type only; internal/skilllint `allowedEntries` admits
+    `reviewers/` and its `checkLinks` fails a `reviewers/…md` code span with
+    no file under the skill's own directory
+  - as of 2026-11-25: the review step, `reviewers/pr.md`, the shared agent's
+    description and the spec and docs lines are written, and `task check
+    FORCE=1` and `task audit` pass. Two `--plugin-dir` runs in a scratch
+    repository showed an appended unbacked line flagged and dropped and a
+    clean body passing, each leaving `ci.txt`, but on the text before the
+    checkpoint's fixes: run files with tree state and later edits,
+    `checkpoint.txt`, and the reviewer's Gate, Left to CI and Reviewed rules
+  - next: rerun both scenario sessions on the fixed text, then tick
 - [ ] pr-eval: an eval case under `plugin/evals/` whose `scaffold.sh` makes a
       repository with an origin and a branch commits ahead of it, its prompt
       asking for a PR description in plain words, not the slash command,
@@ -264,15 +293,11 @@ test runs, checked by a reviewer before it reaches the user.
 
 ## Inbox
 
-- 2026-11-25, from the pr-scenarios run: the run wrote no `ci.txt`, so its
-  `Left to CI: lint` line had no evidence file behind it, which the skill's
-  Evidence step requires of every claim
-- 2026-11-25, from the pr-scenarios premise check: the Deliver Forge bullet
-  has no host rule for "a GitLab one", so a self-hosted GitLab whose host
-  lacks `gitlab` gets only the body file's path
-
 ## Out of scope
 
+- A host rule for a self-hosted GitLab whose host lacks `gitlab`: such a
+  user still gets the body file's path, and a host test means reading
+  `glab`'s config (ruled 2026-11-25, from the pr-scenarios premise check)
 - Updating the body of an already open PR or MR: drafting the first body is
   the need shown (ruled 2026-11-24, from `/ele:plan new pr-skill`)
 - Commit messages: checkpoint step 9 already prints a subject (ruled

@@ -1,6 +1,6 @@
 ---
 argument-hint: "[<base>]"
-description: Draft a pull or merge request body for the branch, its Summary, Evidence and Merge Danger filled from the diff, the plan ticks and the session's test and gate runs, in your report voice. Draft only: it prints the create command and never runs it. Use when asked to write, draft or describe a PR or MR body.
+description: Draft a pull or merge request body for the branch, its Summary, Evidence and Merge Danger filled from the diff, the plan ticks and the session's test and gate runs, in your report voice, each claim checked against that evidence by a reviewer before you see it. Draft only: it prints the create command and never runs it. Use when asked to write, draft or describe a PR or MR body.
 name: pr
 ---
 
@@ -11,6 +11,21 @@ other forge write, and writes no ele note. It prints the body and the command
 that would open the request, for the user to run. The body carries no
 "Generated with Claude Code" line, whatever an attribution rule elsewhere
 asks: the user's own text goes to the reviewer.
+
+One draft at a time, shared with `/ele:write-report`. An earlier `/ele:pr` or
+report is in progress while its turn still runs or its own review still runs
+in the background; one that stopped, at a checkpoint offer, an error or the
+user's word, holds nothing up. A checkpoint this session started over the
+changes in scope holds a new draft too, until it has recorded or closed. The
+user's word to run a new one anyway overrides either hold. A new `/ele:pr`
+held does no work of its own:
+
+- Arriving mid-turn: that turn carries on. After a report written to a file,
+  the new one runs in the same turn, from step 1. After an `/ele:pr` body or
+  a Slack or WhatsApp block, each of which must close its turn, the line
+  under it names the new one for the user to run next
+- Arriving in a new turn: one line naming what holds it, and to run it again
+  once that is done, is the whole turn
 
 `<root>` is `git rev-parse --show-toplevel` of the working directory.
 `<scratch>` is a new directory in the session scratchpad:
@@ -57,7 +72,7 @@ not yet reviewed without the offer.
 
 Committed work is not gated. The body calls a commit reviewed only where a
 plan tick line in the range or this session's conversation shows a review of
-it; otherwise it says nothing of review.
+it, saved as step 3 says; otherwise it says nothing of review.
 
 Done when the tree is clean, covered, or its changes are marked not yet
 reviewed.
@@ -78,20 +93,28 @@ named for what it holds:
   asserts done, at which boundary and at which commit; a deleted plan file is
   a closed plan
 - Each test or gate run this session made, one file per run: the command, the
-  commit it ran at, its exit code and its output, as the conversation or its
-  captured log holds it. A run made before a later edit to a path in the range
-  is that edit's past, not its evidence
-- `ci.txt`: each step a pull or merge request's CI runs, one line each with
-  its file and job: the workflows under `.github/workflows/` that
-  `pull_request` triggers, and the jobs of `.gitlab-ci.yml` that run in a
-  merge request pipeline. A release, deploy or scheduled job is not a check on
-  the change. None present, no file
+  commit it ran at, whether the working tree held changes then, the paths in
+  the range the session edited after it, or none, its exit code and its
+  output, as the conversation or its captured log holds it. A run made before
+  a later edit to a path in the range is that edit's past, not its evidence
+- `checkpoint.txt`, where step 2 found changes: the `ele checkpoint check`
+  exit code and line, and the offer's outcome: accepted, declined, or not
+  made for over 200 paths
+- `reviews.txt`, where this session reviewed a commit in the range: one line
+  a commit, its short hash and what showed the review, such as the
+  `ele checkpoint record` line, since the reviewer sees no conversation
+- `ci.txt`, wherever `.github/workflows/` or `.gitlab-ci.yml` exists: each
+  step a pull or merge request's CI runs, one line each with its file and
+  job: the workflows under `.github/workflows/` that `pull_request` triggers,
+  and the jobs of `.gitlab-ci.yml` that run in a merge request pipeline. A
+  release, deploy or scheduled job is not a check on the change. No such job,
+  a file saying so. Neither present, no file
 
 Save nothing secret: a token, key or password in an output is cut before it is
 written, and named only by its shape.
 
 Done when every claim the body will make has a file under
-`<scratch>/evidence/`.
+`<scratch>/evidence/`, and `ci.txt` exists wherever a CI config does.
 
 ## 4. Draft
 
@@ -171,10 +194,9 @@ that shows each.
 
 - **Gate**: the last gate run this session made over the range, as
   `Gate: <command> passed at <sha>`, `<sha>` the HEAD it ran at, followed by
-  "with uncommitted changes" where the tree held some; or failed, with the
-  failure. None:
-  `Gate: not run in this session`. Only runs a later edit made stale:
-  `Gate: not run since <path> changed`
+  "with uncommitted changes" where the tree held some when it ran; or failed,
+  with the failure. None: `Gate: not run in this session`. Only runs a later
+  edit made stale: `Gate: not run since <path> changed`
 - **Left to CI**: the steps in `ci.txt` that the gate run left out, which
   only CI will show. No CI config, no gate run, or nothing left out: no line
 
@@ -190,7 +212,34 @@ that shows each.
 Done when `<scratch>/body.md` holds the three sections and every claim in it
 has its evidence file.
 
-## 5. Deliver
+## 5. Review
+
+Launch one `ele:report-reviewer`, its prompt the brief below plus one line:
+read the reviewer file, by absolute path, first and follow it. The brief, every
+path absolute:
+
+- **Reviewer file**: `reviewers/pr.md` in this skill's directory
+- **Body**: `<scratch>/body.md`
+- **Evidence files**: each file under `<scratch>/evidence/`
+- **Report only**: edit nothing
+
+Then:
+
+- Fix each finding in `<scratch>/body.md`. An unbacked claim is dropped, never
+  softened; a secret is cut
+- Review once more, with the same brief over the new file
+- A finding still open after the second review is shown to the user beside the
+  draft, in step 6
+
+Claude Code may run the reviewer in the background, its report waking the
+session in a later turn. A turn that ends while a review runs ends with one
+line: the review is running, the draft follows when it returns, and a second
+draft waits until then. The turn the review's report wakes goes on with this
+step: its findings fixed, or step 6 once the second review is in.
+
+Done when the second review has reported, or the first found nothing.
+
+## 6. Deliver
 
 - **Forge**: `git -C <root> config --get remote.origin.url`. A `github.com` URL
   takes `gh pr create --title '<title>' --body-file <scratch>/body.md`; a GitLab
@@ -226,7 +275,9 @@ has its evidence file.
 - **Closing reply**: one line, then the body in a fence of `~` characters
   longer than any `~` run inside it and at least three, so its own code blocks
   survive a copy; then the commands in a `sh` block; then each change marked
-  not yet reviewed. The body file holds the body unfenced
+  not yet reviewed, each finding step 5 left open, and any `/ele:pr` or
+  report held mid-turn, named for the user to run next. The body file holds
+  the body unfenced
 
 The files under `<scratch>` stay until the scratchpad goes; nothing else is
 written.
@@ -240,6 +291,7 @@ rows added; stop and report in the running conversation.
 
 | Error contains | Class | One fix |
 | --- | --- | --- |
+| `report-reviewer' not found` | Plugin agent not loaded | Stop: a reviewer with Bash could be steered by a commit message or a changed file; say the plugin needs reloading |
 | `not a git repository` | Not in a repository | Stop: say a PR body needs a branch to describe |
 | `name the base` | No base to measure from | Ask for a `<base>` ref in an AskUserQuestion call |
 | `unknown revision` from a read of the `<base>` argument | A `<base>` that names no commit | Ask for another in an AskUserQuestion call |

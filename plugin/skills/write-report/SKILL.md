@@ -12,22 +12,23 @@ note, since only the user knows whether a report went out. Slack and WhatsApp
 text is the closing reply, ready to paste; a file is written where the user
 confirms.
 
-One report at a time. An earlier report is in progress while its turn is still
-running or its own review still runs in the background; one that stopped, at
-step 2's checkpoint offer, an error or the user's word, holds nothing up, its
-own reviewer still running or not. A checkpoint this session started over the
-changes in scope, offered at step 2 or typed by the user, holds a new report
-too until it has recorded or closed for every repository in scope or the user
-says it stopped, since the new report's step 2 would meet the same unreviewed
-changes. The user's word to run a new one anyway overrides either hold, step 2
-then deciding. A new report held does no work of its own:
+One report at a time, an `/ele:pr` draft counting as one. An earlier report
+is in progress while its turn is still running or its own review still runs
+in the background; one that stopped, at step 2's checkpoint offer, an error
+or the user's word, holds nothing up, its own reviewer still running or not.
+A checkpoint this session started over the changes in scope, offered at step
+2 or typed by the user, holds a new report too until it has recorded or
+closed for every repository in scope or the user says it stopped, since the
+new report's step 2 would meet the same unreviewed changes. The user's word
+to run a new one anyway overrides either hold, step 2 then deciding. A new
+report held does no work of its own:
 
 - Arriving mid-turn, before the turn of what holds it ends, as a command typed
   then did as of 2026-11-17, or typed as the answer to its question, which is
   then asked again since the answer chose nothing: that turn carries on. After
   a file delivery the new one runs in the same turn, from step 1. A Slack or
-  WhatsApp block must close its turn, so after one the line under the block
-  names the new one for the user to run next
+  WhatsApp block, or an `/ele:pr` body, must close its turn, so after one the
+  line under it names the new one for the user to run next
 - Arriving in a new turn: one line naming what holds it, the earlier report's
   review or the checkpoint, and to run it again once that is done, is the
   whole turn

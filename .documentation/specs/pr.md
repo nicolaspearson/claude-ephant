@@ -42,13 +42,17 @@ seen. An ele plugin skill, not a user skill, because its evidence is ele's:
 Saved into a new directory in the session scratchpad, one file per piece: the
 range's diff and log, the working tree's diff with new files, the diff of
 `.documentation/plans/` whose added ticks say what the range asserts done, each
-test or gate run the session made, and the steps a pull or merge request's CI
-runs, release and scheduled jobs left out. A claim
-with no file is left out of the body.
+test or gate run the session made, the checkpoint check's result, a review of
+a commit the conversation shows, and the steps a pull or merge request's CI
+runs, release and scheduled jobs left out. A claim with no file is left out
+of the body. The CI file is written wherever a CI config exists, saying so
+where no job qualifies, so the reviewer can hold a "Left to CI" line against
+it.
 
 - The Gate line names the last gate run over the range at the commit it ran
-  at, "with uncommitted changes" where the tree held some, or says "Gate: not run in this session", or, where a later edit made
-  every run stale, "Gate: not run since <path> changed"
+  at, "with uncommitted changes" where the tree held some, or says "Gate: not
+  run in this session", or, where a later edit made every run stale, "Gate:
+  not run since <path> changed"
 - The "Left to CI" line names the steps `.github/workflows/` or
   `.gitlab-ci.yml` runs that the session's gate left out, since a green local
   gate is not a green CI. Not "Not run in CI", which reads as steps CI skips.
@@ -73,6 +77,31 @@ with no file is left out of the body.
   costs config, tests and docs rows
 - No "Generated with Claude Code" line, overriding Claude Code's PR
   attribution: the body goes to the reviewer as the user's text
+
+## Review
+
+- `ele:report-reviewer`, the agent `/ele:write-report` uses, reads the body
+  and the evidence files before the user sees the draft, briefed with
+  `plugin/skills/pr/reviewers/pr.md`: each claim backed, the Gate and "Left to
+  CI" lines against the gate run files and `ci.txt`, no commit called
+  reviewed without a plan tick or `reviews.txt` line, every behaviour change
+  in the range covered, a Door and Blast Radius the diffs support, no footer,
+  no secret, no typed punctuation. Not a second agent: the brief already
+  takes a reviewer file and evidence, and Glob, Grep and Read only suit
+  evidence that may be written to steer it, a diff as much as a fetched page
+- The skill saves what the reviewer cannot see, since it sees no
+  conversation: each gate run with the tree's state when it ran and the
+  range's paths edited after it, the checkpoint check's result and the
+  offer's outcome in `checkpoint.txt`, and in `reviews.txt` a review of a
+  commit the conversation shows
+- Findings are fixed in the body, which is reviewed once more; an unbacked
+  claim is dropped, never softened, and one still open after the second
+  review is shown beside the draft, as `/ele:write-report` does
+- One draft at a time with `/ele:write-report`, whose spec sets the rule, an
+  `/ele:pr` draft counting as a report and its body closing its turn as a
+  Slack block does: a review running in the background holds a new `/ele:pr`
+  or report until it returns, and a turn ending while it runs says so in one
+  line
 
 ## Delivery
 
@@ -109,5 +138,6 @@ not checked.
 
 ## In the plugin
 
-- `plugin/skills/pr/SKILL.md` and `references/CREDITS.md`
+- `plugin/skills/pr/SKILL.md`, `references/CREDITS.md` and
+  `reviewers/pr.md`
 - A docs page of its own, `docs/pr.md`

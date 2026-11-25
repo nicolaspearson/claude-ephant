@@ -55,14 +55,15 @@ the rest in one question.
    the draft reviewed once more; an unbacked claim is dropped, never softened,
    and one still open is shown to you beside the draft. The review may run in
    the background: a turn that ends while it runs says so, and the block
-   follows on its own when the review returns. One report runs at a time: the
-   first carries on, and a report you start while it is still being drafted
-   starts by itself once a first file report is written, or is named for you
-   to run next under a first Slack or WhatsApp block; one you start after its
-   turn has ended, while its review runs, asks you to run it again. A report that stopped for a checkpoint goes ahead when you
-   run it again once that checkpoint is done; run while any checkpoint over the
-   same changes is still going, it says it waits. Tell it to run anyway and it
-   does
+   follows on its own when the review returns. One report runs at a time, a
+   `/ele:pr` draft counting as one: the first carries on, and a report you
+   start while it is still being drafted starts by itself once a first file
+   report is written, or is named for you to run next under a first Slack or
+   WhatsApp block or `/ele:pr` body; one you start after its turn has ended,
+   while its review runs, asks you to run it again. A report that stopped for
+   a checkpoint goes ahead when you run it again once that checkpoint is
+   done; run while any checkpoint over the same changes is still going, it
+   says it waits. Tell it to run anyway and it does
 7. **Delivers** it. Slack and WhatsApp text is the closing reply, in a block to
    copy. A file goes to the path you confirm, by default
    `~/Downloads/<slug>-<date>.<ext>`, and a PDF is opened for you

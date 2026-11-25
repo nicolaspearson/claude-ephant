@@ -177,13 +177,14 @@ a launch in the foreground, though one other agent type ran there, so whether
 a plugin agent can ask for it is not checked. A turn that ends while its
 review runs says so in one line, and that the block follows when the review
 returns, so the user starts no second report first: a second command typed
-earlier put two reports' blocks in one reply. One report runs at a time, so no
-two are drafted at once: a report started while an earlier one is in progress,
-its turn still running or its review running, does no work and asks to be run
-again once the earlier one is delivered, or, arriving mid-turn as the user's
-own queued request, runs once a file report is delivered, in the same turn;
-after a Slack or WhatsApp block, which must close its turn, it is named for the
-user to run next. A report that stopped holds nothing
+earlier put two reports' blocks in one reply. One report runs at a time, an
+`/ele:pr` draft counting as one, so no two are drafted at once: a report
+started while an earlier one is in progress, its turn still running or its
+review running, does no work and asks to be run again once the earlier one is
+delivered, or, arriving mid-turn as the user's own queued request, runs once
+a file report is delivered, in the same turn;
+after a Slack or WhatsApp block or an `/ele:pr` body, which must close its
+turn, it is named for the user to run next. A report that stopped holds nothing
 up, or a rerun after step 2's checkpoint offer would still be refused once that
 checkpoint is done; a rerun before then waits for it, as for any checkpoint
 the session started over the changes in scope, since its own step 2 would meet
@@ -211,16 +212,19 @@ describes would then never be asked about.
 ## In the plugin
 
 - `plugin/skills/write-report/SKILL.md` and its profiles under `references/`
-- `plugin/agents/report-reviewer.md`, `ele:report-reviewer`: a thin agent of
-  its own, as each reviewing skill has, on sonnet, with Glob, Grep and Read
-  only. It reads fetched web text, so a page written to steer it could reach
-  it; with no tool that runs a command, nothing it is steered to can run, as
-  with `ele:review-reader`. Not Bash limited in prose to read-only git and
+- `plugin/agents/report-reviewer.md`, `ele:report-reviewer`: one thin agent
+  the two drafting skills share, `/ele:write-report` and `/ele:pr`, each
+  briefing it with a reviewer file of its own, on sonnet, with Glob, Grep and
+  Read only. It reads fetched web text and diff evidence, commit messages and
+  changed files included, so text written to steer it could reach it; with no
+  tool that runs a command, nothing it is steered to can run, as with
+  `ele:review-reader`. Not Bash limited in prose to read-only git and
   `wc -m`: that limit is a request nothing enforces, and an injected page could
-  run any command through it. The skill saves the `git show` of each commit a
-  claim points to beside the evidence, and gives each render's character count
-  in the brief. Its instructions are
-  `plugin/skills/write-report/reviewers/report.md`
+  run any command through it. `/ele:write-report` saves the `git show` of each
+  commit a claim points to beside the evidence, and gives each render's
+  character count in the brief; `/ele:pr` saves the range's diff and log. The
+  reviewer files are `plugin/skills/write-report/reviewers/report.md` and
+  `plugin/skills/pr/reviewers/pr.md`
 - `plugin/reference/report-voice.md`, the shipped voice
 - A docs page of its own, `docs/reports.md`, as `/ele:review` has
 - The eval case `plugin/evals/write-report-whatsapp`: a WhatsApp report of one
