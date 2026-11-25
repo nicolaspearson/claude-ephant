@@ -40,10 +40,11 @@ branch, `origin/HEAD`.
    `Gate:` and "Left to CI" lines against the runs and your CI config, any
    commit called reviewed, and that the Summary covers every change. Findings
    are fixed and the draft reviewed once more; an unbacked claim is dropped,
-   never softened, and one still open is shown to you beside the draft. The
-   review may run in the background: a turn that ends while it runs says so,
-   and the draft follows when it returns. One draft runs at a time, shared
-   with `/ele:write-report`
+   never softened, and one still open is shown to you beside the draft, as is
+   any question the reviewer leaves for you to settle. The review may run in
+   the background: a turn that ends while it runs says so, and the draft
+   follows when it returns. One draft runs at a time, shared with
+   `/ele:write-report`
 5. **Hands it over.** The closing reply holds the body in a `~~~` block to
    copy, and `gh pr create --body-file <file>` for a GitHub remote or
    `glab mr create --description-file <file>` for a GitLab one. Where the

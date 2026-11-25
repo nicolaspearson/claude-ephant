@@ -230,14 +230,19 @@ Then:
 - Review once more, with the same brief over the new file
 - A finding still open after the second review is shown to the user beside the
   draft, in step 6
+- A Question is not a finding: it is shown to the user beside the draft, in
+  step 6, and the body is not edited for it. An edit made anyway, after a
+  clean review or after the second, is reviewed once more before delivery;
+  a finding that review leaves is shown beside the draft, in step 6, and the
+  body is not edited again
 
 Claude Code may run the reviewer in the background, its report waking the
 session in a later turn. A turn that ends while a review runs ends with one
 line: the review is running, the draft follows when it returns, and a second
 draft waits until then. The turn the review's report wakes goes on with this
-step: its findings fixed, or step 6 once the second review is in.
+step: its findings fixed, or step 6 once the last review is in.
 
-Done when the second review has reported, or the first found nothing.
+Done when the last review has reported and the body has not changed since it.
 
 ## 6. Deliver
 
@@ -275,9 +280,9 @@ Done when the second review has reported, or the first found nothing.
 - **Closing reply**: one line, then the body in a fence of `~` characters
   longer than any `~` run inside it and at least three, so its own code blocks
   survive a copy; then the commands in a `sh` block; then each change marked
-  not yet reviewed, each finding step 5 left open, and any `/ele:pr` or
-  report held mid-turn, named for the user to run next. The body file holds
-  the body unfenced
+  not yet reviewed, each finding step 5 left open, each reviewer Question,
+  and any `/ele:pr` or report held mid-turn named for the user to run next.
+  The body file holds the body unfenced
 
 The files under `<scratch>` stay until the scratchpad goes; nothing else is
 written.

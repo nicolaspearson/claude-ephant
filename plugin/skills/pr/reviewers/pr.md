@@ -71,5 +71,6 @@ One section per kind, in the order of Hunt. Per finding:
 - What is wrong, in one line
 
 Then **Questions**: a claim whose evidence could be read either way, with what
-would settle it. Then **Verdict**: the count of each kind, or that the body is
-clean.
+would settle it. A Question goes to the user beside the draft, not into the
+body, so suggest no rewording under it; a defect is a finding. Then
+**Verdict**: the count of each kind, or that the body is clean.

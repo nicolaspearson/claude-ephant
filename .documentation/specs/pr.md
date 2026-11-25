@@ -97,6 +97,10 @@ it.
 - Findings are fixed in the body, which is reviewed once more; an unbacked
   claim is dropped, never softened, and one still open after the second
   review is shown beside the draft, as `/ele:write-report` does
+- A reviewer Question, a claim its evidence leaves open, is shown beside the
+  draft and not acted on: an edit after the last review would reach the user
+  unreviewed, so an edit made anyway is reviewed once more, and what that
+  review finds is shown, not fixed
 - One draft at a time with `/ele:write-report`, whose spec sets the rule, an
   `/ele:pr` draft counting as a report and its body closing its turn as a
   Slack block does: a review running in the background holds a new `/ele:pr`

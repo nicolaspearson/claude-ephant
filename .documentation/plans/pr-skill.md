@@ -279,6 +279,21 @@ test runs, checked by a reviewer before it reaches the user.
     edits; `task check FORCE=1` and `task audit` pass. Not exercised: a
     second draft held during a review, the agent-not-found Errors row,
     `reviews.txt`, a repository with no CI config
+- [x] pr-questions: a reviewer Question is shown to the user beside the
+      draft, never acted on without another review (from the inbox,
+      2026-11-25: after a clean first review in the pr-review rerun, the
+      session edited `body.md` for a Question and delivered the edit
+      unreviewed)
+  - done when `plugin/skills/pr/SKILL.md`'s Review step and
+    `plugin/skills/pr/reviewers/pr.md` say so, and `task check FORCE=1` and
+    `task audit` pass
+  - asserted in the pr-questions commit: `SKILL.md`'s Review step shows a
+    reviewer Question beside the draft and edits nothing for it, reviews an
+    edit made anyway once more, shows what that review finds without fixing
+    it, and is done only when the last review has reported and the body has
+    not changed since; `reviewers/pr.md` tells the reviewer a Question goes
+    to the user, not into the body; checked by review of the text, not by a
+    run; `task check FORCE=1` and `task audit` pass
 - [ ] pr-eval: an eval case under `plugin/evals/` whose `scaffold.sh` makes a
       repository with an origin and a branch commits ahead of it, its prompt
       asking for a PR description in plain words, not the slash command,
@@ -295,11 +310,6 @@ test runs, checked by a reviewer before it reaches the user.
 - [ ] Fold each Decision through `/ele:plan-audit close .documentation/plans/pr-skill.md`, then what this plan built and its out-of-scope lines as `Not doing:` into the spec, run `ele plan done .documentation/plans/pr-skill.md`, and delete this plan
 
 ## Inbox
-
-- 2026-11-25, from the pr-review rerun: after a clean first review, the
-  session edited `body.md`'s Before and After lines for a reviewer Question
-  and delivered the edit unreviewed; the skill's Review step does not say
-  whether an edit made for a Question needs another review
 
 ## Out of scope
 
