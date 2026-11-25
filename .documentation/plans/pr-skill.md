@@ -228,7 +228,7 @@ test runs, checked by a reviewer before it reaches the user.
     named Ledger, Posting and Balance as `GLOSSARY.md` defines them, Evidence
     held `Left to CI: lint`, and it printed `glab mr create
     --description-file`; no skill change, so no gate
-- [ ] pr-review: add `plugin/skills/pr/reviewers/pr.md` and the step that
+- [x] pr-review: add `plugin/skills/pr/reviewers/pr.md` and the step that
       launches `ele:report-reviewer` with it over the body and the evidence
       files before delivery, an unbacked claim dropped, never softened, a
       finding still open shown to the user beside the draft, and an Errors
@@ -268,14 +268,17 @@ test runs, checked by a reviewer before it reaches the user.
     matches the agent type only; internal/skilllint `allowedEntries` admits
     `reviewers/` and its `checkLinks` fails a `reviewers/…md` code span with
     no file under the skill's own directory
-  - as of 2026-11-25: the review step, `reviewers/pr.md`, the shared agent's
-    description and the spec and docs lines are written, and `task check
-    FORCE=1` and `task audit` pass. Two `--plugin-dir` runs in a scratch
-    repository showed an appended unbacked line flagged and dropped and a
-    clean body passing, each leaving `ci.txt`, but on the text before the
-    checkpoint's fixes: run files with tree state and later edits,
-    `checkpoint.txt`, and the reviewer's Gate, Left to CI and Reviewed rules
-  - next: rerun both scenario sessions on the fixed text, then tick
+  - asserted in 79f6417: two real sessions on its plugin (`--plugin-dir`) in
+    a scratch repository with a gitlab.com origin, `GLOSSARY.md`, a
+    `.gitlab-ci.yml` and an uncommitted `check.sh`, the checkpoint offer
+    declined: with "Load-tested at 10,000 Postings a second" appended to
+    `body.md` before the review, `ele:report-reviewer` flagged it as unbacked,
+    the session dropped it and the second review found nothing; without the
+    edit one review found nothing; each left `ci.txt` and `checkpoint.txt`
+    under its evidence directory and run files with tree state and later
+    edits; `task check FORCE=1` and `task audit` pass. Not exercised: a
+    second draft held during a review, the agent-not-found Errors row,
+    `reviews.txt`, a repository with no CI config
 - [ ] pr-eval: an eval case under `plugin/evals/` whose `scaffold.sh` makes a
       repository with an origin and a branch commits ahead of it, its prompt
       asking for a PR description in plain words, not the slash command,
@@ -292,6 +295,11 @@ test runs, checked by a reviewer before it reaches the user.
 - [ ] Fold each Decision through `/ele:plan-audit close .documentation/plans/pr-skill.md`, then what this plan built and its out-of-scope lines as `Not doing:` into the spec, run `ele plan done .documentation/plans/pr-skill.md`, and delete this plan
 
 ## Inbox
+
+- 2026-11-25, from the pr-review rerun: after a clean first review, the
+  session edited `body.md`'s Before and After lines for a reviewer Question
+  and delivered the edit unreviewed; the skill's Review step does not say
+  whether an edit made for a Question needs another review
 
 ## Out of scope
 
