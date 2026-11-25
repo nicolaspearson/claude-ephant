@@ -197,7 +197,7 @@ test runs, checked by a reviewer before it reaches the user.
     `ele checkpoint base`, which prints HEAD on a branch pushed with `-u`; the
     Deliver branch commands and that base were checked by their read-only git
     reads on `add-ele-pr`, not by a full run
-- [ ] pr-scenarios: run `/ele:pr` through the paths the real run on `main`
+- [x] pr-scenarios: run `/ele:pr` through the paths the real run on `main`
       does not reach, fixing the skill where one fails
   - done when a run in a scratch repository whose origin is a GitLab URL
     prints `glab mr create --description-file`; a run with an uncommitted
@@ -207,6 +207,27 @@ test runs, checked by a reviewer before it reaches the user.
     scratch repository whose CI config runs a step the session's gate did
     not prints a "Left to CI" line naming it; and, where the skill
     changed, `task format`, `task check FORCE=1` and `task audit` pass
+  - as of 2026-11-25, premise check: the skill's Deliver Forge bullet maps
+    "a GitLab one" to `glab mr create --description-file` with no host rule,
+    so a self-hosted host without `gitlab` in it falls to the body path
+    alone; its Checkpoint step offers `/ele:checkpoint` on exit 1 of
+    `ele checkpoint check`, which a repository with no checkpoint record
+    gives (cmd/ele `checkpointCheck`, internal/checkpoint `Reviewed`), and
+    its Draft step reads `GLOSSARY.md` whole; `ci.txt` names "the jobs of
+    `.gitlab-ci.yml` that run in a merge request pipeline" without saying
+    how `rules:`, `only:` or `workflow:` decide that
+  - as of 2026-11-25: the installed plugin has no `skills/pr`, so a run
+    needs `claude --plugin-dir <clone>/plugin`, as `task dev` starts; no
+    eval scaffold under `plugin/evals/` adds an origin
+  - asserted by a real session on the installed 1.4.0 plugin in a scratch
+    repository (gitlab.com origin, `GLOSSARY.md`, `.gitlab-ci.yml` with a
+    `lint` job the local `check.sh` leaves out, a branch one commit ahead
+    and an uncommitted `check.sh`), asked in plain words: it started
+    `ele:pr`, offered `/ele:checkpoint` on `ele checkpoint check` exit 1, and
+    once declined wrote the change as "changed, not yet reviewed"; the body
+    named Ledger, Posting and Balance as `GLOSSARY.md` defines them, Evidence
+    held `Left to CI: lint`, and it printed `glab mr create
+    --description-file`; no skill change, so no gate
 - [ ] pr-review: add `plugin/skills/pr/reviewers/pr.md` and the step that
       launches `ele:report-reviewer` with it over the body and the evidence
       files before delivery, an unbacked claim dropped, never softened, a
@@ -242,6 +263,13 @@ test runs, checked by a reviewer before it reaches the user.
 - [ ] Fold each Decision through `/ele:plan-audit close .documentation/plans/pr-skill.md`, then what this plan built and its out-of-scope lines as `Not doing:` into the spec, run `ele plan done .documentation/plans/pr-skill.md`, and delete this plan
 
 ## Inbox
+
+- 2026-11-25, from the pr-scenarios run: the run wrote no `ci.txt`, so its
+  `Left to CI: lint` line had no evidence file behind it, which the skill's
+  Evidence step requires of every claim
+- 2026-11-25, from the pr-scenarios premise check: the Deliver Forge bullet
+  has no host rule for "a GitLab one", so a self-hosted GitLab whose host
+  lacks `gitlab` gets only the body file's path
 
 ## Out of scope
 
