@@ -42,7 +42,7 @@ const (
 var (
 	checkpointNames = []string{"checkpoint", "ele:checkpoint"}
 	// Drafts for the user, not notes: work before one stays pending.
-	draftNames    = []string{"ele:recipe", "ele:write-report"}
+	draftNames    = []string{"ele:pr", "ele:recipe", "ele:write-report"}
 	proposalNames = []string{"ele:handoff", "ele:remember", "ele:wrap"}
 	// A third of the Stop hook's 30s timeout: a scan killed by the timeout saves no offset, so every later stop would start it over.
 	scanBudget = 10 * time.Second

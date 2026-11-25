@@ -35,6 +35,7 @@ handoffs, flags and plans listed newest first are ordered by `time`.
 | `/ele:mine`             | Judge past checkpoint runs and review cycles, for tuning the checkpoint skill; see [Mining](improving-ele.md#mining) |
 | `/ele:plan`             | Pick up the active plan, or `new <name>` or `convert <spec>`; see [Plans](plans.md)              |
 | `/ele:plan-audit`       | Audit active plans against the code and each other, `drafts` before a start, or `close` a plan's Decisions; see [Auditing plans](plans.md#auditing-plans) |
+| `/ele:pr`               | Draft a PR or MR body for the branch from its diff, plan ticks and the session's test and gate runs, and print the create command, never run; see [Pull request bodies](pr.md) |
 | `/ele:recall`           | Search earlier sessions; see [Recall](notes-and-recall.md#recall)                                 |
 | `/ele:recipe`           | Keep a procedure the session ran as a skill of your own, or `audit` your skills for stale commands; see [Recipes](recipes.md) |
 | `/ele:remember`         | Save a decision, question, fact or reminder; see [Saving one](notes-and-recall.md#saving-one)     |
@@ -272,8 +273,9 @@ each.
 | `ele session-start`                             | SessionStart hook: the block a session opens with  |
 | `ele stop-check`                                | Stop hook: the notes ask and the context size hint; `--replay` replays it, under [History](#history) |
 | `ele checkpoint gate`, `ele checkpoint snapshot` | Stop and UserPromptSubmit hooks: the checkpoint gate |
-| `ele checkpoint base`, `close`, `density`, `freeze`, `hash`, `optout`, `record` | `/ele:checkpoint` |
-| `ele checkpoint check`                          | `/ele:checkpoint` and `/ele:wrap`                  |
+| `ele checkpoint base`                           | `/ele:checkpoint` and `/ele:pr`                    |
+| `ele checkpoint check`                          | `/ele:checkpoint`, `/ele:pr`, `/ele:wrap` and `/ele:write-report` |
+| `ele checkpoint close`, `density`, `freeze`, `hash`, `optout`, `record` | `/ele:checkpoint` |
 | `ele checkpoint log`                            | `/ele:checkpoint` and `/ele:review`                |
 | `ele checkpoint stats [--since <YYYY-MM-DD\|Nd>]` | `/ele:checkpoint-stats`                            |
 | `ele ticket corpus`, `ele ticket ledger`        | `/ele:ticket-audit` and `/ele:plan-audit`          |

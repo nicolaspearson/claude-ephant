@@ -60,7 +60,8 @@ test runs, checked by a reviewer before it reaches the user.
   `/ele:<name>` row in `docs/commands.md` and `README.md`, `Use when` in a
   model-invocable skill's description, under 500 lines, and only
   `references/`, `scripts/`, `assets/` and `reviewers/` beside `SKILL.md`
-  (read from CONTRIBUTING.md; internal/skilllint source not checked)
+  (internal/skilllint `allowedEntries`, `checkDescription`, `maxSkillLines`,
+  `CheckDocs`)
 - As of 2026-11-24: `/ele:write-report` is draft only, gathers evidence files
   into a scratch directory, gates uncommitted work with
   `ele checkpoint check`, reads `report_voice`, and reviews through
@@ -74,7 +75,8 @@ test runs, checked by a reviewer before it reaches the user.
   something; no ele command says whether a branch's commits were
   checkpointed, `ele checkpoint stats` only aggregating the log
 - As of 2026-11-24: on `main` of this repository `ele checkpoint base` prints
-  HEAD itself, so a branch with no commits ahead has nothing to describe
+  the merge-base with origin/main, HEAD itself only once main is pushed, so
+  a pushed branch with no commits ahead has nothing to describe
 - As of 2026-11-24: `gh pr create` takes `--body-file`; `glab mr create`
   (1.131.0) takes `--description-file`
 - As of 2026-11-24: `/ele:review`'s references detect the forge from
@@ -113,7 +115,7 @@ test runs, checked by a reviewer before it reaches the user.
 
 ## Actions
 
-- [ ] pr-draft: write `plugin/skills/pr/SKILL.md`, model-invocable (no
+- [x] pr-draft: write `plugin/skills/pr/SKILL.md`, model-invocable (no
       `disable-model-invocation`, a `Use when` description), taking an
       optional `<base>` ref, and `plugin/skills/pr/references/CREDITS.md`
       holding Matt Pocock's MIT copyright and permission notice; with the
@@ -137,9 +139,9 @@ test runs, checked by a reviewer before it reaches the user.
       - evidence files into a scratch directory: the range's diff and log,
       plan tick lines from the range's diff of `.documentation/plans/`,
       the session's test and gate runs; the Gate line from the gate run
-      this session holds, else "Gate: not run in this session"; the "Not
-      run in CI" line from what the CI config (`.github/workflows/`,
-      `.gitlab-ci.yml`) leaves out of the gate the session ran
+      this session holds, else "Gate: not run in this session"; the "Left
+      to CI" line from the steps the CI config (`.github/workflows/`,
+      `.gitlab-ci.yml`) runs that the session's gate left out
       - domain language from the repository's `GLOSSARY.md` where one exists
       - voice, draft, deliver: the body fenced by a tilde run longer than
       any inside it, the body file holding the body unfenced, and
@@ -157,6 +159,44 @@ test runs, checked by a reviewer before it reaches the user.
     an `ele:pr` run exempt, seen red with `ele:pr` removed from
     `draftNames`; and `task format`, `task check FORCE=1` and `task audit`
     pass
+  - as of 2026-11-24, premise check: cmd/ele `draftNames` holds
+    `ele:recipe` and `ele:write-report`, read in `stopState`; its
+    stopcheck_test.go rows "a report keeps earlier work pending" and "a
+    typed report keeps earlier work pending" are the two an `ele:pr` pair
+    copies; `.documentation/specs/stop-check.md`'s "An `ele:recipe` or
+    `ele:write-report` run's own calls are exempt" is the spec line
+  - as of 2026-11-24: the "Used by" rows are in `docs/commands.md`'s
+    `## Used by the skills and hooks`: `ele checkpoint base` shares a row
+    with `close`, `density`, `freeze`, `hash`, `optout` and `record`;
+    `ele checkpoint check` is `/ele:checkpoint` and `/ele:wrap`
+  - as of 2026-11-24: `report_voice` is also described where the item does
+    not name: `.documentation/specs/design.md`'s Options list and
+    `plugin/reference/report-voice.md`'s intro; cmd/ele's config test
+    asserts no Description wording, so it needs no change unless extended
+  - as of 2026-11-24: `/ele:pr` goes in `design.md`'s Skills row and its
+    plugin file list, between `plan-audit` and `recall`; README's "run only
+    when you type them" list leaves it out, being model-invocable
+  - as of 2026-11-24: write-report fences with backticks; this item's tilde
+    fence is a deliberate difference. Its source's `agents/openai.yaml` and
+    `metadata` front matter are not carried, skilllint `allowedEntries`
+    allowing only `SKILL.md`, `assets`, `references`, `reviewers` and
+    `scripts`
+  - as of 2026-11-24, not checked: the CI configs' contents, the `gh` and
+    `glab` flags by a run, `/ele:review`'s forge detection,
+    `ele checkpoint stats`, and the `show-me` licence
+  - asserted in the pr-draft commit: a run on this repository with base
+    HEAD~3 on main printed a `~~~` fenced body (Summary; Evidence with Before,
+    After, Gate and Left to CI; Merge Danger with Door and Blast Radius), no
+    footer, an unfenced body file and a `gh pr create --body-file` command,
+    having run `ele config get report_voice` and no `gh` or `glab` write;
+    `CREDITS.md`'s licence byte-identical to the source and no `SKILL.md`
+    sentence shared with it; stopcheck's two `ele:pr` rows and the
+    `report_voice` config test red with the change reverted, green with it;
+    `task format`, `task check FORCE=1` and `task audit` green. With no
+    `<base>` the skill measures from `origin/HEAD` before
+    `ele checkpoint base`, which prints HEAD on a branch pushed with `-u`; the
+    Deliver branch commands and that base were checked by their read-only git
+    reads on `add-ele-pr`, not by a full run
 - [ ] pr-scenarios: run `/ele:pr` through the paths the real run on `main`
       does not reach, fixing the skill where one fails
   - done when a run in a scratch repository whose origin is a GitLab URL
@@ -165,7 +205,7 @@ test runs, checked by a reviewer before it reaches the user.
     Evidence reads "changed, not yet reviewed"; a run in a scratch
     repository holding a `GLOSSARY.md` uses a term it defines; a run in a
     scratch repository whose CI config runs a step the session's gate did
-    not prints a "Not run in CI" line naming it; and, where the skill
+    not prints a "Left to CI" line naming it; and, where the skill
     changed, `task format`, `task check FORCE=1` and `task audit` pass
 - [ ] pr-review: add `plugin/skills/pr/reviewers/pr.md` and the step that
       launches `ele:report-reviewer` with it over the body and the evidence

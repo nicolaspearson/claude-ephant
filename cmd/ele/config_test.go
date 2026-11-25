@@ -102,7 +102,7 @@ func TestConfigReportVoiceRoundTripsPerOwner(t *testing.T) {
 	output, code = runCommand(t, "config", "list", "--owner", "corp")
 	require.Equal(t, 0, code, output)
 	require.Contains(t, output, "report_voice  "+filepath.Join(home, "voice.md")+"  (owner corp; default \"\")\n")
-	require.Contains(t, output, "voice file ele:write-report drafts reports from")
+	require.Contains(t, output, "voice file ele:write-report and ele:pr draft from")
 }
 
 func TestConfigReviewVoiceRoundTripsGloballyAndPerOwner(t *testing.T) {
