@@ -1,0 +1,12 @@
+schema_version: "1.1"
+name: pr-describe
+description: Asked in plain words for a PR description, the session runs /ele:pr, has the body reviewed, and prints it in a ~~~ block with the create command, never running it.
+runs: 1
+execution:
+  max_turns: 60
+  timeout_seconds: 1800
+  allowed_tools: [Agent, Bash, Edit, Read, Skill, Write]
+  prompt: |
+    Write me a PR description for this branch. AskUserQuestion is not available here: where you would ask, take your recommended answer and say which you took.
+context:
+  scaffold_script: scaffold.sh

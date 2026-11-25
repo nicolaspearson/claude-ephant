@@ -294,7 +294,7 @@ test runs, checked by a reviewer before it reaches the user.
     not changed since; `reviewers/pr.md` tells the reviewer a Question goes
     to the user, not into the body; checked by review of the text, not by a
     run; `task check FORCE=1` and `task audit` pass
-- [ ] pr-eval: an eval case under `plugin/evals/` whose `scaffold.sh` makes a
+- [x] pr-eval: an eval case under `plugin/evals/` whose `scaffold.sh` makes a
       repository with an origin and a branch commits ahead of it, its prompt
       asking for a PR description in plain words, not the slash command,
       and to take the recommended answer to any ask, since AskUserQuestion
@@ -307,6 +307,15 @@ test runs, checked by a reviewer before it reaches the user.
   - done when each grader is shown red by hand against a reply or trace it
     must reject; the case run with `task eval` and passing if the user asks
     for the run, else the tick line saying it was not run
+  - asserted in the pr-eval commit: `plugin/evals/pr-describe`, a scaffold
+    with a GitHub `origin/main` by ref and a branch one commit ahead, a
+    plain-words prompt taking the recommended answer, and eight
+    deterministic graders; each grader shown red by hand in node probes
+    against replies and Bash, Skill or Agent inputs it must reject, and green
+    on ones it must accept (55 probes) and on a real `/ele:pr` closing reply;
+    CONTRIBUTING.md's sandbox-git note names the case; not run with
+    `task eval`, since no run was asked for; the scaffold syntax- and
+    shellcheck-checked, not run
 - [ ] Fold each Decision through `/ele:plan-audit close .documentation/plans/pr-skill.md`, then what this plan built and its out-of-scope lines as `Not doing:` into the spec, run `ele plan done .documentation/plans/pr-skill.md`, and delete this plan
 
 ## Inbox

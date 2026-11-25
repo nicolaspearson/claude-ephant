@@ -145,3 +145,9 @@ not checked.
 - `plugin/skills/pr/SKILL.md`, `references/CREDITS.md` and
   `reviewers/pr.md`
 - A docs page of its own, `docs/pr.md`
+- The eval case `plugin/evals/pr-describe`: a branch one commit ahead of a
+  GitHub `origin/main`, a PR description asked for in plain words, graded
+  on the trace (the skill loaded, the reviewer launched, no `gh pr create`
+  or `glab mr create` run however invoked) and on the reply's `~~~` block,
+  which must hold the three sections, a `Gate:` line, Door and Blast Radius,
+  and no "Generated with Claude Code"
