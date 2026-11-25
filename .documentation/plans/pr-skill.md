@@ -26,7 +26,7 @@ test runs, checked by a reviewer before it reaches the user.
    posts or edits a PR or MR
 5. Sections Summary (smallest visual that makes the point, guidance the
    skill follows, not a reviewer check), Evidence (before and after, a Gate
-   line, a "Not run in CI" line where something was not run) and Merge
+   line, a "Left to CI" line for the steps only CI runs) and Merge
    Danger (Door, Blast Radius)
 6. Uncommitted work not checkpointed: offer `/ele:checkpoint`; declined,
    Evidence says "changed, not yet reviewed"
