@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.5.0](https://github.com/nicolaspearson/claude-ephant/compare/v1.4.0...v1.5.0) (2026-11-25)
+
+
+### Features
+
+* dd /ele:pr: draft a PR or MR body from the branch evidence ([017fdee](https://github.com/nicolaspearson/claude-ephant/commit/017fdee8c904a0c50352167f4e2bd77d219fda70))
+* **skills:** /ele:pr drafts a PR or MR body from the branch's evidence ([fb435da](https://github.com/nicolaspearson/claude-ephant/commit/fb435dadf3d5332c21c2006c65d6c419ced5a45a))
+* **skills:** /ele:pr reviews its body against the evidence before delivery ([79f6417](https://github.com/nicolaspearson/claude-ephant/commit/79f64173675884765f187e291cbee6b660fc4f27))
+* **skills:** /ele:pr shows reviewer questions instead of acting on them ([c154588](https://github.com/nicolaspearson/claude-ephant/commit/c154588837355bd69df1836934b685ae8f00c3bf))
+
 ## [1.4.0](https://github.com/nicolaspearson/claude-ephant/compare/v1.3.0...v1.4.0) (2026-11-23)
 
 
