@@ -23,6 +23,8 @@ seen. An ele plugin skill, not a user skill, because its evidence is ele's:
   would drop out of the body
 - A range with no commit and a clean tree has nothing to describe: the skill
   says so, naming the base, and stops
+- Not doing: commit messages: `/ele:checkpoint`'s step 9 already prints a
+  subject
 
 ## Checkpoint
 
@@ -32,7 +34,8 @@ seen. An ele plugin skill, not a user skill, because its evidence is ele's:
   not yet reviewed"
 - Committed work is not gated: the user's rules checkpoint before every commit,
   no ele command says whether a commit was checkpointed, and offering a branch
-  checkpoint on every run would fire on nearly every run after the work's own.
+  checkpoint when the session holds no review of the commits would fire on
+  nearly every run after the work's own.
   `/ele:write-report` treats committed work the same way. The body calls a
   commit reviewed only where a plan tick line in the range or the session
   shows a review of it
@@ -129,6 +132,11 @@ it.
   runs none: git writes are the user's
 - No ele note is written. The Stop hook exempts the run's own calls as it does
   `/ele:write-report`'s: work before it stays pending for the next notes ask
+- Not doing: updating the body of an already open PR or MR: drafting the
+  first body is the need shown
+- Not doing: a host rule for a self-hosted GitLab whose host lacks `gitlab`:
+  such a user still gets the body file's path, and a host test means reading
+  `glab`'s config
 
 ## Attribution
 
