@@ -139,7 +139,8 @@ The media are a fixed set in the plugin; a new one is a new profile file.
   meaning the shipped file. Set per owner, as `review_voice` is, so work and
   personal reports can sound different. The report voice is like the review
   voice in this mechanism, a file set per owner with a shipped default, not in
-  its style. A separate option, not `review_voice`
+  its style. `/ele:pr` drafts in it too, a PR body being a report to a
+  reviewer; see the pr spec. A separate option, not `review_voice`
   reused, since the review voice's Conventional Comments labels and its "we"
   for the team's code do not fit a reader outside the team; and not a second
   section in the review voice file, since one path would then hold two voices

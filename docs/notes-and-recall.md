@@ -33,8 +33,9 @@ and again an hour after it asked if work has happened since.
 Your terminal shows the ask as `Stop hook feedback:` under Claude Code's
 `Ran <n> stop hooks` line, not as a hook error, and the turn carries on.
 It never asks during a checkpoint, or a `/ele:review` once its reviewers start,
-since both end turns mid-run. A [`/ele:write-report`](reports.md) run's own
-question and file raise no ask, but work done before it still does. The
+since both end turns mid-run. A [`/ele:write-report`](reports.md) or
+[`/ele:pr`](pr.md) run's own questions and files raise no ask, but work done
+before it still does. The
 `notes_ask` option off stops it asking.
 Claude puts each proposed note to you as a Write or Skip question, and writes
 the ones you approve. With the `auto_note_writes` option on, it writes them

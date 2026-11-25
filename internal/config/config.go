@@ -106,7 +106,7 @@ var Options = []Option{
 	},
 	{
 		Default:     "",
-		Description: "An absolute or ~/ path to the voice file ele:write-report drafts reports from, in place of the shipped one; empty for the shipped one.",
+		Description: "An absolute or ~/ path to the voice file ele:write-report and ele:pr draft from, in place of the shipped one; empty for the shipped one.",
 		Kind:        KindPath,
 		Name:        "report_voice",
 	},

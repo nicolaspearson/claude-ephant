@@ -73,7 +73,8 @@ The shipped voice writes as one person to a reader who was not there: the
 current state with no session history, the assumption inside each question so
 yes is enough, every figure dated, and limits stated plainly. Point
 `report_voice` at your own, per owner if your clients and your teammates should
-hear different voices; see [Options](data-and-privacy.md#options).
+hear different voices; see [Options](data-and-privacy.md#options). The same
+file is the voice of `/ele:pr`'s [pull request bodies](pr.md).
 
 ## What it leaves behind
 

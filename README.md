@@ -60,7 +60,8 @@ before it is called done.
 - **Reports shaped to where they go.** `/ele:write-report` drafts one report of
   a session's work for one reader, in your voice, for Slack, WhatsApp or a
   Markdown, HTML or PDF file, every claim checked against the session's
-  evidence first; it never sends
+  evidence first; it never sends. `/ele:pr` drafts a PR or MR body the same
+  way, from the branch's diff and the session's test and gate runs
 - **Tickets checked against the code.** `/ele:ticket-audit` finds the tickets
   whose premises the code no longer holds, before you pick one up
 
@@ -130,6 +131,7 @@ As of 2026-11-14, on the author's own work across two Claude Code accounts:
 
 | Skill               | What it does                                                                    | Guide                      |
 | ------------------- | ------------------------------------------------------------------------------- | -------------------------- |
+| `/ele:pr`           | Draft a PR or MR body from the branch's diff and the session's evidence         | [Pull request bodies](docs/pr.md) |
 | `/ele:write-report` | Draft one report of a session's work for one reader, shaped to where it is sent | [Reports](docs/reports.md) |
 
 ### Improving ele
@@ -231,6 +233,8 @@ Claude starts most of these when what you say calls for one. `/ele:plan`,
 - [Review](docs/review.md): merge requests and pull requests, experimental
 - [Reports](docs/reports.md): one report of a session's work for one reader,
   shaped to where it is sent
+- [Pull request bodies](docs/pr.md): a PR or MR body drafted from the branch
+  and the session's evidence
 - [Data and privacy](docs/data-and-privacy.md): what is stored, where, what is
   redacted, what leaves your machine, and which models the subagents run on
 - [Improving ele](docs/improving-ele.md): measuring the skills on your own data,
@@ -260,7 +264,7 @@ each does.
 - **`recipes`**, on: `/ele:wrap` offers a procedure the session ran as a skill
 - **`reminders`**, on: shows due reminders at session start
 - **`report_voice`**, empty: your own voice file for `/ele:write-report`'s
-  reports
+  reports and `/ele:pr`'s PR bodies
 - **`review_voice`**, empty: your own voice file for `/ele:review`'s comments
 
 ## Update
@@ -307,4 +311,6 @@ holds, and how to share it.
 
 ## Licence
 
-GPL-3.0-or-later: see [LICENSE](LICENSE).
+GPL-3.0-or-later: see [LICENSE](LICENSE). The `/ele:pr` skill text is adapted
+from Matt Pocock's MIT-licensed mattpocock-skills; its notice is in
+[plugin/skills/pr/references/CREDITS.md](plugin/skills/pr/references/CREDITS.md).
